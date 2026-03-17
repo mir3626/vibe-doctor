@@ -1,4 +1,5 @@
 import process from 'node:process';
+import { copyFile } from 'node:fs/promises';
 import readline from 'node:readline/promises';
 import { stdin as input, stdout as output } from 'node:process';
 import { fileExists, readJson, writeJson } from '../lib/fs.js';
@@ -15,7 +16,22 @@ async function promptValue(
   return answer || fallback;
 }
 
+async function ensureEnvFile(): Promise<void> {
+  if (await fileExists(paths.envFile)) {
+    logger.info('.env already exists');
+    return;
+  }
+  if (!(await fileExists(paths.envExample))) {
+    logger.info('.env.example not found, skipping .env creation');
+    return;
+  }
+  await copyFile(paths.envExample, paths.envFile);
+  logger.info('created .env from .env.example — fill in any API keys you need');
+}
+
 async function main(): Promise<void> {
+  await ensureEnvFile();
+
   if (await fileExists(paths.localConfig)) {
     logger.info('.vibe/config.local.json already exists');
     return;
