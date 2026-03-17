@@ -1,0 +1,28 @@
+{
+  "name": "vibe-base-claude-code-ts",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "TypeScript-first base template for Claude Code vibe coding orchestration.",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "node --test --import tsx test/**/*.test.ts",
+    "vibe:doctor": "tsx src/commands/doctor.ts",
+    "vibe:init": "tsx src/commands/init.ts",
+    "vibe:qa": "tsx src/commands/qa.ts",
+    "vibe:usage": "tsx src/commands/summarize-usage.ts",
+    "vibe:report": "tsx src/commands/write-report.ts",
+    "vibe:config-audit": "tsx src/commands/audit-config.ts",
+    "vibe:run-agent": "tsx src/commands/run-agent.ts",
+    "vibe:escalate": "tsx src/commands/escalate-on-test-failure.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "tsx": "^4.20.0",
+    "typescript": "^5.8.0"
+  }
+}

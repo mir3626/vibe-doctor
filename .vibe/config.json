@@ -1,0 +1,43 @@
+{
+  "defaultCoder": "codex",
+  "challenger": "gemini",
+  "reviewer": "claude",
+  "providers": {
+    "claude": {
+      "command": "claude",
+      "args": [
+        "-p",
+        "{prompt}"
+      ],
+      "env": {}
+    },
+    "codex": {
+      "command": "codex",
+      "args": [
+        "exec",
+        "--json",
+        "{prompt}"
+      ],
+      "env": {}
+    },
+    "gemini": {
+      "command": "gemini",
+      "args": [
+        "--prompt",
+        "{prompt}",
+        "--format",
+        "json"
+      ],
+      "env": {}
+    }
+  },
+  "qa": {
+    "preferScripts": [
+      "test:unit",
+      "test",
+      "typecheck",
+      "lint",
+      "build"
+    ]
+  }
+}
