@@ -29,6 +29,7 @@ export async function runCommand(
         ...(options?.env ?? {}),
       },
       stdio: ['ignore', 'pipe', 'pipe'],
+      shell: process.platform === 'win32',
     });
 
     let stdout = '';

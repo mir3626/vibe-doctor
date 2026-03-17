@@ -15,7 +15,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "npm run vibe:config-audit --silent"
+            "command": "cmd /c npm run vibe:config-audit --silent"
           }
         ]
       }
@@ -25,7 +25,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "npm run vibe:qa --silent"
+            "command": "cmd /c npm run vibe:qa --silent"
           }
         ]
       }
