@@ -1,0 +1,14 @@
+node_modules/
+dist/
+coverage/
+.vscode/
+.DS_Store
+.vibe/config.local.json
+.vibe/runs/
+.worktrees/
+.env
+.env.*
+!.env.example
+secrets/
+config/credentials.json
+.claude/settings.local.json

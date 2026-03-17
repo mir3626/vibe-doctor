@@ -1,0 +1,54 @@
+import path from 'node:path';
+import { writeText } from './fs.js';
+import { paths } from './paths.js';
+import { isoDate, isoStamp } from './time.js';
+import { slugify } from './slug.js';
+
+export interface ReportInput {
+  title: string;
+  summary: string;
+  changed?: string[] | undefined;
+  qa?: string[] | undefined;
+  risks?: string[] | undefined;
+  context?: string[] | undefined;
+  usage?:
+    | {
+        inputTokens: number;
+        outputTokens: number;
+        totalTokens: number;
+      }
+    | undefined;
+}
+
+export async function writeReport(input: ReportInput): Promise<string> {
+  const name = `${isoDate()}-${slugify(input.title || isoStamp())}.md`;
+  const target = path.join(paths.reportsDir, name);
+
+  const lines = [
+    `# ${input.title}`,
+    '',
+    '## Summary',
+    input.summary,
+    '',
+    '## Changed',
+    ...(input.changed?.length ? input.changed.map((item) => `- ${item}`) : ['- n/a']),
+    '',
+    '## QA',
+    ...(input.qa?.length ? input.qa.map((item) => `- ${item}`) : ['- n/a']),
+    '',
+    '## Risks',
+    ...(input.risks?.length ? input.risks.map((item) => `- ${item}`) : ['- n/a']),
+    '',
+    '## Context updates',
+    ...(input.context?.length ? input.context.map((item) => `- ${item}`) : ['- none']),
+    '',
+    '## Usage',
+    input.usage
+      ? `- input: ${input.usage.inputTokens}, output: ${input.usage.outputTokens}, total: ${input.usage.totalTokens}`
+      : '- unavailable',
+    '',
+  ];
+
+  await writeText(target, `${lines.join('\n')}\n`);
+  return target;
+}
