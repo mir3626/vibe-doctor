@@ -14,11 +14,18 @@
 
 ## 프로젝트별 규칙
 
-<!-- 클론 후 아래 항목을 채우세요 -->
+- **언어 / 런타임**: TypeScript (Node.js)
+- **네이밍**: camelCase
+- **테스트**: Vitest
 
-- **언어 / 런타임**: [예: TypeScript, Python, Go]
-- **프레임워크**: [예: Next.js, FastAPI, Gin]
-- **네이밍**: [예: camelCase, snake_case]
-- **파일 구조**: [예: feature 기반, 레이어 기반]
-- **테스트**: [예: Vitest, pytest, Go test]
-- **린터**: [예: ESLint, Ruff, golangci-lint]
+## 인코딩
+
+- 별도 요청이 없으면 항상 **UTF-8** 인코딩을 사용한다.
+- 파일 I/O, 스트림, DB 연결, HTTP 응답 등 인코딩이 관여하는 코드에서 명시적으로 `utf-8`을 지정한다.
+- CSV/JSON/텍스트 파일 생성 시 BOM 없는 UTF-8을 기본으로 사용한다.
+
+## Windows 호환
+
+- `child_process.spawn` 사용 시 `shell: process.platform === 'win32'` 옵션을 추가한다.
+  - Windows에서 `npm` 등은 실제로 `.cmd` 파일이므로 shell 없이 spawn하면 ENOENT 발생.
+- Claude Code hook 명령어는 `cmd /c ...` 형태로 작성한다.
