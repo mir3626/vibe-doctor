@@ -9,3 +9,26 @@
 - `{cwd}`
 - `{role}`
 - `{taskId}`
+
+## 병렬 실행 (run-parallel)
+
+여러 프롬프트를 동시에 실행한다. 각 에이전트는 별도 git worktree에서 격리 실행된다.
+
+```bash
+npx tsx src/commands/run-parallel.ts \
+  docs/prompts/task-a.md \
+  docs/prompts/task-b.md \
+  docs/prompts/task-c.md \
+  --provider codex
+```
+
+- 각 프롬프트 → 별도 worktree + branch (`agent/<timestamp>-<name>`)
+- 성공한 branch는 보존, 실패한 worktree는 자동 정리
+- 결과는 `.vibe/runs/<date>/parallel-<batchId>.jsonl`에 기록
+- `--dry-run` 플래그로 실제 실행 없이 계획만 확인 가능
+
+### Codex 에이전트 프로필
+
+`.codex/agents/`에 정의된 에이전트:
+- `coder` — 코드 작성, workspace-write 샌드박스
+- `explorer` — 코드 탐색/조사, read-only 샌드박스
