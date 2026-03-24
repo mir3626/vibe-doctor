@@ -11,14 +11,14 @@
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "node --test --import tsx test/**/*.test.ts",
-    "vibe:doctor": "tsx src/commands/doctor.ts",
-    "vibe:init": "tsx src/commands/init.ts",
-    "vibe:qa": "tsx src/commands/qa.ts",
-    "vibe:usage": "tsx src/commands/summarize-usage.ts",
-    "vibe:report": "tsx src/commands/write-report.ts",
-    "vibe:config-audit": "tsx src/commands/audit-config.ts",
-    "vibe:run-agent": "tsx src/commands/run-agent.ts",
-    "vibe:escalate": "tsx src/commands/escalate-on-test-failure.ts"
+    "vibe:doctor": "npx tsx src/commands/doctor.ts",
+    "vibe:init": "npx tsx src/commands/init.ts",
+    "vibe:qa": "npx tsx src/commands/qa.ts",
+    "vibe:usage": "npx tsx src/commands/summarize-usage.ts",
+    "vibe:report": "npx tsx src/commands/write-report.ts",
+    "vibe:config-audit": "npx tsx src/commands/audit-config.ts",
+    "vibe:run-agent": "npx tsx src/commands/run-agent.ts",
+    "vibe:escalate": "npx tsx src/commands/escalate-on-test-failure.ts"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",

@@ -19,6 +19,7 @@
 - 오케스트레이션: `docs/orchestration/*.md`
 
 관련 스킬:
+- `/vibe-init` — 초기 세팅 (대화형)
 - `/goal-to-plan`
 - `/self-qa`
 - `/write-report`

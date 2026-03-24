@@ -17,31 +17,63 @@ git clone https://github.com/mir3626/vibe-doctor my-project
 cd my-project
 ```
 
-### 2. 의존성 설치 및 초기화
+### 2. 초기 설정
+
+#### Claude Code 사용자 (권장)
+
+`npm install` 없이 바로 시작할 수 있습니다.
+
+```bash
+claude   # Claude Code 실행
+```
+
+Claude Code 안에서:
+
+```text
+/vibe-init
+```
+
+Claude가 대화형으로 아래 과정을 **한 번에** 자동 진행합니다:
+
+1. 환경 점검 (node, npm, git, AI CLI 설치 여부)
+2. AI Agent 연결 (provider 선택 + 인증 안내)
+3. 프로젝트 맞춤 설정 (product, architecture, conventions 문서 생성)
+
+#### 일반 터미널 사용자
 
 ```bash
 npm install
 npm run vibe:doctor   # 환경 점검
-npm run vibe:init     # .env, provider 설정, 프로젝트 맞춤 설정까지 한번에
+npm run vibe:init     # 기본 파일 생성 (.env, provider 설정)
 ```
 
-### 3. Provider 인증
-
-| Provider | 인증 방법 |
-|----------|-----------|
-| claude | `claude` CLI 로그인 (Claude Code 기본 제공) |
-| codex | `codex login --device-auth` |
-| gemini | `gemini` 실행 후 브라우저 Google 로그인 |
+> 일반 터미널에서는 기본 파일만 생성됩니다. AI 연결 및 프로젝트 맞춤 설정은 Claude Code의 `/vibe-init`을 사용하세요.
 
 ---
 
-## 프로젝트 맞춤 설정 (vibe:init)
+## /vibe-init 상세 흐름
 
-`npm run vibe:init`을 실행하면 다음 단계를 순서대로 진행합니다:
+Claude Code에서 `/vibe-init`을 실행하면 다음 단계를 대화형으로 진행합니다:
 
-1. **환경 파일 생성** — `.env`, `.vibe/config.local.json`
-2. **Provider 역할 설정** — 기본 coder, challenger, reviewer 선택
-3. **프로젝트 맞춤 설정** (인터랙티브) — 아래 3개 파일을 step-by-step 질문으로 자동 생성
+### Phase 1 — 환경 점검
+
+필수 도구(node, npm, git)와 AI Agent CLI(claude, codex, gemini 등) 설치 여부를 자동으로 확인합니다.
+
+### Phase 2 — AI Agent 연결
+
+각 역할에 어떤 AI를 사용할지 선택합니다:
+
+| 역할 | 기본값 | 선택지 |
+|------|--------|--------|
+| Coder (코드 작성) | Codex | codex / gemini / claude / **기타** |
+| Challenger (검증) | Gemini | gemini / codex / claude / **기타** |
+| Reviewer (리뷰) | Claude | claude / codex / gemini / **기타** |
+
+- **기타**를 선택하면 DeepSeek, Grok 등 커스텀 AI agent를 연결할 수 있습니다.
+- 선택한 provider의 CLI가 미설치인 경우, 설치 및 인증 방법을 step-by-step으로 안내합니다.
+- 선택 결과에 따라 `.vibe/config.local.json`, `AGENTS.md`, `GEMINI.md`, `docs/orchestration/roles.md` 등 관련 파일이 자동으로 업데이트됩니다.
+
+### Phase 3 — 프로젝트 맞춤 설정
 
 | Step | 질문 내용 | 생성 파일 |
 |------|-----------|-----------|
@@ -51,7 +83,7 @@ npm run vibe:init     # .env, provider 설정, 프로젝트 맞춤 설정까지 
 
 - 코딩 지식이 없어도 예시를 보고 따라 입력할 수 있습니다.
 - 모르는 항목은 비워두면 AI가 기술 스택에 맞게 자동 선택합니다.
-- 맞춤 설정을 건너뛰고 나중에 다시 실행하거나 파일을 직접 편집해도 됩니다.
+- 나중에 다시 실행하거나 파일을 직접 편집해도 됩니다.
 
 ---
 
@@ -66,9 +98,21 @@ npm run vibe:init     # .env, provider 설정, 프로젝트 맞춤 설정까지 
 
 ## 주요 명령어
 
+### Claude Code 슬래시 커맨드
+
+```text
+/vibe-init         # 초기 설정 + 프로젝트 맞춤 설정 (대화형)
+/goal-to-plan      # 목표 → 실행 계획 생성
+/self-qa           # QA 검증
+/write-report      # 완료 보고서 작성
+/maintain-context  # 컨텍스트 문서 업데이트
+```
+
+### npm 스크립트
+
 ```bash
 npm run vibe:doctor                   # 환경 점검
-npm run vibe:init                     # 초기 설정 + 프로젝트 맞춤 설정
+npm run vibe:init                     # 기본 파일 생성
 npm run vibe:qa                       # QA 실행 (test → typecheck → lint → build)
 npm run vibe:usage                    # 토큰 사용량 요약
 npm run vibe:report -- --title "foo"  # 완료 보고서 작성
@@ -84,8 +128,8 @@ npm run vibe:config-audit             # 설정 감사 (시크릿 누출 검사)
 | 항목 | 내용 |
 |------|------|
 | 메인 오케스트레이터 | Claude Code |
-| 기본 coder | Codex (`.vibe/config.local.json`에서 변경 가능) |
-| Challenger | Gemini (`.vibe/config.local.json`에서 변경 가능) |
+| 기본 coder | Codex (`/vibe-init`에서 변경 또는 커스텀 AI 연결 가능) |
+| Challenger | Gemini (`/vibe-init`에서 변경 또는 커스텀 AI 연결 가능) |
 | 언어 | TypeScript (Node.js ESM) |
 | 컨텍스트 전략 | 얇은 루트 메모리 + 샤딩된 MD + skills |
 | 병렬 실행 | 각 프롬프트를 별도 git worktree에서 격리 실행 |
@@ -106,7 +150,7 @@ npm run vibe:config-audit             # 설정 감사 (시크릿 누출 검사)
 ├── .claude/
 │   ├── settings.json          # Claude Code 프로젝트 설정 + 보안 훅
 │   ├── agents/                # 서브에이전트 (planner, qa-guardian, context-curator)
-│   └── skills/                # Claude 전용 스킬
+│   └── skills/                # Claude 전용 스킬 (vibe-init, goal-to-plan 등)
 ├── .codex/
 │   └── agents/                # Codex 에이전트 프로필 (coder, explorer)
 ├── .agents/skills/            # 범용 스킬 (Codex / Gemini 공용)
@@ -141,6 +185,12 @@ npm run vibe:config-audit             # 설정 감사 (시크릿 누출 검사)
 ## Claude Code에서 시작하는 방법
 
 저장소를 열고 이렇게 시작합니다:
+
+```text
+/vibe-init
+```
+
+초기 설정이 완료되면 목표를 말하세요:
 
 ```text
 목표: [여기에 작업 목표 입력]
