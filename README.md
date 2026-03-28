@@ -2,7 +2,7 @@
 
 > 새 프로젝트마다 프롬프트와 규칙을 다시 깔지 않고, `git clone` 후 바로 같은 프로세스와 품질 기준으로 바이브 코딩을 시작할 수 있게 하는 베이스 템플릿
 
-**Claude Code** 를 메인 오케스트레이터로, **Codex** 를 기본 coder로, **Gemini** 를 challenger로 사용하는 3-provider 경량 오케스트레이션 구조입니다.
+**Claude Code(Opus)** 를 메인 오케스트레이터로, **Codex** 를 기본 Generator로 사용하는 Sprint 기반 개발 프로세스입니다.
 
 ---
 
@@ -36,7 +36,7 @@ Claude Code 안에서:
 Claude가 대화형으로 아래 과정을 **한 번에** 자동 진행합니다:
 
 1. 환경 점검 (node, npm, git, AI CLI 설치 여부)
-2. AI Agent 연결 (provider 선택 + 인증 안내)
+2. AI Agent 연결 (Sprint 역할별 provider 선택 + 인증 안내)
 3. 프로젝트 맞춤 설정 (product, architecture, conventions 문서 생성)
 
 #### 일반 터미널 사용자
@@ -57,21 +57,21 @@ Claude Code에서 `/vibe-init`을 실행하면 다음 단계를 대화형으로 
 
 ### Phase 1 — 환경 점검
 
-필수 도구(node, npm, git)와 AI Agent CLI(claude, codex, gemini 등) 설치 여부를 자동으로 확인합니다.
+필수 도구(node, npm, git)와 AI Agent CLI(claude, codex 등) 설치 여부를 자동으로 확인합니다.
 
 ### Phase 2 — AI Agent 연결
 
-각 역할에 어떤 AI를 사용할지 선택합니다:
+Sprint 역할별로 어떤 AI를 사용할지 선택합니다:
 
-| 역할 | 기본값 | 선택지 |
-|------|--------|--------|
-| Coder (코드 작성) | Codex | codex / gemini / claude / **기타** |
-| Challenger (검증) | Gemini | gemini / codex / claude / **기타** |
-| Reviewer (리뷰) | Claude | claude / codex / gemini / **기타** |
+| Sprint 역할 | 책임 | 기본값 | 선택지 |
+|-------------|------|--------|--------|
+| Planner (스펙 정의) | "무엇을" 만들지 정의 + 체크리스트 | claude-opus | claude-opus / codex / **기타** |
+| Generator (코드 구현) | 체크리스트 기반 구현 | codex | codex / claude-opus / **기타** |
+| Evaluator (판정) | 합격/불합격 판정 | claude-opus | claude-opus / codex / **기타** |
 
 - **기타**를 선택하면 DeepSeek, Grok 등 커스텀 AI agent를 연결할 수 있습니다.
 - 선택한 provider의 CLI가 미설치인 경우, 설치 및 인증 방법을 step-by-step으로 안내합니다.
-- 선택 결과에 따라 `.vibe/config.local.json`, `AGENTS.md`, `GEMINI.md`, `docs/orchestration/roles.md` 등 관련 파일이 자동으로 업데이트됩니다.
+- 선택 결과에 따라 `.vibe/config.local.json`, `AGENTS.md`, `docs/orchestration/roles.md` 등 관련 파일이 자동으로 업데이트됩니다.
 
 ### Phase 3 — 프로젝트 맞춤 설정
 
@@ -92,7 +92,7 @@ Claude Code에서 `/vibe-init`을 실행하면 다음 단계를 대화형으로 
 - Node.js 20+
 - npm 10+
 - git
-- 선택: `claude`, `codex`, `gemini` CLI
+- 선택: `claude`, `codex` CLI
 
 ---
 
@@ -102,7 +102,7 @@ Claude Code에서 `/vibe-init`을 실행하면 다음 단계를 대화형으로 
 
 ```text
 /vibe-init         # 초기 설정 + 프로젝트 맞춤 설정 (대화형)
-/goal-to-plan      # 목표 → 실행 계획 생성
+/goal-to-plan      # 목표 → Sprint 분할 계획 생성
 /self-qa           # QA 검증
 /write-report      # 완료 보고서 작성
 /maintain-context  # 컨텍스트 문서 업데이트
@@ -116,7 +116,7 @@ npm run vibe:init                     # 기본 파일 생성
 npm run vibe:qa                       # QA 실행 (test → typecheck → lint → build)
 npm run vibe:usage                    # 토큰 사용량 요약
 npm run vibe:report -- --title "foo"  # 완료 보고서 작성
-npm run vibe:escalate -- --task-file docs/plans/my-task.md  # 테스트 실패 에스컬레이션
+npm run vibe:escalate -- --task-file docs/plans/my-task.md  # 실패 에스컬레이션
 npm run vibe:run-agent                # provider 직접 실행
 npm run vibe:config-audit             # 설정 감사 (시크릿 누출 검사)
 ```
@@ -127,13 +127,13 @@ npm run vibe:config-audit             # 설정 감사 (시크릿 누출 검사)
 
 | 항목 | 내용 |
 |------|------|
-| 메인 오케스트레이터 | Claude Code |
-| 기본 coder | Codex (`/vibe-init`에서 변경 또는 커스텀 AI 연결 가능) |
-| Challenger | Gemini (`/vibe-init`에서 변경 또는 커스텀 AI 연결 가능) |
+| 개발 프로세스 | Sprint 기반 (Planner → Generator → Evaluator) |
+| 메인 오케스트레이터 | Claude Code (Opus) |
+| 기본 Generator | Codex (`/vibe-init`에서 변경 또는 커스텀 AI 연결 가능) |
 | 언어 | TypeScript (Node.js ESM) |
 | 컨텍스트 전략 | 얇은 루트 메모리 + 샤딩된 MD + skills |
 | 병렬 실행 | 각 프롬프트를 별도 git worktree에서 격리 실행 |
-| 실패 에스컬레이션 | 테스트 2회 연속 실패 시 challenger / reviewer worktree 생성 |
+| 실패 에스컬레이션 | Evaluator 2회 연속 불합격 시 Planner 재생성 또는 사용자 에스컬레이션 |
 | QA 기본값 | test → typecheck → lint → build 자동 감지 실행 |
 | 보안 | `.env` / `secrets` / credential 파일 git 제외 + 자동 감사 훅 |
 
@@ -143,9 +143,9 @@ npm run vibe:config-audit             # 설정 감사 (시크릿 누출 검사)
 
 ```text
 .
-├── CLAUDE.md                  # Claude 오케스트레이터 규칙
-├── AGENTS.md                  # 범용 에이전트 규칙 (Codex)
-├── GEMINI.md                  # Gemini 규칙
+├── CLAUDE.md                  # Orchestrator 규칙 (Sprint 프로세스)
+├── AGENTS.md                  # Generator(Codex) 규칙
+├── GEMINI.md                  # 보조 에이전트 규칙
 ├── .env.example               # 환경변수 템플릿 (커밋됨)
 ├── .claude/
 │   ├── settings.json          # Claude Code 프로젝트 설정 + 보안 훅
@@ -153,13 +153,14 @@ npm run vibe:config-audit             # 설정 감사 (시크릿 누출 검사)
 │   └── skills/                # Claude 전용 스킬 (vibe-init, goal-to-plan 등)
 ├── .codex/
 │   └── agents/                # Codex 에이전트 프로필 (coder, explorer)
-├── .agents/skills/            # 범용 스킬 (Codex / Gemini 공용)
+├── .agents/skills/            # 범용 스킬 (Codex 등 공용)
 ├── .vibe/
-│   ├── config.json            # 공유 provider 설정
-│   └── config.local.json      # 로컬 override (gitignore)
+│   ├── config.json            # 프로젝트 기본 provider 설정 (커밋됨)
+│   ├── config.local.json      # 로컬 override (gitignore)
+│   └── config.local.example.json  # 로컬 설정 템플릿 (커밋됨)
 ├── docs/
 │   ├── context/               # 샤딩된 컨텍스트 (product, architecture, conventions 등)
-│   ├── orchestration/         # 역할, provider, 병렬 실행, 에스컬레이션 정책
+│   ├── orchestration/         # Sprint 역할, provider, 에스컬레이션 정책
 │   ├── plans/                 # 작업 계획 보관
 │   ├── prompts/               # 마스터 프롬프트
 │   └── reports/               # 작업 완료 보고서
@@ -175,10 +176,11 @@ npm run vibe:config-audit             # 설정 감사 (시크릿 누출 검사)
 ## 운영 원칙
 
 1. 사용자는 목적과 승인에 집중한다.
-2. AI는 계획, 구현, QA, 보고, 문맥 관리에 집중한다.
-3. 승인 전에는 비단순 구현을 하지 않는다.
-4. 작업 완료 전에는 QA 없이 완료 선언하지 않는다.
-5. 루트 메모리는 얇게 유지하고 상세 규칙은 skills / context shard로 분리한다.
+2. Orchestrator(Claude)는 Sprint 관리, QA, 보고, 문맥 관리에 집중한다.
+3. Planner는 "무엇을"만, Generator는 "어떻게"를 자유롭게 결정한다.
+4. 승인 전에는 비단순 구현을 하지 않는다.
+5. 작업 완료 전에는 Evaluator 합격 없이 완료 선언하지 않는다.
+6. 루트 메모리는 얇게 유지하고 상세 규칙은 skills / context shard로 분리한다.
 
 ---
 

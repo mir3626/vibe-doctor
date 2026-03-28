@@ -3,11 +3,20 @@ import assert from 'node:assert/strict';
 import { mergeConfig, type VibeConfig } from '../src/lib/config.js';
 
 const base: VibeConfig = {
-  defaultCoder: 'codex',
-  challenger: 'gemini',
-  reviewer: 'claude',
+  orchestrator: 'claude-opus',
+  sprintRoles: {
+    planner: 'claude-opus',
+    generator: 'codex',
+    evaluator: 'claude-opus',
+  },
+  sprint: {
+    unit: 'feature',
+    subAgentPerRole: true,
+    freshContextPerSprint: true,
+  },
   providers: {
-    codex: { command: 'codex', args: ['exec'] },
+    'claude-opus': { command: 'claude', args: ['-p', '{prompt}'] },
+    codex: { command: 'codex', args: ['exec', '--json', '{prompt}'] },
   },
   qa: {
     preferScripts: ['test'],
@@ -16,14 +25,33 @@ const base: VibeConfig = {
 
 test('mergeConfig preserves provider map and overrides top-level fields', () => {
   const merged = mergeConfig(base, {
-    defaultCoder: 'claude',
+    orchestrator: 'claude-sonnet',
     providers: {
       gemini: { command: 'gemini', args: ['run'] },
     },
   });
 
-  assert.equal(merged.defaultCoder, 'claude');
-  assert.equal(merged.providers.codex?.command, 'codex');
+  assert.equal(merged.orchestrator, 'claude-sonnet');
+  assert.equal(merged.providers['claude-opus']?.command, 'claude');
   assert.equal(merged.providers.gemini?.command, 'gemini');
   assert.deepEqual(merged.qa?.preferScripts, ['test']);
+});
+
+test('mergeConfig deep-merges sprintRoles', () => {
+  const merged = mergeConfig(base, {
+    sprintRoles: { generator: 'gemini' } as any,
+  });
+
+  assert.equal(merged.sprintRoles.generator, 'gemini');
+  assert.equal(merged.sprintRoles.planner, 'claude-opus');
+  assert.equal(merged.sprintRoles.evaluator, 'claude-opus');
+});
+
+test('mergeConfig deep-merges sprint config', () => {
+  const merged = mergeConfig(base, {
+    sprint: { unit: 'page' } as any,
+  });
+
+  assert.equal(merged.sprint.unit, 'page');
+  assert.equal(merged.sprint.subAgentPerRole, true);
 });

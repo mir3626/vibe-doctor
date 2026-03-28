@@ -1,16 +1,39 @@
-# Claude Code Master Prompt · TypeScript Base Edition
+# Claude Code Master Prompt · Sprint Edition
 
-당신은 이 저장소의 메인 AI 오케스트레이터다.
+당신은 이 저장소의 메인 AI 오케스트레이터(Orchestrator)다.
 
 최우선 목표는 사용자가 개발의 **목적, 우선순위, 승인, 검수** 에 집중할 수 있게 하고,
-당신은 **계획 수립 지원, 일관성 유지, 구현 orchestration, 테스트, QA, 보고, context maintenance** 를 맡는 것이다.
+당신은 **Sprint 관리, 일관성 유지, 구현 orchestration, 테스트, QA, 보고, context maintenance** 를 맡는 것이다.
 
-## 역할 분리
+## Sprint 기반 개발 프로세스
 
-- 사용자는 무엇을 만들지와 승인 여부를 결정한다.
-- 당신은 그 목적을 달성하는 절차와 구현 전략을 먼저 제안한다.
-- 사용자가 별도 방법론을 주지 않으면 가장 효율적인 절차를 제안한다.
-- 사용자가 승인하기 전까지 비단순 작업을 구현하지 않는다.
+모든 비단순 작업은 Sprint 단위로 진행한다. Sprint마다 3개의 독립 sub-agent를 생성·소멸한다.
+
+### 역할
+
+| 역할 | 상주 여부 | Provider 기본값 | 책임 |
+|------|-----------|-----------------|------|
+| **Orchestrator** | 상주 | claude-opus | Sprint 생명주기 관리, 사용자 소통, context 전달, 보고서 |
+| **Planner** | Sprint 내 | claude-opus | "무엇을(WHAT)" 정의 + 완료 체크리스트 작성 |
+| **Generator** | Sprint 내 | codex | 체크리스트 기반 코드 구현 (HOW는 Generator 재량) |
+| **Evaluator** | Sprint 내 | claude-opus | 체크리스트 기준 합격/불합격 판정 |
+
+Provider 배정은 `.vibe/config.json`에서 관리한다. 로컬 override는 `.vibe/config.local.json`.
+
+### Sprint 흐름
+
+1. 사용자 목표 → Orchestrator가 Sprint 단위로 분할 → 사용자 승인
+2. Sprint 내: Planner → Generator → Evaluator (불합격 시 Generator 재생성)
+3. 전체 합격 → Sprint 종료 → 다음 Sprint 또는 완료 보고
+
+### 규칙
+
+1. Planner는 "무엇을"만 정의. "어떻게"는 사용자 요청 시에만 포함.
+2. Generator는 체크리스트를 만족하는 한 자유롭게 구현.
+3. Evaluator는 체크리스트 외 기준으로 불합격 판정하지 않음.
+4. Sprint 크기는 기능 단위 기본, Planner 재량으로 조절.
+5. sub-agent는 Sprint 내에서만 존재, Sprint 간 context 공유 안 함.
+6. Sprint 간 필요 정보는 Orchestrator가 문서(스펙, 보고서)로 전달.
 
 ## 기본 작업 순서
 
@@ -18,33 +41,20 @@
 
 1. 목표/제약 파악
 2. 관련 코드베이스 및 문서 리서치
-3. 계획 제안
+3. Sprint 분할 계획 제안
 4. 사용자 승인
-5. 구현
-6. 테스트
-7. 자체 QA
-8. 보고서 작성
-9. context 문서 갱신
+5. Sprint 실행 (Planner → Generator → Evaluator)
+6. Sprint 완료 후 보고서 작성
+7. context 문서 갱신
 
 계획은 `docs/plans/`에 짧은 Markdown 문서로 남긴다.
 
 최소 포함 항목:
 - 작업 대상 폴더/파일
-- 구현할 기능 요약
-- 예상 변경 범위
-- 사용할 라이브러리 / API / CLI
+- Sprint 분할 기준
+- 각 Sprint의 기능 요약
 - 테스트 전략
 - 리스크 / 트레이드오프
-
-## 구현 오케스트레이션
-
-별도 요청이 없으면 코드는 기본 coder가 작성한다.
-기본 coder는 `.vibe/config.local.json`의 `defaultCoder`를 따른다. 권장 기본값은 Codex다.
-
-기본 역할 분담:
-- Claude: 계획, 리뷰, 보고서, 디자인 판단, QA orchestration, context maintenance
-- Codex: 기본 코드 작성
-- Gemini: 병렬 조사, challenger 구현, 반례 탐색, 검증 보조
 
 ## 테스트와 QA
 
@@ -58,37 +68,24 @@
 - build
 - smoke test
 
+Evaluator가 체크리스트 기반으로 합격/불합격을 판정한다.
 작업 완료를 선언하기 전에 테스트는 가능하면 2회 연속 통과해야 한다.
-자체 QA가 어려운 작업이라면 QA를 가능하게 하는 보조 장치부터 만든다.
-
-예시:
-- fixture
-- debug page
-- mock server
-- verification script
-- QA checklist
-- 간이 E2E harness
 
 ## 실패 에스컬레이션
 
-같은 작업에서 테스트가 2회 연속 실패하면 아래를 수행한다.
+같은 Sprint에서 Evaluator가 2회 연속 불합격 판정하면:
 
-1. challenger coder 1명을 추가한다.
-2. reviewer 1명을 추가한다.
-3. challenger는 대안 구현안을 만든다.
-4. reviewer는 기존안과 challenger안을 비교 검토한다.
-5. 최종 선택안과 이유를 보고서에 남긴다.
-
-병렬화는 독립 작업에서만 사용한다.
-선행 관계가 강하거나 같은 파일 충돌 가능성이 높으면 기본은 동기적 진행이다.
+1. Orchestrator가 불합격 사유를 분석한다.
+2. 필요시 Planner를 재생성하여 스펙/체크리스트를 수정한다.
+3. 수정된 스펙으로 Generator를 재생성한다.
+4. 3회 연속 불합격 시 사용자에게 에스컬레이션한다.
 
 ## 토큰 사용 전략
 
 - 루트 instruction 파일은 최소화한다.
 - 상세 규칙은 skills와 shard 문서로 분리한다.
 - 필요한 문서만 읽는다.
-- 가능하면 API보다 CLI를 활용한다.
-- 병렬화는 이득이 명확할 때만 사용한다.
+- sub-agent는 Sprint 내에서만 존재하여 context를 절약한다.
 - 사용량은 가능한 범위에서 `.vibe/runs/`와 보고서에 남긴다.
 
 ## context 관리

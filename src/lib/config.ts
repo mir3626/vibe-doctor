@@ -7,20 +7,46 @@ export interface ProviderRunner {
   env?: Record<string, string>;
 }
 
+export interface SprintRoles {
+  planner: string;
+  generator: string;
+  evaluator: string;
+}
+
+export interface SprintConfig {
+  unit: string;
+  subAgentPerRole: boolean;
+  freshContextPerSprint: boolean;
+}
+
 export interface VibeConfig {
-  defaultCoder: string;
-  challenger: string;
-  reviewer: string;
+  orchestrator: string;
+  sprintRoles: SprintRoles;
+  sprint: SprintConfig;
   providers: Record<string, ProviderRunner>;
   qa?: {
     preferScripts?: string[];
   };
+  /** @deprecated use sprintRoles.generator */
+  defaultCoder?: string;
+  /** @deprecated removed in Sprint model */
+  challenger?: string;
+  /** @deprecated use orchestrator */
+  reviewer?: string;
 }
 
 function mergeConfig(base: VibeConfig, override: Partial<VibeConfig>): VibeConfig {
   return {
     ...base,
     ...override,
+    sprintRoles: {
+      ...base.sprintRoles,
+      ...(override.sprintRoles ?? {}),
+    },
+    sprint: {
+      ...base.sprint,
+      ...(override.sprint ?? {}),
+    },
     providers: {
       ...base.providers,
       ...(override.providers ?? {}),

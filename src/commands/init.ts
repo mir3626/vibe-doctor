@@ -204,15 +204,13 @@ async function main(): Promise<void> {
   } else {
     const rl = readline.createInterface({ input, output });
     try {
-      const defaultCoder = await promptValue(rl, 'default coder', base.defaultCoder);
-      const challenger = await promptValue(rl, 'challenger provider', base.challenger);
-      const reviewer = await promptValue(rl, 'reviewer provider', base.reviewer);
+      const planner = await promptValue(rl, 'planner (WHAT 정의)', base.sprintRoles?.planner ?? 'claude-opus');
+      const generator = await promptValue(rl, 'generator (코드 구현)', base.sprintRoles?.generator ?? 'codex');
+      const evaluator = await promptValue(rl, 'evaluator (체크리스트 판정)', base.sprintRoles?.evaluator ?? 'claude-opus');
 
       const localConfig: VibeConfig = {
         ...base,
-        defaultCoder,
-        challenger,
-        reviewer,
+        sprintRoles: { planner, generator, evaluator },
       };
 
       await writeJson(paths.localConfig, localConfig);

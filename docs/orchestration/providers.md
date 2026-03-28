@@ -1,6 +1,18 @@
 # Provider runners
 
-각 provider는 `.vibe/config.local.json`에서 실행 명령을 교체할 수 있다.
+각 provider는 `.vibe/config.json`에서 프로젝트 기본값을 정의하고,
+`.vibe/config.local.json`으로 로컬 override할 수 있다.
+`config.local.json`이 없으면 `config.json`의 기본값으로 작동한다.
+
+## 기본 Provider 구성
+
+| Provider | Sprint 역할 | 명령어 |
+|----------|-------------|--------|
+| `claude-opus` | Orchestrator, Planner, Evaluator | `claude -p "{prompt}"` |
+| `codex` | Generator | `codex exec --json "{prompt}"` |
+
+## 템플릿형 인자 치환
+
 이 베이스는 특정 CLI 버전에 강하게 결합되지 않도록 **템플릿형 인자 치환**을 사용한다.
 
 치환 가능한 변수:
