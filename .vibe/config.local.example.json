@@ -1,44 +1,24 @@
 {
-  "orchestrator": "claude",
+  "orchestrator": "claude-opus",
   "sprintRoles": {
-    "planner": "claude",
+    "planner": "claude-opus",
     "generator": "codex",
-    "evaluator": "claude"
+    "evaluator": "claude-opus"
   },
   "sprint": {
     "unit": "feature",
     "subAgentPerRole": true,
     "freshContextPerSprint": true
   },
-  "defaultCoder": "codex",
-  "challenger": "gemini",
-  "reviewer": "claude",
   "providers": {
-    "claude": {
+    "claude-opus": {
       "command": "claude",
-      "args": [
-        "-p",
-        "{prompt}"
-      ],
+      "args": ["-p", "{prompt}"],
       "env": {}
     },
     "codex": {
       "command": "codex",
-      "args": [
-        "exec",
-        "--json",
-        "{prompt}"
-      ],
-      "env": {}
-    },
-    "gemini": {
-      "command": "gemini",
-      "args": [
-        "--prompt",
-        "{prompt}",
-        "--format",
-        "json"
-      ],
+      "args": ["exec", "--json", "{prompt}"],
       "env": {}
     }
   }
