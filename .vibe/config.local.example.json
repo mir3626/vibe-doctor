@@ -1,4 +1,15 @@
 {
+  "orchestrator": "claude",
+  "sprintRoles": {
+    "planner": "claude",
+    "generator": "codex",
+    "evaluator": "claude"
+  },
+  "sprint": {
+    "unit": "feature",
+    "subAgentPerRole": true,
+    "freshContextPerSprint": true
+  },
   "defaultCoder": "codex",
   "challenger": "gemini",
   "reviewer": "claude",

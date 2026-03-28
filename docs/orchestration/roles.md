@@ -95,6 +95,31 @@ Orchestrator: 다음 Sprint 또는 전체 완료 보고
 - [구체적 수정 내용]
 ```
 
+## Configuration
+
+Sprint 역할과 옵션은 `.vibe/config.json`에서 프로젝트 기본값으로 관리한다.
+
+```jsonc
+// .vibe/config.json (커밋 대상 — 프로젝트 공통 기본값)
+{
+  "orchestrator": "claude",
+  "sprintRoles": {
+    "planner": "claude",       // WHAT 정의
+    "generator": "codex",      // HOW 구현
+    "evaluator": "claude"      // 체크리스트 기반 판정
+  },
+  "sprint": {
+    "unit": "feature",         // Sprint 단위 (기본: 기능)
+    "subAgentPerRole": true,   // 역할별 독립 sub-agent
+    "freshContextPerSprint": true  // Sprint마다 새 context
+  }
+}
+```
+
+사용자별 로컬 override가 필요한 경우(예: provider 절대경로) `.vibe/config.local.json`을 생성한다.
+이 파일은 gitignore 대상이며, `.vibe/config.local.example.json`을 복사하여 사용한다.
+`config.local.json`이 없으면 `config.json`의 기본값으로 작동한다.
+
 ## Rules
 
 1. Planner는 "무엇을"만 정의한다. "어떻게"는 사용자 요청 시에만 포함한다.
