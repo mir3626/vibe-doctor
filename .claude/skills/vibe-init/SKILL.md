@@ -90,6 +90,30 @@ Sprint 역할별 AI를 설정합니다. 각 역할에 어떤 AI를 사용할지 
 
 선택 결과를 바탕으로 아래 파일들을 업데이트합니다:
 
+#### `CLAUDE.md` (CRITICAL — 반드시 수행)
+
+`<!-- BEGIN:SPRINT_ROLES -->` ~ `<!-- END:SPRINT_ROLES -->` 영역의 역할 테이블을 선택된 provider 이름으로 교체합니다.
+또한 CRITICAL 블록 내 `Generator sub-agent(현재 설정: **{이전 값}**)` 부분을 선택된 generator provider로 업데이트합니다.
+
+이 업데이트는 context 압축 후에도 올바른 모델이 참조되도록 보장하기 위해 필수입니다.
+
+예시 (generator를 deepseek로 선택한 경우):
+```markdown
+<!-- BEGIN:SPRINT_ROLES (vibe-init 자동 업데이트 영역) -->
+| 역할 | Provider | 상주 여부 | 책임 |
+|------|----------|-----------|------|
+| **Orchestrator** | **claude-opus** (메인 대화) | 상주 | Sprint 생명주기 관리, 사용자 소통, context 전달, 보고서 |
+| **Planner** | **claude-opus** (sub-agent) | Sprint 내 | "무엇을(WHAT)" 정의 + 완료 체크리스트 작성 |
+| **Generator** | **deepseek** (sub-agent) | Sprint 내 | 체크리스트 기반 코드 구현 (HOW는 Generator 재량) |
+| **Evaluator** | **claude-opus** (sub-agent) | Sprint 내 | 체크리스트 기준 합격/불합격 판정 |
+<!-- END:SPRINT_ROLES -->
+```
+
+CRITICAL 블록도 업데이트:
+```markdown
+> 모든 코드 구현은 반드시 Generator sub-agent(현재 설정: **deepseek**)를 생성하여 위임한다.
+```
+
 #### `.vibe/config.local.json`
 
 선택한 Sprint 역할 구성을 반영합니다. 커스텀 provider는 `providers` 맵에 추가합니다.
@@ -273,6 +297,7 @@ Generator로 선택된 provider에 맞게 파일 내용을 수정합니다.
     Evaluator    : {선택된 evaluator}  {✓ 인증됨 / ⚠ 미연결}
 
   작성/수정된 파일:
+    - CLAUDE.md                        (Sprint 역할 테이블 + CRITICAL 블록)
     - .vibe/config.local.json          (Sprint 역할 + provider 설정)
     - docs/context/product.md          (프로젝트 목표)
     - docs/context/architecture.md     (기술 스택)
