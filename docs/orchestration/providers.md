@@ -6,10 +6,21 @@
 
 ## 기본 Provider 구성
 
-| Provider | Sprint 역할 | 명령어 |
-|----------|-------------|--------|
-| `claude-opus` | Orchestrator, Planner, Evaluator | `claude -p "{prompt}"` |
-| `codex` | Generator | `codex exec --json "{prompt}"` |
+> 아래는 기본값 예시이다. 실제 역할 배정은 `/vibe-init` 또는 `.vibe/config.json` → `sprintRoles`에서 사용자가 자유롭게 설정한다.
+
+| Provider | 명령어 예시 | Claude Code 호출 방법 |
+|----------|-------------|-----------------------|
+| `claude-opus` | `claude -p "{prompt}"` | Agent 도구 (model: opus) |
+| `claude-sonnet` | `claude -p "{prompt}"` | Agent 도구 (model: sonnet) |
+| `codex` | `codex exec -s workspace-write -p "{prompt}"` | Bash 도구 |
+| `gemini` | `gemini "{prompt}"` | Bash 도구 |
+
+> **⚠️ Provider 호출 규칙**:
+> - **Claude 계열** provider → Claude Code의 **Agent 도구** 사용 가능
+> - **비-Claude 계열** provider → 반드시 **Bash 도구**로 CLI/API 명령 실행
+>
+> Agent 도구의 model 파라미터는 Claude 전용(sonnet/opus/haiku)이다.
+> 비-Claude provider를 Agent 도구로 호출하면 사용자가 선택한 모델이 아닌 Claude가 대신 실행되는 버그가 발생한다.
 
 ## 템플릿형 인자 치환
 

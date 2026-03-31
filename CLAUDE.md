@@ -20,10 +20,16 @@
 <!-- END:SPRINT_ROLES -->
 
 > **CRITICAL**: Opus(Orchestrator)는 직접 소스코드(.cs, .ts 등)를 Edit/Write하지 않는다.
-> 모든 코드 구현은 반드시 Generator sub-agent(현재 설정: **codex**)를 생성하여 위임한다.
+> 모든 코드 구현은 반드시 `.vibe/config.json` → `sprintRoles.generator`에 지정된 provider에 위임한다.
 > 문서(.md), 보고서, 설정 파일 등 비코드 파일만 Opus가 직접 작성할 수 있다.
 > 이 규칙은 context 압축/세션 전환과 무관하게 항상 적용된다.
-> Generator provider는 `.vibe/config.json` → `sprintRoles.generator`에서 확인한다.
+>
+> **CRITICAL — sub-agent 호출 방법** (Planner, Generator, Evaluator 공통):
+> 각 역할의 provider를 `.vibe/config.json` → `sprintRoles`에서 확인한 뒤, provider 종류에 따라 호출 방법을 결정한다.
+> - **Claude 계열** (`claude-opus`, `claude-sonnet` 등) → Agent 도구 사용
+> - **비-Claude 계열** (`codex`, `gemini` 등 외부 모델) → **Bash 도구**로 CLI 명령 실행 (`.vibe/config.json` → `providers` 섹션의 command/args 참조)
+>
+> Agent 도구의 model 파라미터는 Claude 전용(sonnet/opus/haiku)이므로, 비-Claude provider를 Agent 도구로 호출하면 사용자가 선택한 모델이 아닌 Claude가 대신 실행되는 버그가 발생한다.
 
 ### Sprint 흐름
 1. 사용자 목표 → Orchestrator가 Sprint 단위로 분할 → 사용자 승인
@@ -39,7 +45,7 @@
 6. Sprint 간 필요 정보는 Orchestrator가 문서(스펙, 보고서)로 전달.
 
 ## 항상 지킬 것
-- **코드 구현은 반드시 Generator sub-agent에 위임한다.** Opus(Orchestrator)가 직접 소스코드를 Edit/Write하지 않는다. Generator provider는 `.vibe/config.json` → `sprintRoles.generator`에 지정된 값을 사용한다. 매 Sprint 시작 시 이 규칙을 확인한다.
+- **코드 구현은 반드시 Generator에 위임한다.** Opus(Orchestrator)가 직접 소스코드를 Edit/Write하지 않는다. Generator provider는 `.vibe/config.json` → `sprintRoles.generator`에서 확인한다. **Claude 계열 provider는 Agent 도구, 비-Claude provider는 Bash 도구로 CLI/API 명령을 실행한다.** 매 Sprint 시작 시 provider와 호출 방법을 확인한다.
 - 비단순 작업은 먼저 계획을 제안한다.
 - 승인 전 구현하지 않는다.
 - 완료 전 최소 범위 테스트와 QA를 실행한다.
