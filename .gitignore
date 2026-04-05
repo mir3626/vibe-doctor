@@ -12,3 +12,4 @@ coverage/
 secrets/
 config/credentials.json
 .claude/settings.local.json
+.ouroboros/
