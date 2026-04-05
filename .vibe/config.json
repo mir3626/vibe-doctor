@@ -17,10 +17,9 @@
       "env": {}
     },
     "codex": {
-      "command": "codex",
-      "args": ["exec", "--json", "{prompt}"],
-      "env": {},
-      "note": "Codex CLI로 직접 호출. 플러그인(codex:rescue)은 Windows 불안정으로 보류."
+      "plugin": "codex:codex-rescue",
+      "skill": "codex:rescue",
+      "note": "Codex 플러그인 에이전트/스킬로 호출. Bash CLI 직접 호출 불필요."
     }
   },
   "qa": {
