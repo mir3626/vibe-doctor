@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "ouroboros": {
+      "command": "python",
+      "args": ["-m", "ouroboros", "mcp", "serve", "--llm-backend", "claude_code"]
+    }
+  }
+}

@@ -11,27 +11,23 @@
 > 수동 변경 시 `.vibe/config.json`의 `sprintRoles`도 함께 수정해야 한다.
 
 <!-- BEGIN:SPRINT_ROLES (vibe-init 자동 업데이트 영역) -->
-| 역할 | Provider | 상주 여부 | 책임 |
-|------|----------|-----------|------|
-| **Orchestrator** | **claude-opus** (메인 대화) | 상주 | Sprint 생명주기 관리, 사용자 소통, context 전달, 보고서 |
-| **Planner** | **claude-opus** (sub-agent) | Sprint 내 | "무엇을(WHAT)" 정의 + 완료 체크리스트 작성 |
-| **Generator** | **codex** (sub-agent) | Sprint 내 | 체크리스트 기반 코드 구현 (HOW는 Generator 재량) |
-| **Evaluator** | **claude-opus** (sub-agent) | Sprint 내 | 체크리스트 기준 합격/불합격 판정 |
+| 역할 | 모델 | 호출 메커니즘 | 책임 |
+|------|------|--------------|------|
+| **Orchestrator** | **Opus** (메인 대화) | — (상주) | Sprint 생명주기 관리, 사용자 소통, context 전달, 보고서 |
+| **Planner** | **Opus** | `Agent` 도구 (model: "opus") | "무엇을(WHAT)" 정의 + 완료 체크리스트 작성 |
+| **Generator** | **Codex CLI** | `Bash("codex exec ...")` | 체크리스트 기반 코드 구현 (HOW는 Generator 재량) |
+| **Evaluator** | **Opus** | `Agent` 도구 (model: "opus") | 체크리스트 기준 합격/불합격 판정 |
 <!-- END:SPRINT_ROLES -->
 
-> **CRITICAL**: Opus(Orchestrator)는 직접 소스코드(.cs, .ts 등)를 Edit/Write하지 않는다.
-> 모든 코드 구현은 반드시 `.vibe/config.json` → `sprintRoles.generator`에 지정된 provider에 위임한다.
-> 문서(.md), 보고서, 설정 파일 등 비코드 파일만 Opus가 직접 작성할 수 있다.
-> 이 규칙은 context 압축/세션 전환과 무관하게 항상 적용된다.
->
 > **CRITICAL — sub-agent 호출 방법** (Planner, Generator, Evaluator 공통):
 > 각 역할의 provider를 `.vibe/config.json` → `sprintRoles`에서 확인한 뒤, provider 종류에 따라 호출 방법을 결정한다.
 > - **Claude 계열** (`claude-opus`, `claude-sonnet` 등) → Agent 도구 사용
 > - **Codex** → **`Bash("codex exec ...")`로 CLI 직접 호출**. Agent 도구는 Claude만 지원하므로 Generator에 사용 금지.
 > - **기타 비-Claude 계열** (`gemini` 등 외부 모델) → **Bash 도구**로 CLI 명령 실행 (`.vibe/config.json` → `providers` 섹션의 command/args 참조)
 >
-> Agent 도구의 model 파라미터는 Claude 전용(sonnet/opus/haiku)이다.
-> Agent 도구로 코드 구현을 위임하면, 이름을 "Codex"로 붙여도 실제로는 Claude가 실행된다.
+> Opus(Orchestrator)는 직접 소스코드(.ts, .tsx, .py 등)를 Edit/Write하지 않는다. 문서(.md), 보고서, 설정 파일 등 비코드 파일만 Opus가 직접 작성할 수 있다. 이 규칙은 context 압축/세션 전환과 무관하게 항상 적용된다.
+>
+> Agent 도구의 model 파라미터는 Claude 전용(sonnet/opus/haiku)이다. Agent 도구로 코드 구현을 위임하면, 이름을 "Codex"로 붙여도 실제로는 Claude가 실행된다.
 >
 > ```
 > ✅ 올바른 Generator 호출:
@@ -58,7 +54,7 @@
 5. sub-agent는 Sprint 내에서만 존재, Sprint 간 context 공유 안 함.
 6. Sprint 간 필요 정보는 Orchestrator가 문서(스펙, 보고서)로 전달.
 
-## 항상 지킬 것
+## 항상 지킬 것 (세션 시작 시 반드시 확인)
 - **코드 구현은 반드시 `Bash("codex exec ...")`로 위임한다. Agent 도구(Claude)로 코딩 위임 금지.**
 - 비단순 작업은 먼저 계획을 제안한다.
 - 승인 전 구현하지 않는다.
