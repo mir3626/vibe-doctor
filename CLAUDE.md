@@ -1,11 +1,29 @@
 # Claude project memory
 
 이 저장소에서 Claude는 메인 오케스트레이터(Orchestrator)다.
-모든 개발은 **Sprint 단위**로 진행하며, Sprint마다 3개의 독립 sub-agent(Planner, Generator, Evaluator)를 생성·소멸한다.
+모든 개발은 **Sprint 단위**로 진행한다. **기본값은 Orchestrator 단독 수행**이며, 아래 트리거 매트릭스의 조건이 충족될 때만 Planner/Generator/Evaluator sub-agent를 소환한다.
 
-## Sprint 기반 개발 프로세스
+## 핵심 재프레임 (왜 sub-agent인가)
 
-### 역할 및 모델 배정 (CRITICAL — 반드시 준수)
+Sub-agent는 **specialization이 아니라 context checkpoint 메커니즘**이다. 무한 컨텍스트 윈도우가 있다면 Orchestrator 하나로 충분하다. 현실의 제약 속에서 **context 압축이 품질을 조용히 파괴**하기 때문에, 독립된 윈도우로 체크포인트를 만드는 것이 sub-agent의 진짜 가치다. 따라서 소환 판단 기준은 "이 일이 다른 역할인가?"가 아니라 **"지금 Orchestrator의 context를 격리해야 하는가?"** 여야 한다.
+
+## Sub-agent 트리거 매트릭스
+
+### Planner 소환
+- 🟥 **Must**: 전체 로드맵 분할 / Orchestrator에 이미 context 압축 발생 이력 / 독립 병렬 Sprint 필요
+- 🟨 **Should**: 분할 방식의 트레이드오프가 중요 / 아키텍처 선택이 비자명
+
+### Generator 소환 (= 코드 구현 위임)
+- 🟥 **Must**: **모든 소스코드 작성/수정** (Orchestrator는 소스코드 직접 편집 금지 — 아래 §역할 제약 참조)
+- 🟨 **Should**: —
+
+### Evaluator 소환
+- 🟥 **Must**: Orchestrator 1차 검증 실패(Tribunal) / context pressure 높음 / 비-executable AC 존재
+- 🟨 **Should**: >5 파일 또는 >500 LOC / 작성자=평가자 역할 충돌
+
+트리거 해당 없음 → **Orchestrator 단독 수행 + self-QA**가 기본이다. 억지로 3-role 파이프라인을 돌리지 않는다.
+
+## 역할 및 모델 배정 (CRITICAL — 반드시 준수)
 
 > 아래 표는 `/vibe-init` 실행 시 사용자가 선택한 provider로 자동 설정된다.
 > 수동 변경 시 `.vibe/config.json`의 `sprintRoles`도 함께 수정해야 한다.
@@ -43,10 +61,10 @@
 >
 > **참고**: `codex:rescue` 플러그인은 잠정 보류 (Windows 환경에서 불안정·속도 저하 이슈).
 
-### Sprint 흐름
-1. 사용자 목표 → Orchestrator가 Sprint 단위로 분할 → 사용자 승인
-2. Sprint 내: Planner → Generator → Evaluator (불합격 시 Generator 재생성)
-3. 전체 합격 → Sprint 종료 → 다음 Sprint 또는 완료 보고
+### Sprint 흐름 (트리거 기반 가변 파이프라인)
+1. 사용자 목표 → Orchestrator가 Sprint 단위로 분할 → 사용자 승인 (Planner Must 트리거 시 Planner 소환)
+2. Sprint 내: 트리거 매트릭스에 따라 필요한 역할만 소환. 최소 구성은 **Generator(코드) + Orchestrator self-QA**. Evaluator는 트리거 해당 시에만.
+3. Sprint 간 상태는 `.vibe/agent/sprint-status.json` + `.vibe/agent/handoff.md`로 전달 — sub-agent는 휘발성, Orchestrator는 재인스턴스화 가능성을 항상 전제.
 
 ### 규칙
 1. Planner는 "무엇을"만 정의. "어떻게"는 사용자 요청 시에만 포함.
@@ -54,7 +72,8 @@
 3. Evaluator는 체크리스트 외 기준으로 불합격 판정하지 않음.
 4. Sprint 크기는 기능 단위 기본, Planner 재량으로 조절.
 5. sub-agent는 Sprint 내에서만 존재, Sprint 간 context 공유 안 함.
-6. Sprint 간 필요 정보는 Orchestrator가 문서(스펙, 보고서)로 전달.
+6. Sprint 간 필요 정보는 Orchestrator가 문서(스펙, 보고서, handoff)로 전달.
+7. **context 압축이 발생한 직후**에는 어떤 작업 전에도 먼저 `.vibe/agent/handoff.md` + `sprint-status.json` + 관련 memory shard를 읽어 상태를 복원한다.
 
 ## 항상 지킬 것 (세션 시작 시 반드시 확인)
 - **코드 구현은 반드시 `Bash("... | ./scripts/run-codex.sh -")` 로 위임한다. Agent 도구(Claude)로 코딩 위임 금지.**
@@ -76,9 +95,11 @@
 ## Agent 오케스트레이션 레이어 (`.vibe/agent/`)
 Sprint 프롬프트 공용 조각·샌드박스 계약·상태 스키마가 모여있다. **새 Sprint를 조립하기 전**에 필요한 것만 읽는다.
 - `.vibe/agent/_common-rules.md` — Sprint 프롬프트 공용 rules (샌드박스 우회 금지, Final report 형식 등). Planner가 각 Sprint 프롬프트 앞에 참조·include.
-- `.vibe/agent/sandbox-contract.md` — Codex 샌드박스 × Orchestrator 역할 분담. npm install 같은 네트워크 필요 작업은 Orchestrator가 샌드박스 밖에서 수행.
-- `.vibe/agent/preflight.md` — 새 Sprint 시작 전 git/의존성/provider 체크 러너북.
-- `.vibe/agent/sprint-status.schema.json` — 누적 verification 명령 + Sprint 이력 스키마. 런타임에 `sprint-status.json`으로 생성·갱신.
+- `.vibe/agent/_common-rules.md` — 샌드박스 계약 + Final report 형식 + 공용 rules 전부 통합 (과거 `sandbox-contract.md` 흡수).
+- `scripts/vibe-preflight.mjs` — 새 Sprint 시작 전 git/의존성/provider 실행 가능 체크 스크립트.
+- `.vibe/agent/sprint-status.schema.json` — 누적 verification + Sprint 이력 + **handoff 필드** 스키마. 런타임에 `sprint-status.json`으로 생성·갱신.
+- `.vibe/agent/handoff.md` — 현재 Orchestrator의 무손실 상태 박제. **컨텍스트 압축 복구 시 최우선 읽기 대상**.
+- `.vibe/agent/re-incarnation.md` — fresh Orchestrator 부팅 프로토콜 (읽기 순서, 체크포인트 규정).
 
 ## 관련 스킬
 - `/vibe-init` — 초기 세팅 (대화형)

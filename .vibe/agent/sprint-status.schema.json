@@ -5,6 +5,7 @@
   "description": "Cumulative sprint state tracked by the Orchestrator. Planner injects `verificationCommands` into each new Sprint prompt so prior checks are automatically re-run (regression guard).",
   "type": "object",
   "required": ["schemaVersion", "project", "sprints", "verificationCommands"],
+  "x-purpose": "Dual-purpose: (1) regression guard via verificationCommands, (2) fuel for Orchestrator re-incarnation via `handoff` field. After a context compaction or fresh session boot, a new Orchestrator reads this file + .vibe/agent/handoff.md to restore state losslessly.",
   "properties": {
     "schemaVersion": {
       "type": "string",
@@ -59,6 +60,41 @@
       "type": "array",
       "description": "Union of all verification commands that must still pass. Planner injects this into each Sprint's 'Regression guard' section.",
       "items": { "$ref": "#/$defs/verificationCommand" }
+    },
+    "handoff": {
+      "type": "object",
+      "description": "Orchestrator re-incarnation fuel. Updated at every meaningful checkpoint so a fresh Orchestrator can resume without loss after context compaction or session restart.",
+      "required": ["currentSprintId", "lastActionSummary", "orchestratorContextBudget"],
+      "properties": {
+        "currentSprintId": {
+          "type": "string",
+          "description": "Sprint id in progress, e.g. 'self-evolution-0'"
+        },
+        "lastActionSummary": {
+          "type": "string",
+          "description": "One-line summary of the most recent action completed by the Orchestrator."
+        },
+        "openIssues": {
+          "type": "array",
+          "description": "Unresolved blockers or pending user questions.",
+          "items": { "type": "string" }
+        },
+        "orchestratorContextBudget": {
+          "type": "string",
+          "enum": ["low", "medium", "high"],
+          "description": "Self-assessed context pressure. 'high' means a Planner/Evaluator spawn or re-incarnation is imminent."
+        },
+        "preferencesActive": {
+          "type": "array",
+          "description": "Active cross-session preferences that must survive compaction (e.g. 'ko-informal', 'autonomous-until-artifact').",
+          "items": { "type": "string" }
+        },
+        "handoffDocPath": {
+          "type": "string",
+          "description": "Path to the narrative handoff file, typically '.vibe/agent/handoff.md'."
+        },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      }
     },
     "sandboxNotes": {
       "type": "array",

@@ -1,0 +1,40 @@
+{
+  "$schema": "./sprint-status.schema.json",
+  "schemaVersion": "0.1",
+  "project": {
+    "name": "vibe-doctor",
+    "createdAt": "2026-04-09T00:00:00Z",
+    "runtime": "node24",
+    "framework": "claude-code-template"
+  },
+  "sprints": [
+    {
+      "id": "self-evolution-0",
+      "name": "Self-evolution P0: handoff + trigger matrix + re-incarnation protocol",
+      "status": "passed",
+      "completedAt": "2026-04-09T00:00:00Z",
+      "evaluatorVerdict": "skipped",
+      "startedAt": "2026-04-09T00:00:00Z",
+      "planPromptPath": ".vibe/agent/handoff.md",
+      "addedVerificationCommands": [],
+      "deviations": [
+        "No Planner spawned: Orchestrator already holds the plan (trigger matrix was the product of the prior review session). Planner Must-triggers not satisfied.",
+        "No Generator spawned: all P0 artifacts are .md/.json (doc+config), which Orchestrator is permitted to author directly per the role constraint."
+      ]
+    }
+  ],
+  "verificationCommands": [],
+  "sandboxNotes": [],
+  "handoff": {
+    "currentSprintId": "self-evolution-0",
+    "lastActionSummary": "self-evolution sprint-0 P0-A~E 전 항목 완료. 커밋/푸시 + 사용자 리뷰 대기.",
+    "openIssues": [],
+    "orchestratorContextBudget": "medium",
+    "preferencesActive": [
+      "ko-informal",
+      "autonomous-until-artifact"
+    ],
+    "handoffDocPath": ".vibe/agent/handoff.md",
+    "updatedAt": "2026-04-09T00:00:00Z"
+  }
+}
