@@ -29,10 +29,42 @@
 - Sprint 실패 시 Evaluator 판정 기반 에스컬레이션
 - JSONL evidence 축적
 
-## 프로젝트별 디렉터리 구조
+## vibe-doctor 디렉터리 구조
 
-<!-- 클론 후 실제 프로젝트 구조를 여기에 추가하세요 -->
+> ℹ️ 이 트리는 vibe-doctor 템플릿 자체의 구조입니다. `/vibe-init` 실행 시
+> 다운스트림 프로젝트에서는 이 섹션이 사용자 프로젝트 트리로 교체됩니다.
 
 ```text
-(프로젝트 디렉터리 구조를 여기에 작성)
+vibe-doctor/
+├── CLAUDE.md                    # 루트 오케스트레이터 메모리 (얇게 유지)
+├── AGENTS.md / GEMINI.md        # 다른 provider용 동등 메모리
+├── README.md
+├── .gitattributes               # 크로스플랫폼 줄끝 정규화
+├── .github/workflows/ci.yml     # typecheck → build → test → audit
+├── .claude/
+│   ├── settings.json            # Claude Code 훅 + 권한
+│   └── skills/*                 # /vibe-init, /goal-to-plan, /self-qa 등
+├── .vibe/
+│   ├── config.json              # provider + sprintRoles 기본값
+│   ├── config.local.example.json
+│   └── runs/*                   # JSONL evidence (git-ignored)
+├── src/
+│   ├── commands/                # 8개 vibe:* CLI (runMain 통일)
+│   │   ├── doctor.ts
+│   │   ├── init.ts
+│   │   ├── audit-config.ts
+│   │   ├── qa.ts
+│   │   ├── run-agent.ts
+│   │   ├── write-report.ts
+│   │   ├── summarize-usage.ts
+│   │   └── escalate-on-test-failure.ts
+│   ├── lib/                     # cli/config/fs/logger/report/usage 등
+│   └── providers/runner.ts      # provider-agnostic 실행 플랜
+├── test/                        # node:test (20 cases)
+├── scripts/run-codex.sh         # Windows 한국어 UTF-8 안전 래퍼
+└── docs/
+    ├── context/*                # product / architecture / conventions / qa / tokens / secrets
+    ├── orchestration/*          # sprint / escalation / providers
+    ├── plans/*                  # Sprint 계획서
+    └── reports/*                # Sprint 종료 보고서
 ```
