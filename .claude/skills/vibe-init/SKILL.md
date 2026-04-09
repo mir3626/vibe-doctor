@@ -182,10 +182,20 @@ CRITICAL 블록도 업데이트:
     "generator": "deepseek",
     "evaluator": "claude-opus"
   },
+  "sprint": {
+    "unit": "feature",
+    "subAgentPerRole": true,
+    "freshContextPerSprint": true
+  },
   "providers": {
     "claude-opus": {
       "command": "claude",
       "args": ["-p", "{prompt}"],
+      "env": {}
+    },
+    "codex": {
+      "command": "./scripts/run-codex.sh",
+      "args": ["{prompt}"],
       "env": {}
     },
     "deepseek": {
