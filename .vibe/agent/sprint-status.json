@@ -29,6 +29,28 @@
         "No Planner spawned: Orchestrator already holds the plan (trigger matrix was the product of the prior review session). Planner Must-triggers not satisfied.",
         "No Generator spawned: all P0 artifacts are .md/.json (doc+config), which Orchestrator is permitted to author directly per the role constraint."
       ]
+    },
+    {
+      "id": "self-evolution-1",
+      "name": "Self-evolution fine-tuning: startup footprint + compaction survivability",
+      "status": "passed",
+      "completedAt": "2026-04-09T14:45:00Z",
+      "evaluatorVerdict": "skipped",
+      "startedAt": "2026-04-09T14:00:00Z",
+      "planPromptPath": "docs/prompts/self-evolution-1-scripts.md",
+      "addedVerificationCommands": [
+        {
+          "id": "vibe-checkpoint",
+          "command": "node scripts/vibe-checkpoint.mjs",
+          "expectExitCode": 0,
+          "introducedInSprint": "self-evolution-1",
+          "runOutsideSandbox": false
+        }
+      ],
+      "deviations": [
+        "A1 (universal override relocation to global CLAUDE.md) rejected by user — template ships to other users, must stay in-repo.",
+        "Generator delegated only for .mjs scripts (vibe-checkpoint.mjs new + vibe-preflight.mjs edit). All .md/.json edits done by Orchestrator directly per role constraint."
+      ]
     }
   ],
   "verificationCommands": [
@@ -38,12 +60,19 @@
       "expectExitCode": 0,
       "introducedInSprint": "self-evolution-0",
       "runOutsideSandbox": false
+    },
+    {
+      "id": "vibe-checkpoint",
+      "command": "node scripts/vibe-checkpoint.mjs",
+      "expectExitCode": 0,
+      "introducedInSprint": "self-evolution-1",
+      "runOutsideSandbox": false
     }
   ],
   "sandboxNotes": [],
   "handoff": {
-    "currentSprintId": "self-evolution-0",
-    "lastActionSummary": "P0 review 후속: dead weight 3개 파일 삭제 + CLAUDE.md 전면 정리 + 죽은 참조 6개 수정 + schema required 강화 + preflight dynamic provider. 리뷰 findings C1~C5 + M1~M6 전부 해결.",
+    "currentSprintId": "self-evolution-1",
+    "lastActionSummary": "Fine-tuning pass 완료: A2~A5(designmd 제거, Sprint 흐름/규칙 병합, .vibe/agent 설명 슬림화, project_self_evolution memory 삭제) + B1~B6(PreCompact hook + vibe-checkpoint.mjs + session-log.md append-only 저널 + handoff staleness preflight 체크 + tripwire 객관화 + handoff.md 슬림화). 모든 변경 검증 완료.",
     "openIssues": [],
     "orchestratorContextBudget": "medium",
     "preferencesActive": [
@@ -51,6 +80,6 @@
       "autonomous-until-artifact"
     ],
     "handoffDocPath": ".vibe/agent/handoff.md",
-    "updatedAt": "2026-04-09T00:00:00Z"
+    "updatedAt": "2026-04-09T14:45:00Z"
   }
 }

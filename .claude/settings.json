@@ -29,6 +29,16 @@
           }
         ]
       }
+    ],
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node scripts/vibe-checkpoint.mjs"
+          }
+        ]
+      }
     ]
   }
 }

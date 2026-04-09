@@ -29,9 +29,11 @@ checkpoint로서 소환될 때** 공유할 프롬프트 조각·샌드박스 계
 |---|---|
 | `_common-rules.md` | Sprint 프롬프트 공용 rules + 샌드박스 계약 + Final report 형식 일체. Planner가 Sprint 프롬프트 조립 시 참조. |
 | `sprint-status.schema.json` | Sprint 누적 상태 + handoff 필드 JSON Schema. 런타임 인스턴스는 `.vibe/agent/sprint-status.json`. |
-| `handoff.md` | Orchestrator의 무손실 상태 박제. 컨텍스트 압축 복구 시 최우선 읽기 대상. |
-| `re-incarnation.md` | fresh Orchestrator 부팅 프로토콜 (읽기 순서, 체크포인트 규정). |
-| `../../scripts/vibe-preflight.mjs` | 새 Sprint 시작 전 기계적 체크(git/deps/provider/sprint-status). `node scripts/vibe-preflight.mjs`. |
+| `handoff.md` | Orchestrator의 무손실 상태 박제 (현재 스냅샷). 컨텍스트 압축 복구 시 최우선 읽기 대상. |
+| `session-log.md` | Append-only 증분 저널. handoff가 놓치는 mid-session 결정/실패/발견을 보존. |
+| `re-incarnation.md` | fresh Orchestrator 부팅 프로토콜 (읽기 순서, 체크포인트 규정, tripwire). |
+| `../../scripts/vibe-preflight.mjs` | 새 Sprint 시작 전 기계적 체크(git/deps/provider/status/handoff staleness). |
+| `../../scripts/vibe-checkpoint.mjs` | PreCompact hook이 호출. handoff/session-log가 stale하면 압축을 block. |
 
 ## 버전
 
