@@ -22,7 +22,7 @@
 
 ## 플랫폼 / 런타임
 
-- **Node.js 20+** (ESM, TypeScript strict 모드)
+- **Node.js 24+** (Active LTS, ESM, TypeScript strict 모드)
 - **Claude Code CLI** (Opus 4.6 기본 오케스트레이터)
 - **Codex CLI** (기본 Generator, `codex exec` 로 직접 호출 — 플러그인 경로는 Windows 불안정 이슈로 잠정 보류)
 - **ouroboros-ai** (Python 3.12+, `/vibe-init` Phase 3의 소크라테스식 인터뷰 엔진)

@@ -91,9 +91,10 @@ Sprint 역할별로 어떤 AI를 사용할지 선택합니다:
 
 ## 요구 사항
 
-- Node.js 20+
+- Node.js 24+ (Active LTS)
 - npm 10+
 - git
+- **bash** — Sprint Generator는 `scripts/run-codex.sh` wrapper 경유로 Codex를 호출합니다. Windows 사용자는 **Git for Windows에 포함된 Git Bash** 를 사용하세요 (`git --version` 이 동작하면 git-bash도 함께 설치되어 있습니다).
 - **Python 3.12+** (ouroboros 인터뷰 엔진에 필요)
 - ouroboros-ai (`/vibe-init`의 Phase 3에서 사용 — 아래 설치 안내 참조)
 - 선택: `claude`, `codex` CLI
