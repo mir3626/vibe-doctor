@@ -62,6 +62,47 @@ Generator 호출은 반드시 **Codex CLI** (`Bash("codex exec ...")`)를 사용
 - `codex:gpt-5-4-prompting` (내부) — Codex/GPT-5.4 프롬프트 가이드 (사용 가능)
 ## Troubleshooting
 
+### ouroboros 설치 실패 (`Could not find a version that satisfies the requirement ouroboros-ai`)
+
+**증상**: `pip install ouroboros-ai` 또는 `pip install ouroboros` 실행 시 패키지를 찾지 못한다는 에러.
+
+**원인 1 — 잘못된 패키지명**: PyPI 패키지명은 **`ouroboros-ai`** 이다. 하이픈 없는 `ouroboros`는 다른 패키지이므로 혼동하지 말 것.
+
+**원인 2 — Python 버전**: ouroboros-ai는 **Python 3.12 이상**을 요구한다. 3.11 이하에서는 호환 버전이 없다는 에러가 발생한다.
+
+**해결 순서**:
+
+```bash
+# 1. Python 버전 확인 (3.12+ 필수)
+python --version
+
+# 2. 3.12 미만이면 업그레이드 (Windows는 python.org 공식 인스톨러, macOS는 brew install python@3.12)
+
+# 3. 설치 (권장: pipx 격리 환경)
+pipx install "ouroboros-ai[all]"
+
+# 또는 pip
+pip install --user "ouroboros-ai[all]"
+
+# 또는 업스트림 원클릭 스크립트 (macOS/Linux)
+curl -fsSL https://raw.githubusercontent.com/Q00/ouroboros/main/scripts/install.sh | bash
+
+# 4. 초기 설정
+ouroboros setup
+
+# 5. 설치 확인
+python -m ouroboros --version
+```
+
+**extras 옵션** (필요에 따라 선택):
+- `[claude]` — Claude Code 연동
+- `[litellm]` — LiteLLM 멀티 프로바이더
+- `[mcp]` — MCP 서버/클라이언트
+- `[tui]` — Textual 터미널 UI
+- `[all]` — 전체 번들 (기본 권장)
+
+---
+
 ### ouroboros MCP 서버 연결 실패 (Windows PID 파일 문제)
 
 **증상**: `claude mcp list`에서 ouroboros가 `✗ Failed to connect`로 표시되거나, `ouroboros_interview` 호출 시 MCP 서버가 응답하지 않음.

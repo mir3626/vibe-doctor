@@ -92,7 +92,39 @@ Sprint 역할별로 어떤 AI를 사용할지 선택합니다:
 - Node.js 20+
 - npm 10+
 - git
+- **Python 3.12+** (ouroboros 인터뷰 엔진에 필요)
+- ouroboros-ai (`/vibe-init`의 Phase 3에서 사용 — 아래 설치 안내 참조)
 - 선택: `claude`, `codex` CLI
+
+### ouroboros 설치
+
+`/vibe-init`의 프로젝트 맞춤 설정(Phase 3)은 [ouroboros](https://github.com/Q00/ouroboros) 인터뷰 엔진을 사용합니다.
+**패키지명은 `ouroboros-ai`** 이며 (`ouroboros` 아님), **Python 3.12 이상**을 요구합니다.
+
+```bash
+# 권장: pipx (격리 환경)
+pipx install "ouroboros-ai[all]"
+
+# 또는 pip
+pip install --user "ouroboros-ai[all]"
+
+# 또는 업스트림 원클릭 스크립트
+curl -fsSL https://raw.githubusercontent.com/Q00/ouroboros/main/scripts/install.sh | bash
+```
+
+설치 확인:
+
+```bash
+python -m ouroboros --version
+ouroboros setup   # 초기 설정
+```
+
+**자주 발생하는 오류**
+
+- `ERROR: Could not find a version that satisfies the requirement ouroboros-ai`
+  → Python이 3.12 미만입니다. `python --version`으로 확인하고 3.12+로 업그레이드하세요.
+- `ouroboros`(하이픈 없음)로 설치 시도 → 잘못된 패키지명입니다. 반드시 `ouroboros-ai`.
+- Windows에서 MCP 서버가 `✗ Failed to connect`로 뜨는 경우 → `docs/orchestration/providers.md`의 Troubleshooting 참조.
 
 ---
 
