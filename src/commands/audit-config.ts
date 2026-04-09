@@ -22,7 +22,9 @@ async function main(): Promise<void> {
 
   const tracked = result.stdout.split(/\r?\n/).filter(Boolean);
   const violations = tracked.filter((file) =>
-    forbiddenPatterns.some((pattern) => file === pattern || file.startsWith(pattern)),
+    forbiddenPatterns.some((pattern) =>
+      pattern.endsWith('/') ? file.startsWith(pattern) : file === pattern,
+    ),
   );
 
   await appendJsonl(path.join(paths.vibeRunsDir, isoDate(), 'audit.jsonl'), {
