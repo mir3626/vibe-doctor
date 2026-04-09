@@ -1,5 +1,6 @@
 import process from 'node:process';
 import { parseArgs, getStringFlag } from '../lib/args.js';
+import { runMain } from '../lib/cli.js';
 import { logger } from '../lib/logger.js';
 import { writeReport } from '../lib/report.js';
 import { readdir, readFile } from 'node:fs/promises';
@@ -49,7 +50,9 @@ async function getUsageSummary(): Promise<
     }
 
     return sumUsage(usageItems);
-  } catch {
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error);
+    logger.warn(`Usage summary unavailable: ${reason}`);
     return undefined;
   }
 }
@@ -94,7 +97,4 @@ async function main(): Promise<void> {
   logger.info(`report created: ${target}`);
 }
 
-main().catch((error: unknown) => {
-  logger.error(error instanceof Error ? error.message : String(error));
-  process.exitCode = 1;
-});
+runMain(main, import.meta.url);

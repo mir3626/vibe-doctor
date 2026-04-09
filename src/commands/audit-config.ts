@@ -1,7 +1,6 @@
 import process from 'node:process';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { resolve } from 'node:path';
+import { runMain } from '../lib/cli.js';
 import { appendJsonl } from '../lib/fs.js';
 import { logger } from '../lib/logger.js';
 import { paths } from '../lib/paths.js';
@@ -57,13 +56,4 @@ async function main(): Promise<void> {
   logger.info('Config audit passed');
 }
 
-const isMain =
-  typeof process.argv[1] === 'string' &&
-  resolve(process.argv[1]) === resolve(fileURLToPath(import.meta.url));
-
-if (isMain) {
-  main().catch((error: unknown) => {
-    logger.error(error instanceof Error ? error.message : String(error));
-    process.exitCode = 1;
-  });
-}
+runMain(main, import.meta.url);
