@@ -5,7 +5,7 @@ function format(level: LogLevel, message: string): string {
   return `[${stamp}] [${level.toUpperCase()}] ${message}`;
 }
 
-export function log(level: LogLevel, message: string): void {
+function log(level: LogLevel, message: string): void {
   const line = format(level, message);
   if (level === 'error') {
     console.error(line);

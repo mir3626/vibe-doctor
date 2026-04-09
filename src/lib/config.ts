@@ -27,12 +27,6 @@ export interface VibeConfig {
   qa?: {
     preferScripts?: string[];
   };
-  /** @deprecated use sprintRoles.generator */
-  defaultCoder?: string;
-  /** @deprecated removed in Sprint model */
-  challenger?: string;
-  /** @deprecated use orchestrator */
-  reviewer?: string;
 }
 
 function mergeConfig(base: VibeConfig, override: Partial<VibeConfig>): VibeConfig {
