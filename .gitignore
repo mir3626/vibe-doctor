@@ -5,7 +5,6 @@ coverage/
 .DS_Store
 .vibe/config.local.json
 .vibe/runs/
-.worktrees/
 .env
 .env.*
 !.env.example

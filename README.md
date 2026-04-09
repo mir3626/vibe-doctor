@@ -166,7 +166,6 @@ npm run vibe:config-audit             # 설정 감사 (시크릿 누출 검사)
 | 기본 Generator | Codex (`/vibe-init`에서 변경 또는 커스텀 AI 연결 가능) |
 | 언어 | TypeScript (Node.js ESM) |
 | 컨텍스트 전략 | 얇은 루트 메모리 + 샤딩된 MD + skills |
-| 병렬 실행 | 각 프롬프트를 별도 git worktree에서 격리 실행 |
 | 실패 에스컬레이션 | Evaluator 2회 연속 불합격 시 Planner 재생성 또는 사용자 에스컬레이션 |
 | QA 기본값 | test → typecheck → lint → build 자동 감지 실행 |
 | 보안 | `.env` / `secrets` / credential 파일 git 제외 + 자동 감사 훅 |

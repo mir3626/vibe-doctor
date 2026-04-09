@@ -18,7 +18,6 @@
    - `.vibe/runs/*`
    - `docs/plans/*`
    - `docs/reports/*`
-   - `.worktrees/*`
 
 ## 설계 원칙
 

@@ -323,7 +323,6 @@ ouroboros가 반환한 인터뷰 결과(seed 데이터)를 파싱하여 아래 3
    - `.vibe/runs/*`
    - `docs/plans/*`
    - `docs/reports/*`
-   - `.worktrees/*`
 
 ## 설계 원칙
 
