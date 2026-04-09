@@ -1,6 +1,7 @@
 import process from 'node:process';
 import path from 'node:path';
 import { parseArgs, getStringFlag, getBooleanFlag } from '../lib/args.js';
+import { runMain } from '../lib/cli.js';
 import { loadConfig } from '../lib/config.js';
 import { appendJsonl, readText } from '../lib/fs.js';
 import { logger } from '../lib/logger.js';
@@ -115,7 +116,4 @@ async function main(): Promise<void> {
   }
 }
 
-main().catch((error: unknown) => {
-  logger.error(error instanceof Error ? error.message : String(error));
-  process.exitCode = 1;
-});
+runMain(main, import.meta.url);

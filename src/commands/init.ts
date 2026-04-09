@@ -3,6 +3,7 @@ import path from 'node:path';
 import { copyFile } from 'node:fs/promises';
 import readline from 'node:readline/promises';
 import { stdin as input, stdout as output } from 'node:process';
+import { runMain } from '../lib/cli.js';
 import { fileExists, readJson, writeJson, writeText } from '../lib/fs.js';
 import { logger } from '../lib/logger.js';
 import { paths } from '../lib/paths.js';
@@ -259,7 +260,4 @@ async function main(): Promise<void> {
   }
 }
 
-main().catch((error: unknown) => {
-  logger.error(error instanceof Error ? error.message : String(error));
-  process.exitCode = 1;
-});
+runMain(main, import.meta.url);

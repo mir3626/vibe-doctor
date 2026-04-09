@@ -1,6 +1,7 @@
 import process from 'node:process';
 import path from 'node:path';
 import { parseArgs, getStringFlag } from '../lib/args.js';
+import { runMain } from '../lib/cli.js';
 import { readText, writeText } from '../lib/fs.js';
 import { logger } from '../lib/logger.js';
 import { paths } from '../lib/paths.js';
@@ -59,7 +60,4 @@ async function main(): Promise<void> {
   logger.info(`Escalation brief: ${reportPath}`);
 }
 
-main().catch((error: unknown) => {
-  logger.error(error instanceof Error ? error.message : String(error));
-  process.exitCode = 1;
-});
+runMain(main, import.meta.url);

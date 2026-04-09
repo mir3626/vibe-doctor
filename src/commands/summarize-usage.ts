@@ -1,6 +1,7 @@
 import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
+import { runMain } from '../lib/cli.js';
 import { logger } from '../lib/logger.js';
 import { paths } from '../lib/paths.js';
 import type { UsageSummary } from '../lib/usage.js';
@@ -55,7 +56,4 @@ async function main(): Promise<void> {
   logger.info(`total tokens: ${total.totalTokens}`);
 }
 
-main().catch((error: unknown) => {
-  logger.error(error instanceof Error ? error.message : String(error));
-  process.exitCode = 1;
-});
+runMain(main, import.meta.url);
