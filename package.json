@@ -5,7 +5,7 @@
   "type": "module",
   "description": "TypeScript-first base template for Claude Code vibe coding orchestration.",
   "engines": {
-    "node": ">=20"
+    "node": ">=24"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",

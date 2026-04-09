@@ -10,7 +10,7 @@ function nodeMajorVersion(): number {
 
 async function main(): Promise<void> {
   const checks = [
-    ['node>=20', nodeMajorVersion() >= 20],
+    ['node>=24', nodeMajorVersion() >= 24],
     ['npm', await commandExists('npm')],
     ['git', await commandExists('git')],
     ['claude (optional)', await commandExists('claude')],
