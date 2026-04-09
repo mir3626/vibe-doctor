@@ -130,14 +130,12 @@ async function customizeArchitecture(rl: readline.Interface): Promise<void> {
    - \`.vibe/runs/*\`
    - \`docs/plans/*\`
    - \`docs/reports/*\`
-   - \`.worktrees/*\`
 
 ## 설계 원칙
 
 - 얇은 루트 메모리 — 상세 규칙은 shard로 분리
 - 설정 가능 provider runner — \`.vibe/config.local.json\`으로 provider 교체 가능
-- 외부 coder는 격리 실행 우선
-- 실패 시 worktree 기반 분기
+- Sprint 실패 시 Evaluator 판정 기반 Planner 재생성 에스컬레이션
 - JSONL evidence 축적
 
 ## 프로젝트별 디렉터리 구조
