@@ -21,5 +21,14 @@
       "args": ["exec", "--json", "{prompt}"],
       "env": {}
     }
+  },
+  "qa": {
+    "preferScripts": [
+      "test:unit",
+      "test",
+      "typecheck",
+      "lint",
+      "build"
+    ]
   }
 }

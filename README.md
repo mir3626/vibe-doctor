@@ -2,7 +2,9 @@
 
 > 새 프로젝트마다 프롬프트와 규칙을 다시 깔지 않고, `git clone` 후 바로 같은 프로세스와 품질 기준으로 바이브 코딩을 시작할 수 있게 하는 베이스 템플릿
 
-**Claude Code(Opus)** 를 메인 오케스트레이터로, **Codex** 를 기본 Generator로 사용하는 Sprint 기반 개발 프로세스입니다.
+**Claude Code (Opus 4.6)** 를 메인 오케스트레이터로, **Codex CLI** 를 기본 Generator로 사용하는 Sprint 기반 개발 프로세스입니다.
+
+> ⚠️ **템플릿 주의**: `docs/context/product.md` 와 `docs/context/architecture.md` 는 의도적으로 플레이스홀더 상태입니다. **`git clone` 직후 `/vibe-init` 을 먼저 실행**해서 프로젝트 맥락을 채운 뒤 개발을 시작하세요. 플레이스홀더 상태로 Sprint를 돌리면 Planner가 맥락 없이 작업하게 됩니다.
 
 ---
 
@@ -185,7 +187,6 @@ npm run vibe:config-audit             # 설정 감사 (시크릿 누출 검사)
 │   └── skills/                # Claude 전용 스킬 (vibe-init, goal-to-plan 등)
 ├── .codex/
 │   └── agents/                # Codex 에이전트 프로필 (coder, explorer)
-├── .agents/skills/            # 범용 스킬 (Codex 등 공용)
 ├── .vibe/
 │   ├── config.json            # 프로젝트 기본 provider 설정 (커밋됨)
 │   ├── config.local.json      # 로컬 override (gitignore)
