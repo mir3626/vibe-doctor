@@ -73,6 +73,13 @@
 - 보안 정책: `docs/context/secrets.md`
 - 오케스트레이션: `docs/orchestration/*.md`
 
+## Agent 오케스트레이션 레이어 (`.vibe/agent/`)
+Sprint 프롬프트 공용 조각·샌드박스 계약·상태 스키마가 모여있다. **새 Sprint를 조립하기 전**에 필요한 것만 읽는다.
+- `.vibe/agent/_common-rules.md` — Sprint 프롬프트 공용 rules (샌드박스 우회 금지, Final report 형식 등). Planner가 각 Sprint 프롬프트 앞에 참조·include.
+- `.vibe/agent/sandbox-contract.md` — Codex 샌드박스 × Orchestrator 역할 분담. npm install 같은 네트워크 필요 작업은 Orchestrator가 샌드박스 밖에서 수행.
+- `.vibe/agent/preflight.md` — 새 Sprint 시작 전 git/의존성/provider 체크 러너북.
+- `.vibe/agent/sprint-status.schema.json` — 누적 verification 명령 + Sprint 이력 스키마. 런타임에 `sprint-status.json`으로 생성·갱신.
+
 ## 관련 스킬
 - `/vibe-init` — 초기 세팅 (대화형)
 - `/goal-to-plan`

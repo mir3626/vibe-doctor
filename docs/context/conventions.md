@@ -32,6 +32,48 @@
   - Claude Code가 OS에 맞는 셸로 알아서 실행하므로 `cmd /c` 접두사는 Unix에서 깨지고 Windows에서는 이중 셸을 유발한다.
 - 셸 스크립트(`.sh`)는 반드시 LF 줄 끝으로 커밋한다 (`.gitattributes`가 강제).
 
+### 환경변수 주입 (실행 시)
+
+`FOO=bar command` 형태의 인라인 변수 주입은 POSIX 셸(bash/zsh/Git Bash) 전용이며
+Windows 네이티브 PowerShell/cmd에서는 동작하지 않는다. 문서/README에 실행 예시를 적을
+때는 아래 3종을 모두 표기하거나 `.env.local`을 권장한다.
+
+| 셸 | 예시 |
+|---|---|
+| bash / zsh / Git Bash | `APP_PASSWORD=xxx npm run dev` |
+| PowerShell | `$env:APP_PASSWORD="xxx"; npm run dev` |
+| cmd.exe | `set APP_PASSWORD=xxx && npm run dev` |
+| 크로스플랫폼 (권장) | `.env.local`에 `APP_PASSWORD=xxx` 기록 후 `npm run dev` |
+
+## Node 24 + TypeScript 실행 규약
+
+vibe-doctor와 다운스트림 프로젝트는 **Node 24+** 를 가정한다. Node 24의 type-stripping
+덕분에 별도 빌드 없이 `.ts` 파일을 `node` 명령으로 직접 실행할 수 있다.
+
+### smoke / 검증 스크립트 패턴
+
+- **스크립트 자체는 `.mjs`** 로 작성한다. 이유: Node가 `.ts`를 실행할 때 타입 주석만
+  떼어내므로 top-level await, ESM import 등은 문제없지만, 스크립트 안에서 TS 문법
+  (interface/as 캐스트)을 쓰면 혼란스럽다. `.mjs`는 순수 ESM JS로 유지한다.
+- **repo/lib 코드는 `.ts`로 직접 import** 한다. 예:
+  ```js
+  // scripts/book-repo-smoke.mjs
+  import { createBook, listBooks } from '../lib/repo/books.ts';
+  ```
+- 이 import가 `tsc --noEmit`에서 에러 없이 통과하려면 **tsconfig에 아래 옵션 필수**:
+  ```json
+  {
+    "compilerOptions": {
+      "allowImportingTsExtensions": true,
+      "noEmit": true
+    }
+  }
+  ```
+- 각 smoke 스크립트는 **전용 SQLite DB 파일**(`data/*-smoke.db`)을 사용하고 실행 시작 시
+  기존 파일을 지워 결정성을 확보한다.
+- 성공 시 고유 토큰(`SMOKE OK`, `AUTH SMOKE OK` 등)을 stdout에 출력해서 Orchestrator가
+  grep으로 검증할 수 있게 한다.
+
 ## 모델 표기 규칙
 
 이 저장소는 Claude/Codex/기타 모델을 여러 맥락에서 언급한다. 혼란을 줄이려면 다음 구분을 지킨다.

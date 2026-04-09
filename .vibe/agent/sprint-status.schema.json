@@ -1,0 +1,104 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vibe-doctor/.vibe/agent/sprint-status.schema.json",
+  "title": "Sprint Status",
+  "description": "Cumulative sprint state tracked by the Orchestrator. Planner injects `verificationCommands` into each new Sprint prompt so prior checks are automatically re-run (regression guard).",
+  "type": "object",
+  "required": ["schemaVersion", "project", "sprints", "verificationCommands"],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "0.1"
+    },
+    "project": {
+      "type": "object",
+      "required": ["name", "createdAt"],
+      "properties": {
+        "name": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "runtime": {
+          "type": "string",
+          "description": "Primary runtime label, e.g. 'node24', 'cloudflare-workers'"
+        },
+        "framework": { "type": "string" }
+      }
+    },
+    "sprints": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "name", "status"],
+        "properties": {
+          "id": { "type": "string", "description": "e.g. 'sprint-01'" },
+          "name": { "type": "string" },
+          "status": {
+            "type": "string",
+            "enum": ["planned", "in_progress", "passed", "failed", "skipped"]
+          },
+          "startedAt": { "type": "string", "format": "date-time" },
+          "completedAt": { "type": "string", "format": "date-time" },
+          "planPromptPath": { "type": "string" },
+          "generatorReportPath": { "type": "string" },
+          "evaluatorVerdict": {
+            "type": "string",
+            "enum": ["pass", "fail", "skipped"]
+          },
+          "addedVerificationCommands": {
+            "type": "array",
+            "description": "Verification commands introduced by this Sprint that later Sprints must keep green.",
+            "items": { "$ref": "#/$defs/verificationCommand" }
+          },
+          "deviations": {
+            "type": "array",
+            "items": { "type": "string" }
+          }
+        }
+      }
+    },
+    "verificationCommands": {
+      "type": "array",
+      "description": "Union of all verification commands that must still pass. Planner injects this into each Sprint's 'Regression guard' section.",
+      "items": { "$ref": "#/$defs/verificationCommand" }
+    },
+    "sandboxNotes": {
+      "type": "array",
+      "description": "Known sandbox-only failures that Orchestrator handles outside the sandbox.",
+      "items": {
+        "type": "object",
+        "required": ["command", "reason"],
+        "properties": {
+          "command": { "type": "string" },
+          "reason": { "type": "string" },
+          "runOutsideSandbox": { "type": "boolean", "default": true }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "verificationCommand": {
+      "type": "object",
+      "required": ["id", "command", "expectExitCode"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Stable short id, e.g. 'tsc', 'db-smoke', 'auth-smoke'"
+        },
+        "command": {
+          "type": "string",
+          "description": "Exact shell command, e.g. 'npx tsc --noEmit'"
+        },
+        "expectExitCode": { "type": "integer", "default": 0 },
+        "expectStdoutContains": {
+          "type": "string",
+          "description": "Optional success token, e.g. 'SMOKE OK'"
+        },
+        "introducedInSprint": { "type": "string" },
+        "runOutsideSandbox": {
+          "type": "boolean",
+          "default": false,
+          "description": "true if this command requires network/build and must run outside the Generator sandbox"
+        }
+      }
+    }
+  }
+}
