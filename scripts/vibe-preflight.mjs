@@ -34,26 +34,57 @@ try {
   record('git.clean', false, e.message);
 }
 
-// 3. package.json delta vs HEAD~1
+// 3. package.json delta vs HEAD~1 (first-commit aware)
 try {
   const hasPkg = existsSync(resolve('package.json'));
   if (!hasPkg) {
     record('deps.delta', true, 'no package.json (skip)');
   } else {
-    let diff = '';
-    try { diff = sh('git diff HEAD~1 HEAD -- package.json'); } catch { diff = ''; }
-    record('deps.delta', true, diff ? 'package.json changed since HEAD~1 — Orchestrator must run npm install OUTSIDE sandbox' : 'no change');
+    let hasParent = false;
+    try { sh('git rev-parse HEAD~1'); hasParent = true; } catch { hasParent = false; }
+    if (!hasParent) {
+      record('deps.delta', true, 'single-commit repo — baseline; run npm install once outside sandbox');
+    } else {
+      const diff = sh('git diff HEAD~1 HEAD -- package.json');
+      record('deps.delta', true, diff ? 'package.json changed since HEAD~1 — Orchestrator must run npm install OUTSIDE sandbox' : 'no change');
+    }
   }
 } catch (e) {
   record('deps.delta', false, e.message);
 }
 
-// 4. Provider health — codex --version (soft)
-try {
-  const v = sh('codex --version');
-  record('provider.codex', true, v);
-} catch {
-  record('provider.codex', false, 'codex CLI not found — user must run: ! codex auth login');
+// 4. Provider health — dynamically from .vibe/config.json (or config.local.json)
+const configPaths = [resolve('.vibe/config.local.json'), resolve('.vibe/config.json')];
+let cfg = null;
+for (const p of configPaths) {
+  if (existsSync(p)) {
+    try { cfg = JSON.parse(readFileSync(p, 'utf8')); break; } catch { /* fall through */ }
+  }
+}
+
+if (!cfg) {
+  record('provider.config', false, 'no .vibe/config.json — run /vibe-init');
+} else {
+  const sprintRoles = cfg.sprintRoles ?? {};
+  const providers = cfg.providers ?? {};
+  const needed = new Set(Object.values(sprintRoles).filter(Boolean));
+  if (needed.size === 0) {
+    record('provider.config', true, 'no sprintRoles configured (skip health check)');
+  } else {
+    for (const name of needed) {
+      const p = providers[name];
+      if (!p || !p.command) {
+        record(`provider.${name}`, false, `no command configured for "${name}" in .vibe/config.json providers`);
+        continue;
+      }
+      try {
+        const v = sh(`${p.command} --version`);
+        record(`provider.${name}`, true, v.split('\n')[0]);
+      } catch {
+        record(`provider.${name}`, false, `${p.command} CLI not found or not authenticated — check ! ${p.command} --version`);
+      }
+    }
+  }
 }
 
 // 5. Sprint status + handoff presence

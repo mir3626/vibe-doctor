@@ -25,13 +25,17 @@ dogfood 1(Bookshelf) + dogfood 2(Lingua Lens Chrome ext)에서 측정한 vibe-do
 
 증거: 이 세션 중 여러 차례 자동 압축이 발생하면서 한국어↔영어, 반말↔존댓말 전환이 반복됨. 사용자가 "MD 선언이 없으면 compaction 이후 초기화되는 증거"로 관찰.
 
-## 3. Trigger Matrix (합의 결정)
+## 3. 역할 제약 + Trigger Matrix
 
-### Planner 소환
+### 역할 제약 (상수, 트리거 아님)
+- Orchestrator는 소스코드 직접 편집 금지. 문서/설정만 직접.
+- **모든 코드 작성/수정은 Generator(Codex CLI) 위임**: `Bash("... | ./scripts/run-codex.sh -")`.
+
+### Planner 소환 트리거
 - 🟥 **Must**: 전체 로드맵 분할 / Orchestrator context 압축 이력 발생 / 독립 병렬 Sprint
 - 🟨 **Should**: 분할 방식 트레이드오프 / 아키텍처 선택 비자명
 
-### Evaluator 소환
+### Evaluator 소환 트리거
 - 🟥 **Must**: Orchestrator 1차 검증 실패(Tribunal) / context pressure 높음 / 비-executable AC 존재
 - 🟨 **Should**: >5 파일 또는 >500 LOC / 작성자=평가자 충돌
 
@@ -70,12 +74,12 @@ dogfood 1(Bookshelf) + dogfood 2(Lingua Lens Chrome ext)에서 측정한 vibe-do
 
 ## 6. Last action summary
 
-self-evolution sprint-0 P0 전 항목(A~E) 완료. CLAUDE.md trigger matrix 재작성, handoff schema + 실 인스턴스, vibe-preflight 실행 스크립트, sandbox-contract/preflight.md dead weight 삭제 후 `_common-rules.md`에 흡수, re-incarnation 프로토콜 문서 작성까지. 다음은 커밋 + 푸시 + 사용자 검토 대기.
+P0 review 후속 purification pass 완료. 삭제: `docs/orchestration/roles.md`, `docs/orchestration/escalation.md`, `docs/prompts/master-prompt.md` (dead weight/구 파이프라인 잔재). 재작성: `CLAUDE.md` 전면(heading 평행화 + Generator를 "역할 제약"으로 분리 + 중복 제거 + 실패 에스컬레이션 섹션 통합). 참조 정리: `README.md`, `docs/context/product.md`, `docs/context/qa.md`, `.claude/agents/planner.md`, `.claude/skills/vibe-init/SKILL.md`, `docs/orchestration/providers.md`. 강화: schema `handoff.required`에 `preferencesActive` 추가, `sprint-status.json`에 `vibe-preflight` verificationCommand 등록, `scripts/vibe-preflight.mjs`에 `.vibe/config.json` 기반 dynamic provider health + 첫 커밋 repo 구분, `re-incarnation.md` auto-memory 지시 명확화, `.vibe/agent/README.md` 정의 문장 재작성.
 
 ## 7. Next action (재부팅 시 여기부터)
 
-self-evolution sprint-0 **완료 상태**. 다음 선택지:
-1. 사용자 리뷰 대기 → 피드백 반영
+self-evolution sprint-0 **완료 상태** + P0 리뷰 findings 전부 해결. 다음 선택지:
+1. 추가 리뷰 반복 (사용자 요청 시)
 2. P1 항목 착수 (Sprint 프롬프트 template/slot, run-codex.sh heartbeat, .gitattributes 자동화 등)
 3. 3차 dogfood로 self-evolution 변경사항 실전 검증
 

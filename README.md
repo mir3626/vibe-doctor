@@ -4,7 +4,7 @@
 
 **Claude Code (Opus 4.6)** 를 메인 오케스트레이터로, **Codex CLI** 를 기본 Generator로 사용하는 Sprint 기반 개발 프로세스입니다.
 
-> ⚠️ **템플릿 주의**: `docs/context/product.md` 와 `docs/context/architecture.md` 는 의도적으로 플레이스홀더 상태입니다. **`git clone` 직후 `/vibe-init` 을 먼저 실행**해서 프로젝트 맥락을 채운 뒤 개발을 시작하세요. 플레이스홀더 상태로 Sprint를 돌리면 Planner가 맥락 없이 작업하게 됩니다.
+> ⚠️ **템플릿 주의**: `docs/context/product.md` 와 `docs/context/architecture.md` 는 의도적으로 플레이스홀더 상태입니다. **`git clone` 직후 `/vibe-init` 을 먼저 실행**해서 프로젝트 맥락을 채운 뒤 개발을 시작하세요. 플레이스홀더 상태로 Sprint를 돌리면 Orchestrator/Planner가 맥락 없이 작업하게 됩니다.
 
 ---
 
@@ -73,7 +73,7 @@ Sprint 역할별로 어떤 AI를 사용할지 선택합니다:
 
 - **기타**를 선택하면 DeepSeek, Grok 등 커스텀 AI agent를 연결할 수 있습니다.
 - 선택한 provider의 CLI가 미설치인 경우, 설치 및 인증 방법을 step-by-step으로 안내합니다.
-- 선택 결과에 따라 `.vibe/config.local.json`, `AGENTS.md`, `docs/orchestration/roles.md` 등 관련 파일이 자동으로 업데이트됩니다.
+- 선택 결과에 따라 `.vibe/config.local.json`, `AGENTS.md`, `CLAUDE.md` 의 Sprint 역할 테이블 등이 자동으로 업데이트됩니다.
 
 ### Phase 3 — 프로젝트 맞춤 설정
 
@@ -162,12 +162,12 @@ npm run vibe:config-audit             # 설정 감사 (시크릿 누출 검사)
 
 | 항목 | 내용 |
 |------|------|
-| 개발 프로세스 | Sprint 기반 (Planner → Generator → Evaluator) |
+| 개발 프로세스 | Sprint 기반 — 기본은 Orchestrator 단독 + self-QA, context pressure 트리거 시 Planner/Evaluator 소환, 코드는 항상 Generator(Codex) 위임 |
 | 메인 오케스트레이터 | Claude Code (Opus) |
 | 기본 Generator | Codex (`/vibe-init`에서 변경 또는 커스텀 AI 연결 가능) |
 | 언어 | TypeScript (Node.js ESM) |
 | 컨텍스트 전략 | 얇은 루트 메모리 + 샤딩된 MD + skills |
-| 실패 에스컬레이션 | Evaluator 2회 연속 불합격 시 Planner 재생성 또는 사용자 에스컬레이션 |
+| 실패 에스컬레이션 | self-QA 실패 → Evaluator(Tribunal) 소환 → 2회 연속 불합격 시 Planner 재소환 또는 사용자 에스컬레이션 |
 | QA 기본값 | test → typecheck → lint → build 자동 감지 실행 |
 | 보안 | `.env` / `secrets` / credential 파일 git 제외 + 자동 감사 훅 |
 
@@ -193,9 +193,9 @@ npm run vibe:config-audit             # 설정 감사 (시크릿 누출 검사)
 │   └── config.local.example.json  # 로컬 설정 템플릿 (커밋됨)
 ├── docs/
 │   ├── context/               # 샤딩된 컨텍스트 (product, architecture, conventions 등)
-│   ├── orchestration/         # Sprint 역할, provider, 에스컬레이션 정책
+│   ├── orchestration/         # Provider runner 세부사항 (providers.md)
 │   ├── plans/                 # 작업 계획 보관
-│   ├── prompts/               # 마스터 프롬프트
+│   ├── prompts/               # Sprint task 프롬프트 (ad-hoc)
 │   └── reports/               # 작업 완료 보고서
 ├── src/
 │   ├── commands/              # vibe:* 실행 스크립트
@@ -212,7 +212,7 @@ npm run vibe:config-audit             # 설정 감사 (시크릿 누출 검사)
 2. Orchestrator(Claude)는 Sprint 관리, QA, 보고, 문맥 관리에 집중한다.
 3. Planner는 "무엇을"만, Generator는 "어떻게"를 자유롭게 결정한다.
 4. 승인 전에는 비단순 구현을 하지 않는다.
-5. 작업 완료 전에는 Evaluator 합격 없이 완료 선언하지 않는다.
+5. 작업 완료 전에는 self-QA 또는 Evaluator 합격 없이 완료 선언하지 않는다.
 6. 루트 메모리는 얇게 유지하고 상세 규칙은 skills / context shard로 분리한다.
 
 ---

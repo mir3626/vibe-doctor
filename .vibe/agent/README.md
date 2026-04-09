@@ -1,8 +1,9 @@
 # `.vibe/agent/` — Agent orchestration layer
 
-이 서브트리는 **Orchestrator(Claude) ↔ Generator(Codex/기타 CLI)** 사이의 런타임 계약,
-프롬프트 공용 조각, 상태 추적 스키마를 담는다. 사람 사용자가 읽는 docs가 아니라
-**에이전트가 파싱/include/주입해서 쓰는 머신 친화 자산**이다.
+이 서브트리는 두 축을 담는다: (1) **sub-agent(Planner/Generator/Evaluator)가 context
+checkpoint로서 소환될 때** 공유할 프롬프트 조각·샌드박스 계약, (2) **Orchestrator 본인이
+재인스턴스화**될 수 있도록 무손실 상태를 박제하는 핸드오프·스키마·프로토콜. 사람 사용자가
+읽는 docs가 아니라 **에이전트가 파싱/include/주입해서 쓰는 머신 친화 자산**이다.
 
 ## 왜 분리되어 있는가
 

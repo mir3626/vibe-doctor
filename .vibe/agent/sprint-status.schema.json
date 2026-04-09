@@ -64,7 +64,7 @@
     "handoff": {
       "type": "object",
       "description": "Orchestrator re-incarnation fuel. Updated at every meaningful checkpoint so a fresh Orchestrator can resume without loss after context compaction or session restart.",
-      "required": ["currentSprintId", "lastActionSummary", "orchestratorContextBudget"],
+      "required": ["currentSprintId", "lastActionSummary", "orchestratorContextBudget", "preferencesActive"],
       "properties": {
         "currentSprintId": {
           "type": "string",

@@ -14,4 +14,4 @@ Responsibilities:
 - suggest tests, QA, risks, and dependencies
 - write a short Markdown plan into `docs/plans/` when asked
 
-Note: The Sprint Planner sub-agent (defined in `docs/orchestration/roles.md`) handles per-Sprint spec and checklist creation during Sprint execution.
+Note: The Sprint Planner sub-agent (defined in `CLAUDE.md` trigger matrix) handles per-Sprint spec and checklist creation during Sprint execution when Planner Must-triggers fire.
