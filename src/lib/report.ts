@@ -20,10 +20,12 @@ export interface ReportInput {
     | undefined;
 }
 
-export async function writeReport(input: ReportInput): Promise<string> {
-  const name = `${isoDate()}-${slugify(input.title || isoStamp())}.md`;
-  const target = path.join(paths.reportsDir, name);
-
+/**
+ * Pure renderer for a completion report. Produces deterministic markdown
+ * for a given {@link ReportInput} without touching the filesystem, so it
+ * can be unit-tested in isolation.
+ */
+export function renderReport(input: ReportInput): string {
   const lines = [
     `# ${input.title}`,
     '',
@@ -48,7 +50,12 @@ export async function writeReport(input: ReportInput): Promise<string> {
       : '- unavailable',
     '',
   ];
+  return `${lines.join('\n')}\n`;
+}
 
-  await writeText(target, `${lines.join('\n')}\n`);
+export async function writeReport(input: ReportInput): Promise<string> {
+  const name = `${isoDate()}-${slugify(input.title || isoStamp())}.md`;
+  const target = path.join(paths.reportsDir, name);
+  await writeText(target, renderReport(input));
   return target;
 }

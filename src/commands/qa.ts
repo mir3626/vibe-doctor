@@ -1,5 +1,7 @@
 import process from 'node:process';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { resolve } from 'node:path';
 import { readJson, appendJsonl } from '../lib/fs.js';
 import { logger } from '../lib/logger.js';
 import { paths } from '../lib/paths.js';
@@ -10,11 +12,34 @@ interface PackageJson {
   scripts?: Record<string, string>;
 }
 
+/**
+ * Canonical execution order for QA scripts. The order matters: faster
+ * signals come first (unit tests fail loudest before a full build).
+ */
+export const QA_SCRIPT_ORDER = [
+  'test:unit',
+  'test',
+  'typecheck',
+  'lint',
+  'build',
+] as const;
+
+/**
+ * Returns the subset of {@link QA_SCRIPT_ORDER} that exist in the given
+ * package.json `scripts` map, preserving canonical order.
+ */
+export function selectQaScripts(
+  available: Record<string, string> | undefined,
+): string[] {
+  if (!available) {
+    return [];
+  }
+  return QA_SCRIPT_ORDER.filter((name) => Boolean(available[name]));
+}
+
 async function main(): Promise<void> {
   const packageJson = await readJson<PackageJson>(path.join(paths.root, 'package.json'));
-  const available = packageJson.scripts ?? {};
-  const order = ['test:unit', 'test', 'typecheck', 'lint', 'build'];
-  const selected = order.filter((name) => Boolean(available[name]));
+  const selected = selectQaScripts(packageJson.scripts);
 
   const results: Array<{ script: string; ok: boolean; note?: string }> = [];
 
@@ -49,7 +74,13 @@ async function main(): Promise<void> {
   }
 }
 
-main().catch((error: unknown) => {
-  logger.error(error instanceof Error ? error.message : String(error));
-  process.exitCode = 1;
-});
+const isMain =
+  typeof process.argv[1] === 'string' &&
+  resolve(process.argv[1]) === resolve(fileURLToPath(import.meta.url));
+
+if (isMain) {
+  main().catch((error: unknown) => {
+    logger.error(error instanceof Error ? error.message : String(error));
+    process.exitCode = 1;
+  });
+}

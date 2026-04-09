@@ -1,18 +1,37 @@
 import process from 'node:process';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { resolve } from 'node:path';
 import { appendJsonl } from '../lib/fs.js';
 import { logger } from '../lib/logger.js';
 import { paths } from '../lib/paths.js';
 import { runCommand } from '../lib/shell.js';
 import { isoDate } from '../lib/time.js';
 
-const forbiddenPatterns = [
+export const forbiddenPatterns = [
   '.env',
   '.env.local',
   '.env.production',
   'config/credentials.json',
   'secrets/',
-];
+] as const;
+
+/**
+ * Returns the subset of tracked files that look like sensitive files or
+ * directories. Patterns ending in `/` are treated as directory prefixes,
+ * everything else requires exact equality — this prevents `.env.example`
+ * from colliding with `.env`.
+ */
+export function findViolations(
+  tracked: string[],
+  patterns: readonly string[] = forbiddenPatterns,
+): string[] {
+  return tracked.filter((file) =>
+    patterns.some((pattern) =>
+      pattern.endsWith('/') ? file.startsWith(pattern) : file === pattern,
+    ),
+  );
+}
 
 async function main(): Promise<void> {
   const result = await runCommand('git', ['ls-files'], {
@@ -21,11 +40,7 @@ async function main(): Promise<void> {
   });
 
   const tracked = result.stdout.split(/\r?\n/).filter(Boolean);
-  const violations = tracked.filter((file) =>
-    forbiddenPatterns.some((pattern) =>
-      pattern.endsWith('/') ? file.startsWith(pattern) : file === pattern,
-    ),
-  );
+  const violations = findViolations(tracked);
 
   await appendJsonl(path.join(paths.vibeRunsDir, isoDate(), 'audit.jsonl'), {
     type: 'config-audit',
@@ -42,7 +57,13 @@ async function main(): Promise<void> {
   logger.info('Config audit passed');
 }
 
-main().catch((error: unknown) => {
-  logger.error(error instanceof Error ? error.message : String(error));
-  process.exitCode = 1;
-});
+const isMain =
+  typeof process.argv[1] === 'string' &&
+  resolve(process.argv[1]) === resolve(fileURLToPath(import.meta.url));
+
+if (isMain) {
+  main().catch((error: unknown) => {
+    logger.error(error instanceof Error ? error.message : String(error));
+    process.exitCode = 1;
+  });
+}

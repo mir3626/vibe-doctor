@@ -10,7 +10,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "node --import tsx --test test/args.test.ts test/config.test.ts test/usage.test.ts",
+    "test": "node --import tsx --test test/args.test.ts test/commands.test.ts test/config.test.ts test/usage.test.ts",
     "vibe:doctor": "npx tsx src/commands/doctor.ts",
     "vibe:init": "npx tsx src/commands/init.ts",
     "vibe:qa": "npx tsx src/commands/qa.ts",
