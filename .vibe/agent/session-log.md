@@ -20,6 +20,10 @@
 
 ## Entries
 
+- 2026-04-10T00:00 [decision] Agent state initialized for dogfood3. self-evolution-0/1 entries archived below.
+
+## Archived (self-evolution-1)
+
 - 2026-04-09T00:00 [decision] self-evolution-1 착수. 사용자가 A1(기계적 오버라이드 글로벌 이전) 거부 — 템플릿 배포 대상이라 프로젝트 내 유지. 나머지 A2~A5 + B1~B6 전부 승인.
 - 2026-04-09T00:00 [discovery] handoff.md의 §3(역할 제약/trigger matrix)는 CLAUDE.md와 중복이었음. handoff 슬림화 시 포인터로 대체.
 - 2026-04-09T00:00 [decision] `project_self_evolution.md` memory shard 삭제 — handoff.md와 내용 이중 주입되던 startup 예산 낭비.

@@ -71,15 +71,15 @@
   ],
   "sandboxNotes": [],
   "handoff": {
-    "currentSprintId": "self-evolution-1",
-    "lastActionSummary": "Fine-tuning pass 완료: A2~A5(designmd 제거, Sprint 흐름/규칙 병합, .vibe/agent 설명 슬림화, project_self_evolution memory 삭제) + B1~B6(PreCompact hook + vibe-checkpoint.mjs + session-log.md append-only 저널 + handoff staleness preflight 체크 + tripwire 객관화 + handoff.md 슬림화). 모든 변경 검증 완료.",
+    "currentSprintId": "idle",
+    "lastActionSummary": "Agent state initialized for dogfood3. self-evolution-0/1 완료 후 vibe-doctor 본 저장소는 활성 작업 없음. dogfood3는 별도 워크스페이스에서 /vibe-init으로 착수 예정 — 이 저장소 안에서 dogfood3 산출물 생성 금지.",
     "openIssues": [],
-    "orchestratorContextBudget": "medium",
+    "orchestratorContextBudget": "low",
     "preferencesActive": [
       "ko-informal",
       "autonomous-until-artifact"
     ],
     "handoffDocPath": ".vibe/agent/handoff.md",
-    "updatedAt": "2026-04-09T14:45:00Z"
+    "updatedAt": "2026-04-10T00:00:00Z"
   }
 }

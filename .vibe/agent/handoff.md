@@ -1,4 +1,4 @@
-# Orchestrator Handoff — self_evolution
+# Orchestrator Handoff — idle
 
 > 이 파일은 Orchestrator 재인스턴스화의 **연료**다. 컨텍스트 압축/세션 종료 후 새
 > Orchestrator가 부팅될 때 `CLAUDE.md → MEMORY → sprint-status.json → session-log.md →
@@ -8,57 +8,49 @@
 
 ## 1. Identity
 
-- **branch**: `self_evolution` (origin 푸시 완료)
+- **branch**: `self_evolution` (self-evolution-0/1 완료, origin 푸시 완료. 다음 활성 작업은 dogfood3 — 별도 워크스페이스 예정)
 - **working dir**: `C:\Users\Tony\Workspace\vibe-doctor`
-- **today**: 2026-04-09
 - **language/tone**: 한국어 반말 (memory: `feedback_language_tone.md`)
 
-## 2. Mission
+## 2. Status: IDLE
 
-dogfood 1(Bookshelf) + dogfood 2(Lingua Lens Chrome ext) 측정 기반 vibe-doctor
-self-evolution. 핵심 재프레임:
+현재 vibe-doctor 본 저장소에는 활성 Sprint 없음. self-evolution 작업은 완료
+상태이고, 사용자는 **dogfood3 (3차 dogfood 프로젝트)** 를 별도 워크스페이스에서
+착수할 예정이다. 이 handoff는 "self-evolution 잔상으로 dogfood3 세션을 오염시키지
+말 것"을 위해 의도적으로 비워둔 상태다.
 
-- **subagent는 specialization이 아니라 context checkpoint 메커니즘**이다.
-- 무한 context window가 있다면 Orchestrator 하나로 충분. 제약 하에서 퀄리티를 지키려는 게 목적.
-- `sprint-status.json` + `handoff.md` + `session-log.md`는 regression guard가 아니라
-  **Orchestrator 재인스턴스화의 연료**다.
-- 기본값 "lean"은 tiny project에서만 유효. 실제 프로젝트는 context pressure로 subagent 불가피.
-
-## 3. Sprint 이력
+## 3. 완료된 Sprint 이력 (감사 기록)
 
 | Sprint | 요약 | 상태 |
 |---|---|---|
-| `self-evolution-0` | P0 A~E: handoff 박제, trigger matrix 재작성, schema/status 확장, preflight 실행화, re-incarnation 프로토콜 | **passed** |
-| `self-evolution-1` | Fine-tuning: startup footprint 감축(A2~A5) + compaction survivability(B1~B6) | **진행 중 → 완료 시 갱신** |
+| `self-evolution-0` | P0: handoff 박제, trigger matrix, schema/status 확장, preflight 실행화, re-incarnation 프로토콜 | passed |
+| `self-evolution-1` | Fine-tuning: startup footprint(A2~A5) + compaction survivability(B1~B6, PreCompact hook + session-log) | passed |
 
-### P1 (이월)
-- Sprint 프롬프트 template/slot
-- `run-codex.sh` final report 추출 + heartbeat
-- `.gitattributes` 자동화
-- Partial shard read (section anchors)
+상세는 `sprint-status.json`의 `sprints[]` + `session-log.md` Archived 섹션 참조.
 
-### P2 (이월)
-- 병렬 Sprint 지침 원인 조사 (`docs/orchestration/sprint.md`)
-- Tribunal 모드 Evaluator
+## 4. 이월된 P1/P2 (dogfood3와 무관하게 유효)
 
-## 4. Last action summary
+- **P1**: Sprint 프롬프트 template/slot, `run-codex.sh` final report 추출 + heartbeat,
+  `.gitattributes` 자동화, Partial shard read.
+- **P2**: 병렬 Sprint 지침 원인 조사 (`docs/orchestration/sprint.md`), Tribunal 모드 Evaluator.
 
-self-evolution-1 fine-tuning pass: CLAUDE.md designmd 제거 + Sprint 흐름/규칙 병합 +
-.vibe/agent 설명 슬림화(포인터 1줄), MEMORY에서 중복 `project_self_evolution.md` 제거,
-handoff.md 자체 슬림화(역할/트리거 중복 제거), re-incarnation.md에 session-log 부트
-단계 추가 + context budget tripwire 객관화, `session-log.md` append-only 버퍼 신규,
-`scripts/vibe-checkpoint.mjs` + `.claude/settings.json` PreCompact hook 도입,
-`scripts/vibe-preflight.mjs`에 handoff staleness 검사 추가.
+dogfood3 실전에서 새 마찰이 발견되면 dogfood3 종료 후 self-evolution-2로 통합하여 진행.
 
 ## 5. Next action (재부팅 시 여기부터)
 
-1. 사용자 피드백 대기 (self-evolution-1 산출물 리뷰 or 3차 dogfood 착수 결정).
-2. 추가 요청 시 P1 항목 착수 (Sprint 프롬프트 template/slot 등).
+**현재 저장소에서는 활성 작업 없음.** 새 세션이 이 파일을 읽고 부팅했다면:
 
-## 6. 사용자 합의 상태
+1. 사용자가 dogfood3에 관한 지시를 내렸는지 확인.
+2. dogfood3는 **별도 워크스페이스**에서 `/vibe-init`으로 scaffold되는 것이 원칙. 이
+   저장소(`vibe-doctor`) 안에서 dogfood3 산출물을 만들지 말 것.
+3. 사용자가 본 저장소에 대한 추가 요청(P1 착수, 추가 리뷰 등)을 했다면 그 때 이
+   handoff를 덮어쓰고 새 Sprint로 진행.
 
-- dogfood 퀄리티 만족 — "거의 100점"
+## 6. 사용자 합의 상태 (영속)
+
+- dogfood 퀄리티 만족 — "거의 100점" (dogfood 1·2 기준)
 - 산출물까지 자율 권한 유지
 - 한국어 반말 유지
-- main은 dogfood P0 반영본까지 푸시 완료. 작업은 `self_evolution`.
-- A1(CLAUDE.md 기계적 오버라이드 글로벌 이전) **거부** — 템플릿 배포 대상이라 프로젝트 내 유지.
+- `main`은 dogfood 1·2 P0 반영본까지 푸시 완료, `self_evolution`은 self-evolution-0/1
+  반영본까지 푸시 완료. merge 여부는 사용자 결정 대기.
+- A1(CLAUDE.md 기계적 오버라이드 글로벌 이전) **거부** — 템플릿 배포 대상.
