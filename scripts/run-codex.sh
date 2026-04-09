@@ -30,8 +30,9 @@
 #   CODEX_EXTRA_CONFIG="-c k=v"    -> extra `-c` overrides
 #
 # This wrapper is the ONLY supported Codex invocation path. Orchestrator
-# sprint calls, run-parallel, and manual debugging must all go through
-# this script by piping a prompt file into `run-codex.sh -`.
+# sprint calls, `vibe:run-agent --provider codex`, and manual debugging
+# all route through this script by piping a prompt file into
+# `run-codex.sh -` (or passing the prompt as a positional arg).
 # See docs/context/codex-execution.md for the full rationale.
 
 set -euo pipefail

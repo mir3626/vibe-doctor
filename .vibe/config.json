@@ -17,10 +17,10 @@
       "env": {}
     },
     "codex": {
-      "command": "codex",
-      "args": ["exec", "--json", "{prompt}"],
+      "command": "./scripts/run-codex.sh",
+      "args": ["{prompt}"],
       "env": {},
-      "note": "Codex CLI로 직접 호출. 플러그인(codex:rescue)은 Windows 불안정으로 보류."
+      "note": "UTF-8 safety wrapper for `codex exec`. 자동 재시도 + shell_environment_policy 주입. 상세: docs/context/codex-execution.md. 플러그인(codex:rescue)은 Windows 불안정으로 보류."
     }
   },
   "qa": {

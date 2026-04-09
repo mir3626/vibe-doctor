@@ -41,16 +41,19 @@ vibe-doctor 베이스의 `.editorconfig`가 이미 이 값을 가지며, 파생
 ### 3.2 방어층 2 — 환경 변수 강제 (`scripts/run-codex.sh`)
 
 Codex 호출은 **모두** 이 wrapper를 경유한다. Orchestrator의 Sprint 호출,
-병렬 러너, 수동 디버깅 모두 동일하게 프롬프트 파일을 stdin으로 파이프 주입한다:
+`vibe:run-agent` CLI, 수동 디버깅 모두 동일하게 프롬프트 파일을 stdin으로 파이프 주입하거나 positional arg로 전달한다:
 
 ```bash
-# 표준 호출 패턴: 프롬프트를 파일로 써서 파이프 주입
+# 표준 호출 패턴 — stdin 파이프 주입 (권장, 긴 프롬프트)
 cat docs/prompts/task.md | ./scripts/run-codex.sh -
 
-# 병렬 러너도 codex 바이너리 대신 run-codex.sh를 사용하도록 provider
-# config(command=./scripts/run-codex.sh, args=["-"], stdin={promptFile})을
-# 설정한다.
+# 인라인 패턴 — 짧은 프롬프트, vibe:run-agent 기본 경로
+./scripts/run-codex.sh "{prompt}"
 ```
+
+`.vibe/config.json` 의 codex provider 항목은 이 wrapper를 default로
+가리키므로, `vibe:run-agent --provider codex` 호출도 자동으로
+wrapper를 경유한다.
 
 wrapper가 자동 설정하는 항목:
 
@@ -145,10 +148,14 @@ vibe-doctor를 베이스로 새 프로젝트를 만들 때:
 - [ ] `scripts/run-codex.sh` 복사 및 실행 권한 확인
 - [ ] Generator prompt 템플릿에 §4 BLOCKED 규칙 포함
 - [ ] Evaluator acceptance gate에 §5 encoding integrity 포함
-- [ ] 같은 파일을 만지는 Sprint는 병렬 금지 (sequential 강제)
+- [ ] Sprint는 sequential 진행 (Planner → Generator → Evaluator). 병렬 Sprint 실행은 현재 지원 범위 밖.
 - [ ] `~/.codex/config.toml`에 모델 핀 + `shell_environment_policy` 설정
 
 ## 8. 변경 이력
 
 - 2026-04-08: 최초 작성. `dungeon-of-abyss` Sprint A/C 사후 분석 결과를
   vibe-doctor 베이스로 역전파.
+- 2026-04-09: Sprint F1 — `.vibe/config.json` 의 codex provider 항목이
+  `./scripts/run-codex.sh` 를 default로 가리키도록 canonicalization.
+  aspirational 병렬 러너 레퍼런스 제거 (Sprint E2에서 기반 코드/문서
+  purge 완료).

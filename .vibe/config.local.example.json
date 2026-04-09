@@ -17,8 +17,8 @@
       "env": {}
     },
     "codex": {
-      "command": "codex",
-      "args": ["exec", "--json", "{prompt}"],
+      "command": "./scripts/run-codex.sh",
+      "args": ["{prompt}"],
       "env": {}
     }
   },

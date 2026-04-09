@@ -30,8 +30,10 @@
 > Agent 도구의 model 파라미터는 Claude 전용(sonnet/opus/haiku)이다. Agent 도구로 코드 구현을 위임하면, 이름을 "Codex"로 붙여도 실제로는 Claude가 실행된다.
 >
 > ```
-> ✅ 올바른 Generator 호출:
->    Bash("codex exec -c 'sandbox_permissions=[...]' - < prompt.md")
+> ✅ 올바른 Generator 호출 (Codex):
+>    Bash("cat docs/prompts/task.md | ./scripts/run-codex.sh -")
+>    # run-codex.sh가 UTF-8 locale + shell_environment_policy + 3회 재시도를 자동 적용.
+>    # 상세 배경: docs/context/codex-execution.md
 >
 > ❌ 잘못된 Generator 호출 (Claude가 실행됨):
 >    Agent(model: "sonnet", prompt: "코드 구현...")
@@ -55,7 +57,7 @@
 6. Sprint 간 필요 정보는 Orchestrator가 문서(스펙, 보고서)로 전달.
 
 ## 항상 지킬 것 (세션 시작 시 반드시 확인)
-- **코드 구현은 반드시 `Bash("codex exec ...")`로 위임한다. Agent 도구(Claude)로 코딩 위임 금지.**
+- **코드 구현은 반드시 `Bash("... | ./scripts/run-codex.sh -")` 로 위임한다. Agent 도구(Claude)로 코딩 위임 금지.**
 - 비단순 작업은 먼저 계획을 제안한다.
 - 승인 전 구현하지 않는다.
 - 완료 전 최소 범위 테스트와 QA를 실행한다.
