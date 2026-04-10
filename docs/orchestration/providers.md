@@ -10,7 +10,7 @@
 
 | Provider | 호출 방법 | 비고 |
 |----------|-----------|------|
-| `claude-opus` | Agent 도구 (model: opus) | Claude 계열 — Planner, Evaluator |
+| `claude-opus` | Agent 도구 (model: opus) | Claude 계열 — Planner/Evaluator 후보 (트리거 해당 시에만 소환) |
 | `claude-sonnet` | Agent 도구 (model: sonnet) | Claude 계열 |
 | `codex` | `Bash("... \| ./scripts/run-codex.sh -")` | **Codex CLI** (run-codex.sh wrapper 경유 — UTF-8 safety + 자동 재시도). 인증: OAuth (`codex auth login`, 기본) 또는 API 키 (`OPENAI_API_KEY`). 상세: `docs/context/codex-execution.md` |
 | `gemini` | Bash 도구 (`gemini "{prompt}"`) | CLI 직접 실행 |

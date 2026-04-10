@@ -226,9 +226,9 @@ Generator로 선택된 provider에 맞게 파일 내용을 수정합니다.
   ...
   ```
 
-#### `docs/orchestration/roles.md`
+#### `CLAUDE.md` 의 `<!-- BEGIN:SPRINT_ROLES -->` 영역
 
-선택된 역할 배정을 roles.md의 Configuration 섹션에 반영합니다.
+선택된 역할 배정을 이 영역의 표에 반영합니다. 이 표가 Sprint 역할의 single source of truth입니다.
 
 #### `docs/orchestration/providers.md`
 
@@ -491,7 +491,6 @@ Sprint Generator가 **Codex CLI**(또는 trust-based sandbox를 쓰는 다른 pr
     - docs/context/architecture.md     (기술 스택)
     - docs/context/conventions.md      (코드 규칙)
     - AGENTS.md                        (Generator 규칙)
-    - docs/orchestration/roles.md      (Sprint 역할 배정)
 
 이제 목표를 말씀해주시면 Sprint 단위로 작업을 시작할 수 있습니다.
 예) "Goal: 로그인 페이지를 만들어줘"

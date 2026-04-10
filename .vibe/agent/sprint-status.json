@@ -1,0 +1,100 @@
+{
+  "$schema": "./sprint-status.schema.json",
+  "schemaVersion": "0.1",
+  "project": {
+    "name": "vibe-doctor",
+    "createdAt": "2026-04-09T00:00:00Z",
+    "runtime": "node24",
+    "framework": "claude-code-template"
+  },
+  "sprints": [
+    {
+      "id": "self-evolution-0",
+      "name": "Self-evolution P0: handoff + trigger matrix + re-incarnation protocol",
+      "status": "passed",
+      "completedAt": "2026-04-09T00:00:00Z",
+      "evaluatorVerdict": "skipped",
+      "startedAt": "2026-04-09T00:00:00Z",
+      "planPromptPath": ".vibe/agent/handoff.md",
+      "addedVerificationCommands": [
+        {
+          "id": "vibe-preflight",
+          "command": "node scripts/vibe-preflight.mjs",
+          "expectExitCode": 0,
+          "introducedInSprint": "self-evolution-0",
+          "runOutsideSandbox": false
+        }
+      ],
+      "deviations": [
+        "No Planner spawned: Orchestrator already holds the plan (trigger matrix was the product of the prior review session). Planner Must-triggers not satisfied.",
+        "No Generator spawned: all P0 artifacts are .md/.json (doc+config), which Orchestrator is permitted to author directly per the role constraint."
+      ]
+    },
+    {
+      "id": "self-evolution-1",
+      "name": "Self-evolution fine-tuning: startup footprint + compaction survivability",
+      "status": "passed",
+      "completedAt": "2026-04-09T14:45:00Z",
+      "evaluatorVerdict": "skipped",
+      "startedAt": "2026-04-09T14:00:00Z",
+      "planPromptPath": "docs/prompts/self-evolution-1-scripts.md",
+      "addedVerificationCommands": [
+        {
+          "id": "vibe-checkpoint",
+          "command": "node scripts/vibe-checkpoint.mjs",
+          "expectExitCode": 0,
+          "introducedInSprint": "self-evolution-1",
+          "runOutsideSandbox": false
+        }
+      ],
+      "deviations": [
+        "A1 (universal override relocation to global CLAUDE.md) rejected by user — template ships to other users, must stay in-repo.",
+        "Generator delegated only for .mjs scripts (vibe-checkpoint.mjs new + vibe-preflight.mjs edit). All .md/.json edits done by Orchestrator directly per role constraint."
+      ]
+    },
+    {
+      "id": "self-evolution-2",
+      "name": "self-evolution-2",
+      "status": "passed",
+      "completedAt": "2026-04-10T07:32:02.639Z"
+    },
+    {
+      "id": "self-evolution-3",
+      "name": "Planner 역할 확장: 기술 사양 + Sprint 프롬프트 초안 + 작성 원칙",
+      "status": "passed",
+      "completedAt": "2026-04-10T08:30:00.000Z",
+      "deviations": [
+        "No Generator: 모든 변경사항이 .md/.json (비코드) — Orchestrator 직접 편집 허용"
+      ]
+    }
+  ],
+  "verificationCommands": [
+    {
+      "id": "vibe-preflight",
+      "command": "node scripts/vibe-preflight.mjs",
+      "expectExitCode": 0,
+      "introducedInSprint": "self-evolution-0",
+      "runOutsideSandbox": false
+    },
+    {
+      "id": "vibe-checkpoint",
+      "command": "node scripts/vibe-checkpoint.mjs",
+      "expectExitCode": 0,
+      "introducedInSprint": "self-evolution-1",
+      "runOutsideSandbox": false
+    }
+  ],
+  "sandboxNotes": [],
+  "handoff": {
+    "currentSprintId": "idle",
+    "lastActionSummary": "Planner 역할 확장 (기술 사양 + Sprint 프롬프트 초안) + Sprint 프롬프트 작성 원칙 추가 + dogfood 아티팩트 정리",
+    "openIssues": [],
+    "orchestratorContextBudget": "low",
+    "preferencesActive": [
+      "ko-informal",
+      "autonomous-until-artifact"
+    ],
+    "handoffDocPath": ".vibe/agent/handoff.md",
+    "updatedAt": "2026-04-10T07:32:02.639Z"
+  }
+}

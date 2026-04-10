@@ -39,6 +39,6 @@
 
 ## 비-goal (의도적 배제)
 
-- **멀티 에이전트 병렬 실행 프레임워크**가 아니다. Sprint는 직렬이며, 에스컬레이션은 in-memory Planner 재생성으로 처리한다 (`docs/orchestration/escalation.md` 참조).
-- **코드 생성 속도 경쟁 도구**가 아니다. Planner/Evaluator 게이트를 건너뛰는 방향의 최적화는 거부된다.
+- **멀티 에이전트 병렬 실행 프레임워크**가 아니다. Sprint는 직렬이며, 에스컬레이션은 트리거 매트릭스에 따라 Evaluator(Tribunal) → Planner 재소환 순으로 처리한다 (`CLAUDE.md` 의 "실패 에스컬레이션" 참조).
+- **코드 생성 속도 경쟁 도구**가 아니다. context checkpoint(Planner/Evaluator 소환)가 필요한 순간에 그걸 건너뛰는 방향의 최적화는 거부된다.
 - **범용 AI 에이전트 SDK**가 아니다. Claude Code 오케스트레이터 하나에 최적화한다.

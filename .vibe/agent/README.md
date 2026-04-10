@@ -1,8 +1,9 @@
 # `.vibe/agent/` — Agent orchestration layer
 
-이 서브트리는 **Orchestrator(Claude) ↔ Generator(Codex/기타 CLI)** 사이의 런타임 계약,
-프롬프트 공용 조각, 상태 추적 스키마를 담는다. 사람 사용자가 읽는 docs가 아니라
-**에이전트가 파싱/include/주입해서 쓰는 머신 친화 자산**이다.
+이 서브트리는 두 축을 담는다: (1) **sub-agent(Planner/Generator/Evaluator)가 context
+checkpoint로서 소환될 때** 공유할 프롬프트 조각·샌드박스 계약, (2) **Orchestrator 본인이
+재인스턴스화**될 수 있도록 무손실 상태를 박제하는 핸드오프·스키마·프로토콜. 사람 사용자가
+읽는 docs가 아니라 **에이전트가 파싱/include/주입해서 쓰는 머신 친화 자산**이다.
 
 ## 왜 분리되어 있는가
 
@@ -15,20 +16,24 @@
 
 2. **샌드박스 × Orchestrator 경계 모호성** — Codex `workspace-write` sandbox는 네트워크/
    파일 접근이 제한돼 `npm install` 같은 사전 작업을 Generator가 수행할 수 없다.
-   누가 뭘 하는지 `sandbox-contract.md`에 공식화.
+   역할 분담은 `_common-rules.md` §7에 흡수.
 
-3. **Sprint 간 상태 유실** — Sprint N이 만든 스모크 스크립트가 Sprint N+1에서 "still
-   pass"해야 하지만, Orchestrator가 수작업으로 매번 상기해야 한다. `sprint-status.json`
-   스키마로 누적 검증 명령을 구조화하고 Planner가 자동 주입.
+3. **Sprint 간 + 세션 간 상태 유실** — Sprint N이 만든 스모크 스크립트가 Sprint N+1에서
+   "still pass"해야 한다. 동시에 context 압축/세션 종료 후 새 Orchestrator가 무손실 복구해야
+   한다. 두 요구를 `sprint-status.json`(verificationCommands + handoff 필드) + `handoff.md`
+   narrative가 함께 감당한다.
 
 ## 파일
 
 | 파일 | 용도 |
 |---|---|
-| `_common-rules.md` | Sprint 프롬프트 공용 rules/verification 조각. Planner는 Sprint별 고유 체크리스트 앞에 이 파일을 `>` include 형태로 붙인다. |
-| `sandbox-contract.md` | Codex/기타 샌드박스형 Generator와 Orchestrator의 역할 분담 공식 계약. preflight(의존성 설치)부터 post-verify까지. |
-| `sprint-status.schema.json` | Sprint 누적 상태(통과한 검증 명령, Sprint별 결과)의 JSON Schema. 실제 파일은 런타임에 `.vibe/agent/sprint-status.json`으로 생성·갱신. |
-| `preflight.md` | 새 Sprint 시작 전 Orchestrator가 돌릴 체크 목록 (네트워크 선행 작업, git 상태, provider health). |
+| `_common-rules.md` | Sprint 프롬프트 공용 rules + 샌드박스 계약 + Final report 형식 일체. Planner가 Sprint 프롬프트 조립 시 참조. |
+| `sprint-status.schema.json` | Sprint 누적 상태 + handoff 필드 JSON Schema. 런타임 인스턴스는 `.vibe/agent/sprint-status.json`. |
+| `handoff.md` | Orchestrator의 무손실 상태 박제 (현재 스냅샷). 컨텍스트 압축 복구 시 최우선 읽기 대상. |
+| `session-log.md` | Append-only 증분 저널. handoff가 놓치는 mid-session 결정/실패/발견을 보존. |
+| `re-incarnation.md` | fresh Orchestrator 부팅 프로토콜 (읽기 순서, 체크포인트 규정, tripwire). |
+| `../../scripts/vibe-preflight.mjs` | 새 Sprint 시작 전 기계적 체크(git/deps/provider/status/handoff staleness). |
+| `../../scripts/vibe-checkpoint.mjs` | PreCompact hook이 호출. handoff/session-log가 stale하면 압축을 block. |
 
 ## 버전
 

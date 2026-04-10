@@ -9,7 +9,8 @@
 # .NET/Python tooling underneath fall back to system ANSI. The result: any
 # non-ASCII string literal (Korean, Japanese, emoji, …) gets round-tripped
 # through CP949 and unmappable bytes are silently replaced with `?`
-# (e.g. "상점" → "?\x81\xec\xa0\x90"). This wrapper prevents that by
+# (e.g. `상점` round-trips into broken bytes like `?\x81\xec\xa0\x90`).
+# This wrapper prevents that by
 # forcing UTF-8 at every layer AND telling codex to propagate UTF-8 into
 # every subshell it spawns via `shell_environment_policy`.
 #
@@ -79,6 +80,14 @@ fi
 stdin_buf=""
 if [[ ! -t 0 ]]; then
   stdin_buf=$(cat)
+fi
+
+# ---------- 4b. Inject common rules into prompt ----------
+RULES_FILE=".vibe/agent/_common-rules.md"
+if [[ -n "$stdin_buf" && -f "$RULES_FILE" ]]; then
+  rules_content=$(cat "$RULES_FILE")
+  stdin_buf="$(printf '%s\n\n---\n\n%s' "$rules_content" "$stdin_buf")"
+  echo "[run-codex] injected common rules from $RULES_FILE" >&2
 fi
 
 # ---------- 5. Retry loop ----------
