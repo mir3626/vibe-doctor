@@ -20,6 +20,8 @@
 
 ## Entries
 
+
+- 2026-04-10T07:32:02.639Z [sprint-complete] self-evolution-2 -> passed. 스크립트 훅 기반 강제 메커니즘: run-codex.sh 규칙 자동주입 + preflight bootstrap/product.md + sprint-complete 자동화
 - 2026-04-10T00:00 [decision] Agent state initialized for dogfood3. self-evolution-0/1 entries archived below.
 
 ## Archived (self-evolution-1)

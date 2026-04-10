@@ -72,7 +72,14 @@ Generator는 보통 제한된 샌드박스(현재 기본: Codex `workspace-write
 
 **Escalation** — Generator가 3회 이상 같은 샌드박스 에러로 실패하면 Orchestrator가 개입: (1) 밖에서 재현 → (2) 해결책 명시 후 재위임 또는 (3) 직접 수행 + Final report 기록.
 
-## 8. Final report 형식
+## 8. 최소 테스트 요구
+
+순수 함수(입력→출력) 로직이 있는 모듈은 **최소 1개의 스모크 테스트**를 포함한다.
+테스트 파일은 `test/` 디렉터리에 `<module>.test.ts` 형식으로 생성한다.
+UI/렌더링/DOM 의존 코드는 테스트 면제. 테스트를 작성하지 않은 모듈이 있다면
+Final report의 Deviations에 이유와 함께 기록한다.
+
+## 9. Final report 형식
 
 Short markdown으로 아래 섹션을 순서대로 포함:
 

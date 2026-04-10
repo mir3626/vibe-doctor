@@ -8,6 +8,7 @@ import { existsSync, readFileSync, statSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 const JSON_MODE = process.argv.includes('--json');
+const BOOTSTRAP_MODE = process.argv.includes('--bootstrap');
 const results = [];
 
 function record(id, ok, detail) {
@@ -37,44 +38,56 @@ function getLastCommitDate() {
 }
 
 // 1. Git work tree
-try {
-  const inside = sh('git rev-parse --is-inside-work-tree');
-  record('git.worktree', inside === 'true', inside || 'not a git repo');
-} catch {
-  record('git.worktree', false, 'not a git repo - run: git init && git add -A && git -c commit.gpgsign=false commit -m "chore: initial scaffold"');
+if (BOOTSTRAP_MODE) {
+  record('git.worktree', true, 'bootstrap mode - git worktree check skipped');
+} else {
+  try {
+    const inside = sh('git rev-parse --is-inside-work-tree');
+    record('git.worktree', inside === 'true', inside || 'not a git repo');
+  } catch {
+    record('git.worktree', false, 'not a git repo - run: git init && git add -A && git -c commit.gpgsign=false commit -m "chore: initial scaffold"');
+  }
 }
 
 // 2. Git clean
-try {
-  const dirty = sh('git status --short');
-  record('git.clean', dirty === '', dirty ? `uncommitted:\n${dirty}` : 'clean');
-} catch (e) {
-  record('git.clean', false, e.message);
+if (BOOTSTRAP_MODE) {
+  record('git.clean', true, 'bootstrap mode - git clean check skipped');
+} else {
+  try {
+    const dirty = sh('git status --short');
+    record('git.clean', dirty === '', dirty ? `uncommitted:\n${dirty}` : 'clean');
+  } catch (e) {
+    record('git.clean', false, e.message);
+  }
 }
 
 // 3. package.json delta vs HEAD~1 (first-commit aware)
-try {
-  const hasPkg = existsSync(resolve('package.json'));
-  if (!hasPkg) {
-    record('deps.delta', true, 'no package.json (skip)');
-  } else {
-    let hasParent = false;
-    try {
-      sh('git rev-parse HEAD~1');
-      hasParent = true;
-    } catch {
-      hasParent = false;
-    }
-
-    if (!hasParent) {
-      record('deps.delta', true, 'single-commit repo - baseline; run npm install once outside sandbox');
+if (BOOTSTRAP_MODE) {
+  record('deps.delta', true, 'bootstrap mode - dependency delta check skipped');
+} else {
+  try {
+    const hasPkg = existsSync(resolve('package.json'));
+    if (!hasPkg) {
+      record('deps.delta', true, 'no package.json (skip)');
     } else {
-      const diff = sh('git diff HEAD~1 HEAD -- package.json');
-      record('deps.delta', true, diff ? 'package.json changed since HEAD~1 - Orchestrator must run npm install outside sandbox' : 'no change');
+      let hasParent = false;
+      try {
+        sh('git rev-parse HEAD~1');
+        hasParent = true;
+      } catch {
+        hasParent = false;
+      }
+
+      if (!hasParent) {
+        record('deps.delta', true, 'single-commit repo - baseline; run npm install once outside sandbox');
+      } else {
+        const diff = sh('git diff HEAD~1 HEAD -- package.json');
+        record('deps.delta', true, diff ? 'package.json changed since HEAD~1 - Orchestrator must run npm install outside sandbox' : 'no change');
+      }
     }
+  } catch (e) {
+    record('deps.delta', false, e.message);
   }
-} catch (e) {
-  record('deps.delta', false, e.message);
 }
 
 // 4. Provider health - dynamically from .vibe/config.json (or config.local.json)
@@ -122,30 +135,40 @@ const statusPath = resolve('.vibe/agent/sprint-status.json');
 const handoffPath = resolve('.vibe/agent/handoff.md');
 const sessionLogPath = resolve('.vibe/agent/session-log.md');
 let sprintStatus = null;
-try {
-  if (existsSync(statusPath)) {
-    sprintStatus = JSON.parse(readFileSync(statusPath, 'utf8'));
-    const vc = Array.isArray(sprintStatus.verificationCommands) ? sprintStatus.verificationCommands.length : 0;
-    record('sprint.status', true, `${vc} verification commands cumulative; handoff.currentSprintId=${sprintStatus.handoff?.currentSprintId ?? 'n/a'}`);
-  } else {
-    record('sprint.status', true, 'no sprint-status.json yet (first sprint)');
+if (BOOTSTRAP_MODE) {
+  record('sprint.status', true, 'bootstrap mode - sprint status check skipped');
+} else {
+  try {
+    if (existsSync(statusPath)) {
+      sprintStatus = JSON.parse(readFileSync(statusPath, 'utf8'));
+      const vc = Array.isArray(sprintStatus.verificationCommands) ? sprintStatus.verificationCommands.length : 0;
+      record('sprint.status', true, `${vc} verification commands cumulative; handoff.currentSprintId=${sprintStatus.handoff?.currentSprintId ?? 'n/a'}`);
+    } else {
+      record('sprint.status', true, 'no sprint-status.json yet (first sprint)');
+    }
+  } catch (e) {
+    record('sprint.status', false, e.message);
   }
-} catch (e) {
-  record('sprint.status', false, e.message);
 }
 
 const hasHandoff = existsSync(handoffPath);
 const hasSessionLog = existsSync(sessionLogPath);
-record(
-  'sprint.handoff',
-  hasHandoff && hasSessionLog,
-  hasHandoff && hasSessionLog
-    ? `handoff=${handoffPath}; sessionLog=${sessionLogPath}`
-    : `missing handoff=${hasHandoff ? 'present' : handoffPath}; sessionLog=${hasSessionLog ? 'present' : sessionLogPath}`
-);
+if (BOOTSTRAP_MODE) {
+  record('sprint.handoff', true, 'bootstrap mode - handoff check skipped');
+} else {
+  record(
+    'sprint.handoff',
+    hasHandoff && hasSessionLog,
+    hasHandoff && hasSessionLog
+      ? `handoff=${handoffPath}; sessionLog=${sessionLogPath}`
+      : `missing handoff=${hasHandoff ? 'present' : handoffPath}; sessionLog=${hasSessionLog ? 'present' : sessionLogPath}`
+  );
+}
 
 try {
-  if (!hasHandoff) {
+  if (BOOTSTRAP_MODE) {
+    record('handoff.stale', true, 'bootstrap mode - handoff freshness check skipped');
+  } else if (!hasHandoff) {
     record('handoff.stale', true, 'warning: handoff missing; freshness skipped');
   } else {
     const updatedAt = parseIso(sprintStatus?.handoff?.updatedAt);
@@ -174,6 +197,16 @@ try {
   }
 } catch (e) {
   record('handoff.stale', true, `warning: unable to evaluate handoff freshness (${e.message})`);
+}
+
+// 6. product.md existence (Phase 0 gate)
+const productPath = resolve('docs/context/product.md');
+const hasProduct = existsSync(productPath);
+if (hasProduct) {
+  const content = readFileSync(productPath, 'utf8').trim();
+  record('phase0.product', content.length > 50, content.length > 50 ? 'product.md present and populated' : 'product.md exists but too short (<50 chars)');
+} else {
+  record('phase0.product', false, 'missing docs/context/product.md - run Phase 0 (Ouroboros PM interview) first');
 }
 
 if (JSON_MODE) {

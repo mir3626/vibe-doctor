@@ -51,6 +51,12 @@
         "A1 (universal override relocation to global CLAUDE.md) rejected by user — template ships to other users, must stay in-repo.",
         "Generator delegated only for .mjs scripts (vibe-checkpoint.mjs new + vibe-preflight.mjs edit). All .md/.json edits done by Orchestrator directly per role constraint."
       ]
+    },
+    {
+      "id": "self-evolution-2",
+      "name": "self-evolution-2",
+      "status": "passed",
+      "completedAt": "2026-04-10T07:32:02.639Z"
     }
   ],
   "verificationCommands": [
@@ -72,7 +78,7 @@
   "sandboxNotes": [],
   "handoff": {
     "currentSprintId": "idle",
-    "lastActionSummary": "Agent state initialized for dogfood3. self-evolution-0/1 완료 후 vibe-doctor 본 저장소는 활성 작업 없음. dogfood3는 별도 워크스페이스에서 /vibe-init으로 착수 예정 — 이 저장소 안에서 dogfood3 산출물 생성 금지.",
+    "lastActionSummary": "스크립트 훅 기반 강제 메커니즘: run-codex.sh 규칙 자동주입 + preflight bootstrap/product.md + sprint-complete 자동화",
     "openIssues": [],
     "orchestratorContextBudget": "low",
     "preferencesActive": [
@@ -80,6 +86,6 @@
       "autonomous-until-artifact"
     ],
     "handoffDocPath": ".vibe/agent/handoff.md",
-    "updatedAt": "2026-04-10T00:00:00Z"
+    "updatedAt": "2026-04-10T07:32:02.639Z"
   }
 }

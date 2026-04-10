@@ -8,16 +8,15 @@
 
 ## 1. Identity
 
-- **branch**: `self_evolution` (self-evolution-0/1 완료, origin 푸시 완료. 다음 활성 작업은 dogfood3 — 별도 워크스페이스 예정)
+- **branch**: `self_evolution` (self-evolution-0/1/2 완료. dogfood3 완료 → 리뷰 → self-evolution-2 반영. dogfood4 예정)
 - **working dir**: `C:\Users\Tony\Workspace\vibe-doctor`
 - **language/tone**: 한국어 반말 (memory: `feedback_language_tone.md`)
 
-## 2. Status: IDLE
+## 2. Status: IDLE - Sprint self-evolution-2 passed
 
-현재 vibe-doctor 본 저장소에는 활성 Sprint 없음. self-evolution 작업은 완료
-상태이고, 사용자는 **dogfood3 (3차 dogfood 프로젝트)** 를 별도 워크스페이스에서
-착수할 예정이다. 이 handoff는 "self-evolution 잔상으로 dogfood3 세션을 오염시키지
-말 것"을 위해 의도적으로 비워둔 상태다.
+self-evolution-2 완료. dogfood3 리뷰에서 발견된 개선점(Phase 0 인터뷰 필수화,
+_common-rules 자동 주입, sprint-complete 자동화, Planner 기획 심도 트리거,
+추론 강도 정책, Evaluator Should 예외) 반영. dogfood4로 검증 예정.
 
 ## 3. 완료된 Sprint 이력 (감사 기록)
 
@@ -25,6 +24,7 @@
 |---|---|---|
 | `self-evolution-0` | P0: handoff 박제, trigger matrix, schema/status 확장, preflight 실행화, re-incarnation 프로토콜 | passed |
 | `self-evolution-1` | Fine-tuning: startup footprint(A2~A5) + compaction survivability(B1~B6, PreCompact hook + session-log) | passed |
+| `self-evolution-2` | 스크립트 훅 기반 강제 메커니즘: Phase 0 gate + 규칙 자동주입 + sprint-complete 자동화 | passed |
 
 상세는 `sprint-status.json`의 `sprints[]` + `session-log.md` Archived 섹션 참조.
 
