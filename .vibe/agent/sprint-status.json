@@ -57,6 +57,15 @@
       "name": "self-evolution-2",
       "status": "passed",
       "completedAt": "2026-04-10T07:32:02.639Z"
+    },
+    {
+      "id": "self-evolution-3",
+      "name": "Planner 역할 확장: 기술 사양 + Sprint 프롬프트 초안 + 작성 원칙",
+      "status": "passed",
+      "completedAt": "2026-04-10T08:30:00.000Z",
+      "deviations": [
+        "No Generator: 모든 변경사항이 .md/.json (비코드) — Orchestrator 직접 편집 허용"
+      ]
     }
   ],
   "verificationCommands": [
@@ -78,7 +87,7 @@
   "sandboxNotes": [],
   "handoff": {
     "currentSprintId": "idle",
-    "lastActionSummary": "스크립트 훅 기반 강제 메커니즘: run-codex.sh 규칙 자동주입 + preflight bootstrap/product.md + sprint-complete 자동화",
+    "lastActionSummary": "Planner 역할 확장 (기술 사양 + Sprint 프롬프트 초안) + Sprint 프롬프트 작성 원칙 추가 + dogfood 아티팩트 정리",
     "openIssues": [],
     "orchestratorContextBudget": "low",
     "preferencesActive": [

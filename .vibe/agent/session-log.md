@@ -20,9 +20,12 @@
 
 ## Entries
 
+- 2026-04-10T08:30 [decision] self-evolution-3: Planner 역할 확장 — 기술 사양(타입·API·파일구조) + Sprint 프롬프트 초안을 Planner가 출력하도록 CLAUDE.md 변경. Sprint 프롬프트 작성 원칙 섹션 추가.
+- 2026-04-10T08:30 [decision] dogfood3/dogfood4 관련 아티팩트 전량 discard (dogfood4-review.md 삭제, handoff/session-log에서 dogfood 참조 제거).
 
-- 2026-04-10T07:32:02.639Z [sprint-complete] self-evolution-2 -> passed. 스크립트 훅 기반 강제 메커니즘: run-codex.sh 규칙 자동주입 + preflight bootstrap/product.md + sprint-complete 자동화
-- 2026-04-10T00:00 [decision] Agent state initialized for dogfood3. self-evolution-0/1 entries archived below.
+## Archived (self-evolution-2)
+
+- 2026-04-10T07:32 [sprint-complete] self-evolution-2 -> passed. 스크립트 훅 기반 강제 메커니즘: run-codex.sh 규칙 자동주입 + preflight bootstrap/product.md + sprint-complete 자동화
 
 ## Archived (self-evolution-1)
 
