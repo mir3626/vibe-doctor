@@ -1,4 +1,5 @@
 {
+  "harnessVersion": "1.0.0",
   "orchestrator": "claude-opus",
   "sprintRoles": {
     "planner": "claude-opus",

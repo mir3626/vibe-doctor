@@ -1,0 +1,132 @@
+{
+  "$schema": "./sync-manifest.schema.json",
+  "manifestVersion": "1.0",
+  "files": {
+    "harness": [
+      "scripts/run-codex.sh",
+      "scripts/vibe-preflight.mjs",
+      "scripts/vibe-checkpoint.mjs",
+      "scripts/vibe-sprint-complete.mjs",
+      "scripts/vibe-version-check.mjs",
+      "scripts/vibe-sync-bootstrap.mjs",
+      ".vibe/agent/_common-rules.md",
+      ".vibe/agent/re-incarnation.md",
+      ".vibe/agent/sprint-status.schema.json",
+      ".vibe/agent/README.md",
+      ".vibe/sync-manifest.json",
+      ".claude/skills/vibe-init/SKILL.md",
+      ".claude/skills/goal-to-plan/SKILL.md",
+      ".claude/skills/self-qa/SKILL.md",
+      ".claude/skills/write-report/SKILL.md",
+      ".claude/skills/maintain-context/SKILL.md",
+      ".claude/skills/vibe-sync/SKILL.md",
+      ".claude/agents/planner.md",
+      ".claude/agents/context-curator.md",
+      ".claude/agents/qa-guardian.md",
+      "docs/context/codex-execution.md",
+      "docs/orchestration/providers.md",
+      ".gitattributes",
+      ".editorconfig",
+      ".env.example",
+      ".github/workflows/ci.yml",
+      "src/commands/audit-config.ts",
+      "src/commands/doctor.ts",
+      "src/commands/init.ts",
+      "src/commands/qa.ts",
+      "src/commands/run-agent.ts",
+      "src/commands/summarize-usage.ts",
+      "src/commands/write-report.ts",
+      "src/commands/sync.ts",
+      "src/lib/args.ts",
+      "src/lib/cli.ts",
+      "src/lib/config.ts",
+      "src/lib/fs.ts",
+      "src/lib/logger.ts",
+      "src/lib/paths.ts",
+      "src/lib/report.ts",
+      "src/lib/shell.ts",
+      "src/lib/slug.ts",
+      "src/lib/sync.ts",
+      "src/lib/time.ts",
+      "src/lib/usage.ts",
+      "src/providers/runner.ts",
+      "src/providers/types.ts",
+      "test/args.test.ts",
+      "test/commands.test.ts",
+      "test/config.test.ts",
+      "test/providers.test.ts",
+      "test/usage.test.ts",
+      "test/sync.test.ts",
+      "migrations/1.0.0.mjs"
+    ],
+    "hybrid": {
+      "CLAUDE.md": {
+        "strategy": "section-merge",
+        "harnessMarkers": [
+          "HARNESS:core-framing",
+          "HARNESS:role-constraints",
+          "HARNESS:trigger-matrix",
+          "HARNESS:reasoning-policy",
+          "HARNESS:hook-enforcement",
+          "HARNESS:sprint-flow",
+          "HARNESS:mechanical-overrides"
+        ],
+        "preserveMarkers": ["SPRINT_ROLES", "PROJECT:custom-rules"],
+        "note": "HARNESS:* sections replaced from upstream; SPRINT_ROLES and PROJECT:* preserved"
+      },
+      "AGENTS.md": {
+        "strategy": "template-regenerate",
+        "note": "Regenerated from template + provider selection from .vibe/config.local.json"
+      },
+      "GEMINI.md": {
+        "strategy": "template-regenerate"
+      },
+      ".claude/settings.json": {
+        "strategy": "json-deep-merge",
+        "harnessKeys": ["hooks"],
+        "projectKeys": ["permissions"]
+      },
+      "package.json": {
+        "strategy": "json-deep-merge",
+        "harnessKeys": ["scripts.vibe:*", "engines"],
+        "projectKeys": ["name", "version", "description", "dependencies", "devDependencies"]
+      },
+      "tsconfig.json": {
+        "strategy": "json-deep-merge",
+        "harnessKeys": [
+          "compilerOptions.strict",
+          "compilerOptions.noUncheckedIndexedAccess",
+          "compilerOptions.exactOptionalPropertyTypes",
+          "compilerOptions.module",
+          "compilerOptions.moduleResolution",
+          "compilerOptions.target"
+        ],
+        "projectKeys": ["compilerOptions.paths", "compilerOptions.baseUrl", "include", "exclude"]
+      },
+      ".vibe/config.json": {
+        "strategy": "json-deep-merge",
+        "harnessKeys": ["harnessVersion", "qa"],
+        "projectKeys": ["orchestrator", "sprintRoles", "sprint", "providers", "harnessVersionInstalled", "upstream"]
+      }
+    },
+    "project": [
+      "docs/context/product.md",
+      "docs/context/architecture.md",
+      "docs/context/conventions.md",
+      "docs/context/qa.md",
+      "docs/context/secrets.md",
+      "docs/context/tokens.md",
+      ".vibe/config.local.json",
+      ".env",
+      ".vibe/agent/sprint-status.json",
+      ".vibe/agent/handoff.md",
+      ".vibe/agent/session-log.md",
+      "docs/plans/**",
+      "docs/reports/**",
+      "src/**"
+    ]
+  },
+  "migrations": {
+    "1.0.0": "migrations/1.0.0.mjs"
+  }
+}
