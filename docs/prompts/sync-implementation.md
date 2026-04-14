@@ -252,10 +252,14 @@ This is a non-blocking warning (use `true` for ok to not block sprints, but show
 Self-contained script that can be run standalone (no project dependencies needed):
 
 ```bash
-# Usage from a legacy project root:
+# Usage from a legacy project root (all platforms):
 node /path/to/vibe-doctor/scripts/vibe-sync-bootstrap.mjs
-# OR
+
+# macOS / Linux one-liner (process substitution):
 node <(curl -sL https://raw.githubusercontent.com/mir3626/vibe-doctor/main/scripts/vibe-sync-bootstrap.mjs)
+
+# Windows one-liner (stdin pipe — process substitution returns /dev/fd/N paths that node.exe cannot resolve):
+curl -sL https://raw.githubusercontent.com/mir3626/vibe-doctor/main/scripts/vibe-sync-bootstrap.mjs | node --input-type=module -
 ```
 
 Flow:
