@@ -22,15 +22,23 @@ export async function runCommand(
   },
 ): Promise<CommandResult> {
   return new Promise<CommandResult>((resolve, reject) => {
-    const child = spawn(command, args, {
-      cwd: options?.cwd,
-      env: {
-        ...process.env,
-        ...(options?.env ?? {}),
-      },
-      stdio: ['ignore', 'pipe', 'pipe'],
-      shell: process.platform === 'win32',
-    });
+    const env = {
+      ...process.env,
+      ...(options?.env ?? {}),
+    };
+    const isWin = process.platform === 'win32';
+    const child = isWin
+      ? spawn('cmd.exe', ['/d', '/s', '/c', command, ...args], {
+          cwd: options?.cwd,
+          env,
+          stdio: ['ignore', 'pipe', 'pipe'],
+          windowsVerbatimArguments: true,
+        })
+      : spawn(command, args, {
+          cwd: options?.cwd,
+          env,
+          stdio: ['ignore', 'pipe', 'pipe'],
+        });
 
     let stdout = '';
     let stderr = '';

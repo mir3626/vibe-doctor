@@ -2,6 +2,7 @@
 // Gate vibe:qa so Stop hooks only run when the repo has code changes.
 
 import { execFileSync, execSync } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import path from 'node:path';
 
 const EXTENSIONS = new Set([
@@ -91,6 +92,11 @@ function main() {
 
     const sample = codePaths.slice(0, 3).join(', ');
     console.log(`[vibe-qa] run: ${sample}`);
+    const tsxInstalled = existsSync(path.join(repoRoot, 'node_modules', 'tsx', 'package.json'));
+    if (!tsxInstalled) {
+      console.log('[vibe-qa] skip: tsx not installed \u2014 run `npm install` first');
+      process.exit(0);
+    }
     try {
       execSync('npm run vibe:qa --silent', {
         cwd: repoRoot,
