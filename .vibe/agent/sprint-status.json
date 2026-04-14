@@ -66,6 +66,12 @@
       "deviations": [
         "No Generator: 모든 변경사항이 .md/.json (비코드) — Orchestrator 직접 편집 허용"
       ]
+    },
+    {
+      "id": "harness-sync",
+      "name": "harness-sync",
+      "status": "passed",
+      "completedAt": "2026-04-14T05:03:59.441Z"
     }
   ],
   "verificationCommands": [
@@ -87,7 +93,7 @@
   "sandboxNotes": [],
   "handoff": {
     "currentSprintId": "idle",
-    "lastActionSummary": "Planner 역할 확장 (기술 사양 + Sprint 프롬프트 초안) + Sprint 프롬프트 작성 원칙 추가 + dogfood 아티팩트 정리",
+    "lastActionSummary": "Sprint harness-sync completed with passed",
     "openIssues": [],
     "orchestratorContextBudget": "low",
     "preferencesActive": [
@@ -95,6 +101,6 @@
       "autonomous-until-artifact"
     ],
     "handoffDocPath": ".vibe/agent/handoff.md",
-    "updatedAt": "2026-04-10T07:32:02.639Z"
+    "updatedAt": "2026-04-14T05:03:59.441Z"
   }
 }

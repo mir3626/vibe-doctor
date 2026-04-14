@@ -20,6 +20,8 @@
 
 ## Entries
 
+
+- 2026-04-14T05:03:59.441Z [sprint-complete] harness-sync -> passed. Sprint harness-sync completed with passed
 - 2026-04-10T08:30 [decision] self-evolution-3: Planner 역할 확장 — 기술 사양(타입·API·파일구조) + Sprint 프롬프트 초안을 Planner가 출력하도록 CLAUDE.md 변경. Sprint 프롬프트 작성 원칙 섹션 추가.
 - 2026-04-10T08:30 [decision] dogfood3/dogfood4 관련 아티팩트 전량 discard (dogfood4-review.md 삭제, handoff/session-log에서 dogfood 참조 제거).
 - 2026-04-13T00:00 [decision] harness-sync: 하네스 싱크 메커니즘 설계 완료. 3-tier 전략: (1) section-merge(마커 있는 프로젝트), (2) sidecar full-replace(레거시), (3) json-deep-merge(settings.json/package.json). 플랜 파일: docs/prompts/sync-implementation.md
