@@ -9,6 +9,7 @@
       "scripts/vibe-sprint-complete.mjs",
       "scripts/vibe-version-check.mjs",
       "scripts/vibe-sync-bootstrap.mjs",
+      "scripts/vibe-stop-qa-gate.mjs",
       ".vibe/agent/_common-rules.md",
       ".vibe/agent/re-incarnation.md",
       ".vibe/agent/sprint-status.schema.json",
