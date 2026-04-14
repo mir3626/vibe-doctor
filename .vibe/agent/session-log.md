@@ -21,6 +21,8 @@
 ## Entries
 
 
+
+- 2026-04-14T13:50:59.759Z [sprint-complete] v1.1.0-process-refactor -> passed. Sprint v1.1.0-process-refactor completed with passed LOC +1037/-38 (net +999)
 - 2026-04-14T05:03:59.441Z [sprint-complete] harness-sync -> passed. Sprint harness-sync completed with passed
 - 2026-04-10T08:30 [decision] self-evolution-3: Planner 역할 확장 — 기술 사양(타입·API·파일구조) + Sprint 프롬프트 초안을 Planner가 출력하도록 CLAUDE.md 변경. Sprint 프롬프트 작성 원칙 섹션 추가.
 - 2026-04-10T08:30 [decision] dogfood3/dogfood4 관련 아티팩트 전량 discard (dogfood4-review.md 삭제, handoff/session-log에서 dogfood 참조 제거).
