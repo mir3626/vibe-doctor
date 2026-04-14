@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os';
 import path, { dirname, resolve } from 'node:path';
 
 const DEFAULT_UPSTREAM_URL = 'https://github.com/mir3626/vibe-doctor.git';
+const SEMVER_REF_PATTERN = /^\d+\.\d+\.\d+$/;
 
 function parseJson(filePath, fallback) {
   try {
@@ -142,13 +143,20 @@ function main() {
       changed.push('package.json');
     }
 
+    const harnessVersion = upstreamConfig.harnessVersion ?? localConfig.harnessVersion ?? '1.0.0';
+    const upstreamRef =
+      localConfig.upstream?.ref
+      ?? (SEMVER_REF_PATTERN.test(harnessVersion) ? `v${harnessVersion}` : undefined);
     const nextConfig = {
       ...localConfig,
-      harnessVersion: upstreamConfig.harnessVersion ?? localConfig.harnessVersion ?? '1.0.0',
+      harnessVersion,
       harnessVersionInstalled: upstreamConfig.harnessVersion ?? localConfig.harnessVersionInstalled ?? '1.0.0',
-      upstream: localConfig.upstream ?? {
-        type: sourcePath ? 'local' : 'git',
-        url: sourcePath ?? (arg ?? DEFAULT_UPSTREAM_URL),
+      upstream: {
+        ...(localConfig.upstream ?? {
+          type: sourcePath ? 'local' : 'git',
+          url: sourcePath ?? (arg ?? DEFAULT_UPSTREAM_URL),
+        }),
+        ...(upstreamRef ? { ref: upstreamRef } : {}),
       },
     };
     writeJson(configPath, nextConfig);

@@ -22,8 +22,22 @@ import {
   type SyncAction,
 } from '../lib/sync.js';
 
-function resolveUpstreamRef(config: VibeConfig, refOverride?: string): string {
-  return refOverride ?? config.upstream?.ref ?? config.harnessVersion ?? 'main';
+const SEMVER_REF_PATTERN = /^\d+\.\d+\.\d+$/;
+
+export function resolveUpstreamRef(config: VibeConfig, refOverride?: string): string {
+  if (refOverride) {
+    return refOverride;
+  }
+
+  if (config.upstream?.ref) {
+    return config.upstream.ref;
+  }
+
+  if (config.harnessVersion && SEMVER_REF_PATTERN.test(config.harnessVersion)) {
+    return `v${config.harnessVersion}`;
+  }
+
+  return 'main';
 }
 
 async function cloneUpstream(url: string, ref: string): Promise<string> {
