@@ -209,6 +209,26 @@ if (hasProduct) {
   record('phase0.product', false, 'missing docs/context/product.md - run Phase 0 (Ouroboros PM interview) first');
 }
 
+// 7. Harness version check
+try {
+  const config = JSON.parse(readFileSync(resolve('.vibe/config.json'), 'utf8'));
+  if (config.harnessVersion && config.harnessVersionInstalled) {
+    if (config.harnessVersion !== config.harnessVersionInstalled) {
+      record(
+        'harness.version',
+        true,
+        `installed: ${config.harnessVersionInstalled}, available: ${config.harnessVersion}. Run: npm run vibe:sync`,
+      );
+    } else {
+      record('harness.version', true, `v${config.harnessVersion}`);
+    }
+  } else {
+    record('harness.version', true, 'no version tracking configured');
+  }
+} catch {
+  record('harness.version', true, 'version check skipped');
+}
+
 if (JSON_MODE) {
   process.stdout.write(JSON.stringify(results, null, 2) + '\n');
 } else {

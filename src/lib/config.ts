@@ -21,6 +21,13 @@ export interface SprintConfig {
 
 export interface VibeConfig {
   orchestrator: string;
+  harnessVersion?: string;
+  harnessVersionInstalled?: string;
+  upstream?: {
+    type: 'git' | 'local';
+    url: string;
+    ref?: string;
+  };
   sprintRoles: SprintRoles;
   sprint: SprintConfig;
   providers: Record<string, ProviderRunner>;

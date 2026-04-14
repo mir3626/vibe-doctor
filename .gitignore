@@ -12,3 +12,6 @@ secrets/
 config/credentials.json
 .claude/settings.local.json
 .ouroboros/
+.vibe/sync-backup/
+.vibe/sync-cache.json
+.vibe/sync-hashes.json

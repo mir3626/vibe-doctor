@@ -137,6 +137,7 @@ ouroboros setup   # 초기 설정
 
 ```text
 /vibe-init         # 초기 설정 + 프로젝트 맞춤 설정 (대화형)
+/vibe-sync         # 업스트림 하네스 변경을 프로젝트 커스터마이징 보존하며 반영
 /goal-to-plan      # 목표 → Sprint 분할 계획 생성
 /self-qa           # QA 검증
 /write-report      # 완료 보고서 작성
@@ -154,6 +155,8 @@ npm run vibe:report -- --title "foo"  # 완료 보고서 작성
 npm run vibe:escalate -- --task-file docs/plans/my-task.md  # 실패 에스컬레이션
 npm run vibe:run-agent                # provider 직접 실행
 npm run vibe:config-audit             # 설정 감사 (시크릿 누출 검사)
+npm run vibe:sync -- --dry-run        # 업스트림 하네스 싱크 plan 미리보기
+npm run vibe:sync                     # 업스트림 하네스 싱크 실제 적용
 ```
 
 ---
