@@ -38,6 +38,76 @@
 
 set -euo pipefail
 
+attempt_output="$(mktemp "${TMPDIR:-/tmp}/run-codex.XXXXXX")"
+cleanup() {
+  rm -f "$attempt_output"
+}
+trap cleanup EXIT
+
+trim_section_body() {
+  awk '
+    {
+      lines[NR] = $0
+      if ($0 !~ /^[[:space:]]*$/) {
+        if (start == 0) {
+          start = NR
+        }
+        last = NR
+      }
+    }
+    END {
+      if (start == 0) {
+        exit
+      }
+      for (i = start; i <= last; i++) {
+        print lines[i]
+      }
+    }
+  '
+}
+
+emit_sandbox_only_summary() {
+  local section normalized first_nonempty item_count preview
+
+  section="$(
+    awk '
+      /^## Sandbox-only failures[[:space:]]*$/ { in_section = 1; next }
+      in_section && /^##[[:space:]]/ { exit }
+      in_section { print }
+    ' "$attempt_output" | trim_section_body
+  )"
+
+  if [[ -z "$section" ]]; then
+    return 0
+  fi
+
+  first_nonempty="$(
+    printf '%s\n' "$section" | awk '
+      NF {
+        print
+        exit
+      }
+    '
+  )"
+  normalized="$(printf '%s' "$first_nonempty" | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')"
+
+  if [[ "$normalized" == "- none" ]]; then
+    return 0
+  fi
+
+  item_count="$(printf '%s\n' "$section" | grep -c '^[[:space:]]*-[[:space:]]' || true)"
+  if [[ "$item_count" -lt 1 ]]; then
+    return 0
+  fi
+
+  preview="$(printf '%s\n' "$section" | awk 'NR <= 20 { print }')"
+
+  echo "──── run-codex.sh: Sandbox-only failures 감지 ────" >&2
+  echo "(${item_count}개 항목. Orchestrator가 샌드박스 밖에서 재검증 필요.)" >&2
+  printf '%s\n' "$preview" >&2
+  echo "───────────────────────────────────────────────" >&2
+}
+
 # ---------- 1. Force UTF-8 in the parent shell ----------
 export LANG=en_US.UTF-8
 export LC_ALL=en_US.UTF-8
@@ -95,21 +165,24 @@ retries="${CODEX_RETRY:-3}"
 attempt=0
 while :; do
   attempt=$((attempt + 1))
+  : >"$attempt_output"
 
   set +e
   if [[ -n "$stdin_buf" ]]; then
-    printf '%s' "$stdin_buf" | codex "${codex_args[@]}" "$@"
+    printf '%s' "$stdin_buf" | codex "${codex_args[@]}" "$@" | tee "$attempt_output"
   else
-    codex "${codex_args[@]}" "$@"
+    codex "${codex_args[@]}" "$@" | tee "$attempt_output"
   fi
   rc=$?
   set -e
 
   if [[ $rc -eq 0 ]]; then
+    emit_sandbox_only_summary
     exit 0
   fi
 
   if [[ $attempt -ge $retries ]]; then
+    emit_sandbox_only_summary
     echo "[run-codex] giving up after $attempt attempt(s) (last exit $rc)" >&2
     exit $rc
   fi

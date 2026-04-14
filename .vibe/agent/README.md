@@ -8,7 +8,8 @@ checkpoint로서 소환될 때** 공유할 프롬프트 조각·샌드박스 계
 ## 왜 분리되어 있는가
 
 `docs/context/*`와 `docs/orchestration/*`는 설계 의도와 규칙을 사람이 읽기 위한
-문서인 반면, `.vibe/agent/*`는 다음 세 가지 문제를 해결한다:
+문서인 반면(특히 `docs/context/orchestration.md`가 역할×Phase 매트릭스의 single source
+of truth), `.vibe/agent/*`는 다음 세 가지 문제를 해결한다:
 
 1. **Sprint 프롬프트 보일러플레이트 중복** — 6개 Sprint가 같은 "Rules / Verification /
    Final report" 섹션을 복붙. 공용 조각을 `_common-rules.md`로 추출하고 Planner가

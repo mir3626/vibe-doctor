@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import { execSync } from 'node:child_process';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
@@ -14,6 +15,53 @@ function warn(message) {
 
 function escapeRegExp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function sh(cmd) {
+  return execSync(cmd, { stdio: ['ignore', 'pipe', 'pipe'], encoding: 'utf8' }).trim();
+}
+
+function trySh(cmd) {
+  try {
+    return sh(cmd);
+  } catch {
+    return null;
+  }
+}
+
+function parseShortStat(shortstat) {
+  const text = shortstat.trim();
+  const filesChanged = Number(text.match(/(\d+)\s+files?\s+changed/)?.[1] ?? 0);
+  const added = Number(text.match(/(\d+)\s+insertions?\(\+\)/)?.[1] ?? 0);
+  const deleted = Number(text.match(/(\d+)\s+deletions?\(-\)/)?.[1] ?? 0);
+  return {
+    added,
+    deleted,
+    net: added - deleted,
+    filesChanged,
+  };
+}
+
+function getActualLoc() {
+  const hasHead = trySh('git rev-parse --verify HEAD');
+  if (!hasHead) {
+    return null;
+  }
+
+  const hasParent = trySh('git rev-parse --verify HEAD~1');
+  const shortstat = hasParent
+    ? trySh('git diff --shortstat HEAD~1 HEAD')
+    : trySh('git show --shortstat --format= --root HEAD');
+
+  if (shortstat === null) {
+    return null;
+  }
+
+  return parseShortStat(shortstat);
+}
+
+function formatNet(value) {
+  return value >= 0 ? `+${value}` : `${value}`;
 }
 
 const [, , sprintId, status, ...rest] = process.argv;
@@ -31,6 +79,7 @@ for (let i = 0; i < rest.length; i += 1) {
 
 const nowIso = new Date().toISOString();
 const finalSummary = summary || `Sprint ${sprintId} completed with ${status}`;
+const actualLoc = getActualLoc();
 
 const statusPath = resolve('.vibe/agent/sprint-status.json');
 const handoffPath = resolve('.vibe/agent/handoff.md');
@@ -57,13 +106,22 @@ if (existingSprint) {
   existingSprint.name = sprintId;
   existingSprint.status = status;
   existingSprint.completedAt = nowIso;
+  if (actualLoc) {
+    existingSprint.actualLoc = actualLoc;
+  } else {
+    delete existingSprint.actualLoc;
+  }
 } else {
-  sprintStatus.sprints.push({
+  const nextSprint = {
     id: sprintId,
     name: sprintId,
     status,
     completedAt: nowIso,
-  });
+  };
+  if (actualLoc) {
+    nextSprint.actualLoc = actualLoc;
+  }
+  sprintStatus.sprints.push(nextSprint);
 }
 
 sprintStatus.handoff = {
@@ -107,7 +165,10 @@ if (!existsSync(sessionLogPath)) {
   warn(`missing ${sessionLogPath} - skipping session log update`);
 } else {
   const sessionLogContent = readFileSync(sessionLogPath, 'utf8');
-  const entry = `- ${nowIso} [sprint-complete] ${sprintId} -> ${status}. ${finalSummary}`;
+  const locSuffix = actualLoc
+    ? ` LOC +${actualLoc.added}/-${actualLoc.deleted} (net ${formatNet(actualLoc.net)})`
+    : '';
+  const entry = `- ${nowIso} [sprint-complete] ${sprintId} -> ${status}. ${finalSummary}${locSuffix}`;
   const entriesPattern = /(^## Entries\s*$\n?)/m;
 
   if (!entriesPattern.test(sessionLogContent)) {

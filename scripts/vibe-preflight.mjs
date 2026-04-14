@@ -229,6 +229,14 @@ try {
   record('harness.version', true, 'version check skipped');
 }
 
+// 8. Optional orchestration shard presence
+const orchestrationPath = resolve('docs/context/orchestration.md');
+if (existsSync(orchestrationPath)) {
+  record('orchestration.doc', true, 'present');
+} else {
+  record('orchestration.doc', true, 'missing (optional shard - v1.1.0+)');
+}
+
 if (JSON_MODE) {
   process.stdout.write(JSON.stringify(results, null, 2) + '\n');
 } else {

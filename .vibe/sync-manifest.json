@@ -25,6 +25,7 @@
       ".claude/agents/context-curator.md",
       ".claude/agents/qa-guardian.md",
       "docs/context/codex-execution.md",
+      "docs/context/orchestration.md",
       "docs/orchestration/providers.md",
       ".gitattributes",
       ".editorconfig",
