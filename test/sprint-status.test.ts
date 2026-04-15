@@ -5,6 +5,7 @@ import path from 'node:path';
 import { afterEach, describe, it } from 'node:test';
 import {
   appendPendingRisk,
+  extendLastSprintScope,
   incrementAuditCounter,
   isSprintStatus,
   loadSprintStatus,
@@ -220,5 +221,42 @@ describe('sprint-status', () => {
 
     assert.equal(touched, afterRaw.stateUpdatedAt);
     assert.equal(Date.parse(afterRaw.stateUpdatedAt) > Date.parse(beforeRaw.stateUpdatedAt), true);
+  });
+
+  it('extendLastSprintScope is a no-op for empty input', async () => {
+    const root = await makeTempDir('sprint-status-extend-noop-');
+    await writeJson(
+      path.join(root, '.vibe', 'agent', 'sprint-status.json'),
+      withDefaults(makeLegacyStatus()),
+    );
+
+    const before = await loadSprintStatus(root);
+    const result = await extendLastSprintScope([], undefined, root);
+    const after = await loadSprintStatus(root);
+
+    assert.deepEqual(result.lastSprintScope, []);
+    assert.deepEqual(result.lastSprintScopeGlob, []);
+    assert.equal(after.stateUpdatedAt, before.stateUpdatedAt);
+  });
+
+  it('extendLastSprintScope merges and deduplicates existing paths and globs', async () => {
+    const root = await makeTempDir('sprint-status-extend-merge-');
+    await writeJson(
+      path.join(root, '.vibe', 'agent', 'sprint-status.json'),
+      withDefaults({
+        ...makeLegacyStatus(),
+        lastSprintScope: ['src/a.ts', 'src\\b.ts'],
+        lastSprintScopeGlob: ['src/*.ts'],
+      }),
+    );
+
+    const result = await extendLastSprintScope(
+      ['src\\b.ts', 'src/c.ts'],
+      ['src/*.ts', 'scripts/*.mjs'],
+      root,
+    );
+
+    assert.deepEqual(result.lastSprintScope, ['src/a.ts', 'src/b.ts', 'src/c.ts']);
+    assert.deepEqual(result.lastSprintScopeGlob, ['src/*.ts', 'scripts/*.mjs']);
   });
 });

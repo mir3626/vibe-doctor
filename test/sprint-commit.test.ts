@@ -1,0 +1,341 @@
+import assert from 'node:assert/strict';
+import { execFile as execFileCallback } from 'node:child_process';
+import { mkdtemp, mkdir, readFile, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+import { pathToFileURL } from 'node:url';
+import { promisify } from 'node:util';
+import { afterEach, describe, it } from 'node:test';
+
+const execFile = promisify(execFileCallback);
+const tempDirs: string[] = [];
+const sprintCommitPath = path.resolve('scripts', 'vibe-sprint-commit.mjs');
+const gitEnv = {
+  GIT_AUTHOR_DATE: '2026-04-16T00:00:00.000Z',
+  GIT_COMMITTER_DATE: '2026-04-16T00:00:00.000Z',
+};
+
+afterEach(async () => {
+  while (tempDirs.length > 0) {
+    const dir = tempDirs.pop();
+    if (dir) {
+      await import('node:fs/promises').then(({ rm }) => rm(dir, { recursive: true, force: true }));
+    }
+  }
+});
+
+async function makeTempDir(prefix: string): Promise<string> {
+  const dir = await mkdtemp(path.join(tmpdir(), prefix));
+  tempDirs.push(dir);
+  return dir;
+}
+
+async function writeJson(filePath: string, value: unknown): Promise<void> {
+  await mkdir(path.dirname(filePath), { recursive: true });
+  await writeFile(filePath, `${JSON.stringify(value, null, 2)}\n`, 'utf8');
+}
+
+async function writeText(filePath: string, value: string): Promise<void> {
+  await mkdir(path.dirname(filePath), { recursive: true });
+  await writeFile(filePath, value, 'utf8');
+}
+
+async function initGitRepo(root: string): Promise<void> {
+  await execFile('git', ['init'], { cwd: root, env: { ...process.env, ...gitEnv } });
+  await execFile('git', ['config', 'user.name', 'Test User'], { cwd: root });
+  await execFile('git', ['config', 'user.email', 'test@example.com'], { cwd: root });
+  await execFile('git', ['config', 'commit.gpgsign', 'false'], { cwd: root });
+  await execFile('git', ['add', '.'], { cwd: root });
+  await execFile('git', ['commit', '-m', 'init'], {
+    cwd: root,
+    env: { ...process.env, ...gitEnv },
+  });
+}
+
+async function scaffoldRepo(
+  root: string,
+  options: {
+    sprintIds?: string[];
+    locExtensions?: string[];
+    pendingRisks?: Array<Record<string, unknown>>;
+    includeRoadmap?: boolean;
+    includePrompt?: boolean;
+  } = {},
+): Promise<void> {
+  const sprintIds = options.sprintIds ?? ['test-sprint', 'next-sprint'];
+  const includeRoadmap = options.includeRoadmap ?? false;
+  const includePrompt = options.includePrompt ?? false;
+  const config: Record<string, unknown> = {
+    harnessVersion: '1.1.1',
+    harnessVersionInstalled: '1.1.1',
+    sprintRoles: {},
+    sprint: {
+      unit: 'feature',
+      subAgentPerRole: true,
+      freshContextPerSprint: true,
+    },
+    providers: {},
+    audit: {
+      everyN: 99,
+    },
+  };
+
+  if (options.locExtensions) {
+    config.loc = { extensions: options.locExtensions };
+  }
+
+  await writeJson(path.join(root, '.vibe', 'config.json'), config);
+  await writeJson(path.join(root, '.vibe', 'agent', 'sprint-status.json'), {
+    schemaVersion: '0.1',
+    project: {
+      name: 'test-project',
+      createdAt: '2026-04-01T00:00:00.000Z',
+    },
+    sprints: [],
+    verificationCommands: [],
+    pendingRisks: options.pendingRisks ?? [],
+    lastSprintScope: [],
+    lastSprintScopeGlob: [],
+    sprintsSinceLastAudit: 0,
+    stateUpdatedAt: '2026-04-01T00:00:00.000Z',
+    handoff: {
+      currentSprintId: 'idle',
+      lastActionSummary: 'ready',
+      orchestratorContextBudget: 'low',
+      preferencesActive: [],
+      handoffDocPath: '.vibe/agent/handoff.md',
+      updatedAt: '2026-04-01T00:00:00.000Z',
+    },
+  });
+  await writeText(
+    path.join(root, '.vibe', 'agent', 'handoff.md'),
+    [
+      '# Handoff',
+      '',
+      '## 2. Status: IDLE',
+      '',
+      '## 3. Sprint History',
+      '',
+      '| Sprint | Summary | Status |',
+      '|---|---|---|',
+      '',
+    ].join('\n'),
+  );
+  await writeText(path.join(root, '.vibe', 'agent', 'session-log.md'), '# Session Log\n\n## Entries\n');
+  await writeText(path.join(root, '.vibe', 'agent', 'project-map.json'), '{}\n');
+  await writeText(path.join(root, '.vibe', 'agent', 'sprint-api-contracts.json'), '{}\n');
+  await writeText(path.join(root, '.vibe', 'agent', 'project-decisions.jsonl'), '');
+
+  if (includeRoadmap) {
+    const roadmapLines = [
+      '# Roadmap',
+      '',
+      '<!-- BEGIN:VIBE:CURRENT-SPRINT -->',
+      '> **Current**: idle (not started, started 2026-04-01)',
+      '> **Completed**: \u2014',
+      `> **Pending**: ${sprintIds.join(', ')}`,
+      '<!-- END:VIBE:CURRENT-SPRINT -->',
+      '',
+    ];
+    sprintIds.forEach((sprintId, index) => {
+      roadmapLines.push(`## Sprint M${index + 1}`);
+      roadmapLines.push(`- **id**: \`${sprintId}\``);
+      roadmapLines.push('');
+    });
+    await writeText(path.join(root, 'docs', 'plans', 'sprint-roadmap.md'), roadmapLines.join('\n'));
+  }
+
+  if (includePrompt) {
+    await writeText(
+      path.join(root, 'docs', 'prompts', `${sprintIds[0]}-plan.md`),
+      `# ${sprintIds[0]}\n`,
+    );
+  }
+
+  await initGitRepo(root);
+}
+
+async function runSprintCommit(
+  root: string,
+  args: string[],
+  extraEnv: Record<string, string> = {},
+) {
+  return execFile('node', [sprintCommitPath, ...args], {
+    cwd: root,
+    env: { ...process.env, ...gitEnv, ...extraEnv },
+  });
+}
+
+async function loadSprintCompleteHelpers(): Promise<{
+  computeCurrentPointerBlock: (
+    roadmapMd: string,
+    sessionLogMd: string,
+    lastSprintId: string,
+    startedDateIso?: string,
+  ) => string;
+}> {
+  return import(pathToFileURL(path.resolve('scripts', 'vibe-sprint-complete.mjs')).href) as Promise<{
+    computeCurrentPointerBlock: (
+      roadmapMd: string,
+      sessionLogMd: string,
+      lastSprintId: string,
+      startedDateIso?: string,
+    ) => string;
+  }>;
+}
+
+describe('computeCurrentPointerBlock', () => {
+  it('computes current, completed, and pending lists from roadmap and session log', async () => {
+    const { computeCurrentPointerBlock } = await loadSprintCompleteHelpers();
+    const roadmap = [
+      '# Roadmap',
+      '',
+      '<!-- BEGIN:VIBE:CURRENT-SPRINT -->',
+      '> stale',
+      '<!-- END:VIBE:CURRENT-SPRINT -->',
+      '',
+      '## Sprint M1',
+      '- **id**: `sprint-M1`',
+      '',
+      '## Sprint M2',
+      '- **id**: `sprint-M2`',
+      '',
+      '## Sprint M3',
+      '- **id**: `sprint-M3`',
+      '',
+    ].join('\n');
+    const sessionLog = [
+      '# Session Log',
+      '',
+      '## Entries',
+      '- 2026-04-16T00:00:00.000Z [sprint-complete] sprint-M2 -> passed.',
+      '- 2026-04-15T00:00:00.000Z [sprint-complete] sprint-M1 -> passed.',
+      '',
+    ].join('\n');
+
+    const block = computeCurrentPointerBlock(roadmap, sessionLog, 'sprint-M2', '2026-04-16');
+
+    assert.equal(
+      block,
+      [
+        '<!-- BEGIN:VIBE:CURRENT-SPRINT -->',
+        '> **Current**: sprint-M3 (not started, started 2026-04-16)',
+        '> **Completed**: sprint-M2, sprint-M1',
+        '> **Pending**: \u2014',
+        '<!-- END:VIBE:CURRENT-SPRINT -->',
+      ].join('\n'),
+    );
+  });
+});
+
+describe('vibe-sprint-commit', () => {
+  it('supports dry-run and includes detected scope in output', async () => {
+    const root = await makeTempDir('sprint-commit-dry-run-');
+    await scaffoldRepo(root);
+    await writeText(path.join(root, 'src', 'foo.ts'), 'export const foo = 1;\n');
+    await execFile('git', ['add', 'src/foo.ts'], { cwd: root });
+
+    const { stdout } = await runSprintCommit(root, [
+      'test-sprint',
+      'passed',
+      '--scope',
+      'src/foo.ts',
+      '--dry-run',
+    ]);
+
+    assert.match(stdout, /would commit:/);
+    assert.match(stdout, /src\/foo\.ts/);
+  });
+
+  it('is idempotent when re-run after a successful commit', async () => {
+    const root = await makeTempDir('sprint-commit-idempotent-');
+    await scaffoldRepo(root);
+    await writeText(path.join(root, 'src', 'foo.ts'), 'export const foo = 1;\n');
+    await execFile('git', ['add', 'src/foo.ts'], { cwd: root });
+
+    await runSprintCommit(root, ['test-sprint', 'passed', '--scope', 'src/foo.ts', '--no-verify-gpg']);
+    const { stdout } = await runSprintCommit(root, [
+      'test-sprint',
+      'passed',
+      '--scope',
+      'src/foo.ts',
+      '--no-verify-gpg',
+    ]);
+
+    assert.match(stdout, /nothing to commit \(already closed\?\)/);
+  });
+
+  it('blocks commit when an open pending risk targets the sprint', async () => {
+    const root = await makeTempDir('sprint-commit-risk-');
+    await scaffoldRepo(root, {
+      pendingRisks: [
+        {
+          id: 'risk-1',
+          raisedBy: 'test',
+          targetSprint: 'test-sprint',
+          text: 'resolve me first',
+          status: 'open',
+          createdAt: '2026-04-15T00:00:00.000Z',
+        },
+      ],
+    });
+    await writeText(path.join(root, 'src', 'foo.ts'), 'export const foo = 1;\n');
+    await execFile('git', ['add', 'src/foo.ts'], { cwd: root });
+    const before = await readFile(path.join(root, '.vibe', 'agent', 'sprint-status.json'), 'utf8');
+
+    try {
+      await runSprintCommit(root, ['test-sprint', 'passed', '--scope', 'src/foo.ts']);
+      assert.fail('expected pending risk to block commit');
+    } catch (error) {
+      const stderr =
+        typeof error === 'object' &&
+        error !== null &&
+        'stderr' in error &&
+        typeof error.stderr === 'string'
+          ? error.stderr
+          : '';
+      assert.match(stderr, /risk-1/);
+    }
+
+    const after = await readFile(path.join(root, '.vibe', 'agent', 'sprint-status.json'), 'utf8');
+    assert.equal(after, before);
+  });
+
+  it('filters LOC totals to configured code extensions while counting all changed files', async () => {
+    const root = await makeTempDir('sprint-commit-loc-');
+    await scaffoldRepo(root, { locExtensions: ['.ts'] });
+    await writeText(path.join(root, 'src', 'foo.ts'), ['a', 'b', 'c', 'd', 'e'].join('\n'));
+    await writeText(
+      path.join(root, 'docs', 'foo.md'),
+      Array.from({ length: 10 }, (_, index) => `${index}`).join('\n'),
+    );
+    await execFile('git', ['add', 'src/foo.ts', 'docs/foo.md'], { cwd: root });
+
+    await runSprintCommit(root, ['test-sprint', 'passed', '--scope', 'src/foo.ts', '--no-verify-gpg']);
+    const { stdout: body } = await execFile('git', ['log', '-1', '--format=%B'], { cwd: root });
+
+    assert.match(body, /LOC \+5\/-0 \(net \+5\)/);
+    assert.match(body, /across \d+ file\(s\)\./);
+  });
+
+  it('extends lastSprintScope across sequential sprint commits without rewriting prior entries', async () => {
+    const root = await makeTempDir('sprint-commit-scope-');
+    await scaffoldRepo(root, {
+      sprintIds: ['sprint-a', 'sprint-b'],
+    });
+    await writeText(path.join(root, 'src', 'a.ts'), 'export const a = 1;\n');
+    await execFile('git', ['add', 'src/a.ts'], { cwd: root });
+    await runSprintCommit(root, ['sprint-a', 'passed', '--scope', 'src/a.ts', '--no-verify-gpg']);
+
+    await writeText(path.join(root, 'src', 'b.ts'), 'export const b = 2;\n');
+    await execFile('git', ['add', 'src/b.ts'], { cwd: root });
+    await runSprintCommit(root, ['sprint-b', 'passed', '--scope', 'src/b.ts', '--no-verify-gpg']);
+
+    const status = JSON.parse(
+      await readFile(path.join(root, '.vibe', 'agent', 'sprint-status.json'), 'utf8'),
+    ) as { lastSprintScope: string[]; lastSprintScopeGlob: string[] };
+
+    assert.deepEqual(status.lastSprintScope, ['src/a.ts', 'src/b.ts']);
+    assert.deepEqual(status.lastSprintScopeGlob, ['src/a.ts', 'src/b.ts']);
+  });
+});

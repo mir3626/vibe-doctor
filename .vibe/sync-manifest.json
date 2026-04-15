@@ -71,7 +71,13 @@
       "scripts/run-codex.cmd",
       "scripts/run-claude.sh",
       "scripts/run-claude.cmd",
-      "test/run-codex-wrapper.test.ts"
+      "test/run-codex-wrapper.test.ts",
+      "scripts/vibe-sprint-commit.mjs",
+      "scripts/vibe-session-log-sync.mjs",
+      "src/lib/decisions.ts",
+      "test/sprint-commit.test.ts",
+      "test/session-log-sync.test.ts",
+      "test/decisions.test.ts"
     ],
     "hybrid": {
       "CLAUDE.md": {
@@ -137,6 +143,8 @@
       ".vibe/agent/sprint-api-contracts.json",
       ".vibe/agent/handoff.md",
       ".vibe/agent/session-log.md",
+      ".vibe/agent/project-decisions.jsonl",
+      ".vibe/archive/README.md",
       "docs/plans/**",
       "docs/reports/**",
       "src/**"

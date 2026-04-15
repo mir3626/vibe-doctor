@@ -12,7 +12,7 @@
 - **working dir**: (로컬 환경에서 설정)
 - **language/tone**: 한국어 반말 (memory: `feedback_language_tone.md`)
 
-## 2. Status: IDLE - Sprint sprint-M2-platform-wrappers passed
+## 2. Status: IDLE - Sprint sprint-M3-sprint-flow-automation passed
 
 하네스 싱크 메커니즘(`vibe:sync`) 구현 완료. 인프라·코드·비코드 파일 모두 포함. tsc/tests 34/34 통과.
 
@@ -28,6 +28,7 @@
 | `v1.1.0-process-refactor` | v1.1.0-process-refactor | passed |
 | `sprint-M1-schema-foundation` | sprint-M1-schema-foundation | passed |
 | `sprint-M2-platform-wrappers` | sprint-M2-platform-wrappers | passed |
+| `sprint-M3-sprint-flow-automation` | sprint-M3-sprint-flow-automation | passed |
 
 상세는 `sprint-status.json`의 `sprints[]` + `session-log.md` Archived 섹션 참조.
 

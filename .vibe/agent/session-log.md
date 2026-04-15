@@ -24,18 +24,19 @@
 
 
 
+
+- 2026-04-15T22:53:55.232Z [sprint-complete] sprint-M3-sprint-flow-automation -> passed. Sprint sprint-M3-sprint-flow-automation completed with passed LOC +0/-6 (net -6)
 - 2026-04-15T22:22:15.411Z [sprint-complete] sprint-M2-platform-wrappers -> passed. Sprint sprint-M2-platform-wrappers completed with passed LOC +2110/-50 (net +2060)
 - 2026-04-15T16:24:04.729Z [sprint-complete] sprint-M1-schema-foundation -> passed. Sprint sprint-M1-schema-foundation completed with passed LOC +277/-0 (net +277)
 - 2026-04-14T13:50:59.759Z [sprint-complete] v1.1.0-process-refactor -> passed. Sprint v1.1.0-process-refactor completed with passed LOC +1037/-38 (net +999)
 - 2026-04-14T05:03:59.441Z [sprint-complete] harness-sync -> passed. Sprint harness-sync completed with passed
-- 2026-04-10T08:30 [decision] self-evolution-3: Planner 역할 확장 — 기술 사양(타입·API·파일구조) + Sprint 프롬프트 초안을 Planner가 출력하도록 CLAUDE.md 변경. Sprint 프롬프트 작성 원칙 섹션 추가.
-- 2026-04-10T08:30 [decision] dogfood3/dogfood4 관련 아티팩트 전량 discard (dogfood4-review.md 삭제, handoff/session-log에서 dogfood 참조 제거).
-- 2026-04-13T00:00 [decision] harness-sync: 하네스 싱크 메커니즘 설계 완료. 3-tier 전략: (1) section-merge(마커 있는 프로젝트), (2) sidecar full-replace(레거시), (3) json-deep-merge(settings.json/package.json). 플랜 파일: docs/prompts/sync-implementation.md
-- 2026-04-13T00:00 [decision] CLAUDE.md에 7개 HARNESS 섹션 마커 + PROJECT:custom-rules 추가. 토큰 오버헤드 ~200 tokens (4-5%).
-- 2026-04-13T00:00 [decision] SessionStart 훅으로 자동 버전 체크. git ls-remote + 24h 캐시. 실패 시 조용히 무시.
-- 2026-04-13T00:00 [decision] 레거시 부트스트랩: vibe-sync-bootstrap.mjs 원샷 스크립트로 /vibe-sync 없는 프로젝트도 업그레이드 가능.
-- 2026-04-13T00:00 [discovery] 클라우드(claude.ai/code) 환경에 Codex CLI 미설치. 코드 구현을 로컬 CLI로 이관 결정.
-
+- 2026-04-13T00:00:00.000Z [decision] harness-sync: 하네스 싱크 메커니즘 설계 완료. 3-tier 전략: (1) section-merge(마커 있는 프로젝트), (2) sidecar full-replace(레거시), (3) json-deep-merge(settings.json/package.json). 플랜 파일: docs/prompts/sync-implementation.md
+- 2026-04-13T00:00:00.000Z [decision] CLAUDE.md에 7개 HARNESS 섹션 마커 + PROJECT:custom-rules 추가. 토큰 오버헤드 ~200 tokens (4-5%).
+- 2026-04-13T00:00:00.000Z [decision] SessionStart 훅으로 자동 버전 체크. git ls-remote + 24h 캐시. 실패 시 조용히 무시.
+- 2026-04-13T00:00:00.000Z [decision] 레거시 부트스트랩: vibe-sync-bootstrap.mjs 원샷 스크립트로 /vibe-sync 없는 프로젝트도 업그레이드 가능.
+- 2026-04-13T00:00:00.000Z [discovery] 클라우드(claude.ai/code) 환경에 Codex CLI 미설치. 코드 구현을 로컬 CLI로 이관 결정.
+- 2026-04-10T08:30:00.000Z [decision] self-evolution-3: Planner 역할 확장 — 기술 사양(타입·API·파일구조) + Sprint 프롬프트 초안을 Planner가 출력하도록 CLAUDE.md 변경. Sprint 프롬프트 작성 원칙 섹션 추가.
+- 2026-04-10T08:30:00.000Z [decision] dogfood3/dogfood4 관련 아티팩트 전량 discard (dogfood4-review.md 삭제, handoff/session-log에서 dogfood 참조 제거).
 ## Archived (self-evolution-2)
 
 - 2026-04-10T07:32 [sprint-complete] self-evolution-2 -> passed. 스크립트 훅 기반 강제 메커니즘: run-codex.sh 규칙 자동주입 + preflight bootstrap/product.md + sprint-complete 자동화

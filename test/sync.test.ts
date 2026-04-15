@@ -263,8 +263,13 @@ describe('sync manifest', () => {
     assert.equal(manifest.files.harness.includes('src/lib/sprint-status.ts'), true);
     assert.equal(manifest.files.harness.includes('src/lib/project-map.ts'), true);
     assert.equal(manifest.files.harness.includes('migrations/1.1.0.mjs'), true);
+    assert.equal(manifest.files.harness.includes('scripts/vibe-sprint-commit.mjs'), true);
+    assert.equal(manifest.files.harness.includes('scripts/vibe-session-log-sync.mjs'), true);
+    assert.equal(manifest.files.harness.includes('src/lib/decisions.ts'), true);
     assert.equal(manifest.files.project.includes('.vibe/agent/project-map.json'), true);
     assert.equal(manifest.files.project.includes('.vibe/agent/sprint-api-contracts.json'), true);
+    assert.equal(manifest.files.project.includes('.vibe/agent/project-decisions.jsonl'), true);
+    assert.equal(manifest.files.project.includes('.vibe/archive/README.md'), true);
     assert.equal(manifest.migrations['1.1.0'], 'migrations/1.1.0.mjs');
   });
 });

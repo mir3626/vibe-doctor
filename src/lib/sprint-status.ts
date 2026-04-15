@@ -87,6 +87,26 @@ function sprintStatusPath(root?: string): string {
   return path.join(resolveRoot(root), '.vibe', 'agent', 'sprint-status.json');
 }
 
+function normalizeScopeEntry(entry: string): string {
+  return entry.replace(/\\/g, '/');
+}
+
+function mergeScopeEntries(existing: string[], incoming: string[]): string[] {
+  const seen = new Set<string>();
+  const merged: string[] = [];
+
+  for (const rawEntry of [...existing, ...incoming]) {
+    const entry = normalizeScopeEntry(rawEntry);
+    if (seen.has(entry)) {
+      continue;
+    }
+    seen.add(entry);
+    merged.push(entry);
+  }
+
+  return merged;
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
@@ -428,4 +448,46 @@ export async function markVerified(root?: string): Promise<string> {
   status.verifiedAt = nextIso;
   await persistStatus(status, false, root);
   return nextIso;
+}
+
+export async function extendLastSprintScope(
+  scopePaths: string[],
+  globs?: string[],
+  root?: string,
+): Promise<{ lastSprintScope: string[]; lastSprintScopeGlob: string[] }> {
+  if (scopePaths.length === 0 && globs === undefined) {
+    const status = await loadSprintStatus(root);
+    return {
+      lastSprintScope: [...status.lastSprintScope],
+      lastSprintScopeGlob: [...status.lastSprintScopeGlob],
+    };
+  }
+
+  const status = await loadStatusForMutation(root);
+  const nextScope = mergeScopeEntries(status.lastSprintScope, scopePaths);
+  const nextGlobs =
+    globs === undefined
+      ? [...status.lastSprintScopeGlob]
+      : mergeScopeEntries(status.lastSprintScopeGlob, globs);
+
+  if (
+    nextScope.length === status.lastSprintScope.length &&
+    nextGlobs.length === status.lastSprintScopeGlob.length &&
+    nextScope.every((entry, index) => entry === status.lastSprintScope[index]) &&
+    nextGlobs.every((entry, index) => entry === status.lastSprintScopeGlob[index])
+  ) {
+    return {
+      lastSprintScope: [...status.lastSprintScope],
+      lastSprintScopeGlob: [...status.lastSprintScopeGlob],
+    };
+  }
+
+  status.lastSprintScope = nextScope;
+  status.lastSprintScopeGlob = nextGlobs;
+  await saveSprintStatus(status, root);
+
+  return {
+    lastSprintScope: [...status.lastSprintScope],
+    lastSprintScopeGlob: [...status.lastSprintScopeGlob],
+  };
 }
