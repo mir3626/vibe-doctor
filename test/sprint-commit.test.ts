@@ -6,6 +6,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { promisify } from 'node:util';
 import { afterEach, describe, it } from 'node:test';
+import { extendLastSprintScope } from '../src/lib/sprint-status.js';
 
 const execFile = promisify(execFileCallback);
 const tempDirs: string[] = [];
@@ -173,7 +174,7 @@ async function loadSprintCompleteHelpers(): Promise<{
     lastSprintId: string,
     startedDateIso?: string,
   ) => string;
-}> {
+  }> {
   return import(pathToFileURL(path.resolve('scripts', 'vibe-sprint-complete.mjs')).href) as Promise<{
     computeCurrentPointerBlock: (
       roadmapMd: string,
@@ -181,6 +182,22 @@ async function loadSprintCompleteHelpers(): Promise<{
       lastSprintId: string,
       startedDateIso?: string,
     ) => string;
+  }>;
+}
+
+async function loadSprintCommitHelpers(): Promise<{
+  inlineExtendLastSprintScope: (
+    statusPath: string,
+    mergedScope: string[],
+    mergedGlobs: string[],
+  ) => void;
+}> {
+  return import(pathToFileURL(path.resolve('scripts', 'vibe-sprint-commit.mjs')).href) as Promise<{
+    inlineExtendLastSprintScope: (
+      statusPath: string,
+      mergedScope: string[],
+      mergedGlobs: string[],
+    ) => void;
   }>;
 }
 
@@ -337,5 +354,49 @@ describe('vibe-sprint-commit', () => {
 
     assert.deepEqual(status.lastSprintScope, ['src/a.ts', 'src/b.ts']);
     assert.deepEqual(status.lastSprintScopeGlob, ['src/a.ts', 'src/b.ts']);
+  });
+
+  it('keeps inline scope merge logic in lockstep with the library helper', async () => {
+    const { inlineExtendLastSprintScope } = await loadSprintCommitHelpers();
+    const rootLib = await makeTempDir('sprint-commit-drift-lib-');
+    const rootInline = await makeTempDir('sprint-commit-drift-inline-');
+    const fixtureStatus = {
+      schemaVersion: '0.1',
+      project: {
+        name: 'test-project',
+        createdAt: '2026-04-01T00:00:00.000Z',
+      },
+      sprints: [],
+      verificationCommands: [],
+      pendingRisks: [],
+      lastSprintScope: ['src/a.ts', 'src/b.ts'],
+      lastSprintScopeGlob: ['src/a.ts', 'src/b.ts'],
+      sprintsSinceLastAudit: 0,
+      stateUpdatedAt: '2026-04-01T00:00:00.000Z',
+    };
+    const incoming = ['src/b.ts', 'src/c.ts'];
+
+    await writeJson(path.join(rootLib, '.vibe', 'agent', 'sprint-status.json'), fixtureStatus);
+    await writeJson(path.join(rootInline, '.vibe', 'agent', 'sprint-status.json'), fixtureStatus);
+
+    const libResult = await extendLastSprintScope(incoming, incoming, rootLib);
+    inlineExtendLastSprintScope(
+      path.join(rootInline, '.vibe', 'agent', 'sprint-status.json'),
+      incoming,
+      incoming,
+    );
+
+    const inlineStatus = JSON.parse(
+      await readFile(path.join(rootInline, '.vibe', 'agent', 'sprint-status.json'), 'utf8'),
+    ) as { lastSprintScope: string[]; lastSprintScopeGlob: string[] };
+
+    assert.deepEqual(
+      {
+        lastSprintScope: inlineStatus.lastSprintScope,
+        lastSprintScopeGlob: inlineStatus.lastSprintScopeGlob,
+      },
+      libResult,
+      'drift detected — update lib and commit script in lockstep',
+    );
   });
 });

@@ -25,16 +25,18 @@ function shFile(command, args, opts = {}) {
 
 function checkProviderHealth(name, provider) {
   const isWin = process.platform === 'win32';
-  const wrapperSh = name === 'codex' ? resolve('scripts/run-codex.sh') : null;
-  const wrapperCmd = name === 'codex' ? resolve('scripts/run-codex.cmd') : null;
+  const ext = isWin ? 'cmd' : 'sh';
+  const wrapperPath = resolve('scripts', `run-${name}.${ext}`);
   const candidateWrappers = [];
 
-  if (name === 'codex') {
-    if (isWin && wrapperCmd && existsSync(wrapperCmd)) {
-      candidateWrappers.push({ command: process.env.ComSpec ?? 'cmd.exe', args: ['/d', '/c', wrapperCmd, '--health'] });
-    }
-    if (!isWin && wrapperSh && existsSync(wrapperSh)) {
-      candidateWrappers.push({ command: wrapperSh, args: ['--health'] });
+  if (existsSync(wrapperPath)) {
+    if (isWin) {
+      candidateWrappers.push({
+        command: process.env.ComSpec ?? 'cmd.exe',
+        args: ['/d', '/c', wrapperPath, '--health'],
+      });
+    } else {
+      candidateWrappers.push({ command: wrapperPath, args: ['--health'] });
     }
   }
 
@@ -55,10 +57,12 @@ function checkProviderHealth(name, provider) {
 
   try {
     const v = sh(`${provider.command} --version`);
-    if (name === 'codex') {
-      return { ok: true, detail: `${v.split('\n')[0]} (direct; wrapper not used)`, level: 'warn' };
-    }
-    return { ok: true, detail: v.split('\n')[0], level: 'ok' };
+    const hasWrapper = existsSync(wrapperPath);
+    return {
+      ok: true,
+      detail: hasWrapper ? `${v.split('\n')[0]} (direct; wrapper not used)` : v.split('\n')[0],
+      level: hasWrapper ? 'warn' : 'ok',
+    };
   } catch {
     return {
       ok: false,
@@ -157,7 +161,17 @@ if (!cfg) {
 } else {
   const sprintRoles = cfg.sprintRoles ?? {};
   const providers = cfg.providers ?? {};
-  const needed = new Set(Object.values(sprintRoles).filter(Boolean));
+  const needed = new Set(
+    Object.values(sprintRoles)
+      .map((role) =>
+        typeof role === 'string'
+          ? role
+          : role && typeof role === 'object' && typeof role.provider === 'string'
+            ? role.provider
+            : null,
+      )
+      .filter(Boolean),
+  );
   if (needed.size === 0) {
     record('provider.config', true, 'no sprintRoles configured (skip health check)');
   } else {

@@ -1,0 +1,62 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "required": ["schemaVersion", "updatedAt", "source", "providers"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "schemaVersion": {
+      "const": 1
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "source": {
+      "type": "string"
+    },
+    "providers": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["tiers", "knownModels"],
+        "additionalProperties": false,
+        "properties": {
+          "tiers": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "flagship": {
+                "type": "string"
+              },
+              "performant": {
+                "type": "string"
+              },
+              "efficient": {
+                "type": "string"
+              }
+            }
+          },
+          "knownModels": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "object",
+              "required": ["apiId", "release"],
+              "additionalProperties": false,
+              "properties": {
+                "apiId": {
+                  "type": "string"
+                },
+                "release": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

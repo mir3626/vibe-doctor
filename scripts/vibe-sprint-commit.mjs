@@ -3,7 +3,7 @@
 import { spawnSync, execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import path, { resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const META_PREFIXES = [
   '.vibe/archive/',
@@ -137,7 +137,11 @@ function loadSprintStatus(statusPath) {
   return JSON.parse(readFileSync(statusPath, 'utf8'));
 }
 
-function inlineExtendLastSprintScope(statusPath, mergedScope, mergedGlobs) {
+// CROSS-REF (src/lib/sprint-status.ts:extendLastSprintScope)
+// Inline replication intentional — .mjs cannot import compiled TS without a build step.
+// Drift detection: test/sprint-commit.test.ts asserts both implementations produce identical
+// output for a shared fixture. If this block changes, update the lib AND the test fixture.
+export function inlineExtendLastSprintScope(statusPath, mergedScope, mergedGlobs) {
   const sprintStatus = loadSprintStatus(statusPath);
   const previousScope = Array.isArray(sprintStatus.lastSprintScope) ? sprintStatus.lastSprintScope : [];
   const previousGlobs = Array.isArray(sprintStatus.lastSprintScopeGlob)
@@ -390,8 +394,12 @@ function main() {
   process.stdout.write(`[vibe-sprint-commit] committed ${shortSha} for ${sprintId}\n`);
 }
 
-try {
-  main();
-} catch (error) {
-  fail(error instanceof Error ? error.message : String(error));
+const entryHref = process.argv[1] ? pathToFileURL(resolve(process.argv[1])).href : '';
+
+if (import.meta.url === entryHref) {
+  try {
+    main();
+  } catch (error) {
+    fail(error instanceof Error ? error.message : String(error));
+  }
 }

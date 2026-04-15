@@ -7,7 +7,7 @@ import { runMain } from '../lib/cli.js';
 import { fileExists, readJson, writeJson, writeText } from '../lib/fs.js';
 import { logger } from '../lib/logger.js';
 import { paths } from '../lib/paths.js';
-import type { VibeConfig } from '../lib/config.js';
+import type { SprintRoleDefinition, VibeConfig } from '../lib/config.js';
 
 // ─── helpers ───────────────────────────────────────────────────────
 
@@ -22,6 +22,18 @@ async function promptValue(
 ): Promise<string> {
   const answer = (await rl.question(`${label} [${fallback}]: `)).trim();
   return answer || fallback;
+}
+
+function formatSprintRoleFallback(value: SprintRoleDefinition | undefined, fallback: string): string {
+  if (typeof value === 'string') {
+    return value;
+  }
+
+  if (value && typeof value.provider === 'string' && typeof value.tier === 'string') {
+    return `${value.provider}:${value.tier}`;
+  }
+
+  return fallback;
 }
 
 async function ask(rl: readline.Interface, question: string): Promise<string> {
@@ -203,9 +215,21 @@ async function main(): Promise<void> {
   } else {
     const rl = readline.createInterface({ input, output });
     try {
-      const planner = await promptValue(rl, 'planner (WHAT 정의)', base.sprintRoles?.planner ?? 'claude-opus');
-      const generator = await promptValue(rl, 'generator (코드 구현)', base.sprintRoles?.generator ?? 'codex');
-      const evaluator = await promptValue(rl, 'evaluator (체크리스트 판정)', base.sprintRoles?.evaluator ?? 'claude-opus');
+      const planner = await promptValue(
+        rl,
+        'planner (WHAT 정의)',
+        formatSprintRoleFallback(base.sprintRoles?.planner, 'claude-opus'),
+      );
+      const generator = await promptValue(
+        rl,
+        'generator (코드 구현)',
+        formatSprintRoleFallback(base.sprintRoles?.generator, 'codex'),
+      );
+      const evaluator = await promptValue(
+        rl,
+        'evaluator (체크리스트 판정)',
+        formatSprintRoleFallback(base.sprintRoles?.evaluator, 'claude-opus'),
+      );
 
       const localConfig: VibeConfig = {
         ...base,

@@ -77,7 +77,14 @@
       "src/lib/decisions.ts",
       "test/sprint-commit.test.ts",
       "test/session-log-sync.test.ts",
-      "test/decisions.test.ts"
+      "test/decisions.test.ts",
+      ".vibe/model-registry.json",
+      ".vibe/model-registry.schema.json",
+      "src/lib/model-registry.ts",
+      "scripts/vibe-resolve-model.mjs",
+      "scripts/vibe-model-registry-check.mjs",
+      "migrations/1.2.0.mjs",
+      "test/model-registry.test.ts"
     ],
     "hybrid": {
       "CLAUDE.md": {
@@ -152,6 +159,7 @@
   },
   "migrations": {
     "1.0.0": "migrations/1.0.0.mjs",
-    "1.1.0": "migrations/1.1.0.mjs"
+    "1.1.0": "migrations/1.1.0.mjs",
+    "1.2.0": "migrations/1.2.0.mjs"
   }
 }

@@ -1,7 +1,16 @@
 ---
 name: planner
 description: Propose Sprint division and implementation plans before non-trivial work. Use proactively when user gives a goal without a detailed method.
+model: opus
 ---
+
+<!--
+  model: "opus" is the Claude Code family alias.
+  Tier-based resolution (flagship/performant/efficient → family alias → apiId) is performed
+  by the Orchestrator before Agent calls via `node scripts/vibe-resolve-model.mjs <role>`.
+  Registry source of truth: .vibe/model-registry.json (upstream-maintained).
+  This frontmatter is documentation-only; Claude Code itself does not read the registry.
+-->
 
 You are the Orchestrator's planning assistant (Claude Code sub-agent).
 

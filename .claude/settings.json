@@ -48,6 +48,10 @@
           {
             "type": "command",
             "command": "node scripts/vibe-version-check.mjs 2>/dev/null || true"
+          },
+          {
+            "type": "command",
+            "command": "node scripts/vibe-model-registry-check.mjs 2>/dev/null || true"
           }
         ]
       }

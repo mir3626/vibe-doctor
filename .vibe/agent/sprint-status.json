@@ -120,6 +120,18 @@
         "net": -6,
         "filesChanged": 1
       }
+    },
+    {
+      "id": "sprint-M4-model-tier",
+      "name": "sprint-M4-model-tier",
+      "status": "passed",
+      "completedAt": "2026-04-15T23:39:06.851Z",
+      "actualLoc": {
+        "added": 2376,
+        "deleted": 147,
+        "net": 2229,
+        "filesChanged": 20
+      }
     }
   ],
   "verificationCommands": [
@@ -141,7 +153,7 @@
   "sandboxNotes": [],
   "handoff": {
     "currentSprintId": "idle",
-    "lastActionSummary": "Sprint sprint-M3-sprint-flow-automation completed with passed",
+    "lastActionSummary": "Sprint sprint-M4-model-tier completed with passed",
     "openIssues": [],
     "orchestratorContextBudget": "low",
     "preferencesActive": [
@@ -149,11 +161,11 @@
       "autonomous-until-artifact"
     ],
     "handoffDocPath": ".vibe/agent/handoff.md",
-    "updatedAt": "2026-04-15T22:53:55.232Z"
+    "updatedAt": "2026-04-15T23:39:06.851Z"
   },
   "pendingRisks": [],
   "lastSprintScope": [],
   "lastSprintScopeGlob": [],
-  "sprintsSinceLastAudit": 3,
-  "stateUpdatedAt": "2026-04-15T22:53:55.232Z"
+  "sprintsSinceLastAudit": 4,
+  "stateUpdatedAt": "2026-04-15T23:39:06.851Z"
 }

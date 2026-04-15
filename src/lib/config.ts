@@ -7,10 +7,17 @@ export interface ProviderRunner {
   env?: Record<string, string>;
 }
 
+export type SprintRoleDefinition =
+  | string
+  | {
+      provider: string;
+      tier: 'flagship' | 'performant' | 'efficient';
+    };
+
 export interface SprintRoles {
-  planner: string;
-  generator: string;
-  evaluator: string;
+  planner: SprintRoleDefinition;
+  generator: SprintRoleDefinition;
+  evaluator: SprintRoleDefinition;
 }
 
 export interface SprintConfig {
