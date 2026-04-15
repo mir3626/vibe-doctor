@@ -67,7 +67,11 @@
       "test/sprint-status.test.ts",
       "test/project-map.test.ts",
       "test/preflight-stale.test.ts",
-      "migrations/1.1.0.mjs"
+      "migrations/1.1.0.mjs",
+      "scripts/run-codex.cmd",
+      "scripts/run-claude.sh",
+      "scripts/run-claude.cmd",
+      "test/run-codex-wrapper.test.ts"
     ],
     "hybrid": {
       "CLAUDE.md": {

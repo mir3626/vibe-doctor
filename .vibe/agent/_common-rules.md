@@ -157,3 +157,38 @@ LOC +350/-12 (net +338), 7 files.
 - **v1.1.1 이전** 히스토리의 `docs(sprint): close ...` 커밋은 그대로 보존 (rebase 금지).
 - Sprint 내 **긴급 hotfix commit** 이 중간에 끼어야 하는 경우엔 단일 커밋 원칙 면제. session-log에 이유 기록.
 - Generator가 BLOCKED 로 정지하고 scope expansion 으로 재위임한 경우, 각 재시도를 별도 커밋 남기지 않고 최종 성공 산출만 단일 commit에 포함.
+
+## 13. Sandbox-bound Generator invariants
+
+Generator (현 Codex / 향후 다른 provider 도 해당) 는 공급자·모델과 무관하게 다음 명령을 샌드박스 내에서 실행하지 않는다. 하네스가 보장하는 Generator 의 책임 ceiling 은 "파일 작성 + 정적 분석 + self-contained 단위 smoke" 까지다. 그 너머는 Orchestrator 가 샌드박스 밖에서 수행할 post-handoff 검증 영역이다.
+
+### 13.1 Generator MUST NOT attempt
+
+- **패키지 매니저 네트워크 설치**: `npm install`, `npm ci`, `pnpm install`, `yarn`, `pip install`, `pipx install`, `cargo add`, `cargo install`, `go get`, `apt-get install`, `brew install` 등. (§2 중복 강조 — provider-agnostic 재언급.)
+- **Integration / E2E / property 테스트 러너**: `vitest run` (watch 모드 제외), `jest --runInBand`, `pytest` (단위 스모크 아닌 전체 디렉토리), `cargo test` (release 프로파일), `go test ./...`, `playwright test`, `cypress run`.
+- **프로덕션 빌드**: `vite build`, `webpack --mode production`, `next build`, `cargo build --release`, `go build -ldflags` (배포용 최적화), `tsc -p tsconfig.build.json` (빌드 산출 생성 목적), `pyinstaller`, `docker build`.
+- **브라우저 / 실제 런타임 smoke**: Playwright / Puppeteer headed 혹은 headless, Selenium, Electron headed, devtools 연결.
+- **장기 실행 watch**: 위 러너의 `--watch` 형태 포함 (프로세스 미종료로 Sprint 지연).
+
+### 13.2 Generator responsibility ceiling (MAY do)
+
+- 정적 타입 체크: `tsc --noEmit`, `mypy <path>`, `ruff check`, `cargo check`, `go vet`, `pyright` (network-free 버전), `eslint . --quiet` (로컬 설정 범위).
+- Self-contained 단위 smoke: `node --experimental-strip-types test/foo.test.ts` 형태, `pytest tests/unit/test_foo.py -k single`, `cargo test --lib <module>` (단일 모듈). 외부 네트워크 / DB / 브라우저 의존 0.
+- 생성된 스모크 스크립트를 한 번 실행해 exit 0 확인.
+
+### 13.3 Orchestrator post-handoff verifications
+
+Generator report 를 받은 뒤 Orchestrator 가 샌드박스 밖에서 수행:
+
+- 전체 테스트 (`npm test`, `pytest`, `cargo test` 등)
+- 프로덕션 빌드 + bundle size 게이트 (M7 이후)
+- 브라우저 smoke (M7 이후)
+- E2E / integration (`playwright test`, `cypress run`)
+- `npm install` 을 포함한 네트워크 설치
+- 런타임 배포 smoke (dev 서버 기동 포함)
+
+### 13.4 근거 (왜 이 분리인가)
+
+- Generator 샌드박스 는 네트워크 차단 + 프로세스 시간 제한 + 워크스페이스 외부 쓰기 금지. 위 "MUST NOT" 명령은 거의 필연적으로 이 제약에 부딪혀 **Generator 가 우회 패치를 남기거나 (§1 위반) 혹은 반복 실패로 Sprint 를 지연** 시킨다.
+- Orchestrator 는 하네스 host 환경에서 제약 없이 실행 가능하며, 실패 시 Sprint 를 BLOCKED 로 리턴하고 Planner/Evaluator 를 소환해 적절히 분기한다.
+- 본 섹션은 §1 (샌드박스 우회 금지) / §2 (의존성 설치 금지) / §7 (Sandbox × Orchestrator 계약) 의 단편들을 **명령 레벨 whitelist/blacklist** 로 구체화한 것이다. 충돌 시 §1/§2/§7 원칙이 우선.

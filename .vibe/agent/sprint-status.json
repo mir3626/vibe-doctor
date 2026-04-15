@@ -96,6 +96,18 @@
         "net": 277,
         "filesChanged": 1
       }
+    },
+    {
+      "id": "sprint-M2-platform-wrappers",
+      "name": "sprint-M2-platform-wrappers",
+      "status": "passed",
+      "completedAt": "2026-04-15T22:22:15.411Z",
+      "actualLoc": {
+        "added": 2110,
+        "deleted": 50,
+        "net": 2060,
+        "filesChanged": 21
+      }
     }
   ],
   "verificationCommands": [
@@ -117,7 +129,7 @@
   "sandboxNotes": [],
   "handoff": {
     "currentSprintId": "idle",
-    "lastActionSummary": "Sprint sprint-M1-schema-foundation completed with passed",
+    "lastActionSummary": "Sprint sprint-M2-platform-wrappers completed with passed",
     "openIssues": [],
     "orchestratorContextBudget": "low",
     "preferencesActive": [
@@ -125,11 +137,11 @@
       "autonomous-until-artifact"
     ],
     "handoffDocPath": ".vibe/agent/handoff.md",
-    "updatedAt": "2026-04-15T16:24:04.729Z"
+    "updatedAt": "2026-04-15T22:22:15.411Z"
   },
   "pendingRisks": [],
   "lastSprintScope": [],
   "lastSprintScopeGlob": [],
-  "sprintsSinceLastAudit": 1,
-  "stateUpdatedAt": "2026-04-15T16:24:04.729Z"
+  "sprintsSinceLastAudit": 2,
+  "stateUpdatedAt": "2026-04-15T22:22:15.411Z"
 }

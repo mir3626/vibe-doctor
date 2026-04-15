@@ -3,7 +3,7 @@
 // Replaces the former .vibe/agent/preflight.md runbook.
 // Usage: node scripts/vibe-preflight.mjs [--json]
 
-import { execSync } from 'node:child_process';
+import { execFileSync, execSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
@@ -17,6 +17,55 @@ function record(id, ok, detail, level = 'ok') {
 
 function sh(cmd, opts = {}) {
   return execSync(cmd, { stdio: ['ignore', 'pipe', 'pipe'], encoding: 'utf8', ...opts }).trim();
+}
+
+function shFile(command, args, opts = {}) {
+  return execFileSync(command, args, { stdio: ['ignore', 'pipe', 'pipe'], encoding: 'utf8', ...opts }).trim();
+}
+
+function checkProviderHealth(name, provider) {
+  const isWin = process.platform === 'win32';
+  const wrapperSh = name === 'codex' ? resolve('scripts/run-codex.sh') : null;
+  const wrapperCmd = name === 'codex' ? resolve('scripts/run-codex.cmd') : null;
+  const candidateWrappers = [];
+
+  if (name === 'codex') {
+    if (isWin && wrapperCmd && existsSync(wrapperCmd)) {
+      candidateWrappers.push({ command: process.env.ComSpec ?? 'cmd.exe', args: ['/d', '/c', wrapperCmd, '--health'] });
+    }
+    if (!isWin && wrapperSh && existsSync(wrapperSh)) {
+      candidateWrappers.push({ command: wrapperSh, args: ['--health'] });
+    }
+  }
+
+  for (const wrapper of candidateWrappers) {
+    try {
+      const out = shFile(wrapper.command, wrapper.args);
+      return { ok: true, detail: out.split('\n')[0], level: 'ok' };
+    } catch (err) {
+      const rc = err && typeof err.status === 'number' ? err.status : null;
+      if (rc === 1) {
+        return { ok: false, detail: `${name} CLI not found in PATH (wrapper --health rc=1)`, level: 'fail' };
+      }
+      if (rc === 2) {
+        return { ok: false, detail: `${name} CLI present but authentication missing (wrapper --health rc=2)`, level: 'fail' };
+      }
+    }
+  }
+
+  try {
+    const v = sh(`${provider.command} --version`);
+    if (name === 'codex') {
+      return { ok: true, detail: `${v.split('\n')[0]} (direct; wrapper not used)`, level: 'warn' };
+    }
+    return { ok: true, detail: v.split('\n')[0], level: 'ok' };
+  } catch {
+    return {
+      ok: false,
+      detail: `${provider.command} CLI not found or not authenticated - check: ${provider.command} --version`,
+      level: 'fail',
+    };
+  }
 }
 
 function parseIso(value) {
@@ -119,12 +168,8 @@ if (!cfg) {
         continue;
       }
 
-      try {
-        const v = sh(`${p.command} --version`);
-        record(`provider.${name}`, true, v.split('\n')[0]);
-      } catch {
-        record(`provider.${name}`, false, `${p.command} CLI not found or not authenticated - check: ${p.command} --version`);
-      }
+      const result = checkProviderHealth(name, p);
+      record(`provider.${name}`, result.ok, result.detail, result.level);
     }
   }
 }

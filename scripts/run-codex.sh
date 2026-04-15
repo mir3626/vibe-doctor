@@ -38,9 +38,162 @@
 
 set -euo pipefail
 
+print_usage() {
+  cat <<'EOF'
+Usage:
+  run-codex.sh --health|--version|--help
+  cat prompt.md | run-codex.sh -
+  run-codex.sh "prompt text"
+EOF
+}
+
+run_health_check() {
+  if ! command -v codex >/dev/null 2>&1; then
+    echo "run-codex: codex CLI not found in PATH" >&2
+    return 1
+  fi
+
+  local tmp_stdout tmp_stderr rc pid watchdog v stderr_tail
+
+  tmp_stdout="$(mktemp "${TMPDIR:-/tmp}/run-codex-health.XXXXXX")"
+  tmp_stderr="$(mktemp "${TMPDIR:-/tmp}/run-codex-health.XXXXXX")"
+  rc=0
+
+  if command -v timeout >/dev/null 2>&1; then
+    set +e
+    timeout 5 codex --version >"$tmp_stdout" 2>"$tmp_stderr"
+    rc=$?
+    set -e
+  else
+    codex --version >"$tmp_stdout" 2>"$tmp_stderr" &
+    pid=$!
+    (
+      sleep 5
+      kill -TERM "$pid" 2>/dev/null || true
+    ) &
+    watchdog=$!
+
+    set +e
+    wait "$pid" 2>/dev/null
+    rc=$?
+    set -e
+
+    kill -TERM "$watchdog" 2>/dev/null || true
+    wait "$watchdog" 2>/dev/null || true
+  fi
+
+  if [[ $rc -eq 0 ]]; then
+    v="$(
+      awk '
+        {
+          for (i = 1; i <= NF; i++) {
+            if ($i ~ /[0-9]+\.[0-9]+/) {
+              print $i
+              exit
+            }
+          }
+        }
+      ' "$tmp_stdout"
+    )"
+    if [[ -z "$v" ]]; then
+      v="unknown"
+    fi
+    echo "codex-cli $v"
+    rm -f "$tmp_stdout" "$tmp_stderr"
+    return 0
+  fi
+
+  stderr_tail="$(tail -n 20 "$tmp_stderr" 2>/dev/null || true)"
+  rm -f "$tmp_stdout" "$tmp_stderr"
+
+  if printf '%s\n' "$stderr_tail" | grep -qiE '(not authenticated|login required|auth|OPENAI_API_KEY|unauthorized)'; then
+    echo "run-codex: codex CLI present but authentication missing - run 'codex auth login' or set OPENAI_API_KEY" >&2
+    return 2
+  fi
+
+  if [[ $rc -eq 124 || $rc -eq 143 ]]; then
+    echo "run-codex: codex --version hung (>5s) - likely auth or config issue" >&2
+    return 2
+  fi
+
+  echo "run-codex: codex --version failed (rc=$rc)" >&2
+  if [[ -n "$stderr_tail" ]]; then
+    printf '%s\n' "$stderr_tail" >&2
+  fi
+  return 3
+}
+
+retry_reason() {
+  local rc stderr_file stderr_text
+
+  rc="$1"
+  stderr_file="$2"
+  stderr_text="$(cat "$stderr_file" 2>/dev/null || true)"
+
+  if printf '%s\n' "$stderr_text" | grep -qi 'at capacity'; then
+    printf 'capacity'
+    return 0
+  fi
+
+  if [[ $rc -eq 124 || $rc -eq 143 ]] || printf '%s\n' "$stderr_text" | grep -qi 'timeout'; then
+    printf 'timeout'
+    return 0
+  fi
+
+  printf 'exit=%s' "$rc"
+}
+
+retry_delay_for_attempt() {
+  local attempt override
+
+  attempt="$1"
+  override="${CODEX_RETRY_DELAY:-}"
+
+  if [[ -n "$override" && "$override" =~ ^[0-9]+$ ]]; then
+    printf '%s' "$override"
+    return 0
+  fi
+
+  printf '%s' "$((attempt * 30))"
+}
+
+token_suffix() {
+  local tokens
+
+  tokens="$(
+    tail -n 10 "$attempt_output" 2>/dev/null |
+      grep -Eio 'tokens?[: ]+[0-9]+' |
+      tail -n 1 |
+      grep -Eo '[0-9]+' || true
+  )"
+
+  if [[ -n "$tokens" ]]; then
+    printf ' tokens=%s' "$tokens"
+  fi
+}
+
+# ---------- 0. Subcommand dispatch ----------
+# Must run BEFORE locale forcing / chcp / stdin buffering so --health returns fast.
+if [[ $# -ge 1 ]]; then
+  case "$1" in
+    --health|--version)
+      set +e
+      run_health_check
+      rc=$?
+      set -e
+      exit "$rc"
+      ;;
+    --help|-h)
+      print_usage
+      exit 0
+      ;;
+  esac
+fi
+
 attempt_output="$(mktemp "${TMPDIR:-/tmp}/run-codex.XXXXXX")"
+attempt_stderr="$(mktemp "${TMPDIR:-/tmp}/run-codex.XXXXXX")"
 cleanup() {
-  rm -f "$attempt_output"
+  rm -f "$attempt_output" "$attempt_stderr"
 }
 trap cleanup EXIT
 
@@ -146,6 +299,11 @@ if [[ -n "${CODEX_EXTRA_CONFIG:-}" ]]; then
   codex_args+=( "${extra[@]}" )
 fi
 
+if [[ $# -eq 0 && -t 0 ]]; then
+  print_usage >&2
+  exit 1
+fi
+
 # ---------- 4. Buffer stdin so retries can replay it ----------
 stdin_buf=""
 if [[ ! -t 0 ]]; then
@@ -163,31 +321,44 @@ fi
 # ---------- 5. Retry loop ----------
 retries="${CODEX_RETRY:-3}"
 attempt=0
-while :; do
+start_ts="$(date +%s)"
+model_label="${CODEX_MODEL:-default}"
+while [[ $attempt -lt $retries ]]; do
   attempt=$((attempt + 1))
   : >"$attempt_output"
+  : >"$attempt_stderr"
+  echo "[run-codex] attempt $attempt/$retries starting (sandbox=$sandbox, model=$model_label)" >&2
 
   set +e
   if [[ -n "$stdin_buf" ]]; then
-    printf '%s' "$stdin_buf" | codex "${codex_args[@]}" "$@" | tee "$attempt_output"
+    printf '%s' "$stdin_buf" | codex "${codex_args[@]}" "$@" 2>"$attempt_stderr" | tee "$attempt_output"
   else
-    codex "${codex_args[@]}" "$@" | tee "$attempt_output"
+    codex "${codex_args[@]}" "$@" 2>"$attempt_stderr" | tee "$attempt_output"
   fi
   rc=$?
   set -e
 
+  if [[ -s "$attempt_stderr" ]]; then
+    cat "$attempt_stderr" >&2
+  fi
+
   if [[ $rc -eq 0 ]]; then
     emit_sandbox_only_summary
+    elapsed=$(( $(date +%s) - start_ts ))
+    echo "[run-codex] total attempts=$attempt elapsed=${elapsed}s$(token_suffix)" >&2
     exit 0
   fi
 
   if [[ $attempt -ge $retries ]]; then
     emit_sandbox_only_summary
-    echo "[run-codex] giving up after $attempt attempt(s) (last exit $rc)" >&2
+    elapsed=$(( $(date +%s) - start_ts ))
+    echo "[run-codex] giving up after $attempt attempts elapsed=${elapsed}s last_exit=$rc" >&2
     exit $rc
   fi
 
-  delay=$(( attempt * 30 ))
-  echo "[run-codex] attempt $attempt failed (rc=$rc); retrying in ${delay}s..." >&2
-  sleep "$delay"
+  delay="$(retry_delay_for_attempt "$attempt")"
+  echo "[run-codex] attempt $attempt/$retries retrying reason=$(retry_reason "$rc" "$attempt_stderr") delay=${delay}s" >&2
+  if [[ "$delay" -gt 0 ]]; then
+    sleep "$delay"
+  fi
 done
