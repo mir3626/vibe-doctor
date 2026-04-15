@@ -122,3 +122,38 @@ Orchestrator가 본문을 **직접 작성**하는 것은 다음 예외 상황에
 ## 11. 역할 × Phase 상위 참조
 
 본 파일은 Sprint **내부** 공용 규칙. Orchestrator / Planner / Generator / Evaluator의 **Phase 단위** 책임 분리 상세는 `docs/context/orchestration.md` 에 있다. 모순 발생 시 `orchestration.md` 가 우선한다.
+
+## 12. Sprint 완료 단일 커밋 원칙 (v1.1.1+)
+
+Sprint 마무리 시퀀스:
+
+1. Generator report 수신
+2. Orchestrator 샌드박스 밖 재검증 (tsc / test / build)
+3. Orchestrator self-QA 통과 (체크리스트 대조)
+4. `node scripts/vibe-sprint-complete.mjs <sprintId> passed` 실행 → state 파일 3종(`sprint-status.json` / `handoff.md` / `session-log.md`) 자동 갱신 (자동 커밋 X)
+5. **단일 `git commit`**: Generator feature 파일 + state 3종을 한 번에 `git add` 후 commit
+6. `git push origin <branch>`
+
+### 규율
+
+- **별도 `docs(sprint): close ...` 커밋 만들지 않는다.** main history 노이즈 감소 목적.
+- 커밋 메시지 끝에 `LOC +A/-D (net N)` 한 줄 요약 권장 (`vibe-sprint-complete`이 이미 session-log에 기록해 둔 값 재사용).
+- Revert·cherry-pick 시 Sprint 1건 = 1커밋 단위로 처리되어 깔끔.
+
+### 예시 커밋 메시지
+
+```
+feat(game): whisper state machine + sprint-02 close
+
+Sprint 2 Generator 산출 — WhisperHintState 전이 함수 (reveal/hide/apply),
+승리 판정 checkVictory, 퍼즐 API 스텁 + 2개 샘플 퍼즐. rules.ts에
+whisper 통합 + victory 체크. 테스트 +23 (총 72 pass).
+
+LOC +350/-12 (net +338), 7 files.
+```
+
+### 예외 / 전환 기간
+
+- **v1.1.1 이전** 히스토리의 `docs(sprint): close ...` 커밋은 그대로 보존 (rebase 금지).
+- Sprint 내 **긴급 hotfix commit** 이 중간에 끼어야 하는 경우엔 단일 커밋 원칙 면제. session-log에 이유 기록.
+- Generator가 BLOCKED 로 정지하고 scope expansion 으로 재위임한 경우, 각 재시도를 별도 커밋 남기지 않고 최종 성공 산출만 단일 commit에 포함.

@@ -146,6 +146,12 @@ Orchestrator 단독 작성. 각 entry 필드:
 - Generator report의 "Sandbox-only failures" 섹션은 sandbox 탓인지 실제 실패인지 교차 확인
 - 체크리스트 항목 × Generator 산출 × 재검증 결과를 매핑
 
+### 5.5 Sprint 완료 단일 커밋 원칙 (v1.1.1+)
+
+self-QA 통과 후 `vibe-sprint-complete` 실행 → 업데이트된 state 파일 3종을 Generator feature 파일과 **한 git commit에 묶는다**. 별도 `docs(sprint): close ...` 커밋 금지. 상세: `_common-rules.md` §12.
+
+이유: main history 에서 실제 feature/fix/refactor 커밋과 state-only 메타 커밋이 뒤섞이면 변경 의미 추적이 어려워짐. 단일 커밋은 "Sprint X 작업 + 상태 스냅샷" 단위로 의미를 명확히 한다.
+
 ### 5.4 Evaluator 소환 (트리거 시)
 
 - CLAUDE.md 트리거 매트릭스의 Must / Should 조건 평가
