@@ -14,12 +14,17 @@
   "providers": {
     "claude-opus": {
       "command": "claude",
-      "args": ["-p", "{prompt}"],
+      "args": [
+        "-p",
+        "{prompt}"
+      ],
       "env": {}
     },
     "codex": {
       "command": "./scripts/run-codex.sh",
-      "args": ["{prompt}"],
+      "args": [
+        "{prompt}"
+      ],
       "env": {},
       "note": "UTF-8 safety wrapper for `codex exec`. 자동 재시도 + shell_environment_policy 주입. 상세: docs/context/codex-execution.md. 플러그인(codex:rescue)은 Windows 불안정으로 보류."
     }
@@ -32,5 +37,8 @@
       "lint",
       "build"
     ]
+  },
+  "audit": {
+    "everyN": 5
   }
 }

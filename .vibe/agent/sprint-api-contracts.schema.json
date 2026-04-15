@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vibe-doctor/.vibe/agent/sprint-api-contracts.schema.json",
+  "title": "Sprint API Contracts",
+  "description": "Per-sprint record of public exports and types introduced, so later sprints can reference without grepping.",
+  "type": "object",
+  "required": ["schemaVersion", "updatedAt", "contracts"],
+  "properties": {
+    "schemaVersion": { "type": "string", "const": "0.1" },
+    "updatedAt": { "type": "string", "format": "date-time" },
+    "contracts": {
+      "type": "object",
+      "description": "Keyed by sprint id.",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["publicExports", "types"],
+        "properties": {
+          "publicExports": {
+            "type": "object",
+            "additionalProperties": { "type": "array", "items": { "type": "string" } }
+          },
+          "types": {
+            "type": "object",
+            "additionalProperties": { "type": "array", "items": { "type": "string" } }
+          }
+        }
+      }
+    }
+  }
+}

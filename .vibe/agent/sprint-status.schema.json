@@ -63,7 +63,7 @@
     },
     "handoff": {
       "type": "object",
-      "description": "Orchestrator re-incarnation fuel. Updated at every meaningful checkpoint so a fresh Orchestrator can resume without loss after context compaction or session restart.",
+      "description": "Orchestrator re-incarnation fuel. Updated at every meaningful checkpoint so a fresh Orchestrator can resume without loss after context compaction or session restart. `handoff.updatedAt` tracks the handoff block only; top-level `stateUpdatedAt` is the authoritative whole-file freshness signal.",
       "required": ["currentSprintId", "lastActionSummary", "orchestratorContextBudget", "preferencesActive"],
       "properties": {
         "currentSprintId": {
@@ -93,7 +93,11 @@
           "type": "string",
           "description": "Path to the narrative handoff file, typically '.vibe/agent/handoff.md'."
         },
-        "updatedAt": { "type": "string", "format": "date-time" }
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO8601 timestamp for the last write to the `handoff` block itself."
+        }
       }
     },
     "sandboxNotes": {
@@ -108,6 +112,37 @@
           "runOutsideSandbox": { "type": "boolean", "default": true }
         }
       }
+    },
+    "pendingRisks": {
+      "type": "array",
+      "description": "Open risks raised by any Sprint that require action in a future Sprint. Consumed by vibe-sprint-complete (threshold-triggered inserts) and /vibe-review (M8).",
+      "items": { "$ref": "#/$defs/pendingRisk" }
+    },
+    "lastSprintScope": {
+      "type": "array",
+      "description": "Absolute-to-repo-root file paths touched by the most recently completed Sprint. Populated by vibe-sprint-complete --scope. M3 will derive this from git-staged files; M1 only stores what is passed.",
+      "items": { "type": "string" }
+    },
+    "lastSprintScopeGlob": {
+      "type": "array",
+      "description": "Glob summarisation of lastSprintScope (e.g. 'src/lib/**', 'scripts/*.mjs'). Stored verbatim from --scope CLI; derivation algorithm deferred to M3.",
+      "items": { "type": "string" }
+    },
+    "sprintsSinceLastAudit": {
+      "type": "integer",
+      "minimum": 0,
+      "default": 0,
+      "description": "Counter incremented on every vibe-sprint-complete passed run. Reset to 0 when an audit-required pendingRisk is resolved (M8). Threshold: .vibe/config.json.audit.everyN (default 5)."
+    },
+    "stateUpdatedAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO8601 timestamp set by the last tool that wrote this file (vibe-sprint-complete, migrations, sprint-status.ts helpers). Preflight freshness check uses this as the authoritative signal, replacing handoff.updatedAt vs mtime heuristic."
+    },
+    "verifiedAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO8601 timestamp set by the Orchestrator after self-QA or Evaluator verdict. Distinct from stateUpdatedAt (which tracks writes) — this tracks verification events."
     }
   },
   "$defs": {
@@ -134,6 +169,31 @@
           "default": false,
           "description": "true if this command requires network/build and must run outside the Generator sandbox"
         }
+      }
+    },
+    "pendingRisk": {
+      "type": "object",
+      "required": ["id", "raisedBy", "targetSprint", "text", "status", "createdAt"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Stable short id, e.g. 'audit-2026Q2' or 'risk-schema-drift-01'"
+        },
+        "raisedBy": {
+          "type": "string",
+          "description": "Sprint id or tool name that raised this risk"
+        },
+        "targetSprint": {
+          "type": "string",
+          "description": "Sprint id that should address this, or '*' for any future sprint"
+        },
+        "text": { "type": "string" },
+        "status": {
+          "type": "string",
+          "enum": ["open", "acknowledged", "resolved"]
+        },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "resolvedAt": { "type": "string", "format": "date-time" }
       }
     }
   }

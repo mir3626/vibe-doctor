@@ -59,7 +59,15 @@
       "test/providers.test.ts",
       "test/usage.test.ts",
       "test/sync.test.ts",
-      "migrations/1.0.0.mjs"
+      "migrations/1.0.0.mjs",
+      ".vibe/agent/project-map.schema.json",
+      ".vibe/agent/sprint-api-contracts.schema.json",
+      "src/lib/sprint-status.ts",
+      "src/lib/project-map.ts",
+      "test/sprint-status.test.ts",
+      "test/project-map.test.ts",
+      "test/preflight-stale.test.ts",
+      "migrations/1.1.0.mjs"
     ],
     "hybrid": {
       "CLAUDE.md": {
@@ -121,6 +129,8 @@
       ".vibe/config.local.json",
       ".env",
       ".vibe/agent/sprint-status.json",
+      ".vibe/agent/project-map.json",
+      ".vibe/agent/sprint-api-contracts.json",
       ".vibe/agent/handoff.md",
       ".vibe/agent/session-log.md",
       "docs/plans/**",
@@ -129,6 +139,7 @@
     ]
   },
   "migrations": {
-    "1.0.0": "migrations/1.0.0.mjs"
+    "1.0.0": "migrations/1.0.0.mjs",
+    "1.1.0": "migrations/1.1.0.mjs"
   }
 }

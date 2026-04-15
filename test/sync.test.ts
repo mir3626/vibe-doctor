@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, mkdir, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, it } from 'node:test';
@@ -253,5 +253,18 @@ describe('buildSyncPlan', () => {
     assert.equal(plan.actions.some((action) => action.type === 'new-file' && action.path === 'scripts/new.mjs'), true);
     assert.equal(plan.actions.some((action) => action.type === 'section-merge' && action.path === 'CLAUDE.md'), true);
     assert.equal(plan.actions.some((action) => action.type === 'json-merge' && action.path === 'package.json'), true);
+  });
+});
+
+describe('sync manifest', () => {
+  it('includes M1 schema foundation files and migration', async () => {
+    const manifest = JSON.parse(await readFile(path.join(process.cwd(), '.vibe', 'sync-manifest.json'), 'utf8')) as SyncManifest;
+
+    assert.equal(manifest.files.harness.includes('src/lib/sprint-status.ts'), true);
+    assert.equal(manifest.files.harness.includes('src/lib/project-map.ts'), true);
+    assert.equal(manifest.files.harness.includes('migrations/1.1.0.mjs'), true);
+    assert.equal(manifest.files.project.includes('.vibe/agent/project-map.json'), true);
+    assert.equal(manifest.files.project.includes('.vibe/agent/sprint-api-contracts.json'), true);
+    assert.equal(manifest.migrations['1.1.0'], 'migrations/1.1.0.mjs');
   });
 });

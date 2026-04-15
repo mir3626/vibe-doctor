@@ -12,7 +12,7 @@
 - **working dir**: (로컬 환경에서 설정)
 - **language/tone**: 한국어 반말 (memory: `feedback_language_tone.md`)
 
-## 2. Status: IDLE - Sprint v1.1.0-process-refactor passed
+## 2. Status: IDLE - Sprint sprint-M1-schema-foundation passed
 
 하네스 싱크 메커니즘(`vibe:sync`) 구현 완료. 인프라·코드·비코드 파일 모두 포함. tsc/tests 34/34 통과.
 
@@ -26,6 +26,7 @@
 | `self-evolution-3` | Planner 역할 확장: 기술 사양 + Sprint 프롬프트 초안 출력 + 프롬프트 작성 원칙 | passed |
 | `harness-sync` | 업스트림 하네스 싱크 메커니즘(section-merge + json-deep-merge + sidecar full-replace) + 레거시 부트스트랩 + SessionStart 버전 체크 훅 | passed |
 | `v1.1.0-process-refactor` | v1.1.0-process-refactor | passed |
+| `sprint-M1-schema-foundation` | sprint-M1-schema-foundation | passed |
 
 상세는 `sprint-status.json`의 `sprints[]` + `session-log.md` Archived 섹션 참조.
 

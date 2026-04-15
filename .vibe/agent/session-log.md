@@ -22,6 +22,8 @@
 
 
 
+
+- 2026-04-15T16:24:04.729Z [sprint-complete] sprint-M1-schema-foundation -> passed. Sprint sprint-M1-schema-foundation completed with passed LOC +277/-0 (net +277)
 - 2026-04-14T13:50:59.759Z [sprint-complete] v1.1.0-process-refactor -> passed. Sprint v1.1.0-process-refactor completed with passed LOC +1037/-38 (net +999)
 - 2026-04-14T05:03:59.441Z [sprint-complete] harness-sync -> passed. Sprint harness-sync completed with passed
 - 2026-04-10T08:30 [decision] self-evolution-3: Planner 역할 확장 — 기술 사양(타입·API·파일구조) + Sprint 프롬프트 초안을 Planner가 출력하도록 CLAUDE.md 변경. Sprint 프롬프트 작성 원칙 섹션 추가.

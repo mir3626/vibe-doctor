@@ -4,15 +4,15 @@
 // Usage: node scripts/vibe-preflight.mjs [--json]
 
 import { execSync } from 'node:child_process';
-import { existsSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 const JSON_MODE = process.argv.includes('--json');
 const BOOTSTRAP_MODE = process.argv.includes('--bootstrap');
 const results = [];
 
-function record(id, ok, detail) {
-  results.push({ id, ok, detail });
+function record(id, ok, detail, level = 'ok') {
+  results.push({ id, ok, detail, level });
 }
 
 function sh(cmd, opts = {}) {
@@ -28,15 +28,6 @@ function parseIso(value) {
   return Number.isNaN(time) ? null : new Date(time);
 }
 
-function getLastCommitDate() {
-  try {
-    const value = sh('git log -1 --format=%cI');
-    return parseIso(value);
-  } catch {
-    return null;
-  }
-}
-
 // 1. Git work tree
 if (BOOTSTRAP_MODE) {
   record('git.worktree', true, 'bootstrap mode - git worktree check skipped');
@@ -45,7 +36,11 @@ if (BOOTSTRAP_MODE) {
     const inside = sh('git rev-parse --is-inside-work-tree');
     record('git.worktree', inside === 'true', inside || 'not a git repo');
   } catch {
-    record('git.worktree', false, 'not a git repo - run: git init && git add -A && git -c commit.gpgsign=false commit -m "chore: initial scaffold"');
+    record(
+      'git.worktree',
+      false,
+      'not a git repo - run: git init && git add -A && git -c commit.gpgsign=false commit -m "chore: initial scaffold"',
+    );
   }
 }
 
@@ -82,7 +77,11 @@ if (BOOTSTRAP_MODE) {
         record('deps.delta', true, 'single-commit repo - baseline; run npm install once outside sandbox');
       } else {
         const diff = sh('git diff HEAD~1 HEAD -- package.json');
-        record('deps.delta', true, diff ? 'package.json changed since HEAD~1 - Orchestrator must run npm install outside sandbox' : 'no change');
+        record(
+          'deps.delta',
+          true,
+          diff ? 'package.json changed since HEAD~1 - Orchestrator must run npm install outside sandbox' : 'no change',
+        );
       }
     }
   } catch (e) {
@@ -141,8 +140,14 @@ if (BOOTSTRAP_MODE) {
   try {
     if (existsSync(statusPath)) {
       sprintStatus = JSON.parse(readFileSync(statusPath, 'utf8'));
-      const vc = Array.isArray(sprintStatus.verificationCommands) ? sprintStatus.verificationCommands.length : 0;
-      record('sprint.status', true, `${vc} verification commands cumulative; handoff.currentSprintId=${sprintStatus.handoff?.currentSprintId ?? 'n/a'}`);
+      const vc = Array.isArray(sprintStatus.verificationCommands)
+        ? sprintStatus.verificationCommands.length
+        : 0;
+      record(
+        'sprint.status',
+        true,
+        `${vc} verification commands cumulative; handoff.currentSprintId=${sprintStatus.handoff?.currentSprintId ?? 'n/a'}`,
+      );
     } else {
       record('sprint.status', true, 'no sprint-status.json yet (first sprint)');
     }
@@ -161,42 +166,49 @@ if (BOOTSTRAP_MODE) {
     hasHandoff && hasSessionLog,
     hasHandoff && hasSessionLog
       ? `handoff=${handoffPath}; sessionLog=${sessionLogPath}`
-      : `missing handoff=${hasHandoff ? 'present' : handoffPath}; sessionLog=${hasSessionLog ? 'present' : sessionLogPath}`
+      : `missing handoff=${hasHandoff ? 'present' : handoffPath}; sessionLog=${hasSessionLog ? 'present' : sessionLogPath}`,
   );
 }
 
 try {
   if (BOOTSTRAP_MODE) {
     record('handoff.stale', true, 'bootstrap mode - handoff freshness check skipped');
-  } else if (!hasHandoff) {
-    record('handoff.stale', true, 'warning: handoff missing; freshness skipped');
+  } else if (!existsSync(statusPath)) {
+    record('handoff.stale', true, 'no sprint-status.json yet (freshness skipped)');
   } else {
-    const updatedAt = parseIso(sprintStatus?.handoff?.updatedAt);
-    const lastCommit = getLastCommitDate();
-    const handoffMtime = statSync(handoffPath).mtime;
-
+    const updatedAt = parseIso(sprintStatus?.stateUpdatedAt);
     if (!updatedAt) {
       record(
         'handoff.stale',
         true,
-        `warning: handoff.updatedAt missing or invalid; mtime=${handoffMtime.toISOString()}, lastCommit=${lastCommit ? lastCommit.toISOString() : 'n/a'}`
-      );
-    } else if (lastCommit && updatedAt.getTime() < lastCommit.getTime()) {
-      record(
-        'handoff.stale',
-        true,
-        `warning: handoff stale: updatedAt=${updatedAt.toISOString()}, mtime=${handoffMtime.toISOString()}, lastCommit=${lastCommit.toISOString()}`
+        'stateUpdatedAt absent (pre-1.1.0 state - run migrations/1.1.0.mjs)',
+        'info',
       );
     } else {
-      record(
-        'handoff.stale',
-        true,
-        `fresh enough: updatedAt=${updatedAt.toISOString()}, mtime=${handoffMtime.toISOString()}, lastCommit=${lastCommit ? lastCommit.toISOString() : 'n/a'}`
-      );
+      const ageMs = Date.now() - updatedAt.getTime();
+      const ageMinutes = Math.floor(ageMs / (60 * 1000));
+      if (ageMs <= 5 * 60 * 1000) {
+        record('handoff.stale', true, `fresh: stateUpdatedAt=${updatedAt.toISOString()}`);
+      } else if (ageMs <= 24 * 60 * 60 * 1000) {
+        record(
+          'handoff.stale',
+          true,
+          `stateUpdatedAt=${updatedAt.toISOString()} (age=${ageMinutes} minutes)`,
+          'info',
+        );
+      } else {
+        const ageHours = Math.floor(ageMs / (60 * 60 * 1000));
+        record(
+          'handoff.stale',
+          true,
+          `stateUpdatedAt=${updatedAt.toISOString()} stale (age=${ageHours} hours). Run vibe-sprint-complete or refresh state.`,
+          'warn',
+        );
+      }
     }
   }
 } catch (e) {
-  record('handoff.stale', true, `warning: unable to evaluate handoff freshness (${e.message})`);
+  record('handoff.stale', true, `warning: unable to evaluate handoff freshness (${e.message})`, 'info');
 }
 
 // 6. product.md existence (Phase 0 gate)
@@ -204,7 +216,11 @@ const productPath = resolve('docs/context/product.md');
 const hasProduct = existsSync(productPath);
 if (hasProduct) {
   const content = readFileSync(productPath, 'utf8').trim();
-  record('phase0.product', content.length > 50, content.length > 50 ? 'product.md present and populated' : 'product.md exists but too short (<50 chars)');
+  record(
+    'phase0.product',
+    content.length > 50,
+    content.length > 50 ? 'product.md present and populated' : 'product.md exists but too short (<50 chars)',
+  );
 } else {
   record('phase0.product', false, 'missing docs/context/product.md - run Phase 0 (Ouroboros PM interview) first');
 }
@@ -241,7 +257,7 @@ if (JSON_MODE) {
   process.stdout.write(JSON.stringify(results, null, 2) + '\n');
 } else {
   for (const r of results) {
-    const mark = r.ok ? 'OK ' : 'FAIL';
+    const mark = r.ok ? (r.level === 'info' ? 'INFO' : r.level === 'warn' ? 'WARN' : 'OK ') : 'FAIL';
     process.stdout.write(`[${mark}] ${r.id} - ${r.detail}\n`);
   }
 }

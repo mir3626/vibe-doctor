@@ -64,15 +64,40 @@ function formatNet(value) {
   return value >= 0 ? `+${value}` : `${value}`;
 }
 
+function parseScopeValue(value) {
+  return value
+    .split(',')
+    .map((entry) => entry.trim())
+    .filter((entry) => entry.length > 0);
+}
+
+function readAuditEveryN() {
+  const configPath = resolve('.vibe/config.json');
+  if (!existsSync(configPath)) {
+    return 5;
+  }
+
+  try {
+    const config = JSON.parse(readFileSync(configPath, 'utf8'));
+    return Number.isInteger(config?.audit?.everyN) ? config.audit.everyN : 5;
+  } catch {
+    return 5;
+  }
+}
+
 const [, , sprintId, status, ...rest] = process.argv;
 if (!sprintId || !status || !['passed', 'failed'].includes(status)) {
-  fail('Usage: node scripts/vibe-sprint-complete.mjs <sprintId> <passed|failed> [--summary "summary text"]');
+  fail('Usage: node scripts/vibe-sprint-complete.mjs <sprintId> <passed|failed> [--summary "summary text"] [--scope <path1,path2,...>]');
 }
 
 let summary = '';
+let scope = null;
 for (let i = 0; i < rest.length; i += 1) {
   if (rest[i] === '--summary') {
     summary = rest[i + 1] ?? '';
+    i += 1;
+  } else if (rest[i] === '--scope') {
+    scope = parseScopeValue(rest[i + 1] ?? '');
     i += 1;
   }
 }
@@ -99,6 +124,12 @@ try {
 if (!Array.isArray(sprintStatus.sprints)) {
   sprintStatus.sprints = [];
 }
+if (!Array.isArray(sprintStatus.pendingRisks)) {
+  sprintStatus.pendingRisks = [];
+}
+if (!Number.isInteger(sprintStatus.sprintsSinceLastAudit)) {
+  sprintStatus.sprintsSinceLastAudit = 0;
+}
 
 const existingSprint = sprintStatus.sprints.find((entry) => entry?.id === sprintId);
 if (existingSprint) {
@@ -124,12 +155,37 @@ if (existingSprint) {
   sprintStatus.sprints.push(nextSprint);
 }
 
+if (scope !== null) {
+  sprintStatus.lastSprintScope = [...scope];
+  sprintStatus.lastSprintScopeGlob = [...scope];
+}
+
+if (status === 'passed') {
+  sprintStatus.sprintsSinceLastAudit += 1;
+  const everyN = readAuditEveryN();
+  const auditRiskId = `audit-${sprintId}`;
+  if (
+    sprintStatus.sprintsSinceLastAudit >= everyN &&
+    !sprintStatus.pendingRisks.some((entry) => entry?.id === auditRiskId)
+  ) {
+    sprintStatus.pendingRisks.push({
+      id: auditRiskId,
+      raisedBy: 'vibe-sprint-complete',
+      targetSprint: '*',
+      text: `Evaluator audit due (sprintsSinceLastAudit=${sprintStatus.sprintsSinceLastAudit}, everyN=${everyN}).`,
+      status: 'open',
+      createdAt: nowIso,
+    });
+  }
+}
+
 sprintStatus.handoff = {
   ...(sprintStatus.handoff ?? {}),
   currentSprintId: 'idle',
   lastActionSummary: finalSummary,
   updatedAt: nowIso,
 };
+sprintStatus.stateUpdatedAt = nowIso;
 
 writeFileSync(statusPath, `${JSON.stringify(sprintStatus, null, 2)}\n`, 'utf8');
 
