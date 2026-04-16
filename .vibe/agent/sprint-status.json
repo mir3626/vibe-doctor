@@ -168,6 +168,18 @@
         "net": 1305,
         "filesChanged": 28
       }
+    },
+    {
+      "id": "sprint-M8-audit-review-gaps",
+      "name": "sprint-M8-audit-review-gaps",
+      "status": "passed",
+      "completedAt": "2026-04-16T01:38:55.963Z",
+      "actualLoc": {
+        "added": 1369,
+        "deleted": 8,
+        "net": 1361,
+        "filesChanged": 20
+      }
     }
   ],
   "verificationCommands": [
@@ -189,7 +201,7 @@
   "sandboxNotes": [],
   "handoff": {
     "currentSprintId": "idle",
-    "lastActionSummary": "Sprint sprint-M7-phase0-seal-and-utilities completed with passed",
+    "lastActionSummary": "Sprint sprint-M8-audit-review-gaps completed with passed",
     "openIssues": [],
     "orchestratorContextBudget": "low",
     "preferencesActive": [
@@ -197,7 +209,7 @@
       "autonomous-until-artifact"
     ],
     "handoffDocPath": ".vibe/agent/handoff.md",
-    "updatedAt": "2026-04-16T01:01:58.896Z"
+    "updatedAt": "2026-04-16T01:38:55.963Z"
   },
   "pendingRisks": [
     {
@@ -223,10 +235,18 @@
       "text": "Evaluator audit due (sprintsSinceLastAudit=7, everyN=5).",
       "status": "open",
       "createdAt": "2026-04-16T01:01:58.896Z"
+    },
+    {
+      "id": "audit-after-sprint-M8-audit-review-gaps",
+      "raisedBy": "vibe-sprint-complete",
+      "targetSprint": "*",
+      "text": "Evaluator audit due (sprintsSinceLastAudit=8, everyN=5).",
+      "status": "open",
+      "createdAt": "2026-04-16T01:38:55.963Z"
     }
   ],
   "lastSprintScope": [],
   "lastSprintScopeGlob": [],
-  "sprintsSinceLastAudit": 7,
-  "stateUpdatedAt": "2026-04-16T01:01:58.896Z"
+  "sprintsSinceLastAudit": 8,
+  "stateUpdatedAt": "2026-04-16T01:38:55.963Z"
 }

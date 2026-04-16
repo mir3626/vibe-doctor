@@ -2,7 +2,7 @@
 
 <!-- BEGIN:VIBE:CURRENT-SPRINT -->
 > **Current**: idle (not started, started 2026-04-16)
-> **Completed**: sprint-M7-phase0-seal-and-utilities, sprint-M6-pattern-shards, sprint-M5-native-interview, sprint-M4-model-tier, sprint-M3-sprint-flow-automation, sprint-M2-platform-wrappers, sprint-M1-schema-foundation, v1.1.0-process-refactor, harness-sync, self-evolution-2
+> **Completed**: sprint-M8-audit-review-gaps, sprint-M7-phase0-seal-and-utilities, sprint-M6-pattern-shards, sprint-M5-native-interview, sprint-M4-model-tier, sprint-M3-sprint-flow-automation, sprint-M2-platform-wrappers, sprint-M1-schema-foundation, v1.1.0-process-refactor, harness-sync, self-evolution-2
 > **Pending**: —
 <!-- END:VIBE:CURRENT-SPRINT -->
 
@@ -275,6 +275,7 @@ M1..M9 ──────────────> M10 (release)
 ## Sprint 간 상태 전달
 
 `.vibe/agent/sprint-status.json` + `handoff.md` + `session-log.md` + 신규 `project-map.json` + `sprint-api-contracts.json` + `project-decisions.jsonl` (M1, M3 이후) 로 완전 기계화.
+
 
 
 

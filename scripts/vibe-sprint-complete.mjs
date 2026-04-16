@@ -384,7 +384,7 @@ function runCli() {
   if (status === 'passed' && !alreadyClosed) {
     sprintStatus.sprintsSinceLastAudit += 1;
     const everyN = readAuditEveryN();
-    const auditRiskId = `audit-${sprintId}`;
+    const auditRiskId = `audit-after-${sprintId}`;
     if (
       sprintStatus.sprintsSinceLastAudit >= everyN &&
       !sprintStatus.pendingRisks.some((entry) => entry?.id === auditRiskId)

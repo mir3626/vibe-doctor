@@ -10,6 +10,7 @@ import {
   isSprintStatus,
   loadSprintStatus,
   resetAuditCounter,
+  resolvePendingRisksByPrefix,
   resolvePendingRisk,
   saveSprintStatus,
   touchStateUpdated,
@@ -176,6 +177,53 @@ describe('sprint-status', () => {
     const resolved = await resolvePendingRisk('resolve-me', root);
     assert.equal(resolved?.status, 'resolved');
     assert.equal(Number.isNaN(Date.parse(resolved?.resolvedAt ?? '')), false);
+  });
+
+  it('resolvePendingRisksByPrefix resolves open matching entries only and returns the count', async () => {
+    const root = await makeTempDir('sprint-status-resolve-prefix-');
+    await writeLegacyStatus(root);
+
+    await saveSprintStatus(
+      withDefaults({
+        ...(await loadSprintStatus(root)),
+        pendingRisks: [
+          {
+            id: 'audit-after-sprint-a',
+            raisedBy: 'test',
+            targetSprint: '*',
+            text: 'first',
+            status: 'open',
+            createdAt: '2026-04-03T00:00:00.000Z',
+          },
+          {
+            id: 'audit-after-sprint-b',
+            raisedBy: 'test',
+            targetSprint: '*',
+            text: 'second',
+            status: 'acknowledged',
+            createdAt: '2026-04-03T00:00:01.000Z',
+          },
+          {
+            id: 'risk-other',
+            raisedBy: 'test',
+            targetSprint: '*',
+            text: 'third',
+            status: 'open',
+            createdAt: '2026-04-03T00:00:02.000Z',
+          },
+        ],
+      }),
+      root,
+    );
+
+    const resolvedCount = await resolvePendingRisksByPrefix('audit-after-', root);
+    const stored = await loadSprintStatus(root);
+
+    assert.equal(resolvedCount, 1);
+    assert.equal(stored.pendingRisks[0]?.status, 'resolved');
+    assert.equal(typeof stored.pendingRisks[0]?.resolvedAt, 'string');
+    assert.equal(stored.pendingRisks[1]?.status, 'acknowledged');
+    assert.equal(stored.pendingRisks[2]?.status, 'open');
   });
 
   it('incrementAuditCounter and resetAuditCounter persist and advance stateUpdatedAt', async () => {

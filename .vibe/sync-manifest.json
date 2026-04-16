@@ -12,12 +12,14 @@
       "scripts/vibe-stop-qa-gate.mjs",
       "scripts/vibe-phase0-seal.mjs",
       "scripts/vibe-browser-smoke.mjs",
+      "scripts/vibe-audit-clear.mjs",
       ".vibe/agent/_common-rules.md",
       ".vibe/agent/re-incarnation.md",
       ".vibe/agent/sprint-status.schema.json",
       ".vibe/agent/README.md",
       ".vibe/sync-manifest.json",
       ".claude/skills/vibe-init/SKILL.md",
+      ".claude/skills/vibe-review/SKILL.md",
       ".claude/skills/vibe-init/templates/readme-skeleton.md",
       ".claude/skills/goal-to-plan/SKILL.md",
       ".claude/skills/self-qa/SKILL.md",
@@ -55,6 +57,7 @@
       "src/lib/sync.ts",
       "src/lib/time.ts",
       "src/lib/usage.ts",
+      "src/lib/review.ts",
       "src/providers/runner.ts",
       "src/providers/types.ts",
       "test/args.test.ts",
@@ -65,6 +68,8 @@
       "test/providers.test.ts",
       "test/usage.test.ts",
       "test/sync.test.ts",
+      "test/audit-counter.test.ts",
+      "test/vibe-review-inputs.test.ts",
       "migrations/1.0.0.mjs",
       ".vibe/agent/project-map.schema.json",
       ".vibe/agent/sprint-api-contracts.schema.json",
@@ -111,7 +116,8 @@
       "src/lib/interview.ts",
       "test/interview-dimensions.test.ts",
       "test/interview-engine.test.ts",
-      "test/interview-cli.test.ts"
+      "test/interview-cli.test.ts",
+      "docs/context/harness-gaps.md"
     ],
     "hybrid": {
       "CLAUDE.md": {

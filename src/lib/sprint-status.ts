@@ -421,6 +421,30 @@ export async function resolvePendingRisk(id: string, root?: string): Promise<Pen
   return clonePendingRisk(risk);
 }
 
+export async function resolvePendingRisksByPrefix(
+  prefix: string,
+  root?: string,
+): Promise<number> {
+  const status = await loadStatusForMutation(root);
+  let resolvedCount = 0;
+
+  for (const risk of status.pendingRisks) {
+    if (!risk.id.startsWith(prefix) || risk.status !== 'open') {
+      continue;
+    }
+
+    risk.status = 'resolved';
+    risk.resolvedAt = new Date().toISOString();
+    resolvedCount += 1;
+  }
+
+  if (resolvedCount > 0) {
+    await saveSprintStatus(status, root);
+  }
+
+  return resolvedCount;
+}
+
 export async function incrementAuditCounter(root?: string): Promise<number> {
   const status = await loadStatusForMutation(root);
   status.sprintsSinceLastAudit += 1;
