@@ -2,7 +2,7 @@
 
 <!-- BEGIN:VIBE:CURRENT-SPRINT -->
 > **Current**: idle (not started, started 2026-04-16)
-> **Completed**: sprint-M12-report-iterate-governance
+> **Completed**: sprint-M13-dead-code-refactor
 > **Pending**: —
 <!-- END:VIBE:CURRENT-SPRINT -->
 
@@ -275,6 +275,7 @@ M1..M9 ──────────────> M10 (release)
 ## Sprint 간 상태 전달
 
 `.vibe/agent/sprint-status.json` + `handoff.md` + `session-log.md` + 신규 `project-map.json` + `sprint-api-contracts.json` + `project-decisions.jsonl` (M1, M3 이후) 로 완전 기계화.
+
 
 
 

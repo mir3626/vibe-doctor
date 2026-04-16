@@ -316,18 +316,23 @@ function moveFileOverwrite(sourcePath, destinationPath) {
   }
 }
 
-function archiveSprintPrompts(sprintId) {
-  const promptDir = resolve('docs/prompts');
+export function archiveSprintPrompts(sprintId, rootDir = process.cwd()) {
+  const promptDir = resolve(rootDir, 'docs/prompts');
   if (!existsSync(promptDir)) {
     return [];
   }
 
-  const archiveDir = resolve('.vibe/archive/prompts');
+  const archiveDir = resolve(rootDir, '.vibe/archive/prompts');
   mkdirSync(archiveDir, { recursive: true });
 
-  const matches = readdirSync(promptDir).filter(
-    (entry) => entry.startsWith(`${sprintId}-`) && entry.endsWith('.md'),
-  );
+  const matches = readdirSync(promptDir).filter((entry) => {
+    if (!entry.endsWith('.md')) {
+      return false;
+    }
+
+    const base = entry.slice(0, -3);
+    return base === sprintId || base.startsWith(`${sprintId}-`);
+  });
   const archived = [];
 
   for (const fileName of matches) {

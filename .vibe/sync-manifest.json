@@ -80,8 +80,6 @@
       "test/preflight-stale.test.ts",
       "migrations/1.1.0.mjs",
       "scripts/run-codex.cmd",
-      "scripts/run-claude.sh",
-      "scripts/run-claude.cmd",
       "test/run-codex-wrapper.test.ts",
       "scripts/vibe-sprint-commit.mjs",
       "scripts/vibe-session-log-sync.mjs",
