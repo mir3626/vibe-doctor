@@ -24,6 +24,7 @@
 | gap-permission-noise | Agent 위임 시 권한 프롬프트 반복 | `vibe-sprint-mode.mjs` + settings-presets + tests (M9) | covered |
 | gap-integration-smoke | end-to-end meta smoke 부재 | `test/integration/meta-smoke.test.ts` (M10, this Sprint) | covered |
 | gap-external-interview-dependency-purge | v1.2.0 에서 외부 인터뷰 엔진 참조가 docs/scripts에 잔존 (optional enhancement 수준으로 보존) | Sprint M11 (v1.2.1) | covered |
+| gap-release-tag-automation | `harnessVersion` bump 시 git tag (예: `v1.3.0`) 자동 생성·push 단계가 없어 downstream `vibe:sync` 가 `resolveUpstreamRef` 에서 존재하지 않는 tag 를 clone 시도 → sync 실패. v1.2.0/v1.2.1/v1.3.0 tag 가 retroactive 로만 푸시됨 | 수동 `git tag -a && git push --tags` (임시). `vibe-sprint-commit.mjs` 또는 전용 `vibe-release.mjs` 가 harnessVersion delta 감지 시 자동 tag 생성 필요 | open |
 
 Update protocol:
 1. 새 gap 발견 시 id `gap-<slug>` 로 표 끝에 append 한다.
