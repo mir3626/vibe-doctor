@@ -25,6 +25,7 @@
 | gap-integration-smoke | end-to-end meta smoke 부재 | `test/integration/meta-smoke.test.ts` (M10, this Sprint) | covered |
 | gap-external-interview-dependency-purge | v1.2.0 에서 외부 인터뷰 엔진 참조가 docs/scripts에 잔존 (optional enhancement 수준으로 보존) | Sprint M11 (v1.2.1) | covered |
 | gap-release-tag-automation | `harnessVersion` bump 시 git tag (예: `v1.3.0`) 자동 생성·push 단계가 없어 downstream `vibe:sync` 가 `resolveUpstreamRef` 에서 존재하지 않는 tag 를 clone 시도 → sync 실패. v1.2.0/v1.2.1/v1.3.0 tag 가 retroactive 로만 푸시됨 | 수동 `git tag -a && git push --tags` (임시). `vibe-sprint-commit.mjs` 또는 전용 `vibe-release.mjs` 가 harnessVersion delta 감지 시 자동 tag 생성 필요 | open |
+| gap-statusline-wiring | M9 에서 `.claude/statusline.{sh,ps1}` 스크립트는 만들었지만 `.claude/settings.json` 에 Claude Code 가 해당 스크립트를 호출하도록 `statusLine` 설정 항목을 추가 안 함. 사용자가 내장 activity indicator 만 보게 되어 custom statusline 이 dead code 상태 | `.claude/settings.json` 에 `statusLine: {type:"command", command:"bash .claude/statusline.sh"}` 추가 + `sync-manifest.json` 의 harnessKeys 에 `statusLine` 등록 (retroactive 수정, v1.3.1 예정). 향후 M9-style 신규 Claude Code integration feature 는 **스크립트 생성 + settings.json 등록 + manifest harnessKeys 업데이트** 3단 절차를 Planner 체크리스트에 강제할 것 | covered |
 
 Update protocol:
 1. 새 gap 발견 시 id `gap-<slug>` 로 표 끝에 append 한다.

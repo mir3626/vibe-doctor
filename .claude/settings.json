@@ -40,6 +40,11 @@
       "Read(./config/credentials.json)"
     ]
   },
+  "statusLine": {
+    "type": "command",
+    "command": "bash .claude/statusline.sh",
+    "padding": 0
+  },
   "hooks": {
     "SessionStart": [
       {

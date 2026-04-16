@@ -164,7 +164,7 @@
       },
       ".claude/settings.json": {
         "strategy": "json-deep-merge",
-        "harnessKeys": ["hooks"],
+        "harnessKeys": ["hooks", "statusLine"],
         "projectKeys": ["permissions"]
       },
       "package.json": {
