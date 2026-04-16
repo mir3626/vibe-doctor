@@ -6,6 +6,53 @@ import path from "node:path";
 
 try {
   const readJson = (filePath) => JSON.parse(fs.readFileSync(filePath, "utf8").replace(/^\uFEFF/, ""));
+  const readJsonOptional = (filePath) => {
+    try {
+      return readJson(filePath);
+    } catch {
+      return undefined;
+    }
+  };
+  const getString = (value) => (typeof value === "string" && value.trim().length > 0 ? value.trim() : undefined);
+  const normalizeVersion = (version) => version.trim().replace(/^v/i, "");
+  const toVersionParts = (version) => {
+    const normalized = normalizeVersion(version);
+    if (!/^\d+(?:\.\d+)*$/.test(normalized)) {
+      return undefined;
+    }
+
+    return normalized.split(".").map((part) => Number.parseInt(part, 10));
+  };
+  const compareVersions = (left, right) => {
+    const length = Math.max(left.length, right.length);
+    for (let index = 0; index < length; index += 1) {
+      const leftPart = left[index] ?? 0;
+      const rightPart = right[index] ?? 0;
+      if (leftPart !== rightPart) {
+        return leftPart > rightPart ? 1 : -1;
+      }
+    }
+
+    return 0;
+  };
+  const getVersionSuffix = () => {
+    const config = readJsonOptional(path.join(root, ".vibe", "config.json"));
+    const installedRaw = getString(config?.harnessVersionInstalled) ?? getString(config?.harnessVersion);
+    const installedParts = installedRaw ? toVersionParts(installedRaw) : undefined;
+    if (!installedRaw || !installedParts) {
+      return undefined;
+    }
+
+    const installedVersion = normalizeVersion(installedRaw);
+    const syncCache = readJsonOptional(path.join(root, ".vibe", "sync-cache.json"));
+    const latestRaw = getString(syncCache?.latestVersion);
+    const latestParts = latestRaw ? toVersionParts(latestRaw) : undefined;
+    if (latestRaw && latestParts && compareVersions(installedParts, latestParts) < 0) {
+      return `v${installedVersion} \u26A0 v${normalizeVersion(latestRaw)} (/vibe-sync)`;
+    }
+
+    return `v${installedVersion}`;
+  };
   const root = process.cwd();
   const statusPath = path.join(root, ".vibe", "agent", "sprint-status.json");
   if (!fs.existsSync(statusPath)) {
@@ -38,6 +85,10 @@ try {
   }
 
   parts.push(`${openRisks} risks`);
+  const versionSuffix = getVersionSuffix();
+  if (versionSuffix) {
+    parts.push(versionSuffix);
+  }
   process.stdout.write(parts.join(" | "));
 } catch {
   process.exit(0);

@@ -43,6 +43,12 @@ async function writeJson(root: string, relativePath: string, value: unknown): Pr
   await writeFile(filePath, `${JSON.stringify(value, null, 2)}\n`, 'utf8');
 }
 
+async function writeText(root: string, relativePath: string, value: string): Promise<void> {
+  const filePath = path.join(root, relativePath);
+  await mkdir(path.dirname(filePath), { recursive: true });
+  await writeFile(filePath, value, 'utf8');
+}
+
 async function writeStatus(root: string): Promise<void> {
   await writeJson(root, path.join('.vibe', 'agent', 'sprint-status.json'), {
     handoff: {
@@ -126,6 +132,58 @@ describe('statusline.sh', { skip: bashCommand === null }, () => {
     const { stdout } = await runBashStatusline(root);
 
     assert.match(stdout, /\| 0K tok \|/);
+  });
+
+  it('bash statusline shows version suffix when config has harnessVersionInstalled', async () => {
+    const root = await makeTempDir('statusline-version-');
+    await writeStatus(root);
+    await writeJson(root, path.join('.vibe', 'config.json'), {
+      harnessVersionInstalled: '1.3.1',
+    });
+
+    const { stdout } = await runBashStatusline(root);
+
+    assert.equal(stdout, 'S sprint-M9-statusline-permissions (2/3) | 2 risks | v1.3.1');
+  });
+
+  it('bash statusline shows update hint when latestVersion > installed', async () => {
+    const root = await makeTempDir('statusline-update-');
+    await writeStatus(root);
+    await writeJson(root, path.join('.vibe', 'config.json'), {
+      harnessVersionInstalled: '1.3.1',
+    });
+    await writeJson(root, path.join('.vibe', 'sync-cache.json'), {
+      latestVersion: '1.4.0',
+    });
+
+    const { stdout } = await runBashStatusline(root);
+
+    assert.equal(stdout, 'S sprint-M9-statusline-permissions (2/3) | 2 risks | v1.3.1 \u26A0 v1.4.0 (/vibe-sync)');
+  });
+
+  it('bash statusline omits suffix when config missing', async () => {
+    const root = await makeTempDir('statusline-missing-config-');
+    await writeStatus(root);
+    await writeJson(root, path.join('.vibe', 'sync-cache.json'), {
+      latestVersion: '1.4.0',
+    });
+
+    const { stdout } = await runBashStatusline(root);
+
+    assert.equal(stdout, 'S sprint-M9-statusline-permissions (2/3) | 2 risks');
+  });
+
+  it('bash statusline omits suffix when config unparseable', async () => {
+    const root = await makeTempDir('statusline-bad-config-');
+    await writeStatus(root);
+    await writeText(root, path.join('.vibe', 'config.json'), '{');
+    await writeJson(root, path.join('.vibe', 'sync-cache.json'), {
+      latestVersion: '1.4.0',
+    });
+
+    const { stdout } = await runBashStatusline(root);
+
+    assert.equal(stdout, 'S sprint-M9-statusline-permissions (2/3) | 2 risks');
   });
 });
 
