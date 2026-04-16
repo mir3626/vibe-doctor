@@ -12,7 +12,7 @@
 - **working dir**: (로컬 환경에서 설정)
 - **language/tone**: 한국어 반말 (memory: `feedback_language_tone.md`)
 
-## 2. Status: IDLE - Sprint sprint-M5-native-interview passed
+## 2. Status: IDLE - Sprint sprint-M6-pattern-shards passed
 
 하네스 싱크 메커니즘(`vibe:sync`) 구현 완료. 인프라·코드·비코드 파일 모두 포함. tsc/tests 34/34 통과.
 
@@ -31,6 +31,7 @@
 | `sprint-M3-sprint-flow-automation` | sprint-M3-sprint-flow-automation | passed |
 | `sprint-M4-model-tier` | sprint-M4-model-tier | passed |
 | `sprint-M5-native-interview` | sprint-M5-native-interview | passed |
+| `sprint-M6-pattern-shards` | sprint-M6-pattern-shards | passed |
 
 상세는 `sprint-status.json`의 `sprints[]` + `session-log.md` Archived 섹션 참조.
 

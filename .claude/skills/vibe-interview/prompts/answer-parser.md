@@ -16,6 +16,13 @@ Rules:
 - `cross_dimension_signals` may contain at most 3 entries.
 - If the dimension is free-form (`{{SUBFIELDS_JSON}}` is `[]`), output exactly one attribution entry under key `"free_form"`.
 
+Normalized stack slugs:
+- Only for `{{DIMENSION_ID}} = "tech_stack"`, you may include a top-level `normalized_slugs` field.
+- Allowed values only: `ts-vitest`, `ts-playwright`, `py-pytest`, `py-hypothesis`, `rust-cargo`, `go-testing`, `canvas-dom`, `shell-bats`.
+- Multi-stack answers may emit multiple allowed slugs.
+- If the answer does not clearly map to the allowlist, use `[]`.
+- Never emit unknown slugs or infer a lint slug here.
+
 Output contract:
 - Return strict JSON only.
 - Shape:
@@ -26,6 +33,7 @@ Output contract:
   "cross_dimension_signals": [
     { "dimensionId": "<id>", "note": "<1-sentence signal>" }
   ],
+  "normalized_slugs": ["<allowed slug>"],
   "rationale": "<1-2 sentences>"
 }
 - No code fences.

@@ -99,6 +99,8 @@
       ".claude/skills/vibe-interview/domain-probes/game.md",
       ".claude/skills/vibe-interview/domain-probes/research.md",
       ".claude/skills/vibe-interview/domain-probes/cli-tool.md",
+      ".claude/skills/test-patterns/**",
+      ".claude/skills/lint-patterns/**",
       "src/lib/interview.ts",
       "test/interview-dimensions.test.ts",
       "test/interview-engine.test.ts",

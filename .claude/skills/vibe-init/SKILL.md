@@ -360,6 +360,33 @@ Phase 3? ?? ??? ??? ?? `vibe-interview` ???. primary flow??? ouroboros-ai / MCP?
 ??? ?? ? Orchestrator? `seedForProductMd` ? `docs/context/product.md` ? `## Phase 3 ?? ?? (native interview)` ???? append ???.
 
 ?? ??? ?? `.ouroboros/` ????? ??(???). ???? ??.
+### Step 3-3: conventions.md test and lint shard links
+
+After Step 3-2 writes the interview seed, inspect the interview log for `tech_stack.normalized_slugs[]`.
+Use `.claude/skills/test-patterns/_index.md` to map each slug to a test shard path, then derive lint shards from the language prefix:
+
+- `ts-*` -> `typescript-debt.md`
+- `py-*` -> `python-debt.md`
+- `rust-*` -> `rust-debt.md`
+- `go-*` -> `go-debt.md`
+- always include `universal-debt.md`
+- include `canvas-dom-isolation.md` or `shell-bats.md` only when their test slugs are present
+
+Rewrite only the marker blocks below in `docs/context/conventions.md`. If a marker is missing, append the full section. Re-running must be idempotent and must preserve user-authored content outside the markers.
+
+```md
+## 테스트 전략
+<!-- BEGIN:VIBE:TEST-PATTERNS -->
+- TypeScript unit/integration: [.claude/skills/test-patterns/typescript-vitest.md](../../.claude/skills/test-patterns/typescript-vitest.md)
+<!-- END:VIBE:TEST-PATTERNS -->
+
+## Lint 규칙
+<!-- BEGIN:VIBE:LINT-PATTERNS -->
+- TypeScript debt grep: [.claude/skills/lint-patterns/typescript-debt.md](../../.claude/skills/lint-patterns/typescript-debt.md)
+- Universal TODO/FIXME: [.claude/skills/lint-patterns/universal-debt.md](../../.claude/skills/lint-patterns/universal-debt.md)
+<!-- END:VIBE:LINT-PATTERNS -->
+```
+
 ---
 
 ## Phase 4 — 설정 요약 및 완료

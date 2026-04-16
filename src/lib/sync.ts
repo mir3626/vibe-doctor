@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { copyFile, mkdir, readFile, rm } from 'node:fs/promises';
+import { copyFile, mkdir, readFile, readdir, rm } from 'node:fs/promises';
 import path from 'node:path';
 import { fileExists, readJson, readText, writeJson, writeText } from './fs.js';
 import type { VibeConfig } from './config.js';
@@ -61,6 +61,10 @@ type JsonValue =
 
 function normalizeVersion(version: string): string {
   return version.startsWith('v') ? version.slice(1) : version;
+}
+
+function normalizeRelativePath(filePath: string): string {
+  return filePath.split(path.sep).join('/');
 }
 
 function compareVersions(left: string, right: string): number {
@@ -192,6 +196,62 @@ function shouldPreserveMarker(name: string, config: HybridFileConfig): boolean {
   return name.startsWith('PROJECT:') || (config.preserveMarkers ?? []).includes(name);
 }
 
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function isGlob(pattern: string): boolean {
+  return pattern.includes('*');
+}
+
+function segmentMatchesPattern(patternSegment: string, candidateSegment: string): boolean {
+  const regex = new RegExp(`^${escapeRegExp(patternSegment).replaceAll('\\*', '[^/]*')}$`);
+  return regex.test(candidateSegment);
+}
+
+function matchGlobSegments(
+  patternSegments: string[],
+  candidateSegments: string[],
+  patternIndex = 0,
+  candidateIndex = 0,
+): boolean {
+  if (patternIndex >= patternSegments.length) {
+    return candidateIndex === candidateSegments.length;
+  }
+
+  const patternSegment = patternSegments[patternIndex];
+  if (patternSegment === '**') {
+    if (patternIndex === patternSegments.length - 1) {
+      return candidateIndex < candidateSegments.length;
+    }
+
+    for (let nextIndex = candidateIndex; nextIndex <= candidateSegments.length; nextIndex += 1) {
+      if (matchGlobSegments(patternSegments, candidateSegments, patternIndex + 1, nextIndex)) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  if (patternSegment === undefined) {
+    return candidateIndex === candidateSegments.length;
+  }
+
+  const candidateSegment = candidateSegments[candidateIndex];
+  if (candidateSegment === undefined || !segmentMatchesPattern(patternSegment, candidateSegment)) {
+    return false;
+  }
+
+  return matchGlobSegments(patternSegments, candidateSegments, patternIndex + 1, candidateIndex + 1);
+}
+
+function matchesHarnessGlob(pattern: string, candidate: string): boolean {
+  const normalizedPattern = normalizeRelativePath(pattern);
+  const normalizedCandidate = normalizeRelativePath(candidate);
+  return matchGlobSegments(normalizedPattern.split('/'), normalizedCandidate.split('/'));
+}
+
 function readConfigFromRoot(root: string): Promise<VibeConfig> {
   return readJson<VibeConfig>(path.join(root, '.vibe', 'config.json'));
 }
@@ -240,6 +300,21 @@ export async function loadManifest(upstreamDir: string): Promise<SyncManifest> {
   return readJson<SyncManifest>(path.join(upstreamDir, '.vibe', 'sync-manifest.json'));
 }
 
+export async function expandHarnessGlob(
+  upstreamRoot: string,
+  pattern: string,
+): Promise<string[]> {
+  const entries = await readdir(upstreamRoot, { recursive: true, withFileTypes: true });
+
+  return entries
+    .filter((entry) => entry.isFile())
+    .map((entry) =>
+      normalizeRelativePath(path.relative(upstreamRoot, path.join(entry.parentPath, entry.name))),
+    )
+    .filter((candidate) => matchesHarnessGlob(pattern, candidate))
+    .sort((left, right) => left.localeCompare(right));
+}
+
 export async function buildSyncPlan(
   localRoot: string,
   upstreamRoot: string,
@@ -252,8 +327,19 @@ export async function buildSyncPlan(
   ]);
 
   const actions: SyncAction[] = [];
+  const resolvedHarness = Array.from(
+    new Set(
+      (
+        await Promise.all(
+          manifest.files.harness.map(async (entry) =>
+            isGlob(entry) ? expandHarnessGlob(upstreamRoot, entry) : [normalizeRelativePath(entry)],
+          ),
+        )
+      ).flat(),
+    ),
+  );
 
-  for (const relativePath of manifest.files.harness) {
+  for (const relativePath of resolvedHarness) {
     const localPath = path.join(localRoot, relativePath);
     const upstreamPath = path.join(upstreamRoot, relativePath);
     const localExists = await fileExists(localPath);

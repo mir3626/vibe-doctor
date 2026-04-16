@@ -254,6 +254,59 @@ describe('buildSyncPlan', () => {
     assert.equal(plan.actions.some((action) => action.type === 'section-merge' && action.path === 'CLAUDE.md'), true);
     assert.equal(plan.actions.some((action) => action.type === 'json-merge' && action.path === 'package.json'), true);
   });
+
+  it('expands glob harness entries and deduplicates exact file paths', async () => {
+    const localRoot = await makeTempDir('sync-local-glob-');
+    const upstreamRoot = await makeTempDir('sync-upstream-glob-');
+
+    const manifest: SyncManifest = {
+      manifestVersion: '1.0',
+      files: {
+        harness: ['scripts/exact.mjs', 'scripts/**/*.mjs'],
+        hybrid: {},
+        project: [],
+      },
+      migrations: {},
+    };
+
+    await writeJson(path.join(localRoot, '.vibe', 'config.json'), {
+      orchestrator: 'x',
+      harnessVersionInstalled: '1.0.0',
+      sprintRoles: { planner: 'a', generator: 'b', evaluator: 'c' },
+      sprint: { unit: 'feature', subAgentPerRole: true, freshContextPerSprint: true },
+      providers: {},
+    });
+    await writeJson(path.join(upstreamRoot, '.vibe', 'config.json'), {
+      orchestrator: 'x',
+      harnessVersion: '1.0.0',
+      sprintRoles: { planner: 'a', generator: 'b', evaluator: 'c' },
+      sprint: { unit: 'feature', subAgentPerRole: true, freshContextPerSprint: true },
+      providers: {},
+    });
+
+    await mkdir(path.join(localRoot, 'scripts', 'nested'), { recursive: true });
+    await mkdir(path.join(upstreamRoot, 'scripts', 'nested'), { recursive: true });
+
+    await writeFile(path.join(localRoot, 'scripts/exact.mjs'), 'same', 'utf8');
+    await writeFile(path.join(upstreamRoot, 'scripts/exact.mjs'), 'upstream', 'utf8');
+    await writeFile(path.join(upstreamRoot, 'scripts/nested/new.mjs'), 'new', 'utf8');
+
+    await writeJson(path.join(localRoot, '.vibe', 'sync-hashes.json'), {
+      files: {
+        'scripts/exact.mjs': await computeFileHash(path.join(localRoot, 'scripts/exact.mjs')),
+      },
+    });
+
+    const plan = await buildSyncPlan(localRoot, upstreamRoot, manifest);
+    const exactActions = plan.actions.filter((action) => action.path === 'scripts/exact.mjs');
+
+    assert.equal(exactActions.length, 1);
+    assert.equal(exactActions[0]?.type, 'replace');
+    assert.equal(
+      plan.actions.some((action) => action.type === 'new-file' && action.path === 'scripts/nested/new.mjs'),
+      true,
+    );
+  });
 });
 
 describe('sync manifest', () => {
@@ -266,6 +319,8 @@ describe('sync manifest', () => {
     assert.equal(manifest.files.harness.includes('scripts/vibe-sprint-commit.mjs'), true);
     assert.equal(manifest.files.harness.includes('scripts/vibe-session-log-sync.mjs'), true);
     assert.equal(manifest.files.harness.includes('src/lib/decisions.ts'), true);
+    assert.equal(manifest.files.harness.includes('.claude/skills/test-patterns/**'), true);
+    assert.equal(manifest.files.harness.includes('.claude/skills/lint-patterns/**'), true);
     assert.equal(manifest.files.project.includes('.vibe/agent/project-map.json'), true);
     assert.equal(manifest.files.project.includes('.vibe/agent/sprint-api-contracts.json'), true);
     assert.equal(manifest.files.project.includes('.vibe/agent/project-decisions.jsonl'), true);

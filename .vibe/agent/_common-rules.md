@@ -192,3 +192,9 @@ Generator report 를 받은 뒤 Orchestrator 가 샌드박스 밖에서 수행:
 - Generator 샌드박스 는 네트워크 차단 + 프로세스 시간 제한 + 워크스페이스 외부 쓰기 금지. 위 "MUST NOT" 명령은 거의 필연적으로 이 제약에 부딪혀 **Generator 가 우회 패치를 남기거나 (§1 위반) 혹은 반복 실패로 Sprint 를 지연** 시킨다.
 - Orchestrator 는 하네스 host 환경에서 제약 없이 실행 가능하며, 실패 시 Sprint 를 BLOCKED 로 리턴하고 Planner/Evaluator 를 소환해 적절히 분기한다.
 - 본 섹션은 §1 (샌드박스 우회 금지) / §2 (의존성 설치 금지) / §7 (Sandbox × Orchestrator 계약) 의 단편들을 **명령 레벨 whitelist/blacklist** 로 구체화한 것이다. 충돌 시 §1/§2/§7 원칙이 우선.
+
+## § Stack-specific pattern shards (mandatory read)
+
+Sprint Planner must parse the `VIBE:TEST-PATTERNS` and `VIBE:LINT-PATTERNS` marker blocks in `docs/context/conventions.md` before writing a Sprint prompt.
+Every linked shard is mandatory context for the prompt sections that describe test strategy and quality gates.
+If the marker blocks are absent, Planner may skip shard loading only for a brand-new project and must record `[decision][no-pattern-shards]` once in `session-log.md`.
