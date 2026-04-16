@@ -132,6 +132,18 @@
         "net": 2229,
         "filesChanged": 20
       }
+    },
+    {
+      "id": "sprint-M5-native-interview",
+      "name": "sprint-M5-native-interview",
+      "status": "passed",
+      "completedAt": "2026-04-16T00:11:51.213Z",
+      "actualLoc": {
+        "added": 1530,
+        "deleted": 35,
+        "net": 1495,
+        "filesChanged": 21
+      }
     }
   ],
   "verificationCommands": [
@@ -153,7 +165,7 @@
   "sandboxNotes": [],
   "handoff": {
     "currentSprintId": "idle",
-    "lastActionSummary": "Sprint sprint-M4-model-tier completed with passed",
+    "lastActionSummary": "Sprint sprint-M5-native-interview completed with passed",
     "openIssues": [],
     "orchestratorContextBudget": "low",
     "preferencesActive": [
@@ -161,11 +173,20 @@
       "autonomous-until-artifact"
     ],
     "handoffDocPath": ".vibe/agent/handoff.md",
-    "updatedAt": "2026-04-15T23:39:06.851Z"
+    "updatedAt": "2026-04-16T00:11:51.213Z"
   },
-  "pendingRisks": [],
+  "pendingRisks": [
+    {
+      "id": "audit-sprint-M5-native-interview",
+      "raisedBy": "vibe-sprint-complete",
+      "targetSprint": "*",
+      "text": "Evaluator audit due (sprintsSinceLastAudit=5, everyN=5).",
+      "status": "open",
+      "createdAt": "2026-04-16T00:11:51.213Z"
+    }
+  ],
   "lastSprintScope": [],
   "lastSprintScopeGlob": [],
-  "sprintsSinceLastAudit": 4,
-  "stateUpdatedAt": "2026-04-15T23:39:06.851Z"
+  "sprintsSinceLastAudit": 5,
+  "stateUpdatedAt": "2026-04-16T00:11:51.213Z"
 }

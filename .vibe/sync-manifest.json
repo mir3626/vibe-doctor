@@ -82,9 +82,27 @@
       ".vibe/model-registry.schema.json",
       "src/lib/model-registry.ts",
       "scripts/vibe-resolve-model.mjs",
+      "scripts/vibe-interview.mjs",
       "scripts/vibe-model-registry-check.mjs",
       "migrations/1.2.0.mjs",
-      "test/model-registry.test.ts"
+      "test/model-registry.test.ts",
+      ".claude/skills/vibe-interview/SKILL.md",
+      ".claude/skills/vibe-interview/dimensions.json",
+      ".claude/skills/vibe-interview/dimensions.schema.json",
+      ".claude/skills/vibe-interview/prompts/synthesizer.md",
+      ".claude/skills/vibe-interview/prompts/answer-parser.md",
+      ".claude/skills/vibe-interview/prompts/domain-inference.md",
+      ".claude/skills/vibe-interview/domain-probes/real-estate.md",
+      ".claude/skills/vibe-interview/domain-probes/iot.md",
+      ".claude/skills/vibe-interview/domain-probes/data-pipeline.md",
+      ".claude/skills/vibe-interview/domain-probes/web-saas.md",
+      ".claude/skills/vibe-interview/domain-probes/game.md",
+      ".claude/skills/vibe-interview/domain-probes/research.md",
+      ".claude/skills/vibe-interview/domain-probes/cli-tool.md",
+      "src/lib/interview.ts",
+      "test/interview-dimensions.test.ts",
+      "test/interview-engine.test.ts",
+      "test/interview-cli.test.ts"
     ],
     "hybrid": {
       "CLAUDE.md": {
