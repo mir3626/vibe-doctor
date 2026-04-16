@@ -16,3 +16,7 @@ config/credentials.json
 .vibe/sync-backup/
 .vibe/sync-cache.json
 .vibe/sync-hashes.json
+# dashboard runtime artifacts (M14-B)
+.vibe/agent/dashboard.pid
+.vibe/agent/daily/
+.vibe/agent/attention.jsonl
