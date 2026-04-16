@@ -54,6 +54,27 @@ export interface ReviewIssueSeed {
   proposed_sprint: 'backlog';
 }
 
+export interface PriorReviewIssue {
+  id: string;
+  severity: 'blocker' | 'friction' | 'polish' | 'structural';
+  priority: 'P0' | 'P1' | 'P2' | 'P3';
+  proposal: string;
+  sourceReportPath: string;
+  sourceReportDate: string;
+}
+
+export interface RegressionStatus {
+  issue: PriorReviewIssue;
+  status: 'covered' | 'partial' | 'open';
+  evidence: string[];
+}
+
+export interface IssueWeights {
+  agentFriendly: number;
+  tokenEfficient: number;
+  userFyi: number;
+}
+
 function resolveRoot(root?: string): string {
   return root ?? paths.root;
 }
@@ -86,6 +107,14 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
+function isReviewSeverity(value: string): value is PriorReviewIssue['severity'] {
+  return value === 'blocker' || value === 'friction' || value === 'polish' || value === 'structural';
+}
+
+function isReviewPriority(value: string): value is PriorReviewIssue['priority'] {
+  return value === 'P0' || value === 'P1' || value === 'P2' || value === 'P3';
+}
+
 function readRecentEntriesLimit(config: unknown): number {
   if (!isRecord(config)) {
     return DEFAULT_RECENT_ENTRIES;
@@ -103,6 +132,103 @@ function readRecentEntriesLimit(config: unknown): number {
 
 async function readOptionalText(filePath: string): Promise<string> {
   return (await fileExists(filePath)) ? readText(filePath) : '';
+}
+
+function extractFindingsSection(markdown: string): string {
+  const match = markdown.match(/^## Findings\s*$([\s\S]*?)(?=^##\s|(?![\s\S]))/m);
+  return match?.[1] ?? '';
+}
+
+function extractYamlBlocks(markdown: string): string[] {
+  const blocks: string[] = [];
+  const pattern = /```ya?ml\s*([\s\S]*?)```/gi;
+  let match = pattern.exec(markdown);
+  while (match) {
+    blocks.push(match[1] ?? '');
+    match = pattern.exec(markdown);
+  }
+  return blocks.length > 0 ? blocks : [markdown];
+}
+
+function parseYamlScalar(line: string, key: string): string | null {
+  const match = line.match(new RegExp(`^\\s*${key}:\\s*(.+?)\\s*$`));
+  if (!match?.[1]) {
+    return null;
+  }
+  return match[1].replace(/^['"]|['"]$/g, '').trim();
+}
+
+function parseReviewIssuesFromBlock(
+  block: string,
+  sourceReportPath: string,
+  sourceReportDate: string,
+): PriorReviewIssue[] {
+  const issues: PriorReviewIssue[] = [];
+  const chunks = block
+    .split(/\r?\n(?=\s*-\s+id:\s*)/)
+    .map((chunk) => chunk.trim())
+    .filter(Boolean);
+
+  for (const chunk of chunks) {
+    const lines = chunk
+      .split(/\r?\n/)
+      .map((line) => line.replace(/^\s*-\s+/, '').trimEnd());
+    const id = parseYamlScalar(lines[0] ?? '', 'id') ?? parseYamlScalar(chunk, 'id');
+    const severity = lines.map((line) => parseYamlScalar(line, 'severity')).find(Boolean);
+    const priority = lines.map((line) => parseYamlScalar(line, 'priority')).find(Boolean);
+    const proposal = lines.map((line) => parseYamlScalar(line, 'proposal')).find(Boolean);
+
+    if (
+      !id ||
+      !severity ||
+      !priority ||
+      !proposal ||
+      !isReviewSeverity(severity) ||
+      !isReviewPriority(priority)
+    ) {
+      continue;
+    }
+
+    issues.push({
+      id,
+      severity,
+      priority,
+      proposal,
+      sourceReportPath,
+      sourceReportDate,
+    });
+  }
+
+  return issues;
+}
+
+function sourceDateFromFileName(fileName: string, fallbackMtimeMs: number): string {
+  return fileName.match(/(\d{4}-\d{2}-\d{2})/)?.[1] ?? new Date(fallbackMtimeMs).toISOString();
+}
+
+function proposalKeywords(proposal: string): string[] {
+  return Array.from(
+    new Set(
+      proposal
+        .toLowerCase()
+        .split(/[^a-z0-9./_-]+/)
+        .filter((word) => word.length >= 3),
+    ),
+  ).slice(0, 8);
+}
+
+function rowHasCoveredStatus(row: string): boolean {
+  const cells = row
+    .split('|')
+    .map((cell) => cell.trim().toLowerCase())
+    .filter(Boolean);
+  return cells.includes('covered');
+}
+
+function pathMentions(proposal: string): string[] {
+  return Array.from(new Set(proposal.match(/scripts\/vibe-[a-z0-9-]+\.mjs/gi) ?? [])).map((entry) =>
+    entry.replace(/\\/g, '/'),
+  );
 }
 
 function extractCurrentSessionEntries(sessionLog: string, limit: number): string[] {
@@ -306,4 +432,149 @@ export function detectOptInGaps(
   }
 
   return issues;
+}
+
+export async function loadPriorReviewIssues(root?: string): Promise<PriorReviewIssue[]> {
+  const resolvedRoot = resolveRoot(root);
+  const reportsDir = reportsPath(resolvedRoot);
+  if (!(await fileExists(reportsDir))) {
+    return [];
+  }
+
+  const fileNames = (await readdir(reportsDir))
+    .filter((fileName) => /^review-.*\.md$/i.test(fileName))
+    .sort();
+  const reports = await Promise.all(
+    fileNames.map(async (fileName) => {
+      const absolutePath = path.join(reportsDir, fileName);
+      const fileStat = await stat(absolutePath);
+      return {
+        fileName,
+        absolutePath,
+        mtimeMs: fileStat.mtimeMs,
+      };
+    }),
+  );
+
+  reports.sort((left, right) => right.mtimeMs - left.mtimeMs || right.fileName.localeCompare(left.fileName));
+
+  const byId = new Map<string, PriorReviewIssue>();
+  for (const report of reports) {
+    const relativePath = path.relative(resolvedRoot, report.absolutePath).replace(/\\/g, '/');
+    const sourceReportDate = sourceDateFromFileName(report.fileName, report.mtimeMs);
+    const findings = extractFindingsSection(await readText(report.absolutePath));
+
+    for (const block of extractYamlBlocks(findings)) {
+      for (const issue of parseReviewIssuesFromBlock(block, relativePath, sourceReportDate)) {
+        if (!byId.has(issue.id)) {
+          byId.set(issue.id, issue);
+        }
+      }
+    }
+  }
+
+  return [...byId.values()];
+}
+
+async function readGitEvidence(issueId: string, root: string): Promise<string[]> {
+  try {
+    const { stdout } = await execFile(
+      'git',
+      ['log', '--all', `--grep=${issueId}`, '--format=%h'],
+      { cwd: root },
+    );
+    return stdout
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .map((hash) => `git:${hash}`);
+  } catch {
+    return [];
+  }
+}
+
+function readHarnessGapEvidence(issue: PriorReviewIssue, harnessGaps: string): string[] {
+  const keywords = proposalKeywords(issue.proposal);
+  const rows = harnessGaps
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line.startsWith('|') && rowHasCoveredStatus(line));
+
+  return rows
+    .filter((row) => {
+      const lower = row.toLowerCase();
+      if (lower.includes(issue.id.toLowerCase())) {
+        return true;
+      }
+      return keywords.length >= 2 && keywords.filter((keyword) => lower.includes(keyword)).length >= 2;
+    })
+    .map((row) => `harness-gaps:${row}`)
+    .slice(0, 3);
+}
+
+async function readFilePathEvidence(issue: PriorReviewIssue, root: string): Promise<string[]> {
+  const evidence: string[] = [];
+  for (const relativePath of pathMentions(issue.proposal)) {
+    if (await fileExists(path.join(root, relativePath))) {
+      evidence.push(`file:${relativePath}`);
+    }
+  }
+  return evidence;
+}
+
+export async function assessRegression(
+  issues: PriorReviewIssue[],
+  root?: string,
+): Promise<RegressionStatus[]> {
+  const resolvedRoot = resolveRoot(root);
+  const harnessGaps = await readOptionalText(harnessGapsPath(resolvedRoot));
+  const statuses: RegressionStatus[] = [];
+
+  for (const issue of issues) {
+    const [gitEvidence, fileEvidence] = await Promise.all([
+      readGitEvidence(issue.id, resolvedRoot),
+      readFilePathEvidence(issue, resolvedRoot),
+    ]);
+    const harnessEvidence = readHarnessGapEvidence(issue, harnessGaps);
+    const coveredEvidence = [...harnessEvidence, ...fileEvidence];
+    const evidence = [...gitEvidence, ...coveredEvidence];
+    const status =
+      coveredEvidence.length > 0 && gitEvidence.length > 0
+        ? 'covered'
+        : coveredEvidence.length > 0 || gitEvidence.length > 0
+          ? 'partial'
+          : 'open';
+
+    statuses.push({ issue, status, evidence });
+  }
+
+  return statuses;
+}
+
+export function computeRegressionCoverage(statuses: RegressionStatus[]): {
+  covered: number;
+  partial: number;
+  open: number;
+  score: number;
+} {
+  const covered = statuses.filter((entry) => entry.status === 'covered').length;
+  const partial = statuses.filter((entry) => entry.status === 'partial').length;
+  const open = statuses.filter((entry) => entry.status === 'open').length;
+
+  return {
+    covered,
+    partial,
+    open,
+    score: statuses.length === 0 ? 0 : covered / statuses.length,
+  };
+}
+
+export function computePriorityScore(weights: IssueWeights): number {
+  for (const [key, value] of Object.entries(weights)) {
+    if (!Number.isInteger(value) || value < 0 || value > 5) {
+      throw new Error(`invalid issue weight ${key}: ${value}`);
+    }
+  }
+
+  return 10 * weights.agentFriendly + 5 * weights.tokenEfficient + weights.userFyi;
 }

@@ -1,0 +1,5 @@
+{
+  "$schema": "./iteration-history.schema.json",
+  "currentIteration": null,
+  "iterations": []
+}

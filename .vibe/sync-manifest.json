@@ -95,6 +95,7 @@
       "src/lib/model-registry.ts",
       "scripts/vibe-resolve-model.mjs",
       "scripts/vibe-interview.mjs",
+      "scripts/vibe-project-report.mjs",
       "scripts/vibe-model-registry-check.mjs",
       "scripts/vibe-status-tick.mjs",
       "scripts/vibe-sprint-mode.mjs",
@@ -120,9 +121,14 @@
       ".claude/skills/test-patterns/**",
       ".claude/skills/lint-patterns/**",
       "src/lib/interview.ts",
+      "src/lib/iteration.ts",
       "test/interview-dimensions.test.ts",
       "test/interview-engine.test.ts",
       "test/interview-cli.test.ts",
+      "test/iteration.test.ts",
+      "test/project-report.test.ts",
+      "test/review-regression.test.ts",
+      "test/review-priority.test.ts",
       "docs/context/harness-gaps.md",
       "docs/release/v1.2.0.md",
       "docs/release/v1.2.1.md",
@@ -130,7 +136,9 @@
       "test/sprint-mode.test.ts",
       "test/status-tick.test.ts",
       "test/integration/meta-smoke.test.ts",
-      "migrations/1.2.1.mjs"
+      ".vibe/agent/iteration-history.schema.json",
+      "migrations/1.2.1.mjs",
+      "migrations/1.3.0.mjs"
     ],
     "hybrid": {
       "CLAUDE.md": {
@@ -194,11 +202,13 @@
       ".vibe/agent/sprint-status.json",
       ".vibe/agent/project-map.json",
       ".vibe/agent/sprint-api-contracts.json",
+      ".vibe/agent/iteration-history.json",
       ".vibe/agent/handoff.md",
       ".vibe/agent/session-log.md",
       ".vibe/agent/project-decisions.jsonl",
       ".vibe/agent/tokens.json",
       ".vibe/archive/README.md",
+      "docs/plans/project-milestones.md",
       "docs/plans/**",
       "docs/reports/**",
       "src/**"
@@ -208,6 +218,7 @@
     "1.0.0": "migrations/1.0.0.mjs",
     "1.1.0": "migrations/1.1.0.mjs",
     "1.2.0": "migrations/1.2.0.mjs",
-    "1.2.1": "migrations/1.2.1.mjs"
+    "1.2.1": "migrations/1.2.1.mjs",
+    "1.3.0": "migrations/1.3.0.mjs"
   }
 }

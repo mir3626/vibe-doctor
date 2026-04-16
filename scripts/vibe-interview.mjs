@@ -113,12 +113,13 @@ let templateCache = null;
 
 function usage() {
   return [
-    'usage: node scripts/vibe-interview.mjs --init --prompt "<one-liner>" [--lang ko|en] [--max-rounds 30] [--output <path>]',
+    'usage: node scripts/vibe-interview.mjs --init --prompt "<one-liner>" [--lang ko|en] [--max-rounds 30] [--mode init|iterate] [--carryover <iteration-id>] [--output <path>]',
     '   or: node scripts/vibe-interview.mjs --set-domain --domain "<string or json>"',
     '   or: node scripts/vibe-interview.mjs --continue --answer "<text>"',
     '   or: node scripts/vibe-interview.mjs --record --attribution \'<json>\'',
     '   or: node scripts/vibe-interview.mjs --status',
     '   or: node scripts/vibe-interview.mjs --abort',
+    '   or: node scripts/vibe-interview.mjs --mode iterate --carryover <iteration-id> --dry-run',
   ].join('\n');
 }
 
@@ -140,6 +141,10 @@ function parseJsonText(text, label) {
 
 function sanitizeInput(value) {
   return String(value ?? '').replaceAll('\u0000', '').trim();
+}
+
+function readIfExists(filePath) {
+  return existsSync(filePath) ? readFileSync(filePath, 'utf8') : '';
 }
 
 function clampConfidence(value) {
@@ -554,6 +559,45 @@ function summarizePriorAnswers(state) {
   return lines.join('\n');
 }
 
+function summarizeRecentSessionLog(limit = 20) {
+  return readIfExists(path.join(ROOT, '.vibe', 'agent', 'session-log.md'))
+    .split(/\r?\n/)
+    .filter((line) => line.startsWith('- '))
+    .slice(0, limit)
+    .join('\n');
+}
+
+function buildPriorIterationCarryover(carryoverId) {
+  const report = readIfExists(path.join(ROOT, 'docs', 'reports', 'project-report.html'));
+  const handoff = readIfExists(path.join(ROOT, '.vibe', 'agent', 'handoff.md'));
+  const milestones = readIfExists(path.join(ROOT, 'docs', 'plans', 'project-milestones.md'));
+  const roadmap = readIfExists(path.join(ROOT, 'docs', 'plans', 'sprint-roadmap.md'));
+  const historyRaw = readIfExists(path.join(ROOT, '.vibe', 'agent', 'iteration-history.json'));
+  const snippets = [
+    `Carryover iteration: ${carryoverId || '(unspecified)'}`,
+    '',
+    'Recent session entries:',
+    summarizeRecentSessionLog() || '(none)',
+    '',
+    'Handoff snapshot:',
+    handoff.split(/\r?\n/).slice(0, 24).join('\n') || '(missing)',
+    '',
+    'Milestones:',
+    milestones.split(/\r?\n/).slice(0, 24).join('\n') || '(missing)',
+    '',
+    'Roadmap pointer:',
+    roadmap.split(/\r?\n/).slice(0, 16).join('\n') || '(missing)',
+    '',
+    'Iteration history:',
+    historyRaw.slice(0, 2000) || '(missing)',
+    '',
+    'Prior report text signals:',
+    report.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 2000) || '(missing)',
+  ];
+
+  return ['## Prior iteration carryover', '', ...snippets].join('\n');
+}
+
 function resolveDomainProbeText(inferredDomain) {
   const haystack = inferredDomain.toLowerCase();
   for (const [needle, fileName] of DOMAIN_PROBE_MAP) {
@@ -587,7 +631,7 @@ function buildDomainInferencePrompt(oneLiner, lang) {
 
 function buildSynthesizerPrompt(state, dimension, roundNumber) {
   const { synthesizer } = loadTemplates();
-  return renderTemplate(synthesizer, {
+  const basePrompt = renderTemplate(synthesizer, {
     '{{ONE_LINER}}': sanitizeInput(state.oneLiner),
     '{{INFERRED_DOMAIN}}': sanitizeInput(state.inferredDomain ?? ''),
     '{{LANG}}': state.lang,
@@ -601,6 +645,12 @@ function buildSynthesizerPrompt(state, dimension, roundNumber) {
     '{{MAX_ROUNDS}}': String(state.maxRounds),
     '{{DOMAIN_PROBES}}': resolveDomainProbeText(state.inferredDomain ?? ''),
   });
+  const carryover =
+    state.meta?.interviewMode === 'iterate'
+      ? sanitizeInput(state.meta?.priorIterationCarryover ?? '')
+      : '';
+
+  return carryover === '' ? basePrompt : `${basePrompt}\n\n${carryover}\n`;
 }
 
 function buildAnswerParserPrompt(state, dimension, pendingRound, answer) {
@@ -900,9 +950,14 @@ function initCommand(flags) {
   }
 
   const lang = flags.get('--lang') === 'en' ? 'en' : 'ko';
-  const maxRoundsRaw = Number(flags.get('--max-rounds') ?? 30);
+  const mode = flags.get('--mode') === 'iterate' ? 'iterate' : 'init';
+  const carryoverIterationId = sanitizeInput(flags.get('--carryover'));
+  const defaultMaxRounds = mode === 'iterate' ? 15 : 30;
+  const maxRoundsRaw = Number(flags.get('--max-rounds') ?? defaultMaxRounds);
   const maxRounds =
-    Number.isFinite(maxRoundsRaw) && maxRoundsRaw > 0 ? Math.floor(maxRoundsRaw) : 30;
+    Number.isFinite(maxRoundsRaw) && maxRoundsRaw > 0
+      ? Math.floor(maxRoundsRaw)
+      : defaultMaxRounds;
   const sessionId = createSessionId();
 
   let dimensionsDocument;
@@ -935,6 +990,10 @@ function initCommand(flags) {
     outputPath,
     meta: {
       orchestratorModel: null,
+      interviewMode: mode,
+      carryoverIterationId: mode === 'iterate' ? carryoverIterationId : null,
+      priorIterationCarryover:
+        mode === 'iterate' ? buildPriorIterationCarryover(carryoverIterationId) : '',
     },
     pending: null,
   };
@@ -1144,6 +1203,24 @@ function main() {
 
   if (flags.has('--stub-compute-ambiguity')) {
     stubComputeAmbiguityCommand(flags);
+    return;
+  }
+
+  if (flags.get('--mode') === 'iterate' && flags.has('--dry-run')) {
+    const carryoverIterationId = sanitizeInput(flags.get('--carryover'));
+    process.stdout.write(
+      `${JSON.stringify(
+        {
+          phase: 'iterate-dry-run',
+          mode: 'iterate',
+          carryoverIterationId,
+          maxRoundsDefault: 15,
+          priorIterationCarryover: buildPriorIterationCarryover(carryoverIterationId),
+        },
+        null,
+        2,
+      )}\n`,
+    );
     return;
   }
 

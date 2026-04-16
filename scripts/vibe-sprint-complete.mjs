@@ -167,6 +167,105 @@ function parseCompletedSprintIds(sessionLogMd) {
   return completed;
 }
 
+function readIterationCompletionState(sprintId) {
+  const iterationPath = resolve('.vibe/agent/iteration-history.json');
+  if (!existsSync(iterationPath)) {
+    return true;
+  }
+
+  try {
+    const history = JSON.parse(readFileSync(iterationPath, 'utf8'));
+    const iterations = Array.isArray(history.iterations) ? history.iterations : [];
+    const current = iterations.find((entry) => entry?.id === history.currentIteration);
+    if (!current) {
+      return true;
+    }
+
+    const planned = Array.isArray(current.plannedSprints) ? current.plannedSprints : [];
+    const completed = new Set(
+      Array.isArray(current.completedSprints) ? current.completedSprints : [],
+    );
+    completed.add(sprintId);
+    return planned.length === 0 || planned.every((plannedSprintId) => completed.has(plannedSprintId));
+  } catch {
+    return false;
+  }
+}
+
+function recordIterationSprintCompletion(sprintId, status) {
+  if (status !== 'passed') {
+    return false;
+  }
+
+  const iterationPath = resolve('.vibe/agent/iteration-history.json');
+  if (!existsSync(iterationPath)) {
+    return false;
+  }
+
+  const history = JSON.parse(readFileSync(iterationPath, 'utf8'));
+  const iterations = Array.isArray(history.iterations) ? history.iterations : [];
+  const current =
+    iterations.find((entry) => entry?.id === history.currentIteration) ??
+    iterations.find(
+      (entry) =>
+        entry?.completedAt === null &&
+        Array.isArray(entry.plannedSprints) &&
+        entry.plannedSprints.includes(sprintId),
+    );
+
+  if (!current) {
+    return false;
+  }
+
+  if (!Array.isArray(current.completedSprints)) {
+    current.completedSprints = [];
+  }
+  if (current.completedSprints.includes(sprintId)) {
+    return false;
+  }
+
+  current.completedSprints.push(sprintId);
+  writeFileSync(iterationPath, `${JSON.stringify(history, null, 2)}\n`, 'utf8');
+  return true;
+}
+
+function shouldAutoProjectReport(sprintId, status, noAutoReport) {
+  if (noAutoReport || status !== 'passed') {
+    return false;
+  }
+
+  const roadmapPath = resolve('docs/plans/sprint-roadmap.md');
+  if (!existsSync(roadmapPath)) {
+    return false;
+  }
+
+  const roadmapSprintIds = parseRoadmapSprintIds(readFileSync(roadmapPath, 'utf8'));
+  return (
+    roadmapSprintIds.length > 0 &&
+    roadmapSprintIds[roadmapSprintIds.length - 1] === sprintId &&
+    readIterationCompletionState(sprintId)
+  );
+}
+
+function runProjectReport() {
+  const reportScript = resolve('scripts/vibe-project-report.mjs');
+  if (!existsSync(reportScript)) {
+    logStep('project-report', 'warn', 'detail=script-missing');
+    return;
+  }
+
+  const result = spawnSync(process.execPath, [reportScript], { stdio: 'inherit' });
+  if (result.status === 0) {
+    logStep('project-report', 'ok');
+    return;
+  }
+  if (result.error) {
+    logStep('project-report', 'warn', `detail=${result.error.message}`);
+    return;
+  }
+  logStep('project-report', 'warn', `detail=exit-${result.status ?? 1}`);
+}
+
 export function computeCurrentPointerBlock(
   roadmapMd,
   sessionLogMd,
@@ -291,12 +390,13 @@ function runCli() {
   const [, , sprintId, status, ...rest] = process.argv;
   if (!sprintId || !status || !['passed', 'failed'].includes(status)) {
     fail(
-      'Usage: node scripts/vibe-sprint-complete.mjs <sprintId> <passed|failed> [--summary "summary text"] [--scope <path1,path2,...>]',
+      'Usage: node scripts/vibe-sprint-complete.mjs <sprintId> <passed|failed> [--summary "summary text"] [--scope <path1,path2,...>] [--no-auto-report]',
     );
   }
 
   let summary = '';
   let scope = null;
+  let noAutoReport = false;
   for (let i = 0; i < rest.length; i += 1) {
     if (rest[i] === '--summary') {
       summary = rest[i + 1] ?? '';
@@ -304,6 +404,8 @@ function runCli() {
     } else if (rest[i] === '--scope') {
       scope = parseScopeValue(rest[i + 1] ?? '');
       i += 1;
+    } else if (rest[i] === '--no-auto-report') {
+      noAutoReport = true;
     }
   }
 
@@ -503,6 +605,13 @@ function runCli() {
   }
 
   try {
+    const changed = recordIterationSprintCompletion(sprintId, status);
+    logStep('iteration-history', changed ? 'ok' : 'skip');
+  } catch (error) {
+    logStep('iteration-history', 'warn', `detail=${error.message}`);
+  }
+
+  try {
     const syncStatus = syncSessionLog(scriptDir);
     if (syncStatus === 2) {
       logStep('session-log-sync', 'warn', 'detail=lock-held');
@@ -511,6 +620,10 @@ function runCli() {
     }
   } catch (error) {
     logStep('session-log-sync', 'warn', `detail=${error.message}`);
+  }
+
+  if (shouldAutoProjectReport(sprintId, status, noAutoReport)) {
+    runProjectReport();
   }
 }
 
