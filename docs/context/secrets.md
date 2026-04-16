@@ -24,3 +24,16 @@
 | gemini | `gemini` OAuth 브라우저 로그인 | `GEMINI_API_KEY` |
 
 CLI 로그인 캐시(`~/.codex/auth.json`, `~/.gemini/`)는 프로젝트 외부에 저장되므로 git에 노출되지 않는다.
+
+## Sprint-mode 보안 가이드
+
+`/vibe-sprint-mode on`은 `.claude/settings.local.json`에 scope 기반 permission 규칙을 추가한다.
+
+### 범위 제한
+- 허용 대상: `npm install/ci/run`, `npx tsc/vitest/eslint/playwright`, `node scripts/`, `git` 기본 명령.
+- 허용되지 않는 것: 임의 shell 명령, `rm`, `curl`, 파일 시스템 직접 조작, 네트워크 요청 도구.
+
+### 주의 사항
+- **npm postinstall 공격**: `npm install`이 허용되므로 악성 패키지의 postinstall 스크립트가 실행될 수 있다. 신뢰하지 않는 의존성 추가 시 `--ignore-scripts` 사용.
+- **git push**: preset에 `git push`가 포함됨. 자동 push를 원하지 않으면 해당 규칙만 수동 제거.
+- **해제**: `/vibe-sprint-mode off`로 preset 규칙만 정확히 제거. 사용자 커스텀 규칙은 보존.

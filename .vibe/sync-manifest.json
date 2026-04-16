@@ -96,9 +96,15 @@
       "scripts/vibe-resolve-model.mjs",
       "scripts/vibe-interview.mjs",
       "scripts/vibe-model-registry-check.mjs",
+      "scripts/vibe-status-tick.mjs",
+      "scripts/vibe-sprint-mode.mjs",
       "migrations/1.2.0.mjs",
       "test/model-registry.test.ts",
+      ".claude/statusline.sh",
+      ".claude/statusline.ps1",
+      ".vibe/settings-presets/agent-delegation.json",
       ".claude/skills/vibe-interview/SKILL.md",
+      ".claude/skills/vibe-sprint-mode/SKILL.md",
       ".claude/skills/vibe-interview/dimensions.json",
       ".claude/skills/vibe-interview/dimensions.schema.json",
       ".claude/skills/vibe-interview/prompts/synthesizer.md",
@@ -117,7 +123,10 @@
       "test/interview-dimensions.test.ts",
       "test/interview-engine.test.ts",
       "test/interview-cli.test.ts",
-      "docs/context/harness-gaps.md"
+      "docs/context/harness-gaps.md",
+      "test/statusline.test.ts",
+      "test/sprint-mode.test.ts",
+      "test/status-tick.test.ts"
     ],
     "hybrid": {
       "CLAUDE.md": {
@@ -184,6 +193,7 @@
       ".vibe/agent/handoff.md",
       ".vibe/agent/session-log.md",
       ".vibe/agent/project-decisions.jsonl",
+      ".vibe/agent/tokens.json",
       ".vibe/archive/README.md",
       "docs/plans/**",
       "docs/reports/**",

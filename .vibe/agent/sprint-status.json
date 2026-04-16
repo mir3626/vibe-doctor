@@ -180,6 +180,18 @@
         "net": 1361,
         "filesChanged": 20
       }
+    },
+    {
+      "id": "sprint-M9-statusline-permissions",
+      "name": "sprint-M9-statusline-permissions",
+      "status": "passed",
+      "completedAt": "2026-04-16T02:07:25.951Z",
+      "actualLoc": {
+        "added": 1279,
+        "deleted": 8,
+        "net": 1271,
+        "filesChanged": 16
+      }
     }
   ],
   "verificationCommands": [
@@ -201,7 +213,7 @@
   "sandboxNotes": [],
   "handoff": {
     "currentSprintId": "idle",
-    "lastActionSummary": "Sprint sprint-M8-audit-review-gaps completed with passed",
+    "lastActionSummary": "Sprint sprint-M9-statusline-permissions completed with passed",
     "openIssues": [],
     "orchestratorContextBudget": "low",
     "preferencesActive": [
@@ -209,7 +221,7 @@
       "autonomous-until-artifact"
     ],
     "handoffDocPath": ".vibe/agent/handoff.md",
-    "updatedAt": "2026-04-16T01:38:55.963Z"
+    "updatedAt": "2026-04-16T02:07:25.951Z"
   },
   "pendingRisks": [
     {
@@ -243,10 +255,18 @@
       "text": "Evaluator audit due (sprintsSinceLastAudit=8, everyN=5).",
       "status": "open",
       "createdAt": "2026-04-16T01:38:55.963Z"
+    },
+    {
+      "id": "audit-after-sprint-M9-statusline-permissions",
+      "raisedBy": "vibe-sprint-complete",
+      "targetSprint": "*",
+      "text": "Evaluator audit due (sprintsSinceLastAudit=9, everyN=5).",
+      "status": "open",
+      "createdAt": "2026-04-16T02:07:25.951Z"
     }
   ],
   "lastSprintScope": [],
   "lastSprintScopeGlob": [],
-  "sprintsSinceLastAudit": 8,
-  "stateUpdatedAt": "2026-04-16T01:38:55.963Z"
+  "sprintsSinceLastAudit": 9,
+  "stateUpdatedAt": "2026-04-16T02:07:25.951Z"
 }

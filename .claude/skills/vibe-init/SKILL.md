@@ -491,6 +491,18 @@ Expected outcomes:
 
 If the command exits non-zero, print the reason, tell the user to run it manually once, and continue Phase 4 without blocking.
 
+### Step 4-0b: Agent delegation 권한 프리셋 (opt-in)
+
+Orchestrator asks:
+
+> Sprint 자율 실행 시 권한 프롬프트를 줄이는 agent-delegation 프리셋을 적용하시겠습니까?
+> (npm install/build/test/git 등 scope 제한된 명령만 자동 허용)
+> [Y/n]
+
+- User answers Y (or PO-proxy auto-yes): run `node scripts/vibe-sprint-mode.mjs on`.
+- User answers N: skip. Print "프리셋 미적용. 나중에 `/vibe-sprint-mode on`으로 활성화할 수 있습니다."
+- If the script exits non-zero, print warning and continue.
+
 ### Step 4-1: 설정 요약 출력
 
 모든 단계가 끝나면 아래를 출력합니다:

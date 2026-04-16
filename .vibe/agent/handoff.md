@@ -12,7 +12,7 @@
 - **working dir**: (로컬 환경에서 설정)
 - **language/tone**: 한국어 반말 (memory: `feedback_language_tone.md`)
 
-## 2. Status: IDLE - Sprint sprint-M8-audit-review-gaps passed
+## 2. Status: IDLE - Sprint sprint-M9-statusline-permissions passed
 
 하네스 싱크 메커니즘(`vibe:sync`) 구현 완료. 인프라·코드·비코드 파일 모두 포함. tsc/tests 34/34 통과.
 
@@ -34,6 +34,7 @@
 | `sprint-M6-pattern-shards` | sprint-M6-pattern-shards | passed |
 | `sprint-M7-phase0-seal-and-utilities` | sprint-M7-phase0-seal-and-utilities | passed |
 | `sprint-M8-audit-review-gaps` | sprint-M8-audit-review-gaps | passed |
+| `sprint-M9-statusline-permissions` | sprint-M9-statusline-permissions | passed |
 
 상세는 `sprint-status.json`의 `sprints[]` + `session-log.md` Archived 섹션 참조.
 
