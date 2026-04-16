@@ -26,6 +26,18 @@ export interface SprintConfig {
   freshContextPerSprint: boolean;
 }
 
+export interface BundleConfig {
+  enabled: boolean;
+  dir: string;
+  limitGzipKB: number;
+  excludeExt: string[];
+}
+
+export interface BrowserSmokeConfig {
+  enabled: boolean;
+  configPath: string;
+}
+
 export interface VibeConfig {
   orchestrator: string;
   harnessVersion?: string;
@@ -41,10 +53,26 @@ export interface VibeConfig {
   qa?: {
     preferScripts?: string[];
   };
+  bundle?: BundleConfig;
+  browserSmoke?: BrowserSmokeConfig;
+}
+
+function mergeOptionalObject<T extends object>(
+  base?: T,
+  override?: Partial<T>,
+): T | undefined {
+  if (!base && !override) {
+    return undefined;
+  }
+
+  return {
+    ...(base ?? {}),
+    ...(override ?? {}),
+  } as T;
 }
 
 function mergeConfig(base: VibeConfig, override: Partial<VibeConfig>): VibeConfig {
-  return {
+  const merged: VibeConfig = {
     ...base,
     ...override,
     sprintRoles: {
@@ -64,6 +92,18 @@ function mergeConfig(base: VibeConfig, override: Partial<VibeConfig>): VibeConfi
       ...(override.qa ?? {}),
     },
   };
+
+  const bundle = mergeOptionalObject(base.bundle, override.bundle);
+  if (bundle) {
+    merged.bundle = bundle;
+  }
+
+  const browserSmoke = mergeOptionalObject(base.browserSmoke, override.browserSmoke);
+  if (browserSmoke) {
+    merged.browserSmoke = browserSmoke;
+  }
+
+  return merged;
 }
 
 export async function loadConfig(): Promise<VibeConfig> {

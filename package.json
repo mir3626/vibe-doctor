@@ -14,6 +14,8 @@
     "vibe:doctor": "npx tsx src/commands/doctor.ts",
     "vibe:init": "npx tsx src/commands/init.ts",
     "vibe:interview": "node scripts/vibe-interview.mjs",
+    "vibe:bundle-size": "npx tsx src/commands/bundle-size.ts",
+    "vibe:browser-smoke": "node scripts/vibe-browser-smoke.mjs",
     "vibe:qa": "npx tsx src/commands/qa.ts",
     "vibe:usage": "npx tsx src/commands/summarize-usage.ts",
     "vibe:report": "npx tsx src/commands/write-report.ts",

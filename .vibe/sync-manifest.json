@@ -10,12 +10,15 @@
       "scripts/vibe-version-check.mjs",
       "scripts/vibe-sync-bootstrap.mjs",
       "scripts/vibe-stop-qa-gate.mjs",
+      "scripts/vibe-phase0-seal.mjs",
+      "scripts/vibe-browser-smoke.mjs",
       ".vibe/agent/_common-rules.md",
       ".vibe/agent/re-incarnation.md",
       ".vibe/agent/sprint-status.schema.json",
       ".vibe/agent/README.md",
       ".vibe/sync-manifest.json",
       ".claude/skills/vibe-init/SKILL.md",
+      ".claude/skills/vibe-init/templates/readme-skeleton.md",
       ".claude/skills/goal-to-plan/SKILL.md",
       ".claude/skills/self-qa/SKILL.md",
       ".claude/skills/write-report/SKILL.md",
@@ -32,6 +35,7 @@
       ".env.example",
       ".github/workflows/ci.yml",
       "src/commands/audit-config.ts",
+      "src/commands/bundle-size.ts",
       "src/commands/doctor.ts",
       "src/commands/init.ts",
       "src/commands/qa.ts",
@@ -54,6 +58,8 @@
       "src/providers/runner.ts",
       "src/providers/types.ts",
       "test/args.test.ts",
+      "test/browser-smoke-contract.test.ts",
+      "test/bundle-size.test.ts",
       "test/commands.test.ts",
       "test/config.test.ts",
       "test/providers.test.ts",
@@ -75,6 +81,7 @@
       "scripts/vibe-sprint-commit.mjs",
       "scripts/vibe-session-log-sync.mjs",
       "src/lib/decisions.ts",
+      "test/phase0-seal.test.ts",
       "test/sprint-commit.test.ts",
       "test/session-log-sync.test.ts",
       "test/decisions.test.ts",
@@ -153,7 +160,7 @@
       ".vibe/config.json": {
         "strategy": "json-deep-merge",
         "harnessKeys": ["harnessVersion", "qa"],
-        "projectKeys": ["orchestrator", "sprintRoles", "sprint", "providers", "harnessVersionInstalled", "upstream"]
+        "projectKeys": ["orchestrator", "sprintRoles", "sprint", "providers", "harnessVersionInstalled", "upstream", "bundle", "browserSmoke"]
       }
     },
     "project": [

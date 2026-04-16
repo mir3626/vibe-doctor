@@ -387,6 +387,70 @@ Rewrite only the marker blocks below in `docs/context/conventions.md`. If a mark
 <!-- END:VIBE:LINT-PATTERNS -->
 ```
 
+### Step 3-4: web/frontend utility opt-in
+
+After Step 3-3, inspect `inferred_domain`, `dimensions.platform`, and `tech_stack.normalized_slugs[]` to decide whether the project is a web/frontend candidate.
+
+Treat the project as a web/frontend candidate when either condition matches:
+
+- `normalized_slugs[]` includes a `ts-` stack slug related to web, browser, or mobile work such as `ts-react`, `ts-vue`, `ts-svelte`, `ts-vite`, or `ts-next`
+- `platform` contains `web`, `mobile`, or `browser`
+
+Decision flow:
+
+- PO-proxy mode: infer `bundle.enabled` and `browserSmoke.enabled` from the detected platform/domain signals without asking the user
+- Manual mode: ask exactly these questions
+
+```
+1) 번들 크기 제약이 있나요? (예: 모바일 웹, 첫 페인트 budget) [y/N]
+2) 브라우저 UI 가 있어 smoke 검증을 활성화할까요? [y/N]
+```
+
+Apply the result by patching `.vibe/config.json`:
+
+```json
+"bundle": {
+  "enabled": false,
+  "dir": "dist",
+  "limitGzipKB": 80,
+  "excludeExt": [".map"]
+},
+"browserSmoke": {
+  "enabled": false,
+  "configPath": ".vibe/smoke.config.js"
+}
+```
+
+Always append one session log entry with the rationale:
+
+```md
+- 2026-04-16T00:00:00.000Z [decision][phase3-utility-opt-in] bundle=true browserSmoke=false rationale=...
+```
+
+If `browserSmoke.enabled` becomes `true`, create `.vibe/smoke.config.js` only when it does not already exist. Use this skeleton:
+
+```js
+export default {
+  url: 'http://localhost:5173',
+  viewport: { width: 375, height: 812 },
+  expectDom: ['#stage'],
+  expectConsoleFree: true,
+  canvasAssertions: []
+};
+```
+
+Also create a root `README.md` from `.claude/skills/vibe-init/templates/readme-skeleton.md` when the file does not already exist. Replace:
+
+- `{{project_name}}` with the first heading from `docs/context/product.md`
+- `{{one_liner}}` with the interview seed one-liner
+- `{{status}}` with `WIP (Phase 0 complete)`
+
+If `README.md` already exists, skip it and print:
+
+```text
+[vibe-init] README.md exists, skipping skeleton write
+```
+
 ---
 
 ## Phase 4 — 설정 요약 및 완료
@@ -410,6 +474,22 @@ Sprint Generator가 **Codex CLI**(또는 trust-based sandbox를 쓰는 다른 pr
 이 단계는 Phase 2에서 Codex/기타 샌드박스형 provider를 선택한 경우에만 필수지만,
 선택과 무관하게 git 저장소가 있으면 이후 작업(커밋, 리뷰, 복구)이 모두 수월해지므로
 **언제나 실행**하는 것을 기본값으로 삼습니다.
+
+### Step 4-0a: Phase 0 seal commit
+
+Immediately after Step 4-0 finishes, run:
+
+```bash
+node scripts/vibe-phase0-seal.mjs
+```
+
+Expected outcomes:
+
+- exit `0` with `[phase0-seal] committed: ...` after staging the Phase 0 artifacts and creating the seal commit
+- exit `0` with `[phase0-seal] already sealed (no changes)` when nothing changed
+- exit `0` with `[phase0-seal] no candidate files present` when the Phase 0 files are absent
+
+If the command exits non-zero, print the reason, tell the user to run it manually once, and continue Phase 4 without blocking.
 
 ### Step 4-1: 설정 요약 출력
 

@@ -38,6 +38,18 @@
       "build"
     ]
   },
+  "bundle": {
+    "enabled": false,
+    "dir": "dist",
+    "limitGzipKB": 80,
+    "excludeExt": [
+      ".map"
+    ]
+  },
+  "browserSmoke": {
+    "enabled": false,
+    "configPath": ".vibe/smoke.config.js"
+  },
   "audit": {
     "everyN": 5
   }

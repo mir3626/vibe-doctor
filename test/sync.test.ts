@@ -321,6 +321,13 @@ describe('sync manifest', () => {
     assert.equal(manifest.files.harness.includes('src/lib/decisions.ts'), true);
     assert.equal(manifest.files.harness.includes('.claude/skills/test-patterns/**'), true);
     assert.equal(manifest.files.harness.includes('.claude/skills/lint-patterns/**'), true);
+    assert.equal(manifest.files.harness.includes('scripts/vibe-phase0-seal.mjs'), true);
+    assert.equal(manifest.files.harness.includes('scripts/vibe-browser-smoke.mjs'), true);
+    assert.equal(manifest.files.harness.includes('src/commands/bundle-size.ts'), true);
+    assert.equal(manifest.files.harness.includes('.claude/skills/vibe-init/templates/readme-skeleton.md'), true);
+    assert.equal(manifest.files.harness.includes('test/bundle-size.test.ts'), true);
+    assert.equal(manifest.files.harness.includes('test/phase0-seal.test.ts'), true);
+    assert.equal(manifest.files.harness.includes('test/browser-smoke-contract.test.ts'), true);
     assert.equal(manifest.files.project.includes('.vibe/agent/project-map.json'), true);
     assert.equal(manifest.files.project.includes('.vibe/agent/sprint-api-contracts.json'), true);
     assert.equal(manifest.files.project.includes('.vibe/agent/project-decisions.jsonl'), true);
