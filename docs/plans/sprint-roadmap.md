@@ -276,6 +276,112 @@ M1..M9 ──────────────> M10 (release)
 
 `.vibe/agent/sprint-status.json` + `handoff.md` + `session-log.md` + 신규 `project-map.json` + `sprint-api-contracts.json` + `project-decisions.jsonl` (M1, M3 이후) 로 완전 기계화.
 
+---
+
+# Iteration 2 — harness hardening (v1.4.0)
+
+## 배경
+
+dogfood7 (Neighbor TimeBank MVP, S01~S10) 실사용 후 `/vibe-review` 산출 (`dogfood7/docs/reports/review-10-2026-04-16.md`) 기반. Review 의 9개 finding 중 **하네스 scope 만** 걸러낸 3 slot. 프로젝트 고유 이슈 (rate-limit fix, in-memory↔Supabase 결정) 는 dogfood8 이터레이션에서 별도 처리.
+
+**공통 문제 압력** (review deep-analysis):
+- A. 자율 모드 인센티브 (단기 비용 최소화) — 사용자 위임 시 audit/Planner skip 유혹
+- B. Schema/룰의 single source 부재 (4채널 drift: TS validator / JSON schema / bootstrap / update 로직)
+- C. Backstop(정기 감사) 부재 — self-QA 단독 부담
+
+**메타 원칙**: MD 에 적힌 모든 룰은 30 sprint 안에 `vibe-*` 스크립트의 exit code 로 변환되어야 한다. 변환 안 된 룰은 룰이 아니라 권고.
+
+## 범위 요약
+
+- **총 Sprint**: 3
+- **총 예상 LOC**: ~1500 (프로덕션 ~1000 + 테스트 ~500)
+- **릴리스 타깃**: v1.4.0 (minor bump — Zod 런타임 의존 추가 + audit gate / sprint-planner agent 교체는 non-breaking 으로 backward-compat 유지)
+- **새 런타임 의존**: `zod` (validator single source)
+- **사용자 모드**: **자율 아님** — 각 Sprint 시작 전 명시적 승인
+
+## 공통 제약 (모든 slot 에 적용)
+
+`.vibe/agent/_common-rules.md §14 Wiring Integration Checklist` 준수 — 각 Sprint Final report 의 `## Wiring Integration` 섹션이 없으면 incomplete 로 간주. Dead weight / 참조 drift 재발 방지.
+
+## Sprint M-audit — audit gate + schema validation (P0 Blocker)
+
+- **id**: `sprint-M-audit`
+- **해결 finding**: review-evaluator-audit-overdue (#1) + review-status-json-schema-drift (#2) + review-tmp-debug-scripts-residue (#8)
+- **핵심 산출**:
+  1. **Zod 런타임 의존 도입** — `package.json dependencies.zod` 추가. `src/lib/schemas/` 디렉토리 신규 — 모든 `.vibe/agent/*.json` (sprint-status / project-map / sprint-api-contracts / iteration-history / model-registry) 의 Zod schema 를 single source 로 정의.
+  2. **`src/lib/sprint-status.ts` 리팩토링** — 수동 `isSprintStatus` validator → `SprintStatusSchema.parse()` 로 교체. `verifiedAt: z.string().optional()` 등 null-permissive 처리.
+  3. **JSON schema 자동 생성** — `zod-to-json-schema` devDep + `scripts/vibe-gen-schemas.mjs` 로 `*.schema.json` 파일 regenerate. CI 에서 drift 검증.
+  4. **Bootstrap initializer** — `SprintStatusSchema.parse({})` 기본값 기반. 사람이 손으로 JSON 쓰지 않음.
+  5. **`vibe-preflight.mjs` 강화**:
+     - **첫 단계에 모든 `.vibe/agent/*.json` Zod validation** (fail-fast + fix suggestion, silent auto-fix 금지).
+     - **Audit overdue 게이트**: `--block-on-overdue-audit` 기본 on. `sprintsSinceLastAudit >= audit.everyN` OR `pendingRisks.filter(r => r.status==='open' && r.id.startsWith('audit-')).length > 0` 이면 `exit 1`. 우회는 `--ack-audit-overdue=<sprintId>:<reason>` → session-log `[decision][audit-ack]` 자동 기록.
+  6. **`scripts/vibe-audit-lightweight.mjs` 신규** — Sub-agent 호출 없는 순수 스크립트 per-sprint 자동 감사:
+     - git diff stats (파일 수 / LOC / extension 분포 outlier)
+     - commit message 의 spec keyword vs 실제 구현 grep
+     - 테스트 파일 대응 존재 여부
+     - 실패 시 pendingRisks 에 `lightweight-audit-<sprintId>` 자동 주입 (non-blocking INFO)
+  7. **CLAUDE.md 업데이트** — 2단 감사 convention 명문화 (lightweight per-sprint + heavyweight Evaluator per-N). "audit-skipped-mode" 사용자 지시를 공식 라벨로 인정하되 session-log 영구 기록 강제.
+  8. **Tmp file cleanup convention** — `.gitignore` 에 `scripts/tmp-*.{ts,mjs}` 패턴 추가, `vibe-preflight` 에 tmp 잔존 detection (warn).
+- **범위 밖**: Evaluator agent 실제 1회 소환하여 dogfood7 의 6 risk 처리 — **dogfood7 이터레이션 몫**. 본 Sprint 는 **향후 프로젝트의 backstop 인프라** 만 담당.
+- **예상 LOC**: ~600 (schemas 150 + preflight 확장 150 + lightweight audit 100 + tests 200)
+- **의존**: 없음 (첫 slot)
+- **Wiring 주의점**: Zod 도입은 W7 (sync-manifest hybrid harnessKeys) + W9 (package.json scripts) + W6 (신규 lib/scripts harness[]) 동시 touch 필수.
+
+## Sprint M-process-discipline — Planner agent 교체 + rule 현실화 (P1 Friction)
+
+- **id**: `sprint-M-process-discipline`
+- **해결 finding**: review-planner-skip-without-justification (#3) + review-planner-subagent-readonly-conflict (#4)
+- **핵심 산출**:
+  1. **`.claude/agents/planner.md` 삭제 + `.claude/agents/sprint-planner.md` 신규 생성** — 파일명 자체를 교체 (공존 X). tools: `Read, Glob, Grep, WebFetch, Write, Edit` 명시 (기본 Plan agent 의 read-only trap 제거).
+  2. **참조 일괄 업데이트** (§14.2 D1 적용):
+     - `.vibe/sync-manifest.json` files.harness[] 에서 `planner.md` → `sprint-planner.md`
+     - `docs/plans/sprint-roadmap.md` 내 historical 참조는 "이전 planner.md (v1.4.0 에서 sprint-planner.md 로 교체)" 로 주석
+     - `.claude/skills/vibe-init/SKILL.md` 의 planner.md 언급 부분 업데이트
+     - Migration `1.4.0.mjs` 에 `.claude/agents/planner.md` 물리 삭제 + `sprint-planner.md` 복사 처리 (downstream sync 시 orphan 방지)
+  3. **CLAUDE.md 업데이트**:
+     - "Planner 소환 = `Agent({subagent_type: 'sprint-planner', model: 'opus'})`" 명시적 호출 예시
+     - Claude Code 내장 "Plan" agent 와 혼동 금지 경고 블록
+     - "trivial" 정의 현실화: `<100 LOC + 단일 파일` → "이전 sprint 패턴 직접 계승 + 새 architecture 결정 없음 + spec change 작음" (semantic)
+  4. **`vibe-preflight.mjs` Planner presence warn**: 다음 Sprint 시작 시 `docs/prompts/sprint-<id>-*.md` 존재 + mtime > sprint-status.json.lastHandoffAt 체크. 없으면 WARN (block 아님 — trivial 예외 가능) + session-log `[decision][planner-skip]` entry 요구.
+  5. **`scripts/vibe-planner-skip-log.mjs` 신규** — planner skip 시 session-log 기록 CLI helper. 강제 메커니즘의 일부.
+- **예상 LOC**: ~400
+- **의존**: M-audit (preflight 확장 기반 공유)
+- **Wiring 주의점**: D1~D6 (파일 삭제/교체 참조 정리) 엄격 적용. `rg planner.md` 가 0 hit 되어야 완료.
+
+## Sprint M-harness-gates — MD→script rule 승격 + release tag 자동화 (P2 Structural)
+
+- **id**: `sprint-M-harness-gates`
+- **해결 finding**: review-harness-gaps-open-ledger (#7) + deep-analysis 메타 원칙
+- **핵심 산출**:
+  1. **`scripts/vibe-sprint-commit.mjs` 확장 — harnessVersion delta 자동 태그**:
+     - commit 할 `.vibe/config.json` 의 harnessVersion 이 이전 커밋 대비 bumped 이면 (예: 1.3.1 → 1.4.0) `git tag -a v<new> -m "<auto>"` 자동 생성.
+     - push 에선 명시 opt-in (`--push-tag` 플래그). 자동 push 는 위험.
+     - `gap-release-tag-automation` status=covered 로 갱신.
+  2. **`harness-gaps.md` schema 확장**:
+     - 신규 컬럼 `script-gate` (pending / covered) + `migration-deadline` (N sprints ahead).
+     - 기존 entry 재구성: 현재 "partial" 상태인 `gap-rule-only-in-md` 를 covered 로 전환 (본 sprint 가 핵심 룰을 script gate 화 하므로).
+  3. **`scripts/vibe-rule-audit.mjs` 신규** — CLAUDE.md 내 모든 "MUST / 반드시 / 금지" 표현을 자동 수집 → `harness-gaps.md` 의 rule ledger 와 대조 → script gate 없는 룰 목록 출력. 다음 Sprint scope 후보 생성.
+  4. **"audit-skipped-mode" user directive** — `.vibe/config.local.json.userDirectives.auditSkippedMode: boolean` + expiresAt. 자율 모드로 위임 시 Orchestrator 가 "audit skip 할까요?" 명시 질의 → yes 응답을 이 필드에 영구 기록 → review 가 "인지하 skip" vs "잊고 skip" 구분.
+  5. **`vibe-preflight.mjs` 업데이트** — audit-skipped-mode 유효 기간 내에는 audit overdue 게이트 bypass (단 session-log 영구 기록).
+- **예상 LOC**: ~500
+- **의존**: M-audit (preflight gate 기반)
+- **Wiring 주의점**: W11 migration (harness-gaps schema 변경은 downstream 파일 영향 없지만 rule ledger 포맷 공유 필요), W13 harness-gaps status 갱신 필수.
+
+## Sprint 간 상태 전달 (iteration-2 추가)
+
+- iteration-history.json 에 iter-2 entry append (Orchestrator 가 마무리 시점에 직접).
+- 각 Sprint 완료 시 `vibe-sprint-commit.mjs` 통해 자동 상태 기록.
+
+## 에스컬레이션
+
+- 각 Sprint 의 Wiring Integration 체크리스트 미이행 시 Sprint incomplete, Codex 재위임.
+- Zod 도입으로 인한 기존 테스트 breakage 발견 시 M-audit 내에서 fix (scope 확장 허용).
+- 3개 Sprint 완료 후 v1.4.0 릴리스 (sprint-commit 자동 태그 메커니즘 자체 검증 겸).
+
+## 마무리
+
+iteration-2 3 sprint 완료 시 dogfood8 로 이어감 — dogfood7 잔여 project 이슈 (rate-limit / architecture-reconcile) 는 dogfood8 Phase 0 에서 "이전 프로젝트 경험" 으로 seed.
+
 
 
 

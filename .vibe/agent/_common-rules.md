@@ -198,3 +198,76 @@ Generator report 를 받은 뒤 Orchestrator 가 샌드박스 밖에서 수행:
 Sprint Planner must parse the `VIBE:TEST-PATTERNS` and `VIBE:LINT-PATTERNS` marker blocks in `docs/context/conventions.md` before writing a Sprint prompt.
 Every linked shard is mandatory context for the prompt sections that describe test strategy and quality gates.
 If the marker blocks are absent, Planner may skip shard loading only for a brand-new project and must record `[decision][no-pattern-shards]` once in `session-log.md`.
+
+## §14 Wiring Integration Checklist — dead weight / silent drift 방지
+
+반복된 dogfood 리뷰에서 동일 패턴이 재발했다: **Codex 가 파일을 생성했지만 그 파일을 실제로 호출·참조하는 wiring 을 빠뜨려 dead code 가 되거나, 관련 문서·매니페스트·훅 중 일부만 업데이트되어 silent drift 발생**. 본 섹션은 이 패턴을 방지하기 위한 **모든 Sprint 의 필수 체크리스트**다.
+
+### §14.1 신규 파일·스크립트·스킬 추가 시 — 모든 체크포인트 명시 처리
+
+아래 목록 각 항목에 대해 Final report 의 **"## Wiring Integration"** 섹션에 `touched / n/a / skipped+reason` 중 하나로 상태 보고.
+
+| # | 체크포인트 | 적용 조건 |
+|---|---|---|
+| W1 | `CLAUDE.md` §훅 강제 메커니즘 테이블 행 추가 | 신규 `scripts/vibe-*.mjs` 또는 `run-*.{sh,cmd}` 추가 시 |
+| W2 | `CLAUDE.md` §관련 스킬 list + 한 줄 설명 추가 | 신규 슬래시 커맨드 / `.claude/skills/*` 추가 시 |
+| W3 | `CLAUDE.md` §Sprint flow 번호 업데이트 | Sprint 사이클 절차 변경 시 |
+| W4 | `.claude/settings.json` hook 등록 (SessionStart / Stop / PreToolUse / PostToolUse / Notification / PreCompact) | 이벤트 기반 스크립트 추가 시 |
+| W5 | `.claude/settings.json` statusLine 등록 | 상태바 렌더 변경 시 |
+| W6 | `.vibe/sync-manifest.json` `files.harness[]` 등록 | 신규 하네스 파일 (스크립트·스킬·lib·agent·schema 등) |
+| W7 | `.vibe/sync-manifest.json` `files.hybrid{}.harnessKeys` 확장 | 기존 json-deep-merge 파일 (settings.json / package.json / config.json 등) 에 신규 top-level key 도입 시 |
+| W8 | `README.md` 사용자 가시 섹션 추가 | npm script / 슬래시 커맨드 / 사용자 대면 기능 |
+| W9 | `package.json` `scripts.vibe:*` 엔트리 추가 | `npm run` 호출 필요 시 |
+| W10 | `docs/release/vX.Y.Z.md` 누적 기록 | 모든 기능 추가 / 변경 |
+| W11 | `migrations/X.Y.Z.mjs` idempotent 마이그레이션 + `sync-manifest.migrations` 맵 등록 | schema / state file 구조 변경 시 |
+| W12 | `test/*.test.ts` 회귀 방지 테스트 (신규 파일 당 최소 1개) | 테스트 가능한 로직 추가 시 |
+| W13 | `docs/context/harness-gaps.md` 관련 gap status 갱신 (open → covered / partial → covered) | 기존 gap 을 해결하는 기능 추가 시 |
+| W14 | `.gitignore` 런타임 artifact 등록 | PID / cache / 로그 파일 생성되는 스크립트 추가 시 |
+
+### §14.2 파일·스크립트·스킬 삭제 또는 이름변경 시 — 참조 완전 제거
+
+| # | 체크포인트 |
+|---|---|
+| D1 | 워크스페이스 전체 `rg <old-name>` 으로 grep → 발견된 모든 참조 업데이트 또는 제거 |
+| D2 | `CLAUDE.md` / `README.md` / `.claude/settings.json` / `.claude/skills/*/SKILL.md` / `.vibe/sync-manifest.json` / `.vibe/agent/*.md` / `docs/context/*.md` 각각 개별 점검 |
+| D3 | `.claude/agents/<name>.md` 삭제 시: `subagent_type: '<name>'` 사용처 모두 교체 (new name 또는 대체 호출 패턴) |
+| D4 | `package.json` scripts / `.claude/settings.json` hooks 에서 참조 제거 |
+| D5 | `migrations/X.Y.Z.mjs` 에 "file removed/relocated" 처리 로직 (downstream sync 시 orphan 방지) |
+| D6 | `.gitignore` 에 있던 관련 경로 정리 (여전히 필요한지 확인) |
+
+### §14.3 Dead weight 방지 원칙
+
+1. **"미래 대비 placeholder / stub"** 금지. 실 호출처 없는 신규 파일은 본 Sprint 에서 생성하지 않는다. 필요 시 Sprint 분할.
+2. 신규 파일 마다 Final report 에 `verified-callers: [<경로1>, <경로2>]` 명시 — grep 으로 확인된 실제 호출·import·hook 등록 지점.
+3. "정의만 있고 호출 0" 파일이 리뷰에서 발견되면 dead weight 로 간주, 다음 Sprint 에서 제거 대상.
+
+### §14.4 Final report 에 필수 포함
+
+`## Wiring Integration` 섹션을 Final report 에 반드시 포함. 미포함 시 Orchestrator 가 Sprint 를 incomplete 로 간주하고 Codex 재위임.
+
+```markdown
+## Wiring Integration
+
+| Checkpoint | Status | Evidence |
+|---|---|---|
+| W1 CLAUDE.md hook 테이블 | touched | CLAUDE.md:86 |
+| W2 CLAUDE.md 관련 스킬 | n/a | 신규 슬래시 커맨드 없음 |
+| W6 sync-manifest harness[] | touched | sync-manifest.json:103 |
+| W12 test 회귀 방지 | touched | test/foo.test.ts |
+| D1 rg <old-name> 결과 | touched | 4개 참조 교체 (CLAUDE.md / README.md / SKILL.md 2건) |
+| ... | ... | ... |
+
+verified-callers:
+- scripts/vibe-foo.mjs → CLAUDE.md:86 훅 테이블 / .claude/settings.json:70 PostToolUse
+```
+
+### §14.5 근거
+
+이전 하네스 업그레이드 (v1.2.0 → v1.3.1) 전체 회고에서 반복된 패턴:
+- M9 `statusline.sh` 스크립트 생성 → settings.json statusLine 등록 **누락** → 사용자가 Claude Code 내장 indicator 만 보게 됨 (v1.3.1 뒤늦게 fix)
+- M12 `/vibe-iterate` + `vibe-project-report.mjs` 생성 → CLAUDE.md 관련 스킬 / hook 테이블 **누락** → Orchestrator 가 자기 존재 모름 (v1.3.1 fix)
+- M2 `run-claude.{sh,cmd}` "future provider" stub 생성 → 실 호출처 0 → dead weight (v1.3.1 삭제)
+- M10 `harnessVersion` bump → git tag 자동 생성 **누락** → downstream `vibe:sync` 실패 (v1.3.1 retroactive tag)
+- M1 `archiveSprintPrompts` regex 버그 → M1~M12 아카이빙 전량 실패, 20개 orphan 누적 (v1.3.1 fix)
+
+본 §14 체크리스트는 위 5개 사례 모두 사전 차단한다. **Codex 출력물에 `## Wiring Integration` 섹션 없으면 Sprint 미완료.**
