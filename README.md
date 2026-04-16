@@ -1,28 +1,50 @@
 # vibe-doctor — Claude Code Vibe Coding Template
 
-> 새 프로젝트마다 프롬프트와 규칙을 다시 깔지 않고, `git clone` 후 바로 같은 프로세스와 품질 기준으로 바이브 코딩을 시작할 수 있게 하는 베이스 템플릿
+> 새 프로젝트마다 프롬프트와 규칙을 다시 깔지 않고, `git clone` 후 바로 같은 프로세스와 품질 기준으로 바이브 코딩을 시작할 수 있게 하는 베이스 템플릿.
 
-**Claude Code (Opus 4.6)** 를 메인 오케스트레이터로, **Codex CLI** 를 기본 Generator로 사용하는 Sprint 기반 개발 프로세스입니다.
+**Claude Code (Opus)** 를 메인 오케스트레이터로, **Codex CLI** 를 기본 Generator 로 사용하는 **Phase 0 → Sprint → Report → Iterate** 사이클 기반 개발 템플릿입니다. 네이티브 소크라테스식 인터뷰로 도메인 전문가 수준의 기획을 강제하고, Sprint 완료 시 HTML 보고서를 자동 생성/오픈하며, 누적 iteration 흐름을 한 눈에 따라갈 수 있게 합니다.
 
-> ⚠️ **템플릿 주의**: `docs/context/product.md` 와 `docs/context/architecture.md` 는 의도적으로 플레이스홀더 상태입니다. **`git clone` 직후 `/vibe-init` 을 먼저 실행**해서 프로젝트 맥락을 채운 뒤 개발을 시작하세요. 플레이스홀더 상태로 Sprint를 돌리면 Orchestrator/Planner가 맥락 없이 작업하게 됩니다.
-
-## v1.2.0 highlights
-
-- **Native socratic interview** — 외부 MCP 의존 제거. LLM 기반 도메인 전문가 수준 probing 질문 자동 생성 (`/vibe-interview`)
-- **Stack/framework pattern shards** — 테스트·린트 패턴을 stack별 shard로 분리 (TypeScript, Python, Rust, Go)
-- **Model tier abstraction** — 중앙 registry (`.vibe/model-registry.json`) 로 SOTA 모델 자동 추종
-- **Statusline** — Sprint 진행·토큰·시간을 Claude Code 상태바에 표시
-- **Permission presets** — agent-delegation 모드로 권한 프롬프트 감소 (`/vibe-sprint-mode`)
-- **Bundle-size gate** — gzip 기반 번들 크기 제한 (opt-in, web/frontend 전용)
-- **Browser smoke** — Playwright headless DOM/console 계약 검증 (opt-in)
-- **Sprint flow automation** — 단일 커밋, session-log 정리, Phase 0 seal 자동화
-- **Periodic audit** — 5 Sprint 마다 Evaluator 감사 자동 트리거
+> ⚠️ **템플릿 주의**: `docs/context/product.md` 와 `docs/context/architecture.md` 는 의도적으로 플레이스홀더 상태입니다. **`git clone` 직후 `/vibe-init` 을 먼저 실행**해서 프로젝트 맥락을 채운 뒤 개발을 시작하세요. 플레이스홀더 상태로 Sprint 를 돌리면 Orchestrator/Planner 가 맥락 없이 작업하게 됩니다.
 
 ---
 
-## 빠른 시작
+## v1.3.0 highlights
 
-### 1. 이 템플릿으로 새 레포 만들기
+### 🆕 v1.3.0 (2026-04-16)
+
+- **HTML 프로젝트 보고서 + 브라우저 자동 실행** — 최종 Sprint 완료 시 `scripts/vibe-project-report.mjs` 가 누적 iteration·마일스톤·Sprint 산출을 단일 HTML 로 렌더하고 기본 브라우저 자동 오픈. 메타-프로젝트(vibe-doctor 자체 개선) 내용은 3-signal AND gate 로 필터.
+- **`/vibe-iterate` 반복 개발 명령** — 최초 Sprint 로드맵 소진 후 handoff + report 기반 차등 인터뷰로 새 iteration 진입. Planner 는 fresh context 유지, 사용자는 report.html + `.vibe/agent/iteration-history.json` 으로 전체 build-up 추적.
+- **`/vibe-review` regression 검증** — 이전 리뷰에서 제안된 이슈들이 이후 하네스 업그레이드로 실제 커버됐는지 git log + harness-gaps + sync-manifest 3-signal 로 자동 대조.
+- **리뷰 가중치 공식** — 각 finding 마다 `priority_score = 10·agent_friendly + 5·token_efficient + 1·user_fyi`. `recommended_approach: script-wrapper > md-rule > config-default > user-action` 순서 우선.
+- **.vibe/agent init 리셋** — 클론 직후 프로젝트 상태가 깨끗한 fresh state.
+
+### v1.2.x 계보
+
+- **Native socratic interview** — 외부 MCP 의존 제거. LLM 기반 도메인 전문가 수준 probing (`/vibe-interview`).
+- **Stack/framework pattern shards** — 테스트·린트 패턴을 stack 별 shard 로 분리 (TypeScript, Python, Rust, Go, Canvas/DOM, Playwright 등).
+- **Model tier abstraction** — 중앙 registry (`.vibe/model-registry.json`) 로 SOTA 모델 자동 추종. `flagship/performant/efficient` tier 추상화.
+- **Platform wrappers** — `run-codex.{sh,cmd}` `--health`/`--version` 서브커맨드, retry 가시성, sandbox exclusions provider-agnostic 명문화.
+- **Single-commit automation** — `vibe-sprint-commit.mjs` 래퍼로 state 파일 + 소스 단일 커밋, session-log 정규화, prompts 아카이브.
+- **Statusline** — Sprint 진행·토큰·시간을 Claude Code 상태바에 표시.
+- **Permission presets** — agent-delegation 모드 권한 프롬프트 감소 (`/vibe-sprint-mode`).
+- **Bundle-size gate / Browser smoke** — web/frontend 프로젝트 opt-in 게이트.
+- **Periodic audit** — 5 Sprint 마다 Evaluator 감사 자동 트리거.
+
+자세한 릴리스 내역은 `docs/release/v1.2.0.md`, `v1.2.1.md`, `v1.3.0.md` 참조.
+
+---
+
+## 요구 사항
+
+- **Node.js 24+** (Active LTS)
+- **Claude Code CLI** (Orchestrator 호스트)
+- **Codex CLI** (기본 Generator)
+
+---
+
+## 빠른 시작 (새 프로젝트)
+
+### 1. 템플릿으로 새 레포 만들기
 
 GitHub에서 **Use this template** 버튼을 누르거나:
 
@@ -31,14 +53,10 @@ git clone https://github.com/mir3626/vibe-doctor my-project
 cd my-project
 ```
 
-### 2. 초기 설정
-
-#### Claude Code 사용자 (권장)
-
-`npm install` 없이 바로 시작할 수 있습니다.
+### 2. Claude Code 에서 초기화
 
 ```bash
-claude   # Claude Code 실행
+claude                  # Claude Code 실행
 ```
 
 Claude Code 안에서:
@@ -47,65 +65,144 @@ Claude Code 안에서:
 /vibe-init
 ```
 
-Claude가 대화형으로 아래 과정을 **한 번에** 자동 진행합니다:
+Claude 가 대화형으로 아래 과정을 순차 자동 진행합니다:
 
-1. 환경 점검 (node, npm, git, AI CLI 설치 여부)
-2. AI Agent 연결 (Sprint 역할별 provider 선택 + 인증 안내)
-3. 프로젝트 맞춤 설정 (product, architecture, conventions 문서 생성)
+1. **Phase 1 환경 점검** — node, npm, git, Claude/Codex CLI 설치 여부 검사.
+2. **Phase 2 Provider 선택** — Planner/Generator/Evaluator 역할별 AI 배정 + 인증 안내.
+3. **Phase 3 네이티브 소크라테스식 인터뷰** — `scripts/vibe-interview.mjs` 기반. 도메인 전문가 수준 probing 으로 모호성 ≤ 0.2 까지 수렴. `product.md` / `architecture.md` / `conventions.md` 자동 생성.
+4. **Phase 4 Sprint 로드맵 작성 + Phase 0 seal** — Orchestrator 가 직접 분할한 Sprint 로드맵 저장 + `scripts/vibe-phase0-seal.mjs` 로 자동 커밋.
 
-#### 일반 터미널 사용자
+### 3. Sprint 사이클
 
-```bash
-npm install
-npm run vibe:doctor   # 환경 점검
-npm run vibe:init     # 기본 파일 생성 (.env, provider 설정)
+각 Sprint 는 다음 5 단계:
+
+1. `node scripts/vibe-preflight.mjs` (green 확인)
+2. **Planner 소환** (Agent, fresh opus subagent) → `docs/prompts/sprint-NN-*.md` 생성
+3. **Generator 위임**: `cat docs/prompts/sprint-NN-*.md | ./scripts/run-codex.sh -`
+4. Orchestrator 샌드박스 밖 재검증 (`tsc --noEmit`, `npm test`, `npm run build` 등)
+5. `node scripts/vibe-sprint-commit.mjs <sprintId> passed` — state 파일 + 산출을 단일 커밋
+
+### 4. 자동 보고서 + 다음 Iteration
+
+최초 로드맵의 마지막 Sprint 가 passed 로 마감되면:
+
+- `scripts/vibe-project-report.mjs` 자동 호출
+- `docs/reports/project-report.html` 생성
+- 기본 브라우저에서 자동 오픈 (Windows `start` / macOS `open` / Linux `xdg-open`)
+
+추가 개발은 `/vibe-iterate` 로:
+
+```text
+/vibe-iterate
 ```
 
-> 일반 터미널에서는 기본 파일만 생성됩니다. AI 연결 및 프로젝트 맞춤 설정은 Claude Code의 `/vibe-init`을 사용하세요.
+→ 차등 인터뷰 (이전 결정 계승 + 미해결 항목 집중 + 신규 목표 수집) → 새 iteration Sprint 로드맵 append → 다시 Sprint 사이클.
 
 ---
 
-## /vibe-init 상세 흐름
+## 기존 프로젝트 업그레이드
 
-Claude Code에서 `/vibe-init`을 실행하면 다음 단계를 대화형으로 진행합니다:
+### 경로 A — `/vibe-sync` 가 이미 설치된 프로젝트 (v1.x+)
 
-### Phase 1 — 환경 점검
+가장 간단한 경로. 드라이런으로 변경 내역 먼저 확인:
 
-필수 도구(node, npm, git)와 AI Agent CLI(claude, codex 등) 설치 여부를 자동으로 확인합니다.
+```bash
+npm run vibe:sync -- --from https://github.com/mir3626/vibe-doctor --dry-run
+```
 
-### Phase 2 — AI Agent 연결
+예시 출력:
 
-Sprint 역할별로 어떤 AI를 사용할지 선택합니다:
+```
+Sync plan: v1.1.1 → v1.3.0
 
-| Sprint 역할 | 책임 | 기본값 | 선택지 |
-|-------------|------|--------|--------|
-| Planner (스펙 정의) | "무엇을" 만들지 정의 + 체크리스트 | claude-opus | claude-opus / codex / **기타** |
-| Generator (코드 구현) | 체크리스트 기반 구현 | codex | codex / claude-opus / **기타** |
-| Evaluator (판정) | 합격/불합격 판정 | claude-opus | claude-opus / codex / **기타** |
+| action        | path                                | detail              |
+|---------------|-------------------------------------|---------------------|
+| replace       | scripts/vibe-preflight.mjs          | harness updated      |
+| new-file      | scripts/vibe-interview.mjs          |                      |
+| new-file      | scripts/vibe-project-report.mjs     |                      |
+| new-file      | .claude/skills/vibe-iterate/SKILL.md|                      |
+| conflict      | CLAUDE.md                           | locally modified     |
+| section-merge | .claude/settings.json               | hooks                |
+| skip          | docs/context/product.md             | project-owned        |
 
-- **기타**를 선택하면 DeepSeek, Grok 등 커스텀 AI agent를 연결할 수 있습니다.
-- 선택한 provider의 CLI가 미설치인 경우, 설치 및 인증 방법을 step-by-step으로 안내합니다.
-- 선택 결과에 따라 `.vibe/config.local.json`, `AGENTS.md`, `CLAUDE.md` 의 Sprint 역할 테이블 등이 자동으로 업데이트됩니다.
+Files: 28 replace, 3 section-merge, 2 json-merge, 8 new-file, 1 conflict, 6 skip
+Migrations: 1.1.0, 1.2.0, 1.2.1, 1.3.0
+```
 
-### Phase 3 — 프로젝트 맞춤 설정
+승인 UX (v1.3.0):
 
-| Step | 질문 내용 | 생성 파일 |
-|------|-----------|-----------|
-| 1/3 | 프로젝트 이름, 설명, 성공 기준, 플랫폼 | `docs/context/product.md` |
-| 2/3 | 기술 스택, 호스팅, 데이터 저장 | `docs/context/architecture.md` |
-| 3/3 | 프로그래밍 언어, 코드 스타일, 테스트 도구, 추가 규칙 | `docs/context/conventions.md` |
+- Conflict 가 없으면 `Proceed? [Y/n]` 1회 확인.
+- Conflict 가 있으면 `[a]ccept all / [i]ndividual / [s]kip all / [c]ancel` 4 옵션.
+- `--force` 는 기존처럼 모든 conflict 무조건 replace (프롬프트 없음).
+- `--json` 은 기계 출력 (approval 프롬프트 없음).
 
-- 코딩 지식이 없어도 예시를 보고 따라 입력할 수 있습니다.
-- 모르는 항목은 비워두면 AI가 기술 스택에 맞게 자동 선택합니다.
-- 나중에 다시 실행하거나 파일을 직접 편집해도 됩니다.
+실제 적용:
 
----
+```bash
+npm run vibe:sync -- --from https://github.com/mir3626/vibe-doctor
+```
 
-## 요구 사항
+백업은 자동으로 `.vibe/sync-backup/<timestamp>/` 에 생성. 마이그레이션은 `migrations/1.1.0.mjs` → `1.2.0.mjs` → `1.2.1.mjs` → `1.3.0.mjs` 순서로 idempotent 실행.
 
-- Node.js 24+ (Active LTS)
-- Claude Code CLI
-- Codex CLI
+### 경로 B — `/vibe-sync` 가 없는 레거시 프로젝트
+
+v1.0 이전 템플릿이거나 `/vibe-sync` 메커니즘 없이 시작한 프로젝트는 **one-shot bootstrap 스크립트** 로 업그레이드합니다.
+
+#### B-1. 원격에서 bootstrap 실행 (macOS / Linux / Git Bash)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/mir3626/vibe-doctor/main/scripts/vibe-sync-bootstrap.mjs \
+  | node --input-type=module - --project-root . --ref main
+```
+
+#### B-2. 수동 다운로드 방식 (모든 플랫폼)
+
+```bash
+# 1. bootstrap 스크립트 다운로드
+curl -fsSL https://raw.githubusercontent.com/mir3626/vibe-doctor/main/scripts/vibe-sync-bootstrap.mjs \
+  -o vibe-sync-bootstrap.mjs
+
+# 2. 프로젝트 루트에서 실행 (필수: --project-root)
+node vibe-sync-bootstrap.mjs --project-root . --ref main
+
+# 3. 완료 후 임시 파일 정리
+rm vibe-sync-bootstrap.mjs
+```
+
+#### B-3. bootstrap 가 하는 일
+
+1. 업스트림 (`mir3626/vibe-doctor`) 을 `--ref main` 또는 `--ref v1.3.0` 으로 shallow clone.
+2. 핵심 파일 복사 + 기존 파일은 `.vibe/sync-backup/bootstrap-<timestamp>/` 로 백업:
+   - `src/commands/sync.ts`, `src/lib/sync.ts` 및 관련 라이브러리
+   - `scripts/vibe-*.mjs`, `scripts/run-*.{sh,cmd}`
+   - `.claude/skills/*`, `.claude/agents/*`
+   - `.vibe/sync-manifest.json`, `.vibe/sync-manifest.schema.json`
+   - `migrations/*.mjs`
+3. `package.json` / `.claude/settings.json` 은 **머지** (기존 scripts·permissions 보존, `vibe:*` 스크립트만 교체).
+4. `.vibe/config.json` 에 `harnessVersion`, `upstream.url`, `upstream.ref` 기록.
+5. 이후부터는 `npm run vibe:sync` 로 일반 싱크 가능.
+
+> 💡 bootstrap 자체는 git clone 권한이 필요하지만 프로젝트 git 히스토리는 건드리지 않습니다. 커밋/푸시는 사용자 책임.
+
+#### B-4. 검증
+
+```bash
+node scripts/vibe-preflight.mjs --bootstrap   # all OK 확인
+npm test                                       # 기존 테스트 그대로 통과
+cat .vibe/config.json | grep harnessVersion    # "1.3.0" 출력
+```
+
+### 경로 C — 완전 fresh restart (최후 수단)
+
+기존 커스터마이즈가 거의 없고 그냥 최신 템플릿을 새로 받고 싶다면:
+
+```bash
+# 1. 기존 프로젝트의 product.md / architecture.md / conventions.md / src 백업
+# 2. 새 폴더에 템플릿 clone
+git clone https://github.com/mir3626/vibe-doctor my-project-v2
+# 3. 백업한 project-owned 파일들을 my-project-v2 에 복사
+# 4. git history 를 옮기고 싶으면 수동 rebase
+```
 
 ---
 
@@ -113,50 +210,86 @@ Sprint 역할별로 어떤 AI를 사용할지 선택합니다:
 
 ### Claude Code 슬래시 커맨드
 
-```text
-/vibe-init         # 초기 설정 + 프로젝트 맞춤 설정 (대화형)
-/vibe-interview    # 네이티브 소크라테스식 인터뷰 (도메인 전문가 수준 probing)
-/vibe-sync         # 업스트림 하네스 변경을 프로젝트 커스터마이징 보존하며 반영
-/vibe-sprint-mode  # Sprint agent-delegation 권한 프리셋 토글
-/vibe-review       # 프로세스 건강성 리뷰 (4-tier rubric)
-/goal-to-plan      # 목표 → Sprint 분할 계획 생성
-/self-qa           # QA 검증
-/write-report      # 완료 보고서 작성
-/maintain-context  # 컨텍스트 문서 업데이트
-```
+| 커맨드 | 역할 |
+|---|---|
+| `/vibe-init` | 초기 설정 + Phase 0 인터뷰 + 로드맵 생성 (1회) |
+| `/vibe-interview` | 네이티브 소크라테스식 인터뷰만 단독 실행 (도메인 전문가 probing) |
+| `/vibe-iterate` | 기존 iteration 완료 후 차등 인터뷰로 다음 iteration 진입 🆕 |
+| `/vibe-review` | 프로세스 건강성 리뷰 (4-tier rubric + regression 검증) 🆕 |
+| `/vibe-sync` | 업스트림 하네스 변경을 프로젝트 커스터마이징 보존하며 반영 |
+| `/vibe-sprint-mode` | Sprint agent-delegation 권한 프리셋 on/off |
+| `/goal-to-plan` | 목표 → Sprint 분할 계획 생성 |
+| `/self-qa` | self-QA 체크리스트 실행 |
+| `/write-report` | 임의 시점 보고서 작성 |
+| `/maintain-context` | 컨텍스트 문서 스냅샷 업데이트 |
 
 ### npm 스크립트
 
 ```bash
-npm run vibe:doctor                   # 환경 점검
-npm run vibe:init                     # 기본 파일 생성
-npm run vibe:interview                # 네이티브 소크라테스식 인터뷰 실행
-npm run vibe:bundle-size              # 번들 크기 검사 (opt-in)
-npm run vibe:browser-smoke            # 브라우저 smoke 테스트 (opt-in, Playwright 필요)
-npm run vibe:qa                       # QA 실행 (test → typecheck → lint → build)
-npm run vibe:usage                    # 토큰 사용량 요약
-npm run vibe:report -- --title "foo"  # 완료 보고서 작성
-npm run vibe:escalate -- --task-file docs/plans/my-task.md  # 실패 에스컬레이션
-npm run vibe:run-agent                # provider 직접 실행
-npm run vibe:config-audit             # 설정 감사 (시크릿 누출 검사)
-npm run vibe:sync -- --dry-run        # 업스트림 하네스 싱크 plan 미리보기
-npm run vibe:sync                     # 업스트림 하네스 싱크 실제 적용
+# 환경
+npm run vibe:doctor             # 환경 점검 (node/git/CLI 설치)
+npm run vibe:init               # 기본 파일 생성 (.env, provider 설정)
+
+# 인터뷰 / 개발
+npm run vibe:interview          # 네이티브 인터뷰 단독 실행
+
+# 품질 / 감사
+npm run vibe:qa                 # test → typecheck → lint → build 자동 체인
+npm run vibe:usage              # 토큰 사용량 요약
+npm run vibe:config-audit       # 시크릿 누출 / 설정 위반 감사
+npm run vibe:bundle-size        # 번들 gzip 크기 게이트 (opt-in)
+npm run vibe:browser-smoke      # Playwright headless DOM/console 검증 (opt-in)
+
+# 리포트 / 실행
+npm run vibe:report -- --title "..."   # 임의 시점 보고서
+npm run vibe:run-agent                 # provider 직접 실행
+
+# 싱크 / 업그레이드
+npm run vibe:sync -- --dry-run         # 업스트림 plan 미리보기
+npm run vibe:sync                      # 실제 적용 (interactive approval)
+npm run vibe:sync -- --force           # 모든 conflict 자동 replace
 ```
+
+### 독립 스크립트 (`scripts/*.mjs`)
+
+Orchestrator 가 주로 호출합니다. 사용자가 직접 쓸 일은 드뭅니다.
+
+| 스크립트 | 용도 |
+|---|---|
+| `vibe-preflight.mjs` | Sprint 시작 전 환경 검증 (`--bootstrap` 모드 존재) |
+| `vibe-sprint-commit.mjs` | Sprint 단일 커밋 래퍼 (state+산출+LOC+메시지 자동) 🆕 |
+| `vibe-sprint-complete.mjs` | sprint-status.json + handoff + session-log 상태 갱신 |
+| `vibe-session-log-sync.mjs` | session-log timestamp 정규화·sort·dedup 🆕 |
+| `vibe-project-report.mjs` | HTML 보고서 생성 + 브라우저 자동 오픈 🆕 |
+| `vibe-phase0-seal.mjs` | Phase 0 산출물 자동 커밋 🆕 |
+| `vibe-interview.mjs` | 네이티브 인터뷰 엔진 (state machine + synthesizer) 🆕 |
+| `vibe-resolve-model.mjs` | tier → SOTA 모델 ID 해석 🆕 |
+| `vibe-model-registry-check.mjs` | SessionStart: upstream registry 변화 감지 🆕 |
+| `vibe-audit-clear.mjs` | Evaluator 감사 후 counter + pendingRisks 마감 🆕 |
+| `vibe-sprint-mode.mjs` | permission preset 토글 🆕 |
+| `vibe-status-tick.mjs` | statusline 토큰/시간 누적 기록 🆕 |
+| `vibe-browser-smoke.mjs` | Playwright smoke contract 검사 🆕 |
+| `vibe-sync-bootstrap.mjs` | 레거시 프로젝트 one-shot 업그레이드 |
+| `vibe-version-check.mjs` | SessionStart: 업스트림 버전 비교 |
+| `vibe-stop-qa-gate.mjs` | 턴 종료 시 코드 diff 감지 → QA 자동 실행 |
+| `run-codex.{sh,cmd}` | Codex CLI 래퍼 (UTF-8 + retry + `--health`) |
+| `run-claude.{sh,cmd}` | Claude 래퍼 스텁 (미래 provider 편입) |
 
 ---
 
 ## 핵심 설계
 
 | 항목 | 내용 |
-|------|------|
-| 개발 프로세스 | Sprint 기반 — 기본은 Orchestrator 단독 + self-QA, context pressure 트리거 시 Planner/Evaluator 소환, 코드는 항상 Generator(Codex) 위임 |
-| 메인 오케스트레이터 | Claude Code (Opus) |
-| 기본 Generator | Codex (`/vibe-init`에서 변경 또는 커스텀 AI 연결 가능) |
-| 언어 | TypeScript (Node.js ESM) |
-| 컨텍스트 전략 | 얇은 루트 메모리 + 샤딩된 MD + skills |
-| 실패 에스컬레이션 | self-QA 실패 → Evaluator(Tribunal) 소환 → 2회 연속 불합격 시 Planner 재소환 또는 사용자 에스컬레이션 |
+|---|---|
+| 개발 프로세스 | **Phase 0 → Sprint × N → Report → Iterate** 사이클. 기본은 Orchestrator 단독 + self-QA, context pressure·role 충돌·규모 트리거 시 Planner/Evaluator 소환, 소스코드는 **항상** Generator 위임 |
+| 메인 Orchestrator | Claude Code (Opus family alias — registry 로 SOTA 자동 추종) |
+| 기본 Generator | Codex CLI (`/vibe-init` 에서 DeepSeek/Grok/기타 커스텀 연결 가능) |
+| Context 전략 | 얇은 루트 메모리 (`CLAUDE.md`) + 샤딩된 MD (`docs/context/*`) + skills |
+| 상태 전달 | `.vibe/agent/` 하위 구조화 state: `sprint-status.json`, `project-map.json`, `sprint-api-contracts.json`, `iteration-history.json`, `project-decisions.jsonl`, `tokens.json`, `handoff.md`, `session-log.md` |
+| 실패 에스컬레이션 | self-QA 실패 → Evaluator (Tribunal) → 2회 연속 불합격 시 Planner 재소환 또는 사용자 에스컬레이션 |
 | QA 기본값 | test → typecheck → lint → build 자동 감지 실행 |
-| 보안 | `.env` / `secrets` / credential 파일 git 제외 + 자동 감사 훅 |
+| 보안 | `.env` / `secrets/` / credential 파일 git 제외 + 훅 기반 자동 감사 |
+| 버전 관리 | `harnessVersion` semver + matching git tag (`v1.2.0`, `v1.3.0` 등). Downstream `vibe:sync` 가 tag 기반 clone. |
 
 ---
 
@@ -164,57 +297,149 @@ npm run vibe:sync                     # 업스트림 하네스 싱크 실제 적
 
 ```text
 .
-├── CLAUDE.md                  # Orchestrator 규칙 (Sprint 프로세스)
-├── AGENTS.md                  # Generator(Codex) 규칙
-├── GEMINI.md                  # 보조 에이전트 규칙
-├── .env.example               # 환경변수 템플릿 (커밋됨)
+├── CLAUDE.md                      # Orchestrator 규칙 (Sprint 프로세스)
+├── AGENTS.md / GEMINI.md          # 보조 에이전트 규칙
+├── README.md                      # 이 파일
+├── .env.example                   # 환경변수 템플릿 (커밋됨)
 ├── .claude/
-│   ├── settings.json          # Claude Code 프로젝트 설정 + 보안 훅
-│   ├── agents/                # 서브에이전트 (planner, qa-guardian, context-curator)
-│   └── skills/                # Claude 전용 스킬 (vibe-init, goal-to-plan 등)
-├── .codex/
-│   └── agents/                # Codex 에이전트 프로필 (coder, explorer)
+│   ├── settings.json              # Claude Code 프로젝트 설정 + 훅
+│   ├── statusline.{sh,ps1}        # 커스텀 상태바
+│   ├── agents/                    # 서브에이전트 (planner, qa-guardian, context-curator)
+│   └── skills/                    # 슬래시 커맨드 (vibe-init, vibe-iterate, vibe-review, ...)
+├── .codex/agents/                 # Codex 에이전트 프로필
 ├── .vibe/
-│   ├── config.json            # 프로젝트 기본 provider 설정 (커밋됨)
-│   ├── config.local.json      # 로컬 override (gitignore)
-│   └── config.local.example.json  # 로컬 설정 템플릿 (커밋됨)
+│   ├── config.json                # 프로젝트 기본 provider + harnessVersion (커밋됨)
+│   ├── config.local.json          # 로컬 override (git-ignored)
+│   ├── model-registry.json        # SOTA tier → model alias 매핑
+│   ├── sync-manifest.json         # 하네스 파일 tier (harness/hybrid/project)
+│   ├── settings-presets/          # agent-delegation 등 permission preset
+│   ├── archive/prompts/           # 완료된 sprint 프롬프트 아카이브
+│   └── agent/                     # Orchestrator 상태 (초기화된 상태로 배포)
+│       ├── handoff.md
+│       ├── session-log.md
+│       ├── sprint-status.json
+│       ├── project-map.json
+│       ├── sprint-api-contracts.json
+│       ├── iteration-history.json
+│       ├── project-decisions.jsonl
+│       ├── tokens.json
+│       ├── _common-rules.md
+│       └── re-incarnation.md
 ├── docs/
-│   ├── context/               # 샤딩된 컨텍스트 (product, architecture, conventions 등)
-│   ├── orchestration/         # Provider runner 세부사항 (providers.md)
-│   ├── plans/                 # 작업 계획 보관
-│   ├── prompts/               # Sprint task 프롬프트 (ad-hoc)
-│   └── reports/               # 작업 완료 보고서
+│   ├── context/                   # 샤딩된 컨텍스트
+│   │   ├── product.md             # (플레이스홀더 — /vibe-init 로 교체)
+│   │   ├── architecture.md        # (플레이스홀더)
+│   │   ├── conventions.md
+│   │   ├── harness-gaps.md        # 하네스 사각지대 ledger
+│   │   └── ...
+│   ├── orchestration/providers.md # Provider runner 세부
+│   ├── plans/                     # sprint-roadmap 등
+│   ├── prompts/                   # 현재 진행 중 sprint 프롬프트
+│   ├── reports/                   # project-report.html, review-*.md, 완료 보고서
+│   └── release/                   # 릴리스 노트 (v1.2.0, v1.2.1, v1.3.0, ...)
+├── migrations/                    # 하네스 버전별 마이그레이션
+│   ├── 1.0.0.mjs
+│   ├── 1.1.0.mjs
+│   ├── 1.2.0.mjs
+│   ├── 1.2.1.mjs
+│   └── 1.3.0.mjs
+├── scripts/                       # 하네스 실행 스크립트 (독립 목록 위 참조)
 ├── src/
-│   ├── commands/              # vibe:* 실행 스크립트
-│   ├── lib/                   # 유틸리티 (fs, config, shell 등)
-│   └── providers/             # provider runner adapter
-└── test/                      # 유닛 테스트 (args, config, usage)
+│   ├── commands/                  # vibe:* TypeScript 커맨드
+│   ├── lib/                       # 유틸리티 (fs, config, shell, sync, review, iteration, ...)
+│   └── providers/runner.ts        # provider-agnostic 실행 플랜
+└── test/                          # 유닛·통합 테스트 (node --test)
 ```
 
 ---
 
 ## 운영 원칙
 
-1. 사용자는 목적과 승인에 집중한다.
-2. Orchestrator(Claude)는 Sprint 관리, QA, 보고, 문맥 관리에 집중한다.
-3. Planner는 "무엇을"만, Generator는 "어떻게"를 자유롭게 결정한다.
-4. 승인 전에는 비단순 구현을 하지 않는다.
-5. 작업 완료 전에는 self-QA 또는 Evaluator 합격 없이 완료 선언하지 않는다.
-6. 루트 메모리는 얇게 유지하고 상세 규칙은 skills / context shard로 분리한다.
+1. **사용자는 목적과 승인** 에 집중. 세부 구현은 Orchestrator/Generator 에 위임.
+2. **Orchestrator(Claude Code)** 는 Sprint 관리, QA, 보고, 문맥 관리. 소스 코드를 직접 편집하지 않음.
+3. **Planner** 는 "무엇을", **Generator** 는 "어떻게" 를 자유롭게 결정. 매 Sprint fresh context.
+4. **승인 전에는 비단순 구현 금지**. 계획부터 먼저.
+5. **self-QA 또는 Evaluator 합격 없이 완료 선언 금지**.
+6. **루트 메모리는 얇게**. 상세 규칙은 skill / context shard 로.
+7. **규칙은 가능하면 script hook 으로 강제** (MD 만으로는 Orchestrator 가 잊음). `docs/context/harness-gaps.md` ledger 로 사각지대 추적.
 
 ---
 
-## Claude Code에서 시작하는 방법
+## 버전 / tag 정책
 
-저장소를 열고 이렇게 시작합니다:
+- `harnessVersion` 은 `.vibe/config.json` 에 semver (`1.3.0`). downstream `vibe:sync` 가 이 값을 `v${version}` git tag 로 해석.
+- 각 minor/patch 릴리스는 해당 커밋에 `vMAJOR.MINOR.PATCH` git tag 부착 후 origin push.
+- 릴리스 노트는 `docs/release/vMAJOR.MINOR.PATCH.md`.
+- `/vibe-sync -- --ref <tag>` 로 특정 버전 강제 동기화 가능. 기본값: config 의 `harnessVersion` 기준 `v` prefix.
+
+현재 태그:
+- `v1.0.0` ~ `v1.0.3` — 초기 하네스
+- `v1.1.0` / `v1.1.1` — 프로세스 정제 (Planner 매 Sprint, 단일 커밋)
+- `v1.2.0` — 10 Sprint 메타-프로젝트 (M1~M10): 스키마 foundation, native interview, stack shards, model tier, statusline 등
+- `v1.2.1` — Ouroboros 완전 제거 패치
+- `v1.3.0` — HTML 보고서 + `/vibe-iterate` + `/vibe-review` regression + `.vibe/agent` init 리셋 🆕
+
+---
+
+## 트러블슈팅
+
+### `vibe:sync` 가 `pathspec 'v1.x.y' did not match` 로 실패
+
+업스트림에 해당 버전 tag 가 없을 때 발생. 해결책:
+- `.vibe/config.json` 의 `harnessVersion` 이 실제 존재하는 tag 인지 확인 (`git ls-remote --tags origin`).
+- 없으면 `harnessVersion` 을 최신 존재 tag 로 낮추거나, `--ref main` 옵션으로 main branch 강제.
+
+### `run-codex.sh --health` 가 Windows 에서 실패
+
+- Git Bash 사용 권장. 네이티브 PowerShell/cmd 에서는 `scripts/run-codex.cmd --health` 사용.
+- auth 누락 시 `codex auth login` 재실행.
+
+### Preflight 가 handoff stale WARN 표시
+
+- 24시간 이상 `.vibe/agent/sprint-status.json` 이 갱신 안 된 경우. 새 Sprint 시작 전 `/vibe-init` 또는 `/vibe-iterate` 로 상태 refresh.
+
+### `/vibe-iterate` 를 실행했는데 iteration-history.json 이 없다고 함
+
+- 최초 iteration(=iter-1) 은 `/vibe-init` 의 Phase 0 에서 초기화됨. 레거시 프로젝트라 해당 파일이 없다면 `migrations/1.3.0.mjs` 를 수동 실행:
+  ```bash
+  node migrations/1.3.0.mjs "$(pwd)"
+  ```
+
+### HTML 보고서가 브라우저에서 자동으로 안 열림
+
+- `xdg-open`/`open`/`start` 가 없는 최소 환경일 수 있음. 출력된 파일 경로를 수동으로 열거나 `--no-open` 플래그 활용.
+
+---
+
+## Claude Code 에서 시작하는 방법
+
+저장소를 열고:
 
 ```text
 /vibe-init
 ```
 
-초기 설정이 완료되면 목표를 말하세요:
+초기 설정 완료 후 목표를 제시:
 
 ```text
 목표: [여기에 작업 목표 입력]
 방법론은 먼저 제안하고, 승인 전에는 구현하지 말고 계획부터 보여줘.
 ```
+
+최초 iteration 이 끝나면 `docs/reports/project-report.html` 이 자동으로 열립니다. 이후 추가 개발은:
+
+```text
+/vibe-iterate
+```
+
+---
+
+## 기여 / 피드백
+
+Issue·PR 은 [github.com/mir3626/vibe-doctor](https://github.com/mir3626/vibe-doctor) 으로.
+
+하네스 개선 제안 시 다음 가중치 공식을 참고 (`/vibe-review` 가 자동 계산):
+
+`priority_score = 10·agent_friendly + 5·token_efficient + 1·user_fyi` (max 80)
+
+`recommended_approach` 는 `script-wrapper > md-rule > config-default > user-action` 순으로 선호. 규칙은 문서뿐 아니라 script hook 으로 기계 강제하는 것을 목표로 합니다.
