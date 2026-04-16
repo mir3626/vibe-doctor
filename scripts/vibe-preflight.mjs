@@ -281,7 +281,7 @@ if (hasProduct) {
     content.length > 50 ? 'product.md present and populated' : 'product.md exists but too short (<50 chars)',
   );
 } else {
-  record('phase0.product', false, 'missing docs/context/product.md - run Phase 0 (Ouroboros PM interview) first');
+  record('phase0.product', false, 'missing docs/context/product.md - run Phase 0 native interview (vibe-interview.mjs) first');
 }
 
 // 7. Harness version check

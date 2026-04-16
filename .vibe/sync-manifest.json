@@ -125,10 +125,12 @@
       "test/interview-cli.test.ts",
       "docs/context/harness-gaps.md",
       "docs/release/v1.2.0.md",
+      "docs/release/v1.2.1.md",
       "test/statusline.test.ts",
       "test/sprint-mode.test.ts",
       "test/status-tick.test.ts",
-      "test/integration/meta-smoke.test.ts"
+      "test/integration/meta-smoke.test.ts",
+      "migrations/1.2.1.mjs"
     ],
     "hybrid": {
       "CLAUDE.md": {
@@ -205,6 +207,7 @@
   "migrations": {
     "1.0.0": "migrations/1.0.0.mjs",
     "1.1.0": "migrations/1.1.0.mjs",
-    "1.2.0": "migrations/1.2.0.mjs"
+    "1.2.0": "migrations/1.2.0.mjs",
+    "1.2.1": "migrations/1.2.1.mjs"
   }
 }

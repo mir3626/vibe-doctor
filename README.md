@@ -8,7 +8,7 @@
 
 ## v1.2.0 highlights
 
-- **Native socratic interview** — Ouroboros MCP 의존 제거. LLM 기반 도메인 전문가 수준 probing 질문 자동 생성 (`/vibe-interview`)
+- **Native socratic interview** — 외부 MCP 의존 제거. LLM 기반 도메인 전문가 수준 probing 질문 자동 생성 (`/vibe-interview`)
 - **Stack/framework pattern shards** — 테스트·린트 패턴을 stack별 shard로 분리 (TypeScript, Python, Rust, Go)
 - **Model tier abstraction** — 중앙 registry (`.vibe/model-registry.json`) 로 SOTA 모델 자동 추종
 - **Statusline** — Sprint 진행·토큰·시간을 Claude Code 상태바에 표시
@@ -104,44 +104,8 @@ Sprint 역할별로 어떤 AI를 사용할지 선택합니다:
 ## 요구 사항
 
 - Node.js 24+ (Active LTS)
-- npm 10+
-- git
-- **bash** — Sprint Generator는 `scripts/run-codex.sh` wrapper 경유로 Codex를 호출합니다. Windows 사용자는 **Git for Windows에 포함된 Git Bash** 를 사용하세요 (`git --version` 이 동작하면 git-bash도 함께 설치되어 있습니다).
-- **Python 3.12+** (고급 인터뷰 모드에서 Ouroboros를 사용할 때 필요)
-- 선택: `claude`, `codex` CLI
-- 선택: `ouroboros-ai` (`/vibe-init` 고급 인터뷰 모드용)
-
-기본 인터뷰 엔진은 native interview (`scripts/vibe-interview.mjs`) 입니다. Ouroboros는 고급 모드에서만 쓰는 선택 사항입니다.
-
-### ouroboros 설치
-
-기본값은 native interview 이며, [ouroboros](https://github.com/Q00/ouroboros) 는 선택적 고급 인터뷰 엔진입니다.
-**패키지명은 `ouroboros-ai`** 이며 (`ouroboros` 아님), **Python 3.12 이상**을 요구합니다.
-
-```bash
-# 권장: pipx (격리 환경)
-pipx install "ouroboros-ai[all]"
-
-# 또는 pip
-pip install --user "ouroboros-ai[all]"
-
-# 또는 업스트림 원클릭 스크립트
-curl -fsSL https://raw.githubusercontent.com/Q00/ouroboros/main/scripts/install.sh | bash
-```
-
-설치 확인:
-
-```bash
-python -m ouroboros --version
-ouroboros setup   # 초기 설정
-```
-
-**자주 발생하는 오류**
-
-- `ERROR: Could not find a version that satisfies the requirement ouroboros-ai`
-  → Python이 3.12 미만입니다. `python --version`으로 확인하고 3.12+로 업그레이드하세요.
-- `ouroboros`(하이픈 없음)로 설치 시도 → 잘못된 패키지명입니다. 반드시 `ouroboros-ai`.
-- Windows에서 MCP 서버가 `✗ Failed to connect`로 뜨는 경우 → `docs/orchestration/providers.md`의 Troubleshooting 참조.
+- Claude Code CLI
+- Codex CLI
 
 ---
 

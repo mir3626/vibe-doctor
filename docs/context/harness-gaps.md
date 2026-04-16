@@ -10,7 +10,7 @@
 
 | id | symptom | covered_by | status |
 |---|---|---|---|
-| gap-mcp-frozen-pid | ouroboros MCP stale PID 로 Phase 3 인터뷰 기동 실패 (Windows) | `scripts/vibe-interview.mjs` native fallback (M5) | covered |
+| gap-mcp-frozen-pid | legacy MCP stale PID 로 Phase 3 인터뷰 기동 실패 (Windows) | `scripts/vibe-interview.mjs` native fallback (M5) | covered |
 | gap-windows-cli-path | Windows 에서 `./scripts/run-codex.sh` 가 provider health check 에서 cmd.exe fallback 으로 실패 | `.claude/skills/vibe-init/SKILL.md` Step 2-3 OS 감지 + `run-codex.cmd` (M2) | covered |
 | gap-loc-accounting | 커밋 범위 기반 LOC 집계 누락 -> sprint 크기 왜곡 | `vibe-sprint-complete.mjs` `actualLoc` 기록 + lastSprintScope (M1/M3) | covered |
 | gap-cmd-wrapper-health | Codex wrapper 가 retry·버전·health subcommand 없어 진단 어려움 | `run-codex.sh --health` / `--version` (M2) | covered |
@@ -23,6 +23,7 @@
 | gap-statusline-visibility | Agent 위임 중 Orchestrator 상태 불투명 | `.claude/statusline.{sh,ps1}` + `vibe-status-tick.mjs` + tests (M9) | covered |
 | gap-permission-noise | Agent 위임 시 권한 프롬프트 반복 | `vibe-sprint-mode.mjs` + settings-presets + tests (M9) | covered |
 | gap-integration-smoke | end-to-end meta smoke 부재 | `test/integration/meta-smoke.test.ts` (M10, this Sprint) | covered |
+| gap-external-interview-dependency-purge | v1.2.0 에서 외부 인터뷰 엔진 참조가 docs/scripts에 잔존 (optional enhancement 수준으로 보존) | Sprint M11 (v1.2.1) | covered |
 
 Update protocol:
 1. 새 gap 발견 시 id `gap-<slug>` 로 표 끝에 append 한다.

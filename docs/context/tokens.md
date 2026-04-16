@@ -9,6 +9,6 @@
 ## Native interview cost
 
 - Per-interview baseline: ~15K tokens across Orchestrator internal evaluations (~6 synthesizer calls ? 1.5K prompt + answer-parser ? 6 ? 1K + domain-inference 1K). Depends on `max-rounds` and answer verbosity.
-- Note: these are Orchestrator-internal LLM evaluations counted in main-window usage, NOT separate API calls. No external token cost vs Ouroboros (which ran out-of-process).
+- Note: these are Orchestrator-internal LLM evaluations counted in main-window usage, NOT separate API calls. No external token cost — native interview is in-window Orchestrator evaluation.
 - Session state is stored locally under `.vibe/interview-log/<sessionId>.json`; not counted against tokens.
 - Budget guard: if `rounds.length > maxRounds ? 0.8` and ambiguity still > 0.4, engine emits a stderr warning so Orchestrator can consider PO-proxy finalization.

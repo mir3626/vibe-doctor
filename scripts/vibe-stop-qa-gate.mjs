@@ -16,7 +16,7 @@ const FILENAMES = new Set([
 const SUFFIXES = ['.csproj', '.asmdef'];
 const DENY_PREFIXES = [
   'node_modules/', '.git/', 'dist/', 'build/', 'coverage/',
-  '.vibe/sync-backup/', '.vibe/runs/', '.ouroboros/',
+  '.vibe/sync-backup/', '.vibe/runs/',
 ];
 
 function git(repoRoot, ...args) {
