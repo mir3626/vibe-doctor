@@ -66,53 +66,96 @@ function renderPlanTable(actions: SyncAction[]): string {
   return ['| action | path | detail |', '|---|---|---|', ...rows].join('\n');
 }
 
-async function resolveConflicts(actions: SyncAction[], force: boolean): Promise<SyncAction[]> {
+function renderPlanSummary(actions: SyncAction[]): string {
+  const counts = new Map<string, number>();
+  for (const action of actions) {
+    counts.set(action.type, (counts.get(action.type) ?? 0) + 1);
+  }
+  const summary = Array.from(counts, ([type, count]) => `${count} ${type}`).join(', ');
+  return `Files: ${summary || '0 actions'}`;
+}
+
+function acceptAllConflicts(actions: SyncAction[]): SyncAction[] {
+  return actions.map((action): SyncAction =>
+    action.type === 'conflict' ? { type: 'replace', path: action.path, reason: `forced: ${action.reason}` } : action,
+  );
+}
+
+function skipAllConflicts(actions: SyncAction[]): SyncAction[] {
+  return actions.map((action): SyncAction =>
+    action.type === 'conflict' ? { type: 'skip', path: action.path, reason: `kept local copy: ${action.reason}` } : action,
+  );
+}
+
+async function approveAndResolve(actions: SyncAction[], force: boolean): Promise<SyncAction[]> {
   if (force) {
-    return actions.map((action) =>
-      action.type === 'conflict'
-        ? { type: 'replace', path: action.path, reason: `forced: ${action.reason}` }
-        : action,
-    );
+    return acceptAllConflicts(actions);
   }
-
-  const conflicts = actions.filter((action) => action.type === 'conflict');
-  if (conflicts.length === 0) {
-    return actions;
-  }
-
   if (!process.stdin.isTTY || !process.stdout.isTTY) {
-    throw new Error('Conflicts detected. Re-run with --force or use an interactive terminal.');
+    throw new Error('Sync approval requires an interactive terminal. Re-run with --force to proceed non-interactively.');
   }
 
   const rl = readline.createInterface({ input, output });
   try {
-    const resolved: SyncAction[] = [];
-    for (const action of actions) {
-      if (action.type !== 'conflict') {
-        resolved.push(action);
-        continue;
-      }
-
-      const answer = (
-        await rl.question(`Replace local changes for ${action.path}? [y/N] `)
-      ).trim().toLowerCase();
-
-      if (answer === 'y' || answer === 'yes') {
-        resolved.push({
-          type: 'replace',
-          path: action.path,
-          reason: `accepted upstream after conflict: ${action.reason}`,
-        });
-      } else {
-        resolved.push({
-          type: 'skip',
-          path: action.path,
-          reason: `kept local copy: ${action.reason}`,
-        });
+    const conflicts = actions.filter((action) => action.type === 'conflict');
+    if (conflicts.length === 0) {
+      for (;;) {
+        const answer = (
+          await rl.question(`\nNo conflicts. ${actions.length} actions will be applied.\n\nProceed? [Y/n] `)
+        ).trim().toLowerCase();
+        if (answer === '' || answer === 'y' || answer === 'yes') {
+          return actions;
+        }
+        if (answer === 'n' || answer === 'no') {
+          throw new Error('Cancelled by user');
+        }
+        process.stdout.write('Enter y or n.\n');
       }
     }
 
-    return resolved;
+    process.stdout.write(
+      `\n${conflicts.length} conflict(s) detected (locally modified harness files).\n\n` +
+        'Choose:\n' +
+        '  [a] Accept all - replace every conflict with upstream changes (local edits lost)\n' +
+        '  [i] Individual - review each conflict one by one\n' +
+        '  [s] Skip all - keep every local conflict and apply the rest\n' +
+        '  [c] Cancel - apply nothing\n\n',
+    );
+
+    for (;;) {
+      const choice = (await rl.question('> ')).trim().toLowerCase();
+      if (choice === 'a') {
+        return acceptAllConflicts(actions);
+      }
+      if (choice === 's') {
+        return skipAllConflicts(actions);
+      }
+      if (choice === 'c') {
+        throw new Error('Cancelled by user');
+      }
+      if (choice === 'i') {
+        const resolved: SyncAction[] = [];
+        for (const action of actions) {
+          if (action.type !== 'conflict') {
+            resolved.push(action);
+            continue;
+          }
+
+          const answer = (await rl.question(`Replace local changes for ${action.path}? [y/N] `)).trim().toLowerCase();
+          if (answer === 'y' || answer === 'yes') {
+            resolved.push({
+              type: 'replace',
+              path: action.path,
+              reason: `accepted upstream after conflict: ${action.reason}`,
+            });
+          } else {
+            resolved.push({ type: 'skip', path: action.path, reason: `kept local copy: ${action.reason}` });
+          }
+        }
+        return resolved;
+      }
+      process.stdout.write('Choose a, i, s, or c.\n');
+    }
   } finally {
     rl.close();
   }
@@ -156,20 +199,27 @@ async function main(): Promise<void> {
 
     const manifest = await loadManifest(upstreamRoot);
     const plan = await buildSyncPlan(paths.root, upstreamRoot, manifest);
-    const resolvedActions = await resolveConflicts(plan.actions, force);
-    const finalPlan = { ...plan, actions: resolvedActions };
+    let finalPlan = { ...plan, actions: force ? acceptAllConflicts(plan.actions) : plan.actions };
 
     if (jsonMode) {
       process.stdout.write(`${JSON.stringify(finalPlan, null, 2)}\n`);
-    } else {
-      process.stdout.write(`${renderPlanTable(finalPlan.actions)}\n`);
-      if (finalPlan.migrations.length > 0) {
-        process.stdout.write(`Migrations: ${finalPlan.migrations.join(', ')}\n`);
+      if (dryRun) {
+        return;
       }
-    }
-
-    if (dryRun) {
-      return;
+      if (!force && finalPlan.actions.some((action) => action.type === 'conflict')) {
+        throw new Error('Conflicts detected. Re-run with --force or use an interactive terminal without --json.');
+      }
+    } else {
+      process.stdout.write(`Sync plan: vibe-doctor ${plan.fromVersion ?? 'unknown'} -> ${plan.toVersion}\n\n`);
+      process.stdout.write(`${renderPlanTable(finalPlan.actions)}\n`);
+      process.stdout.write(`${renderPlanSummary(finalPlan.actions)}\n`);
+      if (plan.migrations.length > 0) {
+        process.stdout.write(`Migrations: ${plan.migrations.join(', ')}\n`);
+      }
+      if (dryRun) {
+        return;
+      }
+      finalPlan = { ...plan, actions: await approveAndResolve(plan.actions, force) };
     }
 
     const backupTargets = finalPlan.actions
