@@ -155,6 +155,16 @@ curl -fsSL https://raw.githubusercontent.com/mir3626/vibe-doctor/main/scripts/vi
   | node --input-type=module - --project-root . --ref main
 ```
 
+#### B-1-Win. 원격에서 bootstrap 실행 (Windows — PowerShell / cmd.exe)
+
+Windows 10+ 에는 `curl.exe` 가 기본 내장. 프로젝트 루트에서:
+
+```powershell
+curl -sL https://raw.githubusercontent.com/mir3626/vibe-doctor/main/scripts/vibe-sync-bootstrap.mjs | node --input-type=module -
+```
+
+> PowerShell 5.1 이하에서는 `curl` 이 `Invoke-WebRequest` alias 라 flag 호환성 문제가 생길 수 있음. 이 경우 `curl.exe` 로 명시하거나 아래 B-2 수동 다운로드 방식 사용.
+
 #### B-2. 수동 다운로드 방식 (모든 플랫폼)
 
 ```bash
