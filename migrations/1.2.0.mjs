@@ -66,6 +66,7 @@ function main() {
   const targetRegistryPath = path.join(root, '.vibe', 'model-registry.json');
   const configPath = path.join(root, '.vibe', 'config.json');
   const templatePath = path.join(scriptDir, '..', '.vibe', 'model-registry.json');
+  const actions = [];
 
   let registryStatus = 'exists';
   if (!existsSync(targetRegistryPath)) {
@@ -77,18 +78,36 @@ function main() {
     }
     registryStatus = 'created';
   }
+  actions.push(`registry=${registryStatus}`);
 
   let versionStatus = 'n/a';
+  let sprintRolesStatus = 'n/a';
   if (existsSync(configPath)) {
     const config = JSON.parse(readFileSync(configPath, 'utf8'));
+    const plannerRole = config.sprintRoles?.planner;
+
+    if (typeof plannerRole === 'string') {
+      sprintRolesStatus = `legacy-string-retained(${plannerRole})`;
+    } else if (plannerRole && typeof plannerRole === 'object') {
+      sprintRolesStatus = 'tier-format-present';
+    } else {
+      sprintRolesStatus = 'planner-missing';
+    }
+
     if (compareVersions(config.harnessVersionInstalled, '1.2.0') < 0) {
       config.harnessVersionInstalled = '1.2.0';
       writeJson(configPath, config);
       versionStatus = 'updated to 1.2.0';
+    } else {
+      versionStatus = 'already >= 1.2.0';
     }
+  } else {
+    versionStatus = 'config-missing';
   }
+  actions.push(`version=${versionStatus}`);
+  actions.push(`sprintRoles=${sprintRolesStatus}`);
 
-  process.stdout.write(`[migrate 1.2.0] registry=${registryStatus} version=${versionStatus}\n`);
+  process.stdout.write(`[migrate 1.2.0] ${actions.join(' ')}\n`);
 }
 
 try {

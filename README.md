@@ -6,6 +6,18 @@
 
 > ⚠️ **템플릿 주의**: `docs/context/product.md` 와 `docs/context/architecture.md` 는 의도적으로 플레이스홀더 상태입니다. **`git clone` 직후 `/vibe-init` 을 먼저 실행**해서 프로젝트 맥락을 채운 뒤 개발을 시작하세요. 플레이스홀더 상태로 Sprint를 돌리면 Orchestrator/Planner가 맥락 없이 작업하게 됩니다.
 
+## v1.2.0 highlights
+
+- **Native socratic interview** — Ouroboros MCP 의존 제거. LLM 기반 도메인 전문가 수준 probing 질문 자동 생성 (`/vibe-interview`)
+- **Stack/framework pattern shards** — 테스트·린트 패턴을 stack별 shard로 분리 (TypeScript, Python, Rust, Go)
+- **Model tier abstraction** — 중앙 registry (`.vibe/model-registry.json`) 로 SOTA 모델 자동 추종
+- **Statusline** — Sprint 진행·토큰·시간을 Claude Code 상태바에 표시
+- **Permission presets** — agent-delegation 모드로 권한 프롬프트 감소 (`/vibe-sprint-mode`)
+- **Bundle-size gate** — gzip 기반 번들 크기 제한 (opt-in, web/frontend 전용)
+- **Browser smoke** — Playwright headless DOM/console 계약 검증 (opt-in)
+- **Sprint flow automation** — 단일 커밋, session-log 정리, Phase 0 seal 자동화
+- **Periodic audit** — 5 Sprint 마다 Evaluator 감사 자동 트리거
+
 ---
 
 ## 빠른 시작
@@ -95,13 +107,15 @@ Sprint 역할별로 어떤 AI를 사용할지 선택합니다:
 - npm 10+
 - git
 - **bash** — Sprint Generator는 `scripts/run-codex.sh` wrapper 경유로 Codex를 호출합니다. Windows 사용자는 **Git for Windows에 포함된 Git Bash** 를 사용하세요 (`git --version` 이 동작하면 git-bash도 함께 설치되어 있습니다).
-- **Python 3.12+** (ouroboros 인터뷰 엔진에 필요)
-- ouroboros-ai (`/vibe-init`의 Phase 3에서 사용 — 아래 설치 안내 참조)
+- **Python 3.12+** (고급 인터뷰 모드에서 Ouroboros를 사용할 때 필요)
 - 선택: `claude`, `codex` CLI
+- 선택: `ouroboros-ai` (`/vibe-init` 고급 인터뷰 모드용)
+
+기본 인터뷰 엔진은 native interview (`scripts/vibe-interview.mjs`) 입니다. Ouroboros는 고급 모드에서만 쓰는 선택 사항입니다.
 
 ### ouroboros 설치
 
-`/vibe-init`의 프로젝트 맞춤 설정(Phase 3)은 [ouroboros](https://github.com/Q00/ouroboros) 인터뷰 엔진을 사용합니다.
+기본값은 native interview 이며, [ouroboros](https://github.com/Q00/ouroboros) 는 선택적 고급 인터뷰 엔진입니다.
 **패키지명은 `ouroboros-ai`** 이며 (`ouroboros` 아님), **Python 3.12 이상**을 요구합니다.
 
 ```bash
@@ -137,7 +151,10 @@ ouroboros setup   # 초기 설정
 
 ```text
 /vibe-init         # 초기 설정 + 프로젝트 맞춤 설정 (대화형)
+/vibe-interview    # 네이티브 소크라테스식 인터뷰 (도메인 전문가 수준 probing)
 /vibe-sync         # 업스트림 하네스 변경을 프로젝트 커스터마이징 보존하며 반영
+/vibe-sprint-mode  # Sprint agent-delegation 권한 프리셋 토글
+/vibe-review       # 프로세스 건강성 리뷰 (4-tier rubric)
 /goal-to-plan      # 목표 → Sprint 분할 계획 생성
 /self-qa           # QA 검증
 /write-report      # 완료 보고서 작성
@@ -149,6 +166,9 @@ ouroboros setup   # 초기 설정
 ```bash
 npm run vibe:doctor                   # 환경 점검
 npm run vibe:init                     # 기본 파일 생성
+npm run vibe:interview                # 네이티브 소크라테스식 인터뷰 실행
+npm run vibe:bundle-size              # 번들 크기 검사 (opt-in)
+npm run vibe:browser-smoke            # 브라우저 smoke 테스트 (opt-in, Playwright 필요)
 npm run vibe:qa                       # QA 실행 (test → typecheck → lint → build)
 npm run vibe:usage                    # 토큰 사용량 요약
 npm run vibe:report -- --title "foo"  # 완료 보고서 작성

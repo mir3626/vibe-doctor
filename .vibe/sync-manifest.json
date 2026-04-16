@@ -124,9 +124,11 @@
       "test/interview-engine.test.ts",
       "test/interview-cli.test.ts",
       "docs/context/harness-gaps.md",
+      "docs/release/v1.2.0.md",
       "test/statusline.test.ts",
       "test/sprint-mode.test.ts",
-      "test/status-tick.test.ts"
+      "test/status-tick.test.ts",
+      "test/integration/meta-smoke.test.ts"
     ],
     "hybrid": {
       "CLAUDE.md": {

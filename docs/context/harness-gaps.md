@@ -16,13 +16,13 @@
 | gap-cmd-wrapper-health | Codex wrapper 가 retry·버전·health subcommand 없어 진단 어려움 | `run-codex.sh --health` / `--version` (M2) | covered |
 | gap-session-log-ordering | session-log 엔트리 타임스탬프 역순·중복·race 로 손상 | `vibe-session-log-sync.mjs` (M3) | covered |
 | gap-audit-cadence | 프로세스 건강성 리뷰 주기 누락 -> 사각지대 누적 | `sprintsSinceLastAudit` + `vibe-audit-clear.mjs` + `/vibe-review` (M8) | covered |
-| gap-review-reproducibility | 리뷰가 사람 주관 기반 -> 입력 재현 불가 | `/vibe-review` 자동 로드 계약 (M8) | partial |
+| gap-review-reproducibility | 리뷰가 사람 주관 기반 -> 입력 재현 불가 | `/vibe-review` SKILL.md + `test/vibe-review-inputs.test.ts` exist (M8) | covered |
 | gap-phase0-commit-forget | Phase 0 산출물 커밋 누락으로 첫 Sprint 가 dirty tree 위에서 시작 | `vibe-phase0-seal.mjs` (M7) | covered |
-| gap-opt-in-visibility | bundle/browserSmoke opt-in 미인지로 frontend 프로젝트가 검증 없이 진행 | `/vibe-review` M7 opt-in gate (M8) | partial |
-| gap-rule-only-in-md | 규칙이 MD 에만 존재 -> Orchestrator 가 잊음 | script hook 명시 -> `CLAUDE.md §훅 강제 메커니즘` | open |
-| gap-statusline-visibility | Agent 위임 중 Orchestrator 상태 불투명 | M9 대상 | open |
-| gap-permission-noise | Agent 위임 시 권한 프롬프트 반복 | M9 permission preset | open |
-| gap-integration-smoke | end-to-end meta smoke 부재 | M10 meta-smoke | open |
+| gap-opt-in-visibility | bundle/browserSmoke opt-in 미인지로 frontend 프로젝트가 검증 없이 진행 | `/vibe-review` detectOptInGaps + test coverage (M8) | covered |
+| gap-rule-only-in-md | 규칙이 MD 에만 존재 -> Orchestrator 가 잊음 | `CLAUDE.md` hook table expanded (M10), but not all rules are script-gated yet | partial |
+| gap-statusline-visibility | Agent 위임 중 Orchestrator 상태 불투명 | `.claude/statusline.{sh,ps1}` + `vibe-status-tick.mjs` + tests (M9) | covered |
+| gap-permission-noise | Agent 위임 시 권한 프롬프트 반복 | `vibe-sprint-mode.mjs` + settings-presets + tests (M9) | covered |
+| gap-integration-smoke | end-to-end meta smoke 부재 | `test/integration/meta-smoke.test.ts` (M10, this Sprint) | covered |
 
 Update protocol:
 1. 새 gap 발견 시 id `gap-<slug>` 로 표 끝에 append 한다.
