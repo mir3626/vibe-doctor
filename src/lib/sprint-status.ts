@@ -1,4 +1,5 @@
 import path from 'node:path';
+import { appendDailyEvent } from './daily-log.js';
 import { readJson, writeJson } from './fs.js';
 import { paths } from './paths.js';
 
@@ -405,6 +406,11 @@ export async function appendPendingRisk(
   };
   status.pendingRisks.push(nextRisk);
   await saveSprintStatus(status, root);
+  await appendDailyEvent({
+    type: 'pending-risk-added',
+    ...(root === undefined ? {} : { rootDir: root }),
+    payload: { id: nextRisk.id, text: nextRisk.text },
+  }).catch(() => {});
   return nextRisk;
 }
 
@@ -418,6 +424,11 @@ export async function resolvePendingRisk(id: string, root?: string): Promise<Pen
   risk.status = 'resolved';
   risk.resolvedAt = new Date().toISOString();
   await saveSprintStatus(status, root);
+  await appendDailyEvent({
+    type: 'pending-risk-resolved',
+    ...(root === undefined ? {} : { rootDir: root }),
+    payload: { id: risk.id, text: risk.text },
+  }).catch(() => {});
   return clonePendingRisk(risk);
 }
 

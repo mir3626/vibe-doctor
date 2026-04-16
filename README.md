@@ -32,6 +32,35 @@
 
 자세한 릴리스 내역은 `docs/release/v1.2.0.md`, `v1.2.1.md`, `v1.3.0.md` 참조.
 
+### Dashboard (optional)
+
+Run the read-only local dashboard when you want an out-of-terminal view of sprint state and urgent attention events:
+
+```bash
+npm run vibe:dashboard
+```
+
+The server binds to `127.0.0.1` only and serves a zero-dependency SPA with SSE updates from `.vibe/agent` state files. To stop it:
+
+```bash
+npm run vibe:dashboard:stop
+```
+
+Auto-start is opt-in. Set `.vibe/config.json`:
+
+```json
+{
+  "dashboard": {
+    "enabled": false,
+    "port": 5175,
+    "host": "127.0.0.1",
+    "autoStart": true,
+    "notificationLevel": "urgent",
+    "retentionDays": 30
+  }
+}
+```
+
 ---
 
 ## 요구 사항

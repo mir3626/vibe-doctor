@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import { spawnSync } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import {
   existsSync,
@@ -128,6 +129,22 @@ function exitWith(code, message) {
     process.stderr.write(`${message}\n`);
   }
   process.exit(code);
+}
+
+function appendDailyEvent(type, payload) {
+  try {
+    spawnSync(process.execPath, [
+      path.join(ROOT, 'scripts', 'vibe-daily-log.mjs'),
+      type,
+      '--payload',
+      JSON.stringify(payload),
+    ], {
+      cwd: ROOT,
+      stdio: 'ignore',
+    });
+  } catch {
+    // Daily dashboard logging is non-blocking by design.
+  }
 }
 
 function parseJsonText(text, label) {
@@ -1131,6 +1148,9 @@ function recordCommand(flags) {
     state.terminationReason = termination.reason;
     saveSession(state);
     clearActivePointer(state.sessionId);
+    if (ambiguity <= 0.2) {
+      appendDailyEvent('phase-completed', { phase: 'interview', ambiguity });
+    }
     process.stdout.write(
       `${JSON.stringify(createDonePayload(state, ambiguity, termination.reason), null, 2)}\n`,
     );

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
@@ -26,6 +26,21 @@ function tryGit(args) {
     return git(args);
   } catch {
     return null;
+  }
+}
+
+function appendDailyEvent(payload) {
+  try {
+    spawnSync(process.execPath, [
+      path.join(process.cwd(), 'scripts', 'vibe-daily-log.mjs'),
+      'phase-completed',
+      '--payload',
+      JSON.stringify(payload),
+    ], {
+      stdio: 'ignore',
+    });
+  } catch {
+    // Daily dashboard logging is non-blocking by design.
   }
 }
 
@@ -98,6 +113,7 @@ function main() {
   const projectName = deriveProjectName();
   const message = `chore(phase0): vibe-init Phase 0 seal — ${projectName}`;
   git(['-c', 'commit.gpgsign=false', 'commit', '-m', message, '--', ...targets]);
+  appendDailyEvent({ phase: 'phase-0' });
   process.stdout.write(`[phase0-seal] committed: ${message}\n`);
 }
 

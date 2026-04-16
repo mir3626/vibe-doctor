@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
@@ -83,6 +84,22 @@ function appendAuditClearEntry(root, resolvedCount, note) {
   writeFileSync(logPath, updated, 'utf8');
 }
 
+function appendDailyEvent(root, payload) {
+  try {
+    spawnSync(process.execPath, [
+      path.join(root, 'scripts', 'vibe-daily-log.mjs'),
+      'audit-cleared',
+      '--payload',
+      JSON.stringify(payload),
+    ], {
+      cwd: root,
+      stdio: 'ignore',
+    });
+  } catch {
+    // Daily dashboard logging is non-blocking by design.
+  }
+}
+
 function main() {
   const args = process.argv.slice(2);
   let resolveRisks = false;
@@ -115,6 +132,7 @@ function main() {
   const resolvedCount = resolveRisks ? resolvePendingRisksByPrefix(status, 'audit-after-') : 0;
   saveSprintStatus(root, status);
   appendAuditClearEntry(root, resolvedCount, logNote);
+  appendDailyEvent(root, { resolvedCount, note: logNote });
   process.stdout.write(
     `[audit-clear] counter=0 resolved=${resolvedCount} note=${logNote}\n`,
   );

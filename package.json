@@ -22,7 +22,10 @@
     "vibe:report": "npx tsx src/commands/write-report.ts",
     "vibe:config-audit": "npx tsx src/commands/audit-config.ts",
     "vibe:run-agent": "npx tsx src/commands/run-agent.ts",
-    "vibe:sync": "npx tsx src/commands/sync.ts"
+    "vibe:sync": "npx tsx src/commands/sync.ts",
+    "vibe:dashboard": "node scripts/vibe-dashboard.mjs",
+    "vibe:dashboard:stop": "node scripts/vibe-dashboard.mjs --stop",
+    "vibe:attention": "node scripts/vibe-attention.mjs"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",

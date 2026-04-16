@@ -39,7 +39,7 @@ test('mergeConfig preserves provider map and overrides top-level fields', () => 
 
 test('mergeConfig deep-merges sprintRoles', () => {
   const merged = mergeConfig(base, {
-    sprintRoles: { generator: 'gemini' } as any,
+    sprintRoles: { generator: 'gemini' },
   });
 
   assert.equal(merged.sprintRoles.generator, 'gemini');
@@ -49,9 +49,36 @@ test('mergeConfig deep-merges sprintRoles', () => {
 
 test('mergeConfig deep-merges sprint config', () => {
   const merged = mergeConfig(base, {
-    sprint: { unit: 'page' } as any,
+    sprint: { unit: 'page' },
   });
 
   assert.equal(merged.sprint.unit, 'page');
   assert.equal(merged.sprint.subAgentPerRole, true);
+});
+
+test('mergeConfig deep-merges dashboard config', () => {
+  const merged = mergeConfig(
+    {
+      ...base,
+      dashboard: {
+        enabled: false,
+        port: 5175,
+        host: '127.0.0.1',
+        autoStart: false,
+        notificationLevel: 'urgent',
+        retentionDays: 30,
+      },
+    },
+    {
+      dashboard: {
+        autoStart: true,
+        port: 45175,
+      },
+    },
+  );
+
+  assert.equal(merged.dashboard?.enabled, false);
+  assert.equal(merged.dashboard?.autoStart, true);
+  assert.equal(merged.dashboard?.port, 45175);
+  assert.equal(merged.dashboard?.host, '127.0.0.1');
 });

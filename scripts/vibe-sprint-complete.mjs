@@ -266,6 +266,17 @@ function runProjectReport() {
   logStep('project-report', 'warn', `detail=exit-${result.status ?? 1}`);
 }
 
+function appendDailyEvent(type, payload) {
+  try {
+    const scriptPath = resolve('scripts/vibe-daily-log.mjs');
+    spawnSync(process.execPath, [scriptPath, type, '--payload', JSON.stringify(payload)], {
+      stdio: 'ignore',
+    });
+  } catch {
+    // Daily dashboard logging is non-blocking by design.
+  }
+}
+
 export function computeCurrentPointerBlock(
   roadmapMd,
   sessionLogMd,
@@ -626,6 +637,12 @@ function runCli() {
   } catch (error) {
     logStep('session-log-sync', 'warn', `detail=${error.message}`);
   }
+
+  appendDailyEvent(status === 'passed' ? 'sprint-completed' : 'sprint-failed', {
+    sprintId,
+    status,
+    loc: actualLoc,
+  });
 
   if (shouldAutoProjectReport(sprintId, status, noAutoReport)) {
     runProjectReport();

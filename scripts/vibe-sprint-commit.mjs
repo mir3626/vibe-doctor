@@ -87,6 +87,17 @@ function execGit(args, options = {}) {
   }).trim();
 }
 
+function appendDailyEvent(type, payload) {
+  try {
+    const scriptPath = resolve('scripts/vibe-daily-log.mjs');
+    spawnSync(process.execPath, [scriptPath, type, '--payload', JSON.stringify(payload)], {
+      stdio: 'ignore',
+    });
+  } catch {
+    // Daily dashboard logging is non-blocking by design.
+  }
+}
+
 function gitLines(args) {
   const output = execGit(args);
   return output.length === 0
@@ -294,6 +305,7 @@ function main() {
   }
 
   const { sprintId, status, scope: cliScope, message, dryRun, disableGpg } = parseArgs(process.argv);
+  appendDailyEvent('sprint-started', { sprintId, status });
   const scriptDir = path.dirname(fileURLToPath(import.meta.url));
   const completeScript = path.join(scriptDir, 'vibe-sprint-complete.mjs');
   const statusPath = resolve('.vibe/agent/sprint-status.json');

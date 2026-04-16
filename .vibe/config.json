@@ -50,6 +50,14 @@
     "enabled": false,
     "configPath": ".vibe/smoke.config.js"
   },
+  "dashboard": {
+    "enabled": false,
+    "port": 5175,
+    "host": "127.0.0.1",
+    "autoStart": false,
+    "notificationLevel": "urgent",
+    "retentionDays": 30
+  },
   "audit": {
     "everyN": 5
   }

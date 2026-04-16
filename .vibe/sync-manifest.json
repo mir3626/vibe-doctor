@@ -13,6 +13,11 @@
       "scripts/vibe-phase0-seal.mjs",
       "scripts/vibe-browser-smoke.mjs",
       "scripts/vibe-audit-clear.mjs",
+      "scripts/vibe-dashboard.mjs",
+      "scripts/vibe-daily-log.mjs",
+      "scripts/vibe-attention-notify.mjs",
+      "scripts/vibe-attention.mjs",
+      "scripts/vibe-session-started.mjs",
       ".vibe/agent/_common-rules.md",
       ".vibe/agent/re-incarnation.md",
       ".vibe/agent/sprint-status.schema.json",
@@ -58,6 +63,7 @@
       "src/lib/time.ts",
       "src/lib/usage.ts",
       "src/lib/review.ts",
+      "src/lib/daily-log.ts",
       "src/providers/runner.ts",
       "src/providers/types.ts",
       "test/args.test.ts",
@@ -69,6 +75,9 @@
       "test/usage.test.ts",
       "test/sync.test.ts",
       "test/audit-counter.test.ts",
+      "test/dashboard-server.test.ts",
+      "test/daily-log.test.ts",
+      "test/attention-notify.test.ts",
       "test/vibe-review-inputs.test.ts",
       "migrations/1.0.0.mjs",
       ".vibe/agent/project-map.schema.json",
@@ -185,7 +194,7 @@
       ".vibe/config.json": {
         "strategy": "json-deep-merge",
         "harnessKeys": ["harnessVersion", "qa"],
-        "projectKeys": ["orchestrator", "sprintRoles", "sprint", "providers", "harnessVersionInstalled", "upstream", "bundle", "browserSmoke"]
+        "projectKeys": ["orchestrator", "sprintRoles", "sprint", "providers", "harnessVersionInstalled", "upstream", "bundle", "browserSmoke", "dashboard"]
       }
     },
     "project": [

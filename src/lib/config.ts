@@ -38,6 +38,15 @@ export interface BrowserSmokeConfig {
   configPath: string;
 }
 
+export interface DashboardConfig {
+  enabled: boolean;
+  port: number;
+  host: '127.0.0.1' | 'localhost';
+  autoStart: boolean;
+  notificationLevel: 'urgent' | 'all';
+  retentionDays: number;
+}
+
 export interface VibeConfig {
   orchestrator: string;
   harnessVersion?: string;
@@ -55,7 +64,21 @@ export interface VibeConfig {
   };
   bundle?: BundleConfig;
   browserSmoke?: BrowserSmokeConfig;
+  dashboard?: DashboardConfig;
 }
+
+type VibeConfigOverride = Omit<
+  Partial<VibeConfig>,
+  'sprintRoles' | 'sprint' | 'providers' | 'qa' | 'bundle' | 'browserSmoke' | 'dashboard'
+> & {
+  sprintRoles?: Partial<SprintRoles>;
+  sprint?: Partial<SprintConfig>;
+  providers?: Record<string, ProviderRunner>;
+  qa?: Partial<NonNullable<VibeConfig['qa']>>;
+  bundle?: Partial<BundleConfig>;
+  browserSmoke?: Partial<BrowserSmokeConfig>;
+  dashboard?: Partial<DashboardConfig>;
+};
 
 function mergeOptionalObject<T extends object>(
   base?: T,
@@ -71,36 +94,51 @@ function mergeOptionalObject<T extends object>(
   } as T;
 }
 
-function mergeConfig(base: VibeConfig, override: Partial<VibeConfig>): VibeConfig {
+function mergeConfig(base: VibeConfig, override: VibeConfigOverride): VibeConfig {
+  const {
+    sprintRoles,
+    sprint,
+    providers,
+    qa,
+    bundle: bundleOverride,
+    browserSmoke: browserSmokeOverride,
+    dashboard: dashboardOverride,
+    ...topLevelOverride
+  } = override;
   const merged: VibeConfig = {
     ...base,
-    ...override,
+    ...topLevelOverride,
     sprintRoles: {
       ...base.sprintRoles,
-      ...(override.sprintRoles ?? {}),
+      ...(sprintRoles ?? {}),
     },
     sprint: {
       ...base.sprint,
-      ...(override.sprint ?? {}),
+      ...(sprint ?? {}),
     },
     providers: {
       ...base.providers,
-      ...(override.providers ?? {}),
+      ...(providers ?? {}),
     },
     qa: {
       ...(base.qa ?? {}),
-      ...(override.qa ?? {}),
+      ...(qa ?? {}),
     },
   };
 
-  const bundle = mergeOptionalObject(base.bundle, override.bundle);
+  const bundle = mergeOptionalObject(base.bundle, bundleOverride);
   if (bundle) {
     merged.bundle = bundle;
   }
 
-  const browserSmoke = mergeOptionalObject(base.browserSmoke, override.browserSmoke);
+  const browserSmoke = mergeOptionalObject(base.browserSmoke, browserSmokeOverride);
   if (browserSmoke) {
     merged.browserSmoke = browserSmoke;
+  }
+
+  const dashboard = mergeOptionalObject(base.dashboard, dashboardOverride);
+  if (dashboard) {
+    merged.dashboard = dashboard;
   }
 
   return merged;
@@ -110,7 +148,7 @@ export async function loadConfig(): Promise<VibeConfig> {
   const shared = await readJson<VibeConfig>(paths.sharedConfig);
 
   try {
-    const local = await readJson<Partial<VibeConfig>>(paths.localConfig);
+    const local = await readJson<VibeConfigOverride>(paths.localConfig);
     return mergeConfig(shared, local);
   } catch {
     return shared;
