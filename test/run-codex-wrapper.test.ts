@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { execFile as execFileCallback, execFileSync, spawnSync } from 'node:child_process';
-import { chmod, mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
+import { chmod, mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { promisify } from 'node:util';
@@ -47,7 +47,7 @@ async function writeExecutable(filePath: string, content: string): Promise<void>
   }
 }
 
-async function createShellStubBin(mode: 'ok' | 'auth' | 'timeout' | 'stdin' | 'fail'): Promise<string> {
+async function createShellStubBin(mode: 'ok' | 'auth' | 'timeout' | 'stdin' | 'fail' | 'tokens'): Promise<string> {
   const binDir = await makeTempDir('run-codex-shell-bin-');
   const codexScript = `#!/usr/bin/env bash
 if [[ "\${1:-}" == "--version" ]]; then
@@ -77,6 +77,10 @@ if [[ "\${1:-}" == "exec" ]]; then
       cat
       exit 0
       ;;
+    tokens)
+      echo "tokens: 1234"
+      exit 0
+      ;;
     fail)
       echo "plain failure" >&2
       exit 1
@@ -103,6 +107,22 @@ shift
   await writeExecutable(path.join(binDir, 'timeout'), timeoutScript);
   await writeExecutable(path.join(binDir, 'sleep'), sleepScript);
   return binDir;
+}
+
+async function readTokensJson(root: string): Promise<{
+  elapsedSeconds: number;
+  sprintTokens: Record<string, number>;
+}> {
+  const raw = await readFile(path.join(root, '.vibe', 'agent', 'tokens.json'), 'utf8');
+  const parsed = JSON.parse(raw) as {
+    elapsedSeconds?: unknown;
+    sprintTokens?: unknown;
+  };
+  assert.equal(typeof parsed.elapsedSeconds, 'number');
+  assert.equal(typeof parsed.sprintTokens, 'object');
+  assert.notEqual(parsed.sprintTokens, null);
+  assert.equal(Array.isArray(parsed.sprintTokens), false);
+  return parsed as { elapsedSeconds: number; sprintTokens: Record<string, number> };
 }
 
 async function createCmdStubBin(mode: 'ok' | 'stdin'): Promise<string> {
@@ -238,6 +258,63 @@ describe('run-codex.sh wrapper', { skip: bashCommand === null }, () => {
     assert.match(child.stdout, /hello from stdin/);
     assert.match(child.stdout, new RegExp(firstRuleLine.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
   });
+
+  it('invokes status-tick after successful codex run when VIBE_SPRINT_ID is set', async () => {
+    const binDir = await createShellStubBin('tokens');
+    const cwd = await makeTempDir('run-codex-status-tick-');
+    const child = spawnSync(bashCommand ?? 'bash', [bashScriptPath, 'prompt text'], {
+      cwd,
+      env: shellEnv(binDir, {
+        CODEX_RETRY: '1',
+        VIBE_SPRINT_ID: 'sprint-example',
+      }),
+      input: '',
+      encoding: 'utf8',
+    });
+
+    assert.equal(child.status, 0);
+    assert.match(child.stderr, /status-tick: ticked tokens=1234 sprint=sprint-example/);
+
+    const tokens = await readTokensJson(cwd);
+    assert.equal(tokens.sprintTokens['sprint-example'], 1234);
+    assert.ok(tokens.elapsedSeconds >= 0);
+  });
+
+  it('skips status-tick when sprint status handoff is idle', async () => {
+    const binDir = await createShellStubBin('tokens');
+    const cwd = await makeTempDir('run-codex-status-skip-');
+    await writeFile(
+      path.join(cwd, '.vibe', 'agent', 'sprint-status.json'),
+      JSON.stringify({ handoff: { currentSprintId: 'idle' } }),
+      'utf8',
+    ).catch(async (error: unknown) => {
+      if ((error as { code?: string }).code !== 'ENOENT') {
+        throw error;
+      }
+      await mkdir(path.join(cwd, '.vibe', 'agent'), { recursive: true });
+      await writeFile(
+        path.join(cwd, '.vibe', 'agent', 'sprint-status.json'),
+        JSON.stringify({ handoff: { currentSprintId: 'idle' } }),
+        'utf8',
+      );
+    });
+
+    const child = spawnSync(bashCommand ?? 'bash', [bashScriptPath, 'prompt text'], {
+      cwd,
+      env: shellEnv(binDir, {
+        CODEX_RETRY: '1',
+        VIBE_SPRINT_ID: '',
+      }),
+      input: '',
+      encoding: 'utf8',
+    });
+
+    assert.equal(child.status, 0);
+    assert.match(child.stderr, /status-tick: skipped reason=no-sprint/);
+    await assert.rejects(readFile(path.join(cwd, '.vibe', 'agent', 'tokens.json'), 'utf8'), {
+      code: 'ENOENT',
+    });
+  });
 });
 
 describe('run-codex.cmd wrapper', { skip: process.platform !== 'win32' }, () => {
@@ -254,12 +331,30 @@ describe('run-codex.cmd wrapper', { skip: process.platform !== 'win32' }, () => 
   it('forwards stdin through the native cmd wrapper', async () => {
     const binDir = await createCmdStubBin('stdin');
     const child = spawnSync(shellPath, ['/d', '/c', cmdScriptPath, '-'], {
-      env: shellEnv(binDir),
+      env: shellEnv(binDir, { VIBE_SPRINT_ID: '' }),
       input: 'hello from cmd stdin',
       encoding: 'utf8',
     });
 
     assert.equal(child.status, 0);
     assert.match(child.stdout, /hello from cmd stdin/);
+  });
+
+  it('invokes status-tick after successful native cmd runs when VIBE_SPRINT_ID is set', async () => {
+    const binDir = await createCmdStubBin('ok');
+    const cwd = await makeTempDir('run-codex-cmd-status-tick-');
+    const child = spawnSync(shellPath, ['/d', '/c', cmdScriptPath, 'prompt text'], {
+      cwd,
+      env: shellEnv(binDir, {
+        VIBE_SPRINT_ID: 'sprint-cmd',
+      }),
+      input: '',
+      encoding: 'utf8',
+    });
+
+    assert.equal(child.status, 0);
+    const tokens = await readTokensJson(cwd);
+    assert.equal(tokens.sprintTokens['sprint-cmd'], 0);
+    assert.ok(tokens.elapsedSeconds >= 0);
   });
 });

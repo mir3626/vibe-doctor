@@ -24,6 +24,10 @@
 
 
 
+
+
+- 2026-04-17T08:29:44.019Z [audit-clear] resolved=1 note=Evaluator (첫 소환, iter-3 milestone) audit completed: verdict=partial, blocking=0. 12/12 checks reviewed, 10 pass + 2 partial (dangling refs). Non-blocking findings resolved via Codex cleanup (README, product.md, qa.md, re-incarnation.md). N1 evidence-based rule audit + dogfood6~7 retrospective scan was the de-facto heavyweight audit for this cadence cycle.
+- 2026-04-17T08:11:17.686Z [sprint-complete] sprint-N2-critical-bug-triage -> passed. Sprint sprint-N2-critical-bug-triage completed with passed LOC +840/-100 (net +740)
 - 2026-04-17T07:47:15.809Z [sprint-complete] sprint-N1-rule-audit-diet -> passed. Sprint sprint-N1-rule-audit-diet completed with passed LOC +863/-52 (net +811)
 - 2026-04-17T06:59:41.603Z [decision] [iter-3-kickoff] /vibe-iterate Phase 1~3 완료. Differential Interview 7 rounds (ambiguity terminate). 핵심 결정: (1) 28 rules 를 semantic cluster 단위로 재정의 + dogfood6~7 transcript retrospective 재스캔 기반 S/A/B/C tier 분류 + B/C delete + Should→Must 단일방향 격상. (2) Progressive MD — CLAUDE.md §0 Charter (file top) + §1+ Extensions pointer 재구조화. trigger matrix + wiring checklist + role 호출 표까지 Charter 포함 (agent self-containment). (3) Critical bug triage — sprint-commit archive staging + auto-tag production 검증 via artificial v1.4.1 bump + run-codex auto status-tick hook. (4) Soft freeze + mode flag human/agent 2-value define-only (분기 로직은 iter-4+ defer). Priority a>b>c>d. Growth budget: net +150 LOC / iter, 0 new scripts. Validation: Windows + macOS. Artifacts .vibe/audit/iter-3/ 격리. Core values 절대 보존. dogfood8 인계 프롬프트 작성 필수.
 - 2026-04-17T03:50:07.756Z [decision] [iteration-2-closure] iteration-2 (v1.4.0) 3 sprints 완료: M-audit(bc8f90f) + M-process-discipline(20a612e) + M-harness-gates(4d9a002). harnessVersion 1.3.1→1.4.0 bump + iteration-history.json iter-2 entry append + v1.4.0 annotated tag 수동 생성. auto-tag 로직 production 검증은 다음 harness bump 시 자연 발생 예정. 27 uncovered rules(vibe-rule-audit) + gap-review-catch-wiring-drift는 iteration-3 candidate.

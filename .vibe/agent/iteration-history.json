@@ -14,7 +14,8 @@
         "sprint-N3-freeze-mode-flag"
       ],
       "completedSprints": [
-        "sprint-N1-rule-audit-diet"
+        "sprint-N1-rule-audit-diet",
+        "sprint-N2-critical-bug-triage"
       ],
       "milestoneProgress": {
         "rule-audit-diet": 0,

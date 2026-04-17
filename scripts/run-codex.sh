@@ -160,6 +160,16 @@ retry_delay_for_attempt() {
 token_suffix() {
   local tokens
 
+  tokens="$(extract_token_count)"
+
+  if [[ -n "$tokens" ]]; then
+    printf ' tokens=%s' "$tokens"
+  fi
+}
+
+extract_token_count() {
+  local tokens
+
   tokens="$(
     tail -n 10 "$attempt_output" 2>/dev/null |
       grep -Eio 'tokens?[: ]+[0-9]+' |
@@ -168,8 +178,75 @@ token_suffix() {
   )"
 
   if [[ -n "$tokens" ]]; then
-    printf ' tokens=%s' "$tokens"
+    printf '%s' "$tokens"
   fi
+}
+
+resolve_sprint_id() {
+  if [[ -n "${VIBE_SPRINT_ID:-}" ]]; then
+    printf '%s' "$VIBE_SPRINT_ID"
+    return 0
+  fi
+
+  local status_file sid
+  status_file=".vibe/agent/sprint-status.json"
+  if [[ ! -f "$status_file" ]]; then
+    return 1
+  fi
+
+  sid="$(
+    grep -Eo '"currentSprintId"[[:space:]]*:[[:space:]]*"[^"]*"' "$status_file" |
+      sed -E 's/.*"currentSprintId"[[:space:]]*:[[:space:]]*"([^"]*)".*/\1/' |
+      head -n 1 || true
+  )"
+  if [[ -n "$sid" && "$sid" != "idle" ]]; then
+    printf '%s' "$sid"
+    return 0
+  fi
+
+  return 1
+}
+
+iso_from_epoch() {
+  local ts
+  ts="$1"
+
+  date -u -d "@$ts" +"%Y-%m-%dT%H:%M:%SZ" 2>/dev/null ||
+    date -u -r "$ts" +"%Y-%m-%dT%H:%M:%SZ" 2>/dev/null ||
+    return 1
+}
+
+status_tick_after_success() {
+  local script_dir sprint_id tokens iso args tick_output tick_rc
+
+  tokens="$(extract_token_count)"
+  if [[ -z "$tokens" ]]; then
+    echo "[run-codex] status-tick: skipped reason=no-tokens" >&2
+    return 0
+  fi
+
+  if ! sprint_id="$(resolve_sprint_id)"; then
+    echo "[run-codex] status-tick: skipped reason=no-sprint" >&2
+    return 0
+  fi
+
+  script_dir="$(cd "$(dirname "$0")" && pwd)"
+  args=("$script_dir/vibe-status-tick.mjs" --add-tokens "$tokens" --sprint "$sprint_id")
+  if iso="$(iso_from_epoch "$start_ts")"; then
+    args+=(--elapsed-start "$iso")
+  fi
+
+  set +e
+  tick_output="$(node "${args[@]}" 2>&1)"
+  tick_rc=$?
+  set -e
+
+  if [[ $tick_rc -eq 0 ]]; then
+    echo "[run-codex] status-tick: ticked tokens=$tokens sprint=$sprint_id" >&2
+    return 0
+  fi
+
+  echo "[run-codex] status-tick: skipped reason=cli-failed rc=$tick_rc ${tick_output}" >&2
 }
 
 # ---------- 0. Subcommand dispatch ----------
@@ -346,6 +423,7 @@ while [[ $attempt -lt $retries ]]; do
     emit_sandbox_only_summary
     elapsed=$(( $(date +%s) - start_ts ))
     echo "[run-codex] total attempts=$attempt elapsed=${elapsed}s$(token_suffix)" >&2
+    status_tick_after_success
     exit 0
   fi
 

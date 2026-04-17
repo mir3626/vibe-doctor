@@ -183,14 +183,20 @@ function stageIfTrackedOrChanged(entries, changedFiles) {
   return entries.filter((relativePath) => existsSync(resolve(relativePath)) || changedFiles.includes(relativePath));
 }
 
-function collectArchivedPromptFiles(sprintId) {
+export function collectArchivedPromptFiles(sprintId) {
   const archiveDir = resolve('.vibe/archive/prompts');
   if (!existsSync(archiveDir)) {
     return [];
   }
 
   return readdirSync(archiveDir)
-    .filter((entry) => entry.startsWith(`${sprintId}-`) && entry.endsWith('.md'))
+    .filter((entry) => {
+      if (!entry.endsWith('.md')) {
+        return false;
+      }
+      const baseName = entry.slice(0, -'.md'.length);
+      return baseName === sprintId || baseName.startsWith(`${sprintId}-`);
+    })
     .map((entry) => normalizePosix(path.join('.vibe/archive/prompts', entry)));
 }
 

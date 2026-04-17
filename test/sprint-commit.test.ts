@@ -195,6 +195,7 @@ async function loadSprintCompleteHelpers(): Promise<{
 }
 
 async function loadSprintCommitHelpers(): Promise<{
+  collectArchivedPromptFiles: (sprintId: string) => string[];
   inlineExtendLastSprintScope: (
     statusPath: string,
     mergedScope: string[],
@@ -202,6 +203,7 @@ async function loadSprintCommitHelpers(): Promise<{
   ) => void;
 }> {
   return import(pathToFileURL(path.resolve('scripts', 'vibe-sprint-commit.mjs')).href) as Promise<{
+    collectArchivedPromptFiles: (sprintId: string) => string[];
     inlineExtendLastSprintScope: (
       statusPath: string,
       mergedScope: string[],
@@ -209,6 +211,46 @@ async function loadSprintCommitHelpers(): Promise<{
     ) => void;
   }>;
 }
+
+describe('collectArchivedPromptFiles', () => {
+  it('includes suffix-less and suffixed archived prompt files', async () => {
+    const { collectArchivedPromptFiles } = await loadSprintCommitHelpers();
+    const root = await makeTempDir('sprint-commit-archive-basic-');
+    await writeText(path.join(root, '.vibe', 'archive', 'prompts', 'sprint-example.md'), '# base\n');
+    await writeText(path.join(root, '.vibe', 'archive', 'prompts', 'sprint-example-plan.md'), '# plan\n');
+    await writeText(path.join(root, '.vibe', 'archive', 'prompts', 'sprint-example.txt'), 'ignore\n');
+    const previousCwd = process.cwd();
+
+    try {
+      process.chdir(root);
+      assert.deepEqual(collectArchivedPromptFiles('sprint-example').sort(), [
+        '.vibe/archive/prompts/sprint-example-plan.md',
+        '.vibe/archive/prompts/sprint-example.md',
+      ].sort());
+    } finally {
+      process.chdir(previousCwd);
+    }
+  });
+
+  it('keeps dash-delimited prefix collision protection', async () => {
+    const { collectArchivedPromptFiles } = await loadSprintCommitHelpers();
+    const root = await makeTempDir('sprint-commit-archive-collision-');
+    await writeText(path.join(root, '.vibe', 'archive', 'prompts', 'sprint-M.md'), '# base\n');
+    await writeText(path.join(root, '.vibe', 'archive', 'prompts', 'sprint-M1.md'), '# collision\n');
+    await writeText(path.join(root, '.vibe', 'archive', 'prompts', 'sprint-M-audit.md'), '# audit\n');
+    const previousCwd = process.cwd();
+
+    try {
+      process.chdir(root);
+      assert.deepEqual(collectArchivedPromptFiles('sprint-M').sort(), [
+        '.vibe/archive/prompts/sprint-M-audit.md',
+        '.vibe/archive/prompts/sprint-M.md',
+      ].sort());
+    } finally {
+      process.chdir(previousCwd);
+    }
+  });
+});
 
 describe('computeCurrentPointerBlock', () => {
   it('computes current, completed, and pending lists from roadmap and session log', async () => {

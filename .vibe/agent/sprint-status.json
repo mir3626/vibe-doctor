@@ -55,6 +55,18 @@
         "net": 811,
         "filesChanged": 5
       }
+    },
+    {
+      "id": "sprint-N2-critical-bug-triage",
+      "name": "sprint-N2-critical-bug-triage",
+      "status": "passed",
+      "completedAt": "2026-04-17T08:11:17.686Z",
+      "actualLoc": {
+        "added": 840,
+        "deleted": 100,
+        "net": 740,
+        "filesChanged": 13
+      }
     }
   ],
   "handoff": {
@@ -63,10 +75,10 @@
     "pendingPrompt": null,
     "lastHandoffAt": "2026-04-16T00:00:00Z",
     "nextAction": "run /vibe-init to start a new project",
-    "lastActionSummary": "Sprint sprint-N1-rule-audit-diet completed with passed",
+    "lastActionSummary": "Sprint sprint-N2-critical-bug-triage completed with passed",
     "orchestratorContextBudget": "medium",
     "preferencesActive": [],
-    "updatedAt": "2026-04-17T07:47:15.809Z"
+    "updatedAt": "2026-04-17T08:11:17.686Z"
   },
   "policies": {
     "scratchpadPath": ".vibe/agent/handoff.md",
@@ -81,6 +93,15 @@
       "text": "src/lib/schemas/index.ts has no test/index.test.ts; src/lib/schemas/iteration-history.ts has no test/iteration-history.test.ts; src/lib/schemas/sprint-api-contracts.ts has no test/sprint-api-contracts.test.ts",
       "status": "open",
       "createdAt": "2026-04-17T02:52:12.458Z"
+    },
+    {
+      "id": "audit-after-sprint-N2-critical-bug-triage",
+      "raisedBy": "vibe-sprint-complete",
+      "targetSprint": "*",
+      "text": "Evaluator audit due (sprintsSinceLastAudit=5, everyN=5).",
+      "status": "resolved",
+      "createdAt": "2026-04-17T08:11:17.686Z",
+      "resolvedAt": "2026-04-17T08:29:44.018Z"
     }
   ],
   "lastSprintScope": [
@@ -138,7 +159,15 @@
     "test/vibe-audit-skip-set.test.ts",
     ".vibe/agent/iteration-history.json",
     ".vibe/audit/iter-3/rule-audit-report.md",
-    ".vibe/audit/iter-3/rules-deleted.md"
+    ".vibe/audit/iter-3/rules-deleted.md",
+    "scripts/run-codex.sh",
+    "scripts/run-codex.cmd",
+    "test/run-codex-wrapper.test.ts",
+    ".vibe/audit/iter-3/dogfood8-handoff-prompt.md",
+    "docs/release/v1.4.1.md",
+    ".vibe/agent/re-incarnation.md",
+    "docs/context/product.md",
+    "docs/context/qa.md"
   ],
   "lastSprintScopeGlob": [
     "src/lib/schemas/**",
@@ -152,10 +181,13 @@
     "scripts/vibe-preflight.mjs",
     "scripts/vibe-rule-audit.mjs",
     "scripts/vibe-audit-skip-set.mjs",
-    "scripts/vibe-sprint-commit.mjs"
+    "scripts/vibe-sprint-commit.mjs",
+    "scripts/run-codex.sh",
+    "scripts/run-codex.cmd",
+    ".vibe/config.json"
   ],
-  "sprintsSinceLastAudit": 4,
-  "stateUpdatedAt": "2026-04-17T07:47:15.809Z",
+  "sprintsSinceLastAudit": 0,
+  "stateUpdatedAt": "2026-04-17T08:29:44.017Z",
   "verifiedAt": null,
   "verificationCommands": []
 }
