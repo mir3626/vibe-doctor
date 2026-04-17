@@ -1,0 +1,685 @@
+{
+  "sessionId": "2026-04-17T05-37-56-596Z-49322b",
+  "createdAt": "2026-04-17T05:37:56.598Z",
+  "lang": "ko",
+  "maxRounds": 20,
+  "oneLiner": "iteration-3 하네스 다이어트 + 튠업: S/A/B/C tier 기반 rule audit 으로 B/C tier 규칙/스크립트 제거, Progressive MD (§0 Charter + §1+ Extensions) 재구성, critical bug 정리 (sprint-commit archive staging + auto-tag production 검증 + run-codex auto status-tick), soft freeze posture 선언 및 mode flag human/agent 2-value 정의",
+  "inferredDomain": "AI coding agent orchestration framework self-maintenance iteration — rule/script audit for harness pruning, progressive documentation disclosure for dual human/agent consumers, and release-tag mechanics tune-up, adjacent to prompt engineering frameworks and LLM dev toolchains",
+  "domainConfidence": null,
+  "adjacentDomains": [],
+  "dimensions": [
+    {
+      "id": "goal",
+      "label": "프로젝트 목표 / 한 줄 정의",
+      "weight": 1,
+      "subFields": [
+        "one_liner",
+        "primary_value"
+      ],
+      "required": true
+    },
+    {
+      "id": "target_user",
+      "label": "핵심 사용자 및 이해관계자",
+      "weight": 0.9,
+      "subFields": [
+        "primary_persona",
+        "secondary_stakeholders",
+        "user_scale"
+      ],
+      "required": true
+    },
+    {
+      "id": "platform",
+      "label": "플랫폼 / 배포 대상",
+      "weight": 0.7,
+      "subFields": [
+        "platform_type",
+        "runtime_constraints"
+      ],
+      "required": true
+    },
+    {
+      "id": "data_model",
+      "label": "주요 도메인 엔티티 및 관계",
+      "weight": 0.9,
+      "subFields": [
+        "entities",
+        "key_relations",
+        "invariants"
+      ],
+      "required": true
+    },
+    {
+      "id": "primary_interaction",
+      "label": "핵심 사용자 시나리오",
+      "weight": 0.9,
+      "subFields": [
+        "happy_path",
+        "failure_paths"
+      ],
+      "required": true
+    },
+    {
+      "id": "success_metric",
+      "label": "성공 기준 / 측정 지표",
+      "weight": 0.8,
+      "subFields": [
+        "acceptance_criteria",
+        "kpi"
+      ],
+      "required": true
+    },
+    {
+      "id": "non_goals",
+      "label": "v1 의도적 제외 (non-goals)",
+      "weight": 0.5,
+      "subFields": [],
+      "required": false
+    },
+    {
+      "id": "constraints",
+      "label": "법·규제·비용·보안 제약",
+      "weight": 0.8,
+      "subFields": [
+        "legal_regulatory",
+        "budget",
+        "security_privacy"
+      ],
+      "required": true
+    },
+    {
+      "id": "tech_stack",
+      "label": "기술 스택 선호·제약",
+      "weight": 0.6,
+      "subFields": [
+        "language_runtime",
+        "framework",
+        "datastore",
+        "hosting"
+      ],
+      "required": false
+    },
+    {
+      "id": "domain_specifics",
+      "label": "도메인 특화 이슈 (전문가 probing)",
+      "weight": 1,
+      "subFields": [],
+      "required": true
+    }
+  ],
+  "coverage": {
+    "goal": {
+      "ratio": 1,
+      "subFields": {
+        "one_liner": {
+          "value": "iter-3 one-liner = Harness diet + tune-up (priority a > b > c > d): (a) Rule audit diet — 28 rules semantic cluster 단위 S/A/B/C tier 분류 + B/C delete + Should→Must 단일방향 격상 (dominant outcome). (b) Progressive MD 재구조화 — CLAUDE.md §0 Charter (file top) + §1+ Extensions pointer 체계화. (c) Critical bug triage — sprint-commit archive staging fix + artificial v1.4.1 bump 으로 auto-tag production 자기 검증 + run-codex auto status-tick hook. (d) Soft freeze posture 선언 + mode flag human/agent 2-value define-only (implementation defer to iter-4+).",
+          "confidence": 1,
+          "deferred": false
+        },
+        "primary_value": {
+          "value": "Primary value framing = (i) downstream user value — 하네스 복잡도 감소로 downstream 1인 개발자/비개발자/agent-delegate 가 실제 산출물 창출에 집중 가능. 사용자 본인 workflow 개선은 부수 효과 (명시적 target 아님).",
+          "confidence": 1,
+          "deferred": false
+        }
+      }
+    },
+    "target_user": {
+      "ratio": 1,
+      "subFields": {
+        "primary_persona": {
+          "value": "Downstream 1인 개발자/비개발자/agent-delegate 사용자 (vibe-doctor template 으로 프로젝트 시작) 가 primary persona. harness 설계 모든 결정은 downstream 산출물 창출이 기준. 사용자 본인(template 유지보수자) 은 타깃 user 가 아닌 harness 업그레이드 agent.",
+          "confidence": 1,
+          "deferred": false
+        },
+        "secondary_stakeholders": {
+          "value": "Claude Code (Anthropic), Codex CLI (OpenAI), GitHub, downstream dogfood projects 가 secondary stakeholders. 단 iter-3 wiring checklist 에 외부 stakeholder 계약 영향 명시는 추가 안 함 — upstream 영향도 분석은 dogfood 실행 후 리뷰 시점에만 수행 (checklist bloat 방지).",
+          "confidence": 1,
+          "deferred": false
+        },
+        "user_scale": {
+          "value": "현재 직접 user base = 1 (본인) + 6~7 dogfood 참조. iter-3 scope 는 1인 기준 over-engineering 경계 축으로 판정 — 불필요 rule 대폭 삭제 기조. 100+ OSS release preparedness 는 iter-4+ 로 defer.",
+          "confidence": 1,
+          "deferred": false
+        }
+      }
+    },
+    "platform": {
+      "ratio": 1,
+      "subFields": {
+        "platform_type": {
+          "value": "iter-3 platform boundary 확장 없음. 현재 platform 유지: git repo + Node 24 + Claude Code CLI + Codex CLI + Git Bash on Windows / POSIX on macOS. CI/GitHub Actions workflow, hosted dashboard, npm publish 등 확장 scope 없음.",
+          "confidence": 1,
+          "deferred": false
+        },
+        "runtime_constraints": {
+          "value": "(1) Validation matrix = Windows + macOS 양쪽 (사용자가 둘 다 사용). POSIX 는 macOS 로 cover. (2) Codex sandbox 제약 (npm install 차단, network 차단, spawn EPERM) 기존대로 유지 — Orchestrator 가 sandbox 밖 재검증 루틴 유지. (3) Progressive MD 재구성 시 §0 Charter 를 file 상단에 물리적으로 배치 (Claude Code full load 가정이 기본이나, lazy attend 가능성 hedge 로 Charter-first physical position 확정). Extensions 는 참조 방식.",
+          "confidence": 1,
+          "deferred": false
+        }
+      }
+    },
+    "data_model": {
+      "ratio": 1,
+      "subFields": {
+        "entities": {
+          "value": "Rule unit = semantic cluster (line 또는 섹션 단위가 아님). Script unit = 개별 .mjs 파일. MD unit = 섹션/heading.",
+          "confidence": 1,
+          "deferred": false
+        },
+        "key_relations": {
+          "value": "Should → Must 단일방향 격상 (trigger 조건 tighten 하여 Must 로, 격상 실패 시 rule 자체 delete). Must Not 은 rule-level prohibition (행동 금지) 에만 한정 — trigger matrix 에서는 사용 안 함 (negative trigger 무의미). Rule tier (S/A/B/C, incident frequency 기반) 와 Should→Must 격상 (trigger tightening) 은 orthogonal 두 축.",
+          "confidence": 1,
+          "deferred": false
+        },
+        "invariants": {
+          "value": "Charter rule 은 self-contained (Extensions 안 읽어도 agent 동작 가능). Extensions 는 optional deep-dive. Charter-only rule 이 default. Charter ↔ Extensions contradict 금지. 기존 CLAUDE.md(292줄) + docs/context/*.md 9 shards 구조 유지하되 Charter/Body 재구조화 + Extensions pointer 보강.",
+          "confidence": 1,
+          "deferred": false
+        }
+      }
+    },
+    "primary_interaction": {
+      "ratio": 1,
+      "subFields": {
+        "happy_path": {
+          "value": "iter-3 완료 기준 = 각 Sprint 별 testable AC + 3 Sprint 모두 pass (rule-audit tier 분류, archive staging fix, artificial v1.4.1 bump 자기 검증, Progressive MD 재구조화 lint). dogfood8 production 검증은 iter-3 scope 밖 post-acceptance.",
+          "confidence": 1,
+          "deferred": false
+        },
+        "failure_paths": {
+          "value": "(1) B/C tier 삭제 대상 과다 시 .vibe/archive/rules-deleted-iter-3.md 에 full 보관 (복원 가능). dogfood8 완료 후 복원 여부 결정. (2) Should→Must 격상 실패 rule (subjective judgment 등) 무조건 삭제 (같은 archive 저장). (3) CRITICAL: /vibe-review 에 rules-deleted-*.md 자동 체크 리마인드 hook 필수 — 미결정 복원 케이스 자동 findings append.",
+          "confidence": 1,
+          "deferred": false
+        }
+      }
+    },
+    "success_metric": {
+      "ratio": 0.25,
+      "subFields": {
+        "acceptance_criteria": {
+          "value": "auto-tag production 검증이 iter-3 완료 조건의 일부 + dogfood8 에서 재검증 성공이 iter-3 post-acceptance 조건.",
+          "confidence": 0.25,
+          "deferred": false
+        },
+        "kpi": {
+          "value": "iter-3 success = 3 Sprint AC pass + rules-deleted 아카이브 생성.",
+          "confidence": 0.25,
+          "deferred": false
+        }
+      }
+    },
+    "non_goals": {
+      "ratio": 1,
+      "subFields": {
+        "free_form": {
+          "value": "Progressive MD 재구성은 새 2-layer 신설이 아니라 기존 구조 보강으로 한정 — 문서 아키텍처 전면 개편은 out of scope.",
+          "confidence": 0.25,
+          "deferred": false
+        }
+      }
+    },
+    "constraints": {
+      "ratio": 1,
+      "subFields": {
+        "legal_regulatory": {
+          "value": "out of scope. iter-3 은 외부 provider (Anthropic / OpenAI / GitHub) 정책 변동 대응 안 함. harness-gaps 에 entry 추가도 안 함.",
+          "confidence": 1,
+          "deferred": false
+        },
+        "budget": {
+          "value": "Net +150 LOC / iter cap (최종 LOC 증가량 통제). Delete 는 무제한 (diet 장려). 0 new scripts 원칙 유지. iter-3 예상: add ~360 (N1 rule-audit scan 확장 100 + N1 archive handling 30 + N2 bugs 150 + N3 mode/hook 80) - delete ~500+ = net ≤ +150 또는 negative.",
+          "confidence": 1,
+          "deferred": false
+        },
+        "security_privacy": {
+          "value": "Privacy 제약 없음 (사용자 자신의 dogfood transcripts, public repo push 수용). 대신 template cleansing 용이성이 제약 — audit 산출물은 .vibe/audit/iter-3/ iteration-scoped 디렉토리에 격리하여 iter 종료/dogfood8 완료 후 단일 명령 (rm -rf .vibe/audit/iter-3/) 으로 제거 가능 구조. template initial state 유지 목적.",
+          "confidence": 1,
+          "deferred": false
+        }
+      }
+    },
+    "tech_stack": {
+      "ratio": 0.125,
+      "subFields": {
+        "language_runtime": {
+          "value": "Node 24+ runtime / Git Bash on Windows / POSIX on macOS 가 iter-3 tech stack 제약.",
+          "confidence": 0.25,
+          "deferred": false
+        },
+        "framework": {
+          "value": "0 new scripts 원칙 = iter-3 에서 새 .mjs 파일 생성 금지 (기존 스크립트 확장만 허용).",
+          "confidence": 0.25,
+          "deferred": false
+        },
+        "datastore": {
+          "value": "",
+          "confidence": 0,
+          "deferred": false
+        },
+        "hosting": {
+          "value": "",
+          "confidence": 0,
+          "deferred": false
+        }
+      }
+    },
+    "domain_specifics": {
+      "ratio": 1,
+      "subFields": {
+        "free_form": {
+          "value": "Iter-3 3 sprint 핵심 결정: (1) Rule audit evidence source 를 session-log [failure] 태그에 한정 말고 dogfood6~7 session transcript retrospective 재스캔까지 확대. (2) Progressive MD §0 Charter 에 trigger matrix + wiring integration checklist + role 호출 메커니즘 표까지 포함. CLAUDE.md 의 모든 Should 조건을 전면 재판단해 Must 또는 Must Not 으로 binary 분류 — agent 위임 시 Should 는 선택 인센티브 없어 실제 준수된 적 없음. (3) auto-tag production 검증은 iter-3 중간에 artificial v1.4.1 bump 로 자기 검증 + dogfood8 시작 시 production 신호 확인하도록 인계 프롬프트 작성.",
+          "confidence": 1,
+          "deferred": false
+        }
+      }
+    }
+  },
+  "rounds": [
+    {
+      "roundNumber": 1,
+      "dimensionId": "domain_specifics",
+      "questions": [
+        "[Questions were synthesized by the Orchestrator from the prior prompt; exact text was not echoed back to the engine.]"
+      ],
+      "answer": "Q1 후자: dogfood6~7 session transcript retrospective 재스캔까지 포함해서 evidence 범위 확장. Q2 후자: wiring 안 된 유명무실 스크립트가 매번 발생하므로 Charter 에 trigger matrix + wiring checklist + role 호출 표까지 포함. 추가로 Should 조건을 전면 재판단하여 Must 또는 Must Not 으로 binary 분류할 것 — agent 위임 시 Should 는 선택 인센티브 적어 실제 준수한 적 없음. Q3 전자: artificial v1.4.1 bump 로 auto-tag 강제 자기 검증. dogfood8 에서 한 번 더 production 테스트하도록 인계 프롬프트 작성 필요.",
+      "attribution": {
+        "attribution": {
+          "free_form": {
+            "value": "Iter-3 3 sprint 핵심 결정: (1) Rule audit evidence source 를 session-log [failure] 태그에 한정 말고 dogfood6~7 session transcript retrospective 재스캔까지 확대. (2) Progressive MD §0 Charter 에 trigger matrix + wiring integration checklist + role 호출 메커니즘 표까지 포함. CLAUDE.md 의 모든 Should 조건을 전면 재판단해 Must 또는 Must Not 으로 binary 분류 — agent 위임 시 Should 는 선택 인센티브 없어 실제 준수된 적 없음. (3) auto-tag production 검증은 iter-3 중간에 artificial v1.4.1 bump 로 자기 검증 + dogfood8 시작 시 production 신호 확인하도록 인계 프롬프트 작성.",
+            "confidence": 1,
+            "deferred": false
+          }
+        },
+        "cross_dimension_signals": [
+          {
+            "dimensionId": "constraints",
+            "note": "Should 조건 전면 제거하고 Must/Must Not 만 허용 + dogfood6~7 transcript 재스캔 가능한 evidence source 확대는 정책 제약."
+          },
+          {
+            "dimensionId": "success_metric",
+            "note": "auto-tag production 검증이 iter-3 완료 조건의 일부 + dogfood8 에서 재검증 성공이 iter-3 post-acceptance 조건."
+          },
+          {
+            "dimensionId": "goal",
+            "note": "Progressive MD 설계 기준이 얇은 charter 가 아니라 agent 가 charter 만으로 독립 판단 가능 이라는 재정의."
+          }
+        ],
+        "normalized_slugs": [],
+        "rationale": "Q1/Q2/Q3 모두 명확한 선택 + Should 재분류, dogfood8 인계 추가 지시 제공. domain_specifics 포착 + constraints/success_metric/goal cross signal."
+      },
+      "crossDimensionSignals": [
+        {
+          "dimensionId": "constraints",
+          "note": "Should 조건 전면 제거하고 Must/Must Not 만 허용 + dogfood6~7 transcript 재스캔 가능한 evidence source 확대는 정책 제약."
+        },
+        {
+          "dimensionId": "success_metric",
+          "note": "auto-tag production 검증이 iter-3 완료 조건의 일부 + dogfood8 에서 재검증 성공이 iter-3 post-acceptance 조건."
+        },
+        {
+          "dimensionId": "goal",
+          "note": "Progressive MD 설계 기준이 얇은 charter 가 아니라 agent 가 charter 만으로 독립 판단 가능 이라는 재정의."
+        }
+      ],
+      "timestamp": "2026-04-17T05:54:37.385Z"
+    },
+    {
+      "roundNumber": 2,
+      "dimensionId": "data_model",
+      "questions": [
+        "[Questions were synthesized by the Orchestrator from the prior prompt; exact text was not echoed back to the engine.]"
+      ],
+      "answer": "Q4: semantic cluster 기준으로 rule unit 확정 (line 또는 섹션 아님). scripts unit = 개별 .mjs 파일, MD unit = 섹션/heading. Q5: 조사 결과 CLAUDE.md(292줄)가 이미 Charter + docs/context/*.md 9 shards가 Extensions(샤딩 deep-dive) 구조. CLAUDE.md 의 '필요할 때만 읽을 문서' 섹션이 Extensions pointer. 사용자 추정 맞음. iter-3 N1 Progressive MD 재구성은 새 2-layer 신설이 아니라 기존 CLAUDE.md 내부 Charter/Body 재구조화 + Extensions pointer 보강 수준. Invariant: Charter rule 은 self-contained (Extensions 안 읽어도 agent 동작 가능). Extensions 는 optional deep-dive. Charter-only rule 허용 (default). Charter ↔ Extensions contradict 금지. Q6 correction: Should → Must 단일방향 격상 (trigger 조건 tighten 하여 Must 로, 실패 시 rule 자체 삭제). Must Not 은 rule-level prohibition (행동 금지) 에만 한정. Trigger matrix 의 Must Not 은 없음 (negative trigger 무의미). Rule tier (S/A/B/C) 와 Should→Must 격상은 orthogonal 두 축, iter-3 N1 이 둘 다 처리.",
+      "attribution": {
+        "attribution": {
+          "entities": {
+            "value": "Rule unit = semantic cluster (line 또는 섹션 단위가 아님). Script unit = 개별 .mjs 파일. MD unit = 섹션/heading.",
+            "confidence": 1,
+            "deferred": false
+          },
+          "key_relations": {
+            "value": "Should → Must 단일방향 격상 (trigger 조건 tighten 하여 Must 로, 격상 실패 시 rule 자체 delete). Must Not 은 rule-level prohibition (행동 금지) 에만 한정 — trigger matrix 에서는 사용 안 함 (negative trigger 무의미). Rule tier (S/A/B/C, incident frequency 기반) 와 Should→Must 격상 (trigger tightening) 은 orthogonal 두 축.",
+            "confidence": 1,
+            "deferred": false
+          },
+          "invariants": {
+            "value": "Charter rule 은 self-contained (Extensions 안 읽어도 agent 동작 가능). Extensions 는 optional deep-dive. Charter-only rule 이 default. Charter ↔ Extensions contradict 금지. 기존 CLAUDE.md(292줄) + docs/context/*.md 9 shards 구조 유지하되 Charter/Body 재구조화 + Extensions pointer 보강.",
+            "confidence": 1,
+            "deferred": false
+          }
+        },
+        "cross_dimension_signals": [
+          {
+            "dimensionId": "constraints",
+            "note": "Rule unit = semantic cluster 는 audit 작업 범위와 tier 분류 결과 규모의 제약."
+          },
+          {
+            "dimensionId": "goal",
+            "note": "Charter self-containment 이 agent 가 §0 만으로 독립 판단하도록 하는 목표의 핵심 invariant."
+          },
+          {
+            "dimensionId": "non_goals",
+            "note": "Progressive MD 재구성은 새 2-layer 신설이 아니라 기존 구조 보강으로 한정 — 문서 아키텍처 전면 개편은 out of scope."
+          }
+        ],
+        "normalized_slugs": [],
+        "rationale": "3개 sub-field 각각 명확한 답변. entities(semantic cluster), key_relations(Should→Must 단일방향), invariants(Charter self-contained). Cross-dimension 으로 constraints/goal/non_goals 에 strong signal."
+      },
+      "crossDimensionSignals": [
+        {
+          "dimensionId": "constraints",
+          "note": "Rule unit = semantic cluster 는 audit 작업 범위와 tier 분류 결과 규모의 제약."
+        },
+        {
+          "dimensionId": "goal",
+          "note": "Charter self-containment 이 agent 가 §0 만으로 독립 판단하도록 하는 목표의 핵심 invariant."
+        },
+        {
+          "dimensionId": "non_goals",
+          "note": "Progressive MD 재구성은 새 2-layer 신설이 아니라 기존 구조 보강으로 한정 — 문서 아키텍처 전면 개편은 out of scope."
+        }
+      ],
+      "timestamp": "2026-04-17T06:10:24.183Z"
+    },
+    {
+      "roundNumber": 3,
+      "dimensionId": "primary_interaction",
+      "questions": [
+        "[Questions were synthesized by the Orchestrator from the prior prompt; exact text was not echoed back to the engine.]"
+      ],
+      "answer": "Q7: a (Sprint boundary 깔끔). 각 Sprint testable AC pass + 3 Sprint 모두 pass = iter-3 closed. dogfood8 production 검증은 iter-3 scope 밖 post-acceptance. Q8: a (rules-deleted-iter-3.md 에 full 보관, 복원 가능). dogfood8 이후 복원 여부 결정. 잊지 않도록 /vibe-review 에 rules-deleted-*.md 자동 체크 리마인드 hook 추가 (필수). Q9: a (Must 격상 실패 rule 은 무조건 삭제). agent 가 준수 못 할 rule 은 rule 이 아님.",
+      "attribution": {
+        "attribution": {
+          "happy_path": {
+            "value": "iter-3 완료 기준 = 각 Sprint 별 testable AC + 3 Sprint 모두 pass (rule-audit tier 분류, archive staging fix, artificial v1.4.1 bump 자기 검증, Progressive MD 재구조화 lint). dogfood8 production 검증은 iter-3 scope 밖 post-acceptance.",
+            "confidence": 1,
+            "deferred": false
+          },
+          "failure_paths": {
+            "value": "(1) B/C tier 삭제 대상 과다 시 .vibe/archive/rules-deleted-iter-3.md 에 full 보관 (복원 가능). dogfood8 완료 후 복원 여부 결정. (2) Should→Must 격상 실패 rule (subjective judgment 등) 무조건 삭제 (같은 archive 저장). (3) CRITICAL: /vibe-review 에 rules-deleted-*.md 자동 체크 리마인드 hook 필수 — 미결정 복원 케이스 자동 findings append.",
+            "confidence": 1,
+            "deferred": false
+          }
+        },
+        "cross_dimension_signals": [
+          {
+            "dimensionId": "success_metric",
+            "note": "iter-3 success = 3 Sprint AC pass + rules-deleted 아카이브 생성."
+          },
+          {
+            "dimensionId": "non_goals",
+            "note": "dogfood8 production 검증과 삭제 rule 복원 결정은 iter-3 scope 밖."
+          },
+          {
+            "dimensionId": "constraints",
+            "note": "/vibe-review rules-deleted 자동 체크 리마인드 hook 추가가 iter-3 필수 scope."
+          }
+        ],
+        "normalized_slugs": [],
+        "rationale": "happy_path 는 Sprint boundary 닫힌 완료 기준. failure_paths 는 archive + 리마인드 hook + Must 격상 실패 삭제 3건."
+      },
+      "crossDimensionSignals": [
+        {
+          "dimensionId": "success_metric",
+          "note": "iter-3 success = 3 Sprint AC pass + rules-deleted 아카이브 생성."
+        },
+        {
+          "dimensionId": "non_goals",
+          "note": "dogfood8 production 검증과 삭제 rule 복원 결정은 iter-3 scope 밖."
+        },
+        {
+          "dimensionId": "constraints",
+          "note": "/vibe-review rules-deleted 자동 체크 리마인드 hook 추가가 iter-3 필수 scope."
+        }
+      ],
+      "timestamp": "2026-04-17T06:22:14.055Z"
+    },
+    {
+      "roundNumber": 4,
+      "dimensionId": "target_user",
+      "questions": [
+        "[Questions were synthesized by the Orchestrator from the prior prompt; exact text was not echoed back to the engine.]"
+      ],
+      "answer": "Q10 b: 직접 소비자 우선순위는 template 으로 프로젝트를 시작하는 downstream 1인 개발자/비개발자/agent-delegate 사용자. 사용자 본인 (template 유지보수자) 은 하네스를 업그레이드하는 agent 적 존재일 뿐, 타깃 user 가 아님. harness 설계 모든 결정은 downstream 산출물 창출이 기준. Q11: wiring checklist 에 외부 stakeholder (Claude Code / Codex / GitHub / dogfood projects) 계약 영향 명시 추가 안 함. upstream 영향도는 dogfood 실행 후 리뷰 시점에만 분석 — checklist 에 layer 추가로 harness bloat 심화 방지. Q12 a: 현재 직접 user base = 1 이므로 over-engineering 경계 기준. 불필요 rule 대폭 삭제 기조. 100+ OSS release preparedness 는 미래 iteration (iter-4+) 의 별도 scope 로 defer.",
+      "attribution": {
+        "attribution": {
+          "primary_persona": {
+            "value": "Downstream 1인 개발자/비개발자/agent-delegate 사용자 (vibe-doctor template 으로 프로젝트 시작) 가 primary persona. harness 설계 모든 결정은 downstream 산출물 창출이 기준. 사용자 본인(template 유지보수자) 은 타깃 user 가 아닌 harness 업그레이드 agent.",
+            "confidence": 1,
+            "deferred": false
+          },
+          "secondary_stakeholders": {
+            "value": "Claude Code (Anthropic), Codex CLI (OpenAI), GitHub, downstream dogfood projects 가 secondary stakeholders. 단 iter-3 wiring checklist 에 외부 stakeholder 계약 영향 명시는 추가 안 함 — upstream 영향도 분석은 dogfood 실행 후 리뷰 시점에만 수행 (checklist bloat 방지).",
+            "confidence": 1,
+            "deferred": false
+          },
+          "user_scale": {
+            "value": "현재 직접 user base = 1 (본인) + 6~7 dogfood 참조. iter-3 scope 는 1인 기준 over-engineering 경계 축으로 판정 — 불필요 rule 대폭 삭제 기조. 100+ OSS release preparedness 는 iter-4+ 로 defer.",
+            "confidence": 1,
+            "deferred": false
+          }
+        },
+        "cross_dimension_signals": [
+          {
+            "dimensionId": "non_goals",
+            "note": "iter-3 wiring checklist 에 외부 stakeholder 계약 영향 분석 layer 추가 금지 (checklist bloat 방지)."
+          },
+          {
+            "dimensionId": "goal",
+            "note": "harness 는 downstream user 의 산출물 창출 수단이며 자체 목적이 아님 — 이는 iter-3 전체 scope 의 guiding principle."
+          },
+          {
+            "dimensionId": "constraints",
+            "note": "over-engineering 경계 = user_scale 1 기준 — iter-3 의 rule/script 추가 판정에 적용."
+          }
+        ],
+        "normalized_slugs": [],
+        "rationale": "3 sub-field 각 명확 답변. Downstream user 우선, upstream 영향은 dogfood 리뷰 시점 한정, scale 1 기준 over-engineering 경계."
+      },
+      "crossDimensionSignals": [
+        {
+          "dimensionId": "non_goals",
+          "note": "iter-3 wiring checklist 에 외부 stakeholder 계약 영향 분석 layer 추가 금지 (checklist bloat 방지)."
+        },
+        {
+          "dimensionId": "goal",
+          "note": "harness 는 downstream user 의 산출물 창출 수단이며 자체 목적이 아님 — 이는 iter-3 전체 scope 의 guiding principle."
+        },
+        {
+          "dimensionId": "constraints",
+          "note": "over-engineering 경계 = user_scale 1 기준 — iter-3 의 rule/script 추가 판정에 적용."
+        }
+      ],
+      "timestamp": "2026-04-17T06:29:58.720Z"
+    },
+    {
+      "roundNumber": 5,
+      "dimensionId": "platform",
+      "questions": [
+        "[Questions were synthesized by the Orchestrator from the prior prompt; exact text was not echoed back to the engine.]"
+      ],
+      "answer": "Q13: 없음. iter-3 platform boundary 확장 없음. 현재 platform (git repo + Node 24 + Claude Code CLI + Codex CLI + Git Bash on Windows / POSIX on macOS) 그대로 유지. Q14: 사용자 환경이 Windows + macOS 둘 다이므로 해당 케이스에서는 두 platform 모두 validation. POSIX 는 macOS 로 cover. Codex sandbox 제약 (npm install 차단, network 차단, spawn EPERM) 기존대로 유지 + Orchestrator 가 sandbox 밖 재검증 루틴 유지. Q15: 전자 (Claude Code 가 CLAUDE.md full load 한다고 기본 가정). 단 lazy attend 가능성에 대한 hedge 로 §0 Charter 를 file 상단에 물리적으로 배치 (agent 가 어떤 read 전략이든 Charter 를 먼저 만나도록 safe defense). 우스갯소리 CLAUDE.md 전부 삭제 + AGENTS.md 포인터 만 남기라는 이야기가 이 hedge 의 극단적 형태. Charter 는 짧고 앞에 + Extensions 는 참조 방식으로 이 risk 를 공식 구조로 흡수.",
+      "attribution": {
+        "attribution": {
+          "platform_type": {
+            "value": "iter-3 platform boundary 확장 없음. 현재 platform 유지: git repo + Node 24 + Claude Code CLI + Codex CLI + Git Bash on Windows / POSIX on macOS. CI/GitHub Actions workflow, hosted dashboard, npm publish 등 확장 scope 없음.",
+            "confidence": 1,
+            "deferred": false
+          },
+          "runtime_constraints": {
+            "value": "(1) Validation matrix = Windows + macOS 양쪽 (사용자가 둘 다 사용). POSIX 는 macOS 로 cover. (2) Codex sandbox 제약 (npm install 차단, network 차단, spawn EPERM) 기존대로 유지 — Orchestrator 가 sandbox 밖 재검증 루틴 유지. (3) Progressive MD 재구성 시 §0 Charter 를 file 상단에 물리적으로 배치 (Claude Code full load 가정이 기본이나, lazy attend 가능성 hedge 로 Charter-first physical position 확정). Extensions 는 참조 방식.",
+            "confidence": 1,
+            "deferred": false
+          }
+        },
+        "cross_dimension_signals": [
+          {
+            "dimensionId": "tech_stack",
+            "note": "Node 24+ runtime / Git Bash on Windows / POSIX on macOS 가 iter-3 tech stack 제약."
+          },
+          {
+            "dimensionId": "success_metric",
+            "note": "Sprint AC 에 Windows + macOS 양쪽 validation 포함 필수."
+          },
+          {
+            "dimensionId": "constraints",
+            "note": "Codex sandbox 제약 + Orchestrator 재검증 루틴 + Charter-first physical position 이 iter-3 작업 제약 3종."
+          }
+        ],
+        "normalized_slugs": [],
+        "rationale": "platform_type (확장 없음) + runtime_constraints (Windows+macOS matrix + Codex sandbox 유지 + Charter-first position) 2 sub-field 명확. Cross-dimension 으로 tech_stack/success_metric/constraints 에 signal."
+      },
+      "crossDimensionSignals": [
+        {
+          "dimensionId": "tech_stack",
+          "note": "Node 24+ runtime / Git Bash on Windows / POSIX on macOS 가 iter-3 tech stack 제약."
+        },
+        {
+          "dimensionId": "success_metric",
+          "note": "Sprint AC 에 Windows + macOS 양쪽 validation 포함 필수."
+        },
+        {
+          "dimensionId": "constraints",
+          "note": "Codex sandbox 제약 + Orchestrator 재검증 루틴 + Charter-first physical position 이 iter-3 작업 제약 3종."
+        }
+      ],
+      "timestamp": "2026-04-17T06:40:47.812Z"
+    },
+    {
+      "roundNumber": 6,
+      "dimensionId": "goal",
+      "questions": [
+        "[Questions were synthesized by the Orchestrator from the prior prompt; exact text was not echoed back to the engine.]"
+      ],
+      "answer": "Q16: a > b > c > d 순서. (a) Rule audit diet 가 dominant outcome — 28 rules 중 S/A tier 보존 + B/C tier delete + Should→Must 격상. (b) Progressive MD (Charter + Extensions 재구조화) 가 second. (c) Critical bug triage (archive staging fix + auto-tag production 검증 + run-codex auto status-tick) 가 third. (d) Soft freeze posture + mode flag human/agent 2-value define-only 가 supplementary. Q17: (i) downstream user value framing — 하네스 복잡도 감소로 downstream user (1인 개발자/비개발자/agent-delegate) 가 산출물 집중 가능. 사용자 본인의 workflow 개선은 부수 효과. Q18: reinforce. N1 aggressive rule delete 가 N3 freeze 의 보존 대상을 위협하지 않음 — 삭제 rule 을 rules-deleted-iter-3.md 에 archive 백업하므로 tradeoff 가 아닌 positive feedback.",
+      "attribution": {
+        "attribution": {
+          "one_liner": {
+            "value": "iter-3 one-liner = Harness diet + tune-up (priority a > b > c > d): (a) Rule audit diet — 28 rules semantic cluster 단위 S/A/B/C tier 분류 + B/C delete + Should→Must 단일방향 격상 (dominant outcome). (b) Progressive MD 재구조화 — CLAUDE.md §0 Charter (file top) + §1+ Extensions pointer 체계화. (c) Critical bug triage — sprint-commit archive staging fix + artificial v1.4.1 bump 으로 auto-tag production 자기 검증 + run-codex auto status-tick hook. (d) Soft freeze posture 선언 + mode flag human/agent 2-value define-only (implementation defer to iter-4+).",
+            "confidence": 1,
+            "deferred": false
+          },
+          "primary_value": {
+            "value": "Primary value framing = (i) downstream user value — 하네스 복잡도 감소로 downstream 1인 개발자/비개발자/agent-delegate 가 실제 산출물 창출에 집중 가능. 사용자 본인 workflow 개선은 부수 효과 (명시적 target 아님).",
+            "confidence": 1,
+            "deferred": false
+          }
+        },
+        "cross_dimension_signals": [
+          {
+            "dimensionId": "success_metric",
+            "note": "iter-3 success metric = 하네스 overhead 감소 정량화 + a>b>c>d 순 Sprint AC pass."
+          },
+          {
+            "dimensionId": "non_goals",
+            "note": "사용자 본인 workflow 최적화 자체는 iter-3 목적 아님 — downstream user experience 가 primary."
+          },
+          {
+            "dimensionId": "constraints",
+            "note": "archive 백업 메커니즘 (rules-deleted-iter-3.md) 이 N1 ↔ N3 reinforce 조건의 필수 요소."
+          }
+        ],
+        "normalized_slugs": [],
+        "rationale": "one_liner (priority a>b>c>d) + primary_value (downstream user focus) 2 sub-field 명확. Cross-signal 로 success_metric / non_goals / constraints 에 강한 신호."
+      },
+      "crossDimensionSignals": [
+        {
+          "dimensionId": "success_metric",
+          "note": "iter-3 success metric = 하네스 overhead 감소 정량화 + a>b>c>d 순 Sprint AC pass."
+        },
+        {
+          "dimensionId": "non_goals",
+          "note": "사용자 본인 workflow 최적화 자체는 iter-3 목적 아님 — downstream user experience 가 primary."
+        },
+        {
+          "dimensionId": "constraints",
+          "note": "archive 백업 메커니즘 (rules-deleted-iter-3.md) 이 N1 ↔ N3 reinforce 조건의 필수 요소."
+        }
+      ],
+      "timestamp": "2026-04-17T06:47:53.137Z"
+    },
+    {
+      "roundNumber": 7,
+      "dimensionId": "constraints",
+      "questions": [
+        "[Questions were synthesized by the Orchestrator from the prior prompt; exact text was not echoed back to the engine.]"
+      ],
+      "answer": "Q19: out of scope. iter-3 은 외부 provider (Anthropic / OpenAI / GitHub) 정책 변경 대응 안 함. harness-gaps 에도 entry 추가 안 함. Q20: (a) Net +150 LOC cap. 최종 LOC 증가량 통제 방식. Delete 는 무제한 (diet 장려). Iter-3 예상 add ~360 + delete ~500+ 으로 net 은 negative 또는 +150 이내 예상. 0 new scripts 원칙은 유지. Q21: (a) privacy 문제 없음 — 사용자 자신의 dogfood transcripts. Public repo push 수용. 대신 cleansing 용이성이 제약으로 추가 — audit 산출물 (rules-deleted-iter-3.md, retrospective scan report 등) 을 .vibe/audit/iter-3/ iteration-scoped 디렉토리에 격리. iter 종료 또는 dogfood8 완료 후 단일 명령으로 제거 가능한 구조 (rm -rf .vibe/audit/iter-3/). template initial state 유지 목적.",
+      "attribution": {
+        "attribution": {
+          "legal_regulatory": {
+            "value": "out of scope. iter-3 은 외부 provider (Anthropic / OpenAI / GitHub) 정책 변동 대응 안 함. harness-gaps 에 entry 추가도 안 함.",
+            "confidence": 1,
+            "deferred": false
+          },
+          "budget": {
+            "value": "Net +150 LOC / iter cap (최종 LOC 증가량 통제). Delete 는 무제한 (diet 장려). 0 new scripts 원칙 유지. iter-3 예상: add ~360 (N1 rule-audit scan 확장 100 + N1 archive handling 30 + N2 bugs 150 + N3 mode/hook 80) - delete ~500+ = net ≤ +150 또는 negative.",
+            "confidence": 1,
+            "deferred": false
+          },
+          "security_privacy": {
+            "value": "Privacy 제약 없음 (사용자 자신의 dogfood transcripts, public repo push 수용). 대신 template cleansing 용이성이 제약 — audit 산출물은 .vibe/audit/iter-3/ iteration-scoped 디렉토리에 격리하여 iter 종료/dogfood8 완료 후 단일 명령 (rm -rf .vibe/audit/iter-3/) 으로 제거 가능 구조. template initial state 유지 목적.",
+            "confidence": 1,
+            "deferred": false
+          }
+        },
+        "cross_dimension_signals": [
+          {
+            "dimensionId": "non_goals",
+            "note": "외부 provider 정책 변동 대응은 iter-3 out of scope."
+          },
+          {
+            "dimensionId": "success_metric",
+            "note": "Net LOC ≤ +150 + 0 new scripts + audit artifacts .vibe/audit/iter-3/ 격리가 iter-3 AC 의 일부."
+          },
+          {
+            "dimensionId": "tech_stack",
+            "note": "0 new scripts 원칙 = iter-3 에서 새 .mjs 파일 생성 금지 (기존 스크립트 확장만 허용)."
+          }
+        ],
+        "normalized_slugs": [],
+        "rationale": "legal_regulatory (out of scope) + budget (net +150 cap) + security_privacy (iteration-scoped audit dir) 3 sub-field 명확. Cross-signal 로 non_goals / success_metric / tech_stack 에 추가 신호."
+      },
+      "crossDimensionSignals": [
+        {
+          "dimensionId": "non_goals",
+          "note": "외부 provider 정책 변동 대응은 iter-3 out of scope."
+        },
+        {
+          "dimensionId": "success_metric",
+          "note": "Net LOC ≤ +150 + 0 new scripts + audit artifacts .vibe/audit/iter-3/ 격리가 iter-3 AC 의 일부."
+        },
+        {
+          "dimensionId": "tech_stack",
+          "note": "0 new scripts 원칙 = iter-3 에서 새 .mjs 파일 생성 금지 (기존 스크립트 확장만 허용)."
+        }
+      ],
+      "timestamp": "2026-04-17T06:57:42.695Z"
+    }
+  ],
+  "ambiguityTrace": [
+    0.8405349794238682,
+    0.6440329218106995,
+    0.5123456790123455,
+    0.40123456790123446,
+    0.3101851851851851,
+    0.21759259259259245,
+    0.13888888888888873
+  ],
+  "terminatedAt": "2026-04-17T06:57:42.696Z",
+  "terminationReason": "ambiguity",
+  "outputPath": "C:\\Users\\Tony\\Workspace\\vibe-doctor\\.vibe\\interview-log\\iter-3.json",
+  "meta": {
+    "orchestratorModel": {
+      "provider": "claude-opus",
+      "familyAlias": "claude-opus",
+      "apiId": "claude-opus",
+      "legacy": true
+    },
+    "interviewMode": "iterate",
+    "carryoverIterationId": "iter-2",
+    "priorIterationCarryover": "## Prior iteration carryover\n\nCarryover iteration: iter-2\n\nRecent session entries:\n- **Append only**. 기존 항목 수정·삭제 금지 (단, Sprint 종료 시 Orchestrator가 handoff에\n- 각 항목은 한두 줄. 길어지면 파일/경로/링크만 남기고 본문은 해당 파일로.\n- 형식: `- YYYY-MM-DDTHH:mm:ss.sssZ [tag] 내용`. full ISO8601 timestamp 권장 (`scripts/vibe-session-log-sync.mjs` 가 정규화).\n- tag 예: `decision`, `failure`, `discovery`, `user-directive`, `drift-observed`, `sprint-complete`, `phase3-po-proxy`, `audit-clear`, `harness-review`.\n- **언제 append하나**:\n- **언제 append하지 않나**: git log/diff/코드에서 자명하게 복원 가능한 사실.\n- 2026-04-17T03:50:07.756Z [decision][iteration-2-closure] iteration-2 (v1.4.0) 3 sprints 완료: M-audit(bc8f90f) + M-process-discipline(20a612e) + M-harness-gates(4d9a002). harnessVersion 1.3.1→1.4.0 bump + iteration-history.json iter-2 entry append + v1.4.0 annotated tag 수동 생성. auto-tag 로직 production 검증은 다음 harness bump 시 자연 발생 예정. 27 uncovered rules(vibe-rule-audit) + gap-review-catch-wiring-drift는 iteration-3 candidate.\n- 2026-04-17T03:26:24.039Z [sprint-complete] sprint-M-harness-gates -> passed. Sprint sprint-M-harness-gates completed with passed LOC +1147/-109 (net +1038)\n- 2026-04-17T02:52:11.931Z [sprint-complete] sprint-M-process-discipline -> passed. Sprint sprint-M-process-discipline completed with passed LOC +2241/-796 (net +1445)\n- 2026-04-17T00:14:16.000Z [decision] [m-audit-codex-fix] Codex 1차 위임 후 tsc 에러 4개 + 테스트 3개 실패. 원인: (1) 기존 테스트-Zod 타입 불일치, (2) Zod parse가 manual schemaVersion 체크보다 먼저 fail, (3) runLightweightAudit가 alreadyClosed에서도 실행. 2회 추가 Codex 위임으로 fix. total Codex tokens: 444K.\n- 2026-04-17T00:14:05.802Z [sprint-complete] sprint-M-audit -> passed. Sprint sprint-M-audit completed with passed LOC +809/-22 (net +787)\n- 2026-04-16T<iter-2-kickoff>Z [decision][iteration-2-seed] dogfood7 /vibe-review (review-10-2026-04-16.md) 흡수 후 iteration-2 roadmap 시드 (3 slot: M-audit / M-process-discipline / M-harness-gates). 사용자가 자율모드 아님 + 각 Sprint 시작 전 승인 + Zod v3 런타임 dep + planner.md → sprint-planner.md 교체 + §14 Wiring Checklist 전부 승인. dogfood7 review 의 M-spec-fix / M-arch-reconcile 은 project 이슈로 분리 — dogfood8 phase 0 seed 로 이월.\n- 2026-04-16T<m-audit-planner>Z [decision][m-audit-planner-ready] M-audit Planner (opus) 소환 산출 = docs/prompts/sprint-M-audit.md (724 lines). Codex 위임 직전 사용자 세션 종료 요청. Codex 중간 산출 (schemas/ + audit-lightweight + migration 1.4.0 등) 은 zod 미설치 + implicit any 다수로 revert 완료. 재시작 시 sprint-M-audit.md 가 커밋된 상태에서 바로 `cat docs/prompts/sprint-M-audit.md | ./scripts/run-codex.sh -` 재위임 가능.\n\nHandoff snapshot:\n# Orchestrator Handoff — iteration-2 CLOSED (v1.4.0 released)\n\n> 이 파일은 Orchestrator 재인스턴스화의 **연료**다. 컨텍스트 압축/세션 종료 후 새\n> Orchestrator가 부팅될 때 `CLAUDE.md → MEMORY → sprint-status.json → session-log.md →\n> **이 파일**` 순으로 읽어 직전 상태를 복원한다. 체크포인트마다 이 파일을 갱신한다.\n\n## 1. Identity\n\n- **repo**: `C:\\Users\\Tony\\Workspace\\vibe-doctor`\n- **branch**: `main`\n- **last release**: `v1.4.0` (tagged from iteration-2 closure commit)\n- **harnessVersion**: `1.4.0`\n- **language/tone**: 한국어 반말\n\n## 2. Status: iteration-2 COMPLETE — 다음 iteration 대기\n\niteration-2 harness hardening (v1.4.0) 3 slot **3/3 완료**. `.vibe/agent/iteration-history.json`에 iter-2 entry 기록.\n\n### Sprint 요약\n\n| Sprint | 커밋 | LOC | 핵심 |\n|--------|------|-----|------|\n| M-audit | `bc8f90f` | +809/-22 | Zod single-source + audit gates + lightweight audit + migration 1.4.0 |\n| M-process-discipline | `20a612e` | +2241/-796 | planner.md → sprint-planner.md 교체 + trivial 룰 현실화 + preflight planner.presence |\n\nMilestones:\n(missing)\n\nRoadmap pointer:\n# vibe-doctor 메타-프로젝트 Sprint Roadmap — v1.2.0 하네스 진화\n\n<!-- BEGIN:VIBE:CURRENT-SPRINT -->\n> **Current**: idle (not started, started 2026-04-17)\n> **Completed**: sprint-M-harness-gates, sprint-M-process-discipline, sprint-M-audit\n> **Pending**: —\n<!-- END:VIBE:CURRENT-SPRINT -->\n\n## 배경\n\ndogfood6 (bumpy game) 5-Sprint 실사용 + 이후 리뷰 과정에서 도출된 **23개 개선안** 을\nvibe-doctor 자체에 적용한다. 리뷰 원본: `docs/plans/dogfood6-improvements.md` 는\nv1.1.0 반영 완료 (이미 commit). 본 로드맵은 그 이후 발견된 상위 층 개선을 다룬다.\n\n**self-hosting 검증**: 이 메타-프로젝트 자체를 vibe-doctor 프로세스(Planner → Generator → re-verify)\n로 수행하여 개선점을 dogfood. 완료 시 v1.2.0 릴리스.\n\nIteration history:\n{\n  \"$schema\": \"./iteration-history.schema.json\",\n  \"currentIteration\": null,\n  \"iterations\": [\n    {\n      \"id\": \"iter-2\",\n      \"label\": \"harness hardening (v1.4.0)\",\n      \"startedAt\": \"2026-04-16T00:00:00.000Z\",\n      \"completedAt\": \"2026-04-17T03:50:07.756Z\",\n      \"goal\": \"dogfood7 /vibe-review 산출물을 흡수하여 하네스 수준 3 finding을 script gate로 승격 — Zod single-source, audit gates, sprint-planner rename, release tag automation, MD→script rule promotion.\",\n      \"plannedSprints\": [\n        \"sprint-M-audit\",\n        \"sprint-M-process-discipline\",\n        \"sprint-M-harness-gates\"\n      ],\n      \"completedSprints\": [\n        \"sprint-M-audit\",\n        \"sprint-M-process-discipline\",\n        \"sprint-M-harness-gates\"\n      ],\n      \"milestoneProgress\": {\n        \"audit-gate\": 1.0,\n        \"process-discipline\": 1.0,\n        \"harness-gates\": 1.0\n      },\n      \"summary\": \"M-audit (bc8f90f): Zod schema single-source, preflight audit.overdue gate, vibe-audit-lightweight, v1.4.0 migration, 22 new tests. M-process-discipline (20a612e): planner.md → sprint-planner.md rename with explicit tools frontmatter, vibe-planner-skip-log CLI, preflight planner.presence check, trivial-rule semantic revision. M-harness-gates (4d9a002): sprint-commit harnessVersion auto-tag, harness-gaps.md schema+coverage, vibe-rule-audit scanning 28 MUST/반드시/금지 rules, audit-skipped-mode user directive with expiry. Total: 3 commits, 81 files touched (+4921/-1005), tests 154→196 pass / 0 fail / 1 skip, harnessVersion 1.3.1→1.4.0. Residual: 27 uncovered rules as next-iteration candidates; gap-review-catch-wiring-drift open (+3 sprints deadline).\"\n    }\n  ]\n}\n\n\nPrior report text signals:\n(missing)"
+  },
+  "pending": null
+}

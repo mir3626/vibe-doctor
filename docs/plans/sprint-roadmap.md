@@ -382,9 +382,98 @@ dogfood7 (Neighbor TimeBank MVP, S01~S10) 실사용 후 `/vibe-review` 산출 (`
 
 iteration-2 3 sprint 완료 시 dogfood8 로 이어감 — dogfood7 잔여 project 이슈 (rate-limit / architecture-reconcile) 는 dogfood8 Phase 0 에서 "이전 프로젝트 경험" 으로 seed.
 
+---
 
+# Iteration 3 — harness diet + tune-up (v1.4.1 or v1.5.0)
 
+## 배경
 
+iter-2 closure 리뷰 + vibe-rule-audit 결과 **28 uncovered MUST/반드시/금지 rules** 발견. 사용자 자각: "하네스를 위한 하네스" 의 self-expansion pattern 현실화. 이번 iter 는 **negative-scope (diet)** 기조로 전환. 핵심 가치 (socratic interview + Phase/Sprint/Sub-agent + async/parallel) 는 절대 보존.
+
+**Evidence source 확대**: session-log `[failure]` tag 뿐 아니라 dogfood6~7 session transcripts 의 retrospective 재스캔까지 포함. implicit incident 의 tier 분류 증거 확보.
+
+**Meta 원칙**: agent 가 Should 조건은 실제로 준수하지 않음 — Should 는 전면 재판단해 Must 로 격상 (trigger 조건 tighten) 또는 rule 자체 삭제. Must Not 은 rule-level prohibition 에만 한정 (trigger matrix 에서는 사용 금지).
+
+## 범위 요약
+
+- **총 Sprint**: 3 (N1 → N2 → N3)
+- **Priority**: a (N1 rule diet) > b (Progressive MD) > c (critical bugs) > d (freeze + mode flag define-only)
+- **Growth budget**: **net ≤ +150 LOC / iter, 0 new scripts** (기존 script 확장만 허용, 새 `.mjs` 파일 금지). Delete 는 무제한.
+- **Release 타깃**: v1.4.1 (patch) or v1.5.0 (minor, 예상 scope 에 따라). **artificial bump 로 auto-tag production 자기 검증 겸**.
+- **사용자 모드**: **자율 아님** — 각 Sprint 시작 전 명시적 승인. Codex 위임 방식 유지.
+- **Platform validation**: Windows + macOS 양쪽 (사용자 환경 둘 다 커버). Codex sandbox 제약 (npm/network/spawn EPERM) 기존대로 → Orchestrator 샌드박스 밖 재검증.
+
+## 핵심 가치 (절대 삭제 금지)
+
+iter-3 diet 중에도 아래는 **line-level 절대 보존**:
+- `scripts/vibe-interview.mjs` + `.claude/skills/vibe-init` / `vibe-interview` (socratic core)
+- sprint-planner agent + `vibe-sprint-complete` / `vibe-sprint-commit` (sprint loop)
+- `run-codex.sh` + `run-codex.cmd` wrapper (Windows/UTF-8 safety — real incident 기반)
+- Codex Generator 위임 원칙 (역할 제약)
+- Sub-agent context isolation 메커니즘
+
+## 공통 제약
+
+- 산출물: `.vibe/audit/iter-3/` **iteration-scoped 디렉토리** 에 격리. iter 종료/dogfood8 완료 후 `rm -rf .vibe/audit/iter-3/` 한 명령으로 cleansing 가능 구조.
+- 외부 provider 정책 변동 (Anthropic / OpenAI / GitHub): **out of scope** (harness-gaps 에 entry 추가 안 함).
+- `/vibe-review` 에 외부 stakeholder 계약 영향 명시 layer 추가 안 함 (checklist bloat 방지).
+- Charter-first physical position: §0 Charter 는 `CLAUDE.md` 파일 최상단 배치 (agent read 가 lazy 일 가능성 hedge).
+
+## Sprint N1 — Rule audit diet (dominant outcome)
+
+- **id**: `sprint-N1-rule-audit-diet`
+- **목표**: 28 rules 를 semantic cluster 단위로 재정의 → dogfood6~7 transcript retrospective 기반 S/A/B/C tier 분류 → B/C delete + Should → Must 격상 (실패 시 delete) → CLAUDE.md trim.
+- **핵심 산출**:
+  1. **`scripts/vibe-rule-audit.mjs` 확장** (기존 script 수정, 신규 파일 X):
+     - `--scan-transcripts <dir>` 옵션 추가 — dogfood6~7 전용 transcript 디렉토리 스캔 (존재하지 않으면 graceful skip).
+     - `[failure]`/`[drift-observed]`/`[decision]` tag 파싱 + incident frequency 집계.
+     - 각 rule 의 tier 판정 heuristic 을 내장.
+  2. **`.vibe/audit/iter-3/rule-audit-report.md`** (신규 — iteration-scoped):
+     - Table: rule cluster → evidence count → tier (S/A/B/C) → action (keep script / keep MD only / delete).
+  3. **`.vibe/audit/iter-3/rules-deleted.md`** (신규 — iteration-scoped):
+     - Full backup of all deleted rules (MD text + source line number + rationale). 복원 가능.
+  4. **CLAUDE.md trim**: B/C tier rule 삭제, Should 조건 전량 Must 로 격상 or 삭제. 280줄 정도로 trim 목표.
+  5. **Should → Must 격상 실패 rule** 은 rules-deleted.md 에 함께 저장 + CLAUDE.md 에서 제거.
+- **예상 LOC**: add ~130 (rule-audit 확장 100 + archive handling 30), delete ~300~600 (CLAUDE.md rule trim).
+- **의존**: 없음 (첫 slot).
+- **Wiring 주의점**: §14 Wiring checklist 준수. CLAUDE.md rule 삭제 시 해당 rule 을 참조하는 script / preflight gate / test 도 정리 필요 (dead code 재발 방지).
+
+## Sprint N2 — Critical bug triage + production 검증
+
+- **id**: `sprint-N2-critical-bug-triage`
+- **목표**: iter-2 residual 3종 정리 + auto-tag production 자기 검증.
+- **핵심 산출**:
+  1. **sprint-commit archive staging fix**: `collectArchivedPromptFiles()` 의 필터 (suffix-less `.md` matching). 매번 amend 수동 반복 제거.
+  2. **run-codex.sh auto status-tick hook**: Codex 최종 리포트의 `tokens used <N>` + `elapsed=<N>s` 자동 파싱 → `vibe-status-tick.mjs --add-tokens N --sprint $SPRINT_ID --elapsed-start $START` 호출. Statusline 자동 갱신.
+  3. **Artificial v1.4.1 bump** — `.vibe/config.json.harnessVersion` 1.4.0 → 1.4.1. `vibe-sprint-commit` 실행 → auto-tag `v1.4.1` 자동 생성 검증 (production 자기 검증). git tag -l 로 확인.
+  4. **dogfood8 인계 프롬프트 작성** (`.vibe/audit/iter-3/dogfood8-handoff-prompt.md`): dogfood8 시작 시 auto-tag 신호 한 번 더 production 검증하도록 prompt.
+  5. **기타 minor residuals**: preflight planner.presence 의 next-sprint 탐색 로직 보정 OR defer (iter-3 scope 한정 여부 사용자 확인). 기본 defer.
+- **예상 LOC**: add ~150 (archive fix 50 + status-tick hook 50 + tests 50). delete ~0.
+- **의존**: N1 완료 (rule trim 이 선행되어야 Progressive MD 와 호환).
+
+## Sprint N3 — Freeze posture + mode flag define-only
+
+- **id**: `sprint-N3-freeze-mode-flag`
+- **목표**: Progressive MD 재구조화 + soft freeze 선언 + mode flag 2-value 정의 (실제 분기 로직은 iter-4+ 로 defer).
+- **핵심 산출**:
+  1. **CLAUDE.md 재구조화** — `<!-- BEGIN:CHARTER -->` 와 `<!-- END:CHARTER -->` 블록으로 §0 Charter 를 명시적 표시. Charter 는 file 최상단 (line 1-N 범위) 배치. 내용: (a) 역할 제약, (b) Sprint loop 골격, (c) sub-agent = context checkpoint 원칙, (d) trigger matrix Must 조건 (Should 없음 — N1 에서 격상 완료), (e) wiring integration checklist pointer, (f) role 호출 메커니즘 표. § 1+ Extensions 는 기존 섹션 + `docs/context/*.md` 9 shards pointer 로 체계화.
+  2. **`.vibe/config.json.mode`** — `"human" | "agent"` 2-value. Default `"human"`. 5 분기점 (interview mode, error format, confirmation gates, doc verbosity, status display) calling convention 을 CLAUDE.md Charter 에 문서화. 실제 분기 로직 구현 defer.
+  3. **Soft freeze declaration**: CLAUDE.md 헤더에 "iter-3 이후 harness 변경 ≤ 분기 1회 + growth budget net +150 / iter / 0 new scripts" 명시.
+  4. **`/vibe-review` 리마인드 hook 추가** — `.vibe/skills/vibe-review/SKILL.md` 에 `.vibe/archive/rules-deleted-*.md` 와 `.vibe/audit/iter-*/` 자동 체크 → "미결정 복원 케이스" 자동 findings append. 이건 N1 의 archive 산출물 보완 메커니즘.
+  5. **Metric shift**: `/vibe-review` 의 기준을 "harness gap 수" → "dogfood friction-per-sprint trend + product shipped value" 로 전환.
+- **예상 LOC**: add ~80 (mode flag 20 + freeze declaration 10 + rules-deleted hook 50). delete ~100 (CLAUDE.md 중복 제거 재구조화 중).
+
+## Iteration 경계 처리
+
+- iter-3 완료 = 3 Sprint AC pass. dogfood8 production 검증은 **post-acceptance** (iter-3 scope 밖).
+- dogfood8 인계 프롬프트가 auto-tag 및 삭제 rule 복원 결정을 한 번 더 검증.
+- iter-3 closure 커밋에서 harnessVersion bump 여부는 N2 의 artificial v1.4.1 bump 결과에 통합.
+
+## 에스컬레이션
+
+- Rule delete 10개 이상 발생 시 사용자 승인 gate (N1 checkpoint).
+- Sprint AC 미달 시 재Codex 위임 (기존 방식).
+- iter-3 net LOC > +150 초과 시 Sprint scope 재협상 필수.
 
 
 

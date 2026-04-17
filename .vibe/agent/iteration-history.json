@@ -1,7 +1,26 @@
 {
   "$schema": "./iteration-history.schema.json",
-  "currentIteration": null,
+  "currentIteration": "iter-3",
   "iterations": [
+    {
+      "id": "iter-3",
+      "label": "harness diet + tune-up",
+      "startedAt": "2026-04-17T06:59:41.603Z",
+      "completedAt": null,
+      "goal": "Negative-scope iteration. 28 uncovered rules 를 semantic cluster 단위로 재정의 + dogfood6~7 transcript retrospective 기반 S/A/B/C tier 분류 + B/C delete + Should→Must 단일방향 격상. Progressive MD Charter-first 재구조화 (§0 Charter file top + §1+ Extensions pointer). Critical bug triage (sprint-commit archive staging, auto-tag production 자기 검증 via artificial v1.4.1 bump, run-codex auto status-tick). Soft freeze posture 선언 + mode flag human/agent 2-value define-only (분기 로직은 iter-4+ defer).",
+      "plannedSprints": [
+        "sprint-N1-rule-audit-diet",
+        "sprint-N2-critical-bug-triage",
+        "sprint-N3-freeze-mode-flag"
+      ],
+      "completedSprints": [],
+      "milestoneProgress": {
+        "rule-audit-diet": 0,
+        "critical-bug-triage": 0,
+        "freeze-mode-flag": 0
+      },
+      "summary": "진행 중 (carryover from iter-2: 27 uncovered rules + gap-review-catch-wiring-drift + 4 residual bugs). Priority a>b>c>d: rule diet (dominant) > progressive MD > bug fix > freeze/mode flag. Growth budget: net +150 LOC / iter, 0 new scripts (delete 무제한). Artifacts iteration-scoped to .vibe/audit/iter-3/ for easy cleansing. Validation matrix: Windows + macOS. Core values (interview/phase/sprint/sub-agent) 절대 보존."
+    },
     {
       "id": "iter-2",
       "label": "harness hardening (v1.4.0)",
