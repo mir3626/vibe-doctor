@@ -46,7 +46,7 @@ function parseArgs(argv) {
   const [, , sprintId, status, ...rest] = argv;
   if (!sprintId || !status || !['passed', 'failed'].includes(status)) {
     fail(
-      'Usage: node scripts/vibe-sprint-commit.mjs <sprintId> <passed|failed> [--scope <glob,glob,...>] [--message <extra>] [--no-verify-gpg] [--dry-run]',
+      'Usage: node scripts/vibe-sprint-commit.mjs <sprintId> <passed|failed> [--scope <glob,glob,...>] [--message <extra>] [--no-verify-gpg] [--push-tag] [--dry-run]',
     );
   }
 
@@ -54,6 +54,7 @@ function parseArgs(argv) {
   let message = '';
   let dryRun = false;
   let disableGpg = false;
+  let pushTag = false;
 
   for (let index = 0; index < rest.length; index += 1) {
     const current = rest[index];
@@ -75,9 +76,13 @@ function parseArgs(argv) {
       disableGpg = true;
       continue;
     }
+    if (current === '--push-tag') {
+      pushTag = true;
+      continue;
+    }
   }
 
-  return { sprintId, status, scope, message, dryRun, disableGpg };
+  return { sprintId, status, scope, message, dryRun, disableGpg, pushTag };
 }
 
 function execGit(args, options = {}) {
@@ -286,6 +291,112 @@ function commitStaged(commitMessage, disableGpg) {
   }
 }
 
+function parseHarnessVersionFromConfig(rawConfig) {
+  const config = JSON.parse(rawConfig);
+  const version = config?.harnessVersion;
+  return typeof version === 'string' && /^\d+\.\d+\.\d+$/.test(version) ? version : null;
+}
+
+// CROSS-REF (migrations/1.4.0.mjs:compareVersions)
+function compareVersions(left, right) {
+  const leftParts = String(left ?? '')
+    .replace(/^v/, '')
+    .split('.')
+    .map((part) => Number(part));
+  const rightParts = String(right ?? '')
+    .replace(/^v/, '')
+    .split('.')
+    .map((part) => Number(part));
+  const length = Math.max(leftParts.length, rightParts.length);
+
+  for (let index = 0; index < length; index += 1) {
+    const diff = (leftParts[index] ?? 0) - (rightParts[index] ?? 0);
+    if (diff !== 0) {
+      return diff;
+    }
+  }
+
+  return 0;
+}
+
+function readCommittedHarnessVersion(ref) {
+  try {
+    return parseHarnessVersionFromConfig(execGit(['show', `${ref}:.vibe/config.json`]));
+  } catch {
+    return null;
+  }
+}
+
+function tagExists(tagName) {
+  const result = spawnSync('git', ['rev-parse', '--verify', `refs/tags/${tagName}`], {
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  return (result.status ?? 1) === 0;
+}
+
+function errorStderr(error) {
+  if (typeof error.stderr === 'string') {
+    return error.stderr.trim();
+  }
+  if (Buffer.isBuffer(error.stderr)) {
+    return error.stderr.toString('utf8').trim();
+  }
+  return String(error);
+}
+
+function createHarnessVersionTag(sprintId, pushTag) {
+  const currentVersion = readCommittedHarnessVersion('HEAD');
+  if (!currentVersion) {
+    process.stdout.write('[vibe-sprint-commit] harness-tag: skipped (current harnessVersion not parseable)\n');
+    return;
+  }
+
+  const previousVersion = readCommittedHarnessVersion('HEAD~1');
+  if (!previousVersion) {
+    process.stdout.write('[vibe-sprint-commit] harness-tag: skipped (no previous config.json to compare)\n');
+    return;
+  }
+
+  if (compareVersions(currentVersion, previousVersion) <= 0) {
+    process.stdout.write(
+      `[vibe-sprint-commit] harness-tag: skipped (no upward version delta: ${previousVersion} -> ${currentVersion})\n`,
+    );
+    return;
+  }
+
+  const tagName = `v${currentVersion}`;
+  if (tagExists(tagName)) {
+    process.stdout.write(`[vibe-sprint-commit] harness-tag: skipped (tag ${tagName} already exists)\n`);
+    return;
+  }
+
+  try {
+    execFileSync('git', ['tag', '-a', tagName, '-m', `auto-tag from sprint-commit ${sprintId}`], {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+  } catch (error) {
+    process.stdout.write(`[vibe-sprint-commit] harness-tag: FAILED to create ${tagName}: ${errorStderr(error)}\n`);
+    return;
+  }
+
+  process.stdout.write(`[vibe-sprint-commit] harness-tag: created ${tagName} (prev=${previousVersion})\n`);
+
+  if (!pushTag) {
+    return;
+  }
+
+  try {
+    execFileSync('git', ['push', 'origin', `refs/tags/${tagName}`], {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+  } catch (error) {
+    process.stdout.write(`[vibe-sprint-commit] harness-tag: FAILED to push ${tagName}: ${errorStderr(error)}\n`);
+  }
+}
+
 function main() {
   try {
     execGit(['rev-parse', '--show-toplevel']);
@@ -293,7 +404,7 @@ function main() {
     fail('not a git repo');
   }
 
-  const { sprintId, status, scope: cliScope, message, dryRun, disableGpg } = parseArgs(process.argv);
+  const { sprintId, status, scope: cliScope, message, dryRun, disableGpg, pushTag } = parseArgs(process.argv);
   const scriptDir = path.dirname(fileURLToPath(import.meta.url));
   const completeScript = path.join(scriptDir, 'vibe-sprint-complete.mjs');
   const statusPath = resolve('.vibe/agent/sprint-status.json');
@@ -390,6 +501,7 @@ function main() {
   }
 
   commitStaged(commitMessage, disableGpg);
+  createHarnessVersionTag(sprintId, pushTag);
   const shortSha = execGit(['rev-parse', '--short', 'HEAD']);
   process.stdout.write(`[vibe-sprint-commit] committed ${shortSha} for ${sprintId}\n`);
 }

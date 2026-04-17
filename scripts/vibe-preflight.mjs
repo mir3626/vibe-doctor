@@ -131,6 +131,45 @@ function appendAuditAck(sessionLogFile, sprintId, reason) {
   return true;
 }
 
+function readAuditSkippedModeDirective() {
+  const configLocalPath = resolve('.vibe/config.local.json');
+  if (!existsSync(configLocalPath)) {
+    return { directive: null, note: '' };
+  }
+
+  try {
+    const localConfig = JSON.parse(readFileSync(configLocalPath, 'utf8'));
+    return {
+      directive: localConfig?.userDirectives?.auditSkippedMode ?? null,
+      note: '',
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return {
+      directive: null,
+      note: ` config.local.json parse warning: ${message}`,
+    };
+  }
+}
+
+function activeAuditSkippedModeDetail(directive) {
+  if (!directive || directive.enabled !== true) {
+    return null;
+  }
+
+  const expiresAt = typeof directive.expiresAt === 'string' ? directive.expiresAt : '';
+  const expiresMs = Date.parse(expiresAt);
+  if (Number.isNaN(expiresMs) || expiresMs <= Date.now()) {
+    return null;
+  }
+
+  const reason = typeof directive.reason === 'string' && directive.reason.trim().length > 0
+    ? directive.reason.trim()
+    : 'no reason recorded';
+  const daysLeft = Math.ceil((expiresMs - Date.now()) / (24 * 60 * 60 * 1000));
+  return `skipped by user directive "${reason}" (expires=${expiresAt}, ${daysLeft} day(s) left)`;
+}
+
 function runStateValidation() {
   const tsxLoader = path.join(scriptDir, '..', 'node_modules', 'tsx', 'dist', 'loader.mjs');
   const tsxImport = existsSync(tsxLoader) ? pathToFileURL(tsxLoader).href : 'tsx';
@@ -511,12 +550,18 @@ if (BOOTSTRAP_MODE) {
       const reason = overdueByCount
         ? `sprintsSinceLastAudit=${counter} >= ${auditEveryN}`
         : `${openAuditRisks.length} open audit-* pendingRisks`;
-      record(
-        'audit.overdue',
-        false,
-        `${reason}. audit required - run vibe-audit-clear or acknowledge with --ack-audit-overdue=<sprintId>:<reason>`,
-        'fail',
-      );
+      const skippedMode = readAuditSkippedModeDirective();
+      const skippedDetail = activeAuditSkippedModeDetail(skippedMode.directive);
+      if (skippedDetail) {
+        record('audit.overdue', true, skippedDetail, 'warn');
+      } else {
+        record(
+          'audit.overdue',
+          false,
+          `${reason}. audit required - run vibe-audit-clear or acknowledge with --ack-audit-overdue=<sprintId>:<reason>${skippedMode.note}`,
+          'fail',
+        );
+      }
     }
   } else {
     record('audit.overdue', true, `ok (counter=${counter}/${auditEveryN})`);

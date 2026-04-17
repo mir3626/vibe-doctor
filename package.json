@@ -24,7 +24,8 @@
     "vibe:run-agent": "npx tsx src/commands/run-agent.ts",
     "vibe:sync": "npx tsx src/commands/sync.ts",
     "vibe:gen-schemas": "node scripts/vibe-gen-schemas.mjs",
-    "vibe:audit-lightweight": "node scripts/vibe-audit-lightweight.mjs"
+    "vibe:audit-lightweight": "node scripts/vibe-audit-lightweight.mjs",
+    "vibe:rule-audit": "node scripts/vibe-rule-audit.mjs"
   },
   "dependencies": {
     "zod": "^3.23.0"

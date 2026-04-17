@@ -11,7 +11,7 @@
 - **last commit**: `bc8f90f feat(sprint-M-audit): sprint-M-audit`
 - **language/tone**: 한국어 반말
 
-## 2. Status: IDLE - Sprint sprint-M-process-discipline passed
+## 2. Status: IDLE - Sprint sprint-M-harness-gates passed
 
 iteration-2 harness hardening (v1.4.0) 진행 중. 3 slot 중 **1/3 완료**.
 

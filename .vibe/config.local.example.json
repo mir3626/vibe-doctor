@@ -30,5 +30,13 @@
       "lint",
       "build"
     ]
+  },
+  "userDirectives": {
+    "auditSkippedMode": {
+      "enabled": false,
+      "reason": "temporary skip during planning",
+      "expiresAt": "2026-04-30T00:00:00.000Z",
+      "recordedAt": "2026-04-16T00:00:00.000Z"
+    }
   }
 }

@@ -33,6 +33,7 @@ async function scaffoldRepo(
   options: {
     sprintsSinceLastAudit?: number;
     pendingRisks?: Array<Record<string, unknown>>;
+    configLocal?: Record<string, unknown>;
   } = {},
 ): Promise<void> {
   await mkdir(path.join(root, '.vibe', 'agent'), { recursive: true });
@@ -60,6 +61,9 @@ async function scaffoldRepo(
     sprintsSinceLastAudit: options.sprintsSinceLastAudit ?? 0,
     stateUpdatedAt: new Date().toISOString(),
   });
+  if (options.configLocal) {
+    await writeJson(path.join(root, '.vibe', 'config.local.json'), options.configLocal);
+  }
   await writeFile(path.join(root, '.vibe', 'agent', 'handoff.md'), '# handoff\n', 'utf8');
   await writeFile(path.join(root, '.vibe', 'agent', 'session-log.md'), '# Session Log\n\n## Entries\n', 'utf8');
   await writeFile(
@@ -129,6 +133,53 @@ describe('vibe-preflight audit gate', () => {
     assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
     assert.match(result.stdout, /\[WARN\] audit\.overdue/);
     assert.match(sessionLog, /\[decision\]\[audit-ack\] sprint=sprint-test reason=manual-review/);
+  });
+
+  it('warns instead of failing when active auditSkippedMode is configured', async () => {
+    const root = await makeTempDir('preflight-audit-skip-active-');
+    await scaffoldRepo(root, {
+      sprintsSinceLastAudit: 10,
+      configLocal: {
+        userDirectives: {
+          auditSkippedMode: {
+            enabled: true,
+            reason: 'temporary skip during iteration planning',
+            expiresAt: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
+            recordedAt: new Date().toISOString(),
+          },
+        },
+      },
+    });
+
+    const result = runPreflight(root);
+
+    assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
+    assert.match(result.stdout, /\[WARN\] audit\.overdue/);
+    assert.match(result.stdout, /temporary skip during iteration planning/);
+    assert.match(result.stdout, /day\(s\) left/);
+  });
+
+  it('ignores expired auditSkippedMode and keeps audit overdue as a failure', async () => {
+    const root = await makeTempDir('preflight-audit-skip-expired-');
+    await scaffoldRepo(root, {
+      sprintsSinceLastAudit: 10,
+      configLocal: {
+        userDirectives: {
+          auditSkippedMode: {
+            enabled: true,
+            reason: 'expired skip',
+            expiresAt: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+            recordedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+          },
+        },
+      },
+    });
+
+    const result = runPreflight(root);
+
+    assert.equal(result.status, 1);
+    assert.match(result.stdout, /\[FAIL\] audit\.overdue/);
+    assert.doesNotMatch(result.stdout, /expired skip/);
   });
 
   it('skips the audit gate in bootstrap mode', async () => {

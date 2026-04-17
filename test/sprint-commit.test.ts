@@ -291,6 +291,91 @@ describe('vibe-sprint-commit', () => {
     assert.match(stdout, /nothing to commit \(already closed\?\)/);
   });
 
+  it('creates an annotated harness tag when harnessVersion increases', async () => {
+    const root = await makeTempDir('sprint-commit-tag-create-');
+    await scaffoldRepo(root);
+    await writeJson(path.join(root, '.vibe', 'config.json'), {
+      harnessVersion: '1.2.0',
+      harnessVersionInstalled: '1.1.1',
+      sprintRoles: {},
+      sprint: {
+        unit: 'feature',
+        subAgentPerRole: true,
+        freshContextPerSprint: true,
+      },
+      providers: {},
+      audit: {
+        everyN: 99,
+      },
+    });
+
+    const { stdout } = await runSprintCommit(root, [
+      'test-sprint',
+      'passed',
+      '--scope',
+      '.vibe/config.json',
+      '--no-verify-gpg',
+    ]);
+    const { stdout: tags } = await execFile('git', ['tag', '-l', 'v1.2.0'], { cwd: root });
+
+    assert.match(stdout, /harness-tag: created v1\.2\.0 \(prev=1\.1\.1\)/);
+    assert.equal(tags.trim(), 'v1.2.0');
+  });
+
+  it('does not tag when harnessVersion is unchanged', async () => {
+    const root = await makeTempDir('sprint-commit-tag-unchanged-');
+    await scaffoldRepo(root);
+    await writeText(path.join(root, 'src', 'foo.ts'), 'export const foo = 1;\n');
+    await execFile('git', ['add', 'src/foo.ts'], { cwd: root });
+
+    const { stdout } = await runSprintCommit(root, [
+      'test-sprint',
+      'passed',
+      '--scope',
+      'src/foo.ts',
+      '--no-verify-gpg',
+    ]);
+    const { stdout: tags } = await execFile('git', ['tag', '-l', 'v1.1.1'], { cwd: root });
+
+    assert.match(stdout, /no upward version delta: 1\.1\.1 -> 1\.1\.1/);
+    assert.equal(tags.trim(), '');
+  });
+
+  it('skips harness tag creation when the candidate tag already exists', async () => {
+    const root = await makeTempDir('sprint-commit-tag-existing-');
+    await scaffoldRepo(root);
+    await execFile('git', ['tag', '-a', 'v1.2.0', '-m', 'existing tag'], {
+      cwd: root,
+      env: { ...process.env, ...gitEnv },
+    });
+    await writeJson(path.join(root, '.vibe', 'config.json'), {
+      harnessVersion: '1.2.0',
+      harnessVersionInstalled: '1.1.1',
+      sprintRoles: {},
+      sprint: {
+        unit: 'feature',
+        subAgentPerRole: true,
+        freshContextPerSprint: true,
+      },
+      providers: {},
+      audit: {
+        everyN: 99,
+      },
+    });
+
+    const { stdout } = await runSprintCommit(root, [
+      'test-sprint',
+      'passed',
+      '--scope',
+      '.vibe/config.json',
+      '--no-verify-gpg',
+    ]);
+    const { stdout: tags } = await execFile('git', ['tag', '-l', 'v1.2.0'], { cwd: root });
+
+    assert.match(stdout, /tag v1\.2\.0 already exists/);
+    assert.equal(tags.trim(), 'v1.2.0');
+  });
+
   it('blocks commit when an open pending risk targets the sprint', async () => {
     const root = await makeTempDir('sprint-commit-risk-');
     await scaffoldRepo(root, {

@@ -2,7 +2,7 @@
 
 <!-- BEGIN:VIBE:CURRENT-SPRINT -->
 > **Current**: idle (not started, started 2026-04-17)
-> **Completed**: sprint-M-process-discipline, sprint-M-audit
+> **Completed**: sprint-M-harness-gates, sprint-M-process-discipline, sprint-M-audit
 > **Pending**: —
 <!-- END:VIBE:CURRENT-SPRINT -->
 
@@ -381,6 +381,7 @@ dogfood7 (Neighbor TimeBank MVP, S01~S10) 실사용 후 `/vibe-review` 산출 (`
 ## 마무리
 
 iteration-2 3 sprint 완료 시 dogfood8 로 이어감 — dogfood7 잔여 project 이슈 (rate-limit / architecture-reconcile) 는 dogfood8 Phase 0 에서 "이전 프로젝트 경험" 으로 seed.
+
 
 
 

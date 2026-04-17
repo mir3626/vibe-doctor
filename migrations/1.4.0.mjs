@@ -121,12 +121,102 @@ function migrateAgentFiles(root) {
   return 'skipped-missing-replacement';
 }
 
+function splitMarkdownRow(line) {
+  const cells = [];
+  let current = '';
+
+  for (let index = 0; index < line.length; index += 1) {
+    const char = line[index];
+    const previous = index > 0 ? line[index - 1] : '';
+    if (char === '|' && previous !== '\\') {
+      cells.push(current.trim());
+      current = '';
+      continue;
+    }
+    current += char;
+  }
+
+  cells.push(current.trim());
+  return cells.filter((cell, index, array) => !(index === 0 && cell === '') && !(index === array.length - 1 && cell === ''));
+}
+
+function formatMarkdownRow(cells) {
+  return `| ${cells.join(' | ')} |`;
+}
+
+function patchHarnessGaps(root) {
+  const filePath = path.join(root, 'docs', 'context', 'harness-gaps.md');
+  if (!existsSync(filePath)) {
+    return 'missing';
+  }
+
+  const content = readFileSync(filePath, 'utf8');
+  if (content.includes('| id | symptom | covered_by | status | script-gate | migration-deadline |')) {
+    return 'idempotent';
+  }
+
+  if (!content.includes('| id | symptom | covered_by | status |')) {
+    return 'skipped-parse-mismatch';
+  }
+
+  let parseMismatch = false;
+  const lines = content.split(/\r?\n/).map((line) => {
+    if (line === '| id | symptom | covered_by | status |') {
+      return '| id | symptom | covered_by | status | script-gate | migration-deadline |';
+    }
+    if (line === '|---|---|---|---|') {
+      return '|---|---|---|---|---|---|';
+    }
+    if (!/^\|\s*gap-[\w-]+\s*\|/.test(line)) {
+      return line;
+    }
+
+    const cells = splitMarkdownRow(line);
+    if (cells.length !== 4) {
+      parseMismatch = true;
+      return line;
+    }
+
+    const [id, symptom, currentCoveredBy, currentStatus] = cells;
+    let coveredBy = currentCoveredBy;
+    let status = currentStatus;
+    let scriptGate = status === 'covered' ? 'covered' : 'pending';
+    let deadline = '\u2014';
+
+    if (id === 'gap-rule-only-in-md') {
+      coveredBy = '`scripts/vibe-rule-audit.mjs` rule scanner (M-harness-gates)';
+      status = 'covered';
+      scriptGate = 'covered';
+    }
+    if (id === 'gap-release-tag-automation') {
+      coveredBy = '`vibe-sprint-commit.mjs` harness-tag hook (M-harness-gates)';
+      status = 'covered';
+      scriptGate = 'covered';
+    }
+    if (id === 'gap-review-catch-wiring-drift') {
+      status = 'open';
+      scriptGate = 'pending';
+      deadline = '+3 sprints';
+    }
+
+    return formatMarkdownRow([id, symptom, coveredBy, status, scriptGate, deadline]);
+  });
+
+  if (parseMismatch) {
+    return 'skipped-parse-mismatch';
+  }
+
+  writeFileSync(filePath, lines.join('\n'), 'utf8');
+  return 'patched';
+}
+
 function main() {
   const root = path.resolve(process.argv[2] ?? process.cwd());
   const actions = [
     `sprintStatus=${patchSprintStatus(root)}`,
     `config=${updateConfig(root)}`,
     `agentFiles=${migrateAgentFiles(root)}`,
+    `harnessGaps=${patchHarnessGaps(root)}`,
   ];
   const idempotent = actions.every((entry) => entry.endsWith('=idempotent') || entry.endsWith('=missing'));
   process.stdout.write(`[migrate 1.4.0] ${actions.join(' ')}${idempotent ? ' idempotent' : ''}\n`);
