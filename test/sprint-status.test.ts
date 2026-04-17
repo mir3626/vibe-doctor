@@ -40,7 +40,7 @@ async function writeJson(filePath: string, value: unknown): Promise<void> {
   await writeFile(filePath, `${JSON.stringify(value, null, 2)}\n`, 'utf8');
 }
 
-function makeLegacyStatus(): Omit<SprintStatus, 'pendingRisks' | 'lastSprintScope' | 'lastSprintScopeGlob' | 'sprintsSinceLastAudit' | 'stateUpdatedAt' | 'verifiedAt'> {
+function makeLegacyStatus(): Parameters<typeof withDefaults>[0] {
   return {
     $schema: './sprint-status.schema.json',
     schemaVersion: '0.1',

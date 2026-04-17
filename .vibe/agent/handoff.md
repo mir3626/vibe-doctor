@@ -11,7 +11,7 @@
 - **last commit (before handoff)**: `9b9340e docs(plans): iteration-2 roadmap seed + §14 Wiring Integration Checklist`
 - **language/tone**: 한국어 반말
 
-## 2. Status: Iteration-2 진행 중 — M-audit Planner prompt 작성 완료, Codex 위임 대기
+## 2. Status: IDLE - Sprint sprint-M-audit passed
 
 v1.3.1 마무리 + dogfood7 `/vibe-review` 산출(`C:\Users\Tony\Workspace\dogfood7\docs\reports\review-10-2026-04-16.md`) 흡수 후 **iteration-2 harness hardening (v1.4.0)** 진입.
 

@@ -3,13 +3,19 @@
 // Replaces the former .vibe/agent/preflight.md runbook.
 // Usage: node scripts/vibe-preflight.mjs [--json]
 
-import { execFileSync, execSync } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { execFileSync, execSync, spawnSync } from 'node:child_process';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import path, { resolve } from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const JSON_MODE = process.argv.includes('--json');
 const BOOTSTRAP_MODE = process.argv.includes('--bootstrap');
+const ACK_AUDIT_PREFIX = '--ack-audit-overdue=';
 const results = [];
+const scriptDir = path.dirname(fileURLToPath(import.meta.url));
+const statusPath = resolve('.vibe/agent/sprint-status.json');
+const handoffPath = resolve('.vibe/agent/handoff.md');
+const sessionLogPath = resolve('.vibe/agent/session-log.md');
 
 function record(id, ok, detail, level = 'ok') {
   results.push({ id, ok, detail, level });
@@ -79,6 +85,95 @@ function parseIso(value) {
 
   const time = Date.parse(value);
   return Number.isNaN(time) ? null : new Date(time);
+}
+
+function parseAckAuditArg() {
+  const arg = process.argv.find((entry) => entry.startsWith(ACK_AUDIT_PREFIX));
+  if (!arg) {
+    return null;
+  }
+
+  const raw = arg.slice(ACK_AUDIT_PREFIX.length);
+  const colonIndex = raw.indexOf(':');
+  if (colonIndex === -1) {
+    process.stderr.write('invalid --ack-audit-overdue format (expect <sprintId>:<reason>)\n');
+    process.exit(1);
+  }
+
+  const sprintId = raw.slice(0, colonIndex).trim();
+  const reason = raw.slice(colonIndex + 1).trim();
+  if (!sprintId || !reason) {
+    process.stderr.write('invalid --ack-audit-overdue format (expect <sprintId>:<reason>)\n');
+    process.exit(1);
+  }
+
+  return { sprintId, reason };
+}
+
+function appendAuditAck(sessionLogFile, sprintId, reason) {
+  if (!existsSync(sessionLogFile)) {
+    return false;
+  }
+
+  const nowIso = new Date().toISOString();
+  const entry = `- ${nowIso} [decision][audit-ack] sprint=${sprintId} reason=${reason}`;
+  const content = readFileSync(sessionLogFile, 'utf8');
+  if (content.includes(`[decision][audit-ack] sprint=${sprintId} reason=${reason}`)) {
+    return true;
+  }
+
+  const entriesPattern = /(^## Entries\s*$\n?)/m;
+  if (!entriesPattern.test(content)) {
+    return false;
+  }
+
+  writeFileSync(sessionLogFile, content.replace(entriesPattern, `$1\n${entry}\n`), 'utf8');
+  return true;
+}
+
+function runStateValidation() {
+  const tsxLoader = path.join(scriptDir, '..', 'node_modules', 'tsx', 'dist', 'loader.mjs');
+  const tsxImport = existsSync(tsxLoader) ? pathToFileURL(tsxLoader).href : 'tsx';
+  const result = spawnSync(
+    process.execPath,
+    ['--import', tsxImport, path.join(scriptDir, 'vibe-validate-state.ts')],
+    { encoding: 'utf8' },
+  );
+
+  if (result.status === 0) {
+    record('state.schema', true, 'all present state files valid');
+    return;
+  }
+
+  let parsed = null;
+  try {
+    parsed = JSON.parse(result.stderr || result.stdout || '{"errors":[]}');
+  } catch {
+    const detail = result.stderr || result.stdout || result.error?.message || 'state validation failed';
+    record('state.schema', false, detail, 'fail');
+    return;
+  }
+
+  const errors = Array.isArray(parsed.errors) ? parsed.errors : [];
+  if (errors.length === 0) {
+    record('state.schema', false, 'state validation failed without structured errors', 'fail');
+    return;
+  }
+
+  for (const err of errors) {
+    const file = typeof err.file === 'string' ? err.file : 'unknown';
+    const message = typeof err.message === 'string' ? err.message : 'invalid state file';
+    const suggestion = typeof err.fixSuggestion === 'string' ? `\n  suggest: ${err.fixSuggestion}` : '';
+    record(`state.schema.${file}`, false, `${message}${suggestion}`, 'fail');
+  }
+}
+
+const auditAck = parseAckAuditArg();
+
+if (BOOTSTRAP_MODE) {
+  record('state.schema', true, 'bootstrap mode - state schema check skipped');
+} else {
+  runStateValidation();
 }
 
 // 1. Git work tree
@@ -189,9 +284,6 @@ if (!cfg) {
 }
 
 // 5. Sprint status + handoff presence
-const statusPath = resolve('.vibe/agent/sprint-status.json');
-const handoffPath = resolve('.vibe/agent/handoff.md');
-const sessionLogPath = resolve('.vibe/agent/session-log.md');
 let sprintStatus = null;
 if (BOOTSTRAP_MODE) {
   record('sprint.status', true, 'bootstrap mode - sprint status check skipped');
@@ -271,6 +363,49 @@ try {
 }
 
 // 6. product.md existence (Phase 0 gate)
+if (BOOTSTRAP_MODE) {
+  record('audit.overdue', true, 'bootstrap mode - audit gate skipped');
+} else if (sprintStatus) {
+  const auditEveryN = Number.isInteger(cfg?.audit?.everyN) ? cfg.audit.everyN : 5;
+  const pendingRisks = Array.isArray(sprintStatus.pendingRisks) ? sprintStatus.pendingRisks : [];
+  const openAuditRisks = pendingRisks.filter(
+    (risk) => risk?.status === 'open' && typeof risk?.id === 'string' && risk.id.startsWith('audit-'),
+  );
+  const counter = Number.isInteger(sprintStatus.sprintsSinceLastAudit)
+    ? sprintStatus.sprintsSinceLastAudit
+    : 0;
+  const overdueByCount = counter >= auditEveryN;
+  const overdueByRisks = openAuditRisks.length > 0;
+
+  if (overdueByCount || overdueByRisks) {
+    if (auditAck) {
+      const appended = appendAuditAck(sessionLogPath, auditAck.sprintId, auditAck.reason);
+      record(
+        'audit.overdue',
+        appended,
+        appended
+          ? `acknowledged: sprint=${auditAck.sprintId} reason=${auditAck.reason}`
+          : `ack requested but session-log missing or lacks ## Entries: ${sessionLogPath}`,
+        appended ? 'warn' : 'fail',
+      );
+    } else {
+      const reason = overdueByCount
+        ? `sprintsSinceLastAudit=${counter} >= ${auditEveryN}`
+        : `${openAuditRisks.length} open audit-* pendingRisks`;
+      record(
+        'audit.overdue',
+        false,
+        `${reason}. audit required - run vibe-audit-clear or acknowledge with --ack-audit-overdue=<sprintId>:<reason>`,
+        'fail',
+      );
+    }
+  } else {
+    record('audit.overdue', true, `ok (counter=${counter}/${auditEveryN})`);
+  }
+} else {
+  record('audit.overdue', true, 'no sprint-status.json yet (audit gate skipped)');
+}
+
 const productPath = resolve('docs/context/product.md');
 const hasProduct = existsSync(productPath);
 if (hasProduct) {

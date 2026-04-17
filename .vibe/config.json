@@ -52,5 +52,6 @@
   },
   "audit": {
     "everyN": 5
-  }
+  },
+  "harnessVersionInstalled": "1.4.0"
 }

@@ -11,7 +11,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import path, { resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 function fail(message) {
   process.stderr.write(`${message}\n`);
@@ -266,6 +266,50 @@ function runProjectReport() {
   logStep('project-report', 'warn', `detail=exit-${result.status ?? 1}`);
 }
 
+function tsxImportSpecifier(scriptDir) {
+  const tsxLoader = path.join(scriptDir, '..', 'node_modules', 'tsx', 'dist', 'loader.mjs');
+  return existsSync(tsxLoader) ? pathToFileURL(tsxLoader).href : 'tsx';
+}
+
+function validateStateOrFail(scriptDir) {
+  const result = spawnSync(
+    process.execPath,
+    ['--import', tsxImportSpecifier(scriptDir), path.join(scriptDir, 'vibe-validate-state.ts')],
+    {
+      encoding: 'utf8',
+    },
+  );
+  if (result.status === 0) {
+    logStep('state-validate', 'ok');
+    return;
+  }
+
+  const detail = result.stderr || result.stdout || result.error?.message || `exit-${result.status ?? 1}`;
+  fail(`state validation failed before sprint completion write: ${detail}`);
+}
+
+function runLightweightAudit(scriptDir, sprintId) {
+  const scriptPath = path.join(scriptDir, 'vibe-audit-lightweight.mjs');
+  if (!existsSync(scriptPath)) {
+    logStep('lightweight-audit', 'warn', 'detail=script-missing');
+    return;
+  }
+
+  const result = spawnSync(process.execPath, [scriptPath, sprintId], {
+    encoding: 'utf8',
+  });
+  if (result.stdout) {
+    process.stderr.write(result.stdout);
+  }
+  if (result.status === 0) {
+    logStep('lightweight-audit', 'ok');
+    return;
+  }
+
+  const detail = result.stderr || result.error?.message || `exit-${result.status ?? 1}`;
+  logStep('lightweight-audit', 'warn', `detail=${detail.trim()}`);
+}
+
 export function computeCurrentPointerBlock(
   roadmapMd,
   sessionLogMd,
@@ -508,13 +552,28 @@ function runCli() {
   }
 
   if (!alreadyClosed) {
+    if (!Array.isArray(sprintStatus.verificationCommands)) {
+      sprintStatus.verificationCommands = Array.isArray(sprintStatus.policies?.verificationCommands)
+        ? sprintStatus.policies.verificationCommands
+        : [];
+    }
     sprintStatus.handoff = {
       ...(sprintStatus.handoff ?? {}),
       currentSprintId: 'idle',
       lastActionSummary: finalSummary,
+      orchestratorContextBudget:
+        sprintStatus.handoff?.orchestratorContextBudget === 'low' ||
+        sprintStatus.handoff?.orchestratorContextBudget === 'medium' ||
+        sprintStatus.handoff?.orchestratorContextBudget === 'high'
+          ? sprintStatus.handoff.orchestratorContextBudget
+          : 'medium',
+      preferencesActive: Array.isArray(sprintStatus.handoff?.preferencesActive)
+        ? sprintStatus.handoff.preferencesActive
+        : [],
       updatedAt: nowIso,
     };
     sprintStatus.stateUpdatedAt = nowIso;
+    validateStateOrFail(scriptDir);
     writeFileSync(statusPath, `${JSON.stringify(sprintStatus, null, 2)}\n`, 'utf8');
   }
 
@@ -629,6 +688,10 @@ function runCli() {
 
   if (shouldAutoProjectReport(sprintId, status, noAutoReport)) {
     runProjectReport();
+  }
+
+  if (!alreadyClosed) {
+    runLightweightAudit(scriptDir, sprintId);
   }
 }
 

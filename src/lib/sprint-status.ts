@@ -1,83 +1,34 @@
 import path from 'node:path';
 import { readJson, writeJson } from './fs.js';
 import { paths } from './paths.js';
+import {
+  PendingRiskSchema,
+  SprintStatusSchema,
+  type ActualLoc,
+  type HandoffBlock,
+  type PendingRisk,
+  type SandboxNote,
+  type SprintEntry,
+  type SprintStatus as ParsedSprintStatus,
+  type VerificationCommand,
+} from './schemas/sprint-status.js';
 
-export interface PendingRisk {
-  id: string;
-  raisedBy: string;
-  targetSprint: string;
-  text: string;
-  status: 'open' | 'acknowledged' | 'resolved';
-  createdAt: string;
-  resolvedAt?: string;
-}
+export type {
+  ActualLoc,
+  HandoffBlock,
+  PendingRisk,
+  SandboxNote,
+  SprintEntry,
+  VerificationCommand,
+};
 
-export interface VerificationCommand {
-  id: string;
-  command: string;
-  expectExitCode: number;
-  expectStdoutContains?: string;
-  introducedInSprint?: string;
-  runOutsideSandbox?: boolean;
-}
-
-export interface ActualLoc {
-  added: number;
-  deleted: number;
-  net: number;
-  filesChanged: number;
-}
-
-export interface SprintEntry {
-  id: string;
-  name: string;
-  status: 'planned' | 'in_progress' | 'passed' | 'failed' | 'skipped';
-  startedAt?: string;
-  completedAt?: string;
-  planPromptPath?: string;
-  generatorReportPath?: string;
-  evaluatorVerdict?: 'pass' | 'fail' | 'skipped';
-  addedVerificationCommands?: VerificationCommand[];
-  deviations?: string[];
-  actualLoc?: ActualLoc;
-}
-
-export interface HandoffBlock {
-  currentSprintId: string;
-  lastActionSummary: string;
-  openIssues?: string[];
-  orchestratorContextBudget: 'low' | 'medium' | 'high';
-  preferencesActive: string[];
-  handoffDocPath?: string;
-  updatedAt?: string;
-}
-
-export interface SandboxNote {
-  command: string;
-  reason: string;
-  runOutsideSandbox?: boolean;
-}
-
-export interface SprintStatus {
-  $schema?: string;
-  schemaVersion: string;
-  project: {
-    name: string;
-    createdAt: string;
-    runtime?: string;
-    framework?: string;
-  };
-  sprints: SprintEntry[];
-  verificationCommands: VerificationCommand[];
-  handoff?: HandoffBlock;
-  sandboxNotes?: SandboxNote[];
+export type SprintStatus = ParsedSprintStatus & {
   pendingRisks: PendingRisk[];
   lastSprintScope: string[];
   lastSprintScopeGlob: string[];
   sprintsSinceLastAudit: number;
   stateUpdatedAt: string;
-  verifiedAt?: string;
-}
+};
 
 function resolveRoot(root?: string): string {
   return root ?? paths.root;
@@ -107,211 +58,17 @@ function mergeScopeEntries(existing: string[], incoming: string[]): string[] {
   return merged;
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
-function isStringArray(value: unknown): value is string[] {
-  return Array.isArray(value) && value.every((entry) => typeof entry === 'string');
-}
-
 function isIsoDateString(value: unknown): value is string {
   return typeof value === 'string' && Number.isFinite(Date.parse(value));
 }
 
-function isActualLoc(value: unknown): value is ActualLoc {
-  return (
-    isRecord(value) &&
-    typeof value.added === 'number' &&
-    typeof value.deleted === 'number' &&
-    typeof value.net === 'number' &&
-    typeof value.filesChanged === 'number'
-  );
-}
-
-function isVerificationCommand(value: unknown): value is VerificationCommand {
-  if (!isRecord(value)) {
-    return false;
-  }
-
-  return (
-    typeof value.id === 'string' &&
-    typeof value.command === 'string' &&
-    typeof value.expectExitCode === 'number' &&
-    (value.expectStdoutContains === undefined || typeof value.expectStdoutContains === 'string') &&
-    (value.introducedInSprint === undefined || typeof value.introducedInSprint === 'string') &&
-    (value.runOutsideSandbox === undefined || typeof value.runOutsideSandbox === 'boolean')
-  );
-}
-
-function isSprintEntry(value: unknown): value is SprintEntry {
-  if (!isRecord(value)) {
-    return false;
-  }
-
-  const validStatus =
-    value.status === 'planned' ||
-    value.status === 'in_progress' ||
-    value.status === 'passed' ||
-    value.status === 'failed' ||
-    value.status === 'skipped';
-  const validVerdict =
-    value.evaluatorVerdict === undefined ||
-    value.evaluatorVerdict === 'pass' ||
-    value.evaluatorVerdict === 'fail' ||
-    value.evaluatorVerdict === 'skipped';
-
-  return (
-    typeof value.id === 'string' &&
-    typeof value.name === 'string' &&
-    validStatus &&
-    (value.startedAt === undefined || typeof value.startedAt === 'string') &&
-    (value.completedAt === undefined || typeof value.completedAt === 'string') &&
-    (value.planPromptPath === undefined || typeof value.planPromptPath === 'string') &&
-    (value.generatorReportPath === undefined || typeof value.generatorReportPath === 'string') &&
-    validVerdict &&
-    (value.addedVerificationCommands === undefined ||
-      (Array.isArray(value.addedVerificationCommands) &&
-        value.addedVerificationCommands.every(isVerificationCommand))) &&
-    (value.deviations === undefined || isStringArray(value.deviations)) &&
-    (value.actualLoc === undefined || isActualLoc(value.actualLoc))
-  );
-}
-
-function isHandoffBlock(value: unknown): value is HandoffBlock {
-  if (!isRecord(value)) {
-    return false;
-  }
-
-  const validBudget =
-    value.orchestratorContextBudget === 'low' ||
-    value.orchestratorContextBudget === 'medium' ||
-    value.orchestratorContextBudget === 'high';
-
-  return (
-    typeof value.currentSprintId === 'string' &&
-    typeof value.lastActionSummary === 'string' &&
-    validBudget &&
-    isStringArray(value.preferencesActive) &&
-    (value.openIssues === undefined || isStringArray(value.openIssues)) &&
-    (value.handoffDocPath === undefined || typeof value.handoffDocPath === 'string') &&
-    (value.updatedAt === undefined || typeof value.updatedAt === 'string')
-  );
-}
-
-function isSandboxNote(value: unknown): value is SandboxNote {
-  return (
-    isRecord(value) &&
-    typeof value.command === 'string' &&
-    typeof value.reason === 'string' &&
-    (value.runOutsideSandbox === undefined || typeof value.runOutsideSandbox === 'boolean')
-  );
-}
-
-export function isPendingRisk(value: unknown): value is PendingRisk {
-  const validStatus =
-    isRecord(value) &&
-    (value.status === 'open' || value.status === 'acknowledged' || value.status === 'resolved');
-
-  return (
-    validStatus &&
-    typeof value.id === 'string' &&
-    typeof value.raisedBy === 'string' &&
-    typeof value.targetSprint === 'string' &&
-    typeof value.text === 'string' &&
-    typeof value.createdAt === 'string' &&
-    (value.resolvedAt === undefined || typeof value.resolvedAt === 'string')
-  );
-}
-
-export function isSprintStatus(value: unknown): value is SprintStatus {
-  if (!isRecord(value)) {
-    return false;
-  }
-
-  const validProject =
-    isRecord(value.project) &&
-    typeof value.project.name === 'string' &&
-    typeof value.project.createdAt === 'string' &&
-    (value.project.runtime === undefined || typeof value.project.runtime === 'string') &&
-    (value.project.framework === undefined || typeof value.project.framework === 'string');
-
-  return (
-    (value.$schema === undefined || typeof value.$schema === 'string') &&
-    typeof value.schemaVersion === 'string' &&
-    validProject &&
-    Array.isArray(value.sprints) &&
-    value.sprints.every(isSprintEntry) &&
-    Array.isArray(value.verificationCommands) &&
-    value.verificationCommands.every(isVerificationCommand) &&
-    (value.handoff === undefined || isHandoffBlock(value.handoff)) &&
-    (value.sandboxNotes === undefined ||
-      (Array.isArray(value.sandboxNotes) && value.sandboxNotes.every(isSandboxNote))) &&
-    (value.pendingRisks === undefined ||
-      (Array.isArray(value.pendingRisks) && value.pendingRisks.every(isPendingRisk))) &&
-    (value.lastSprintScope === undefined || isStringArray(value.lastSprintScope)) &&
-    (value.lastSprintScopeGlob === undefined || isStringArray(value.lastSprintScopeGlob)) &&
-    (value.sprintsSinceLastAudit === undefined || typeof value.sprintsSinceLastAudit === 'number') &&
-    (value.stateUpdatedAt === undefined || typeof value.stateUpdatedAt === 'string') &&
-    (value.verifiedAt === undefined || typeof value.verifiedAt === 'string')
-  );
-}
-
-function clonePendingRisk(risk: PendingRisk): PendingRisk {
-  return risk.resolvedAt === undefined ? { ...risk } : { ...risk, resolvedAt: risk.resolvedAt };
-}
-
-function cloneVerificationCommand(command: VerificationCommand): VerificationCommand {
-  return {
-    ...command,
-    ...(command.expectStdoutContains === undefined
-      ? {}
-      : { expectStdoutContains: command.expectStdoutContains }),
-    ...(command.introducedInSprint === undefined
-      ? {}
-      : { introducedInSprint: command.introducedInSprint }),
-    ...(command.runOutsideSandbox === undefined
-      ? {}
-      : { runOutsideSandbox: command.runOutsideSandbox }),
-  };
-}
-
-function cloneSprintEntry(entry: SprintEntry): SprintEntry {
-  return {
-    ...entry,
-    ...(entry.startedAt === undefined ? {} : { startedAt: entry.startedAt }),
-    ...(entry.completedAt === undefined ? {} : { completedAt: entry.completedAt }),
-    ...(entry.planPromptPath === undefined ? {} : { planPromptPath: entry.planPromptPath }),
-    ...(entry.generatorReportPath === undefined
-      ? {}
-      : { generatorReportPath: entry.generatorReportPath }),
-    ...(entry.evaluatorVerdict === undefined ? {} : { evaluatorVerdict: entry.evaluatorVerdict }),
-    ...(entry.addedVerificationCommands === undefined
-      ? {}
-      : {
-          addedVerificationCommands: entry.addedVerificationCommands.map(cloneVerificationCommand),
-        }),
-    ...(entry.deviations === undefined ? {} : { deviations: [...entry.deviations] }),
-    ...(entry.actualLoc === undefined ? {} : { actualLoc: { ...entry.actualLoc } }),
-  };
-}
-
-function cloneHandoffBlock(handoff: HandoffBlock): HandoffBlock {
-  return {
-    ...handoff,
-    ...(handoff.openIssues === undefined ? {} : { openIssues: [...handoff.openIssues] }),
-    ...(handoff.handoffDocPath === undefined ? {} : { handoffDocPath: handoff.handoffDocPath }),
-    ...(handoff.updatedAt === undefined ? {} : { updatedAt: handoff.updatedAt }),
-  };
-}
-
-function cloneSandboxNote(note: SandboxNote): SandboxNote {
-  return note.runOutsideSandbox === undefined ? { ...note } : { ...note, runOutsideSandbox: note.runOutsideSandbox };
+function cloneJson<T>(value: T): T {
+  return JSON.parse(JSON.stringify(value)) as T;
 }
 
 function nextStateUpdatedAt(
-  partial: Partial<SprintStatus> & {
-    project: SprintStatus['project'];
+  partial: Partial<ParsedSprintStatus> & {
+    project: ParsedSprintStatus['project'];
   },
 ): string {
   if (isIsoDateString(partial.stateUpdatedAt)) {
@@ -329,34 +86,27 @@ function nextStateUpdatedAt(
   return new Date().toISOString();
 }
 
+export function isPendingRisk(value: unknown): value is PendingRisk {
+  return PendingRiskSchema.safeParse(value).success;
+}
+
+export function isSprintStatus(value: unknown): value is SprintStatus {
+  return SprintStatusSchema.safeParse(value).success;
+}
+
 export function withDefaults(
-  partial: Partial<SprintStatus> & {
-    schemaVersion: string;
-    project: SprintStatus['project'];
+  partial: Partial<ParsedSprintStatus> & {
+    schemaVersion: '0.1';
+    project: ParsedSprintStatus['project'];
     sprints: SprintEntry[];
     verificationCommands: VerificationCommand[];
   },
 ): SprintStatus {
-  return {
+  const parsed = SprintStatusSchema.parse({
     ...partial,
-    project: {
-      ...partial.project,
-      ...(partial.project.runtime === undefined ? {} : { runtime: partial.project.runtime }),
-      ...(partial.project.framework === undefined ? {} : { framework: partial.project.framework }),
-    },
-    sprints: partial.sprints.map(cloneSprintEntry),
-    verificationCommands: partial.verificationCommands.map(cloneVerificationCommand),
-    ...(partial.handoff === undefined ? {} : { handoff: cloneHandoffBlock(partial.handoff) }),
-    ...(partial.sandboxNotes === undefined
-      ? {}
-      : { sandboxNotes: partial.sandboxNotes.map(cloneSandboxNote) }),
-    pendingRisks: (partial.pendingRisks ?? []).map(clonePendingRisk),
-    lastSprintScope: [...(partial.lastSprintScope ?? [])],
-    lastSprintScopeGlob: [...(partial.lastSprintScopeGlob ?? [])],
-    sprintsSinceLastAudit: partial.sprintsSinceLastAudit ?? 0,
     stateUpdatedAt: nextStateUpdatedAt(partial),
-    ...(partial.verifiedAt === undefined ? {} : { verifiedAt: partial.verifiedAt }),
-  };
+  });
+  return cloneJson(parsed) as SprintStatus;
 }
 
 async function loadStatusForMutation(root?: string): Promise<SprintStatus> {
@@ -378,11 +128,12 @@ async function persistStatus(
 export async function loadSprintStatus(root?: string): Promise<SprintStatus> {
   const filePath = sprintStatusPath(root);
   const loaded = await readJson<unknown>(filePath);
-  if (!isSprintStatus(loaded)) {
-    throw new Error(`Invalid sprint status at ${filePath}`);
+  const parsed = SprintStatusSchema.safeParse(loaded);
+  if (!parsed.success) {
+    throw new Error(`Invalid sprint status at ${filePath}: ${parsed.error.message}`);
   }
 
-  return withDefaults(loaded);
+  return withDefaults(parsed.data);
 }
 
 export async function saveSprintStatus(status: SprintStatus, root?: string): Promise<void> {
@@ -405,7 +156,7 @@ export async function appendPendingRisk(
   };
   status.pendingRisks.push(nextRisk);
   await saveSprintStatus(status, root);
-  return nextRisk;
+  return cloneJson(nextRisk);
 }
 
 export async function resolvePendingRisk(id: string, root?: string): Promise<PendingRisk | null> {
@@ -418,7 +169,7 @@ export async function resolvePendingRisk(id: string, root?: string): Promise<Pen
   risk.status = 'resolved';
   risk.resolvedAt = new Date().toISOString();
   await saveSprintStatus(status, root);
-  return clonePendingRisk(risk);
+  return cloneJson(risk);
 }
 
 export async function resolvePendingRisksByPrefix(

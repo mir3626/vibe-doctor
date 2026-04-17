@@ -34,7 +34,7 @@ async function writeJson(filePath: string, value: unknown): Promise<void> {
   await writeFile(filePath, `${JSON.stringify(value, null, 2)}\n`, 'utf8');
 }
 
-function makeRegistry(schemaVersion = 1): ModelRegistry {
+function makeRegistry(schemaVersion: 1 = 1): ModelRegistry {
   return {
     schemaVersion,
     updatedAt: '2026-04-15T00:00:00.000Z',
@@ -101,7 +101,10 @@ describe('model-registry', () => {
 
   it('loadRegistry rejects unsupported schema versions', async () => {
     const root = await makeTempDir('model-registry-schema-');
-    await writeJson(path.join(root, '.vibe', 'model-registry.json'), makeRegistry(2));
+    await writeJson(path.join(root, '.vibe', 'model-registry.json'), {
+      ...makeRegistry(),
+      schemaVersion: 2,
+    });
 
     await assert.rejects(
       loadRegistry(root),

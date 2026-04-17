@@ -75,9 +75,24 @@
       ".vibe/agent/sprint-api-contracts.schema.json",
       "src/lib/sprint-status.ts",
       "src/lib/project-map.ts",
+      "src/lib/schemas/sprint-status.ts",
+      "src/lib/schemas/project-map.ts",
+      "src/lib/schemas/sprint-api-contracts.ts",
+      "src/lib/schemas/iteration-history.ts",
+      "src/lib/schemas/model-registry.ts",
+      "src/lib/schemas/index.ts",
+      "scripts/vibe-gen-schemas.mjs",
+      "scripts/vibe-gen-schemas-impl.ts",
+      "scripts/vibe-audit-lightweight.mjs",
+      "scripts/vibe-validate-state.ts",
       "test/sprint-status.test.ts",
       "test/project-map.test.ts",
+      "test/schemas.test.ts",
+      "test/preflight-audit-gate.test.ts",
+      "test/audit-lightweight.test.ts",
       "test/preflight-stale.test.ts",
+      "migrations/1.4.0.mjs",
+      "docs/release/v1.4.0.md",
       "migrations/1.1.0.mjs",
       "scripts/run-codex.cmd",
       "test/run-codex-wrapper.test.ts",
@@ -217,6 +232,7 @@
     "1.1.0": "migrations/1.1.0.mjs",
     "1.2.0": "migrations/1.2.0.mjs",
     "1.2.1": "migrations/1.2.1.mjs",
-    "1.3.0": "migrations/1.3.0.mjs"
+    "1.3.0": "migrations/1.3.0.mjs",
+    "1.4.0": "migrations/1.4.0.mjs"
   }
 }

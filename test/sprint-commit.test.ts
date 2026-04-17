@@ -123,8 +123,17 @@ async function scaffoldRepo(
     ].join('\n'),
   );
   await writeText(path.join(root, '.vibe', 'agent', 'session-log.md'), '# Session Log\n\n## Entries\n');
-  await writeText(path.join(root, '.vibe', 'agent', 'project-map.json'), '{}\n');
-  await writeText(path.join(root, '.vibe', 'agent', 'sprint-api-contracts.json'), '{}\n');
+  await writeJson(path.join(root, '.vibe', 'agent', 'project-map.json'), {
+    schemaVersion: '0.1',
+    updatedAt: '2026-04-01T00:00:00.000Z',
+    modules: {},
+    activePlatformRules: [],
+  });
+  await writeJson(path.join(root, '.vibe', 'agent', 'sprint-api-contracts.json'), {
+    schemaVersion: '0.1',
+    updatedAt: '2026-04-01T00:00:00.000Z',
+    contracts: {},
+  });
   await writeText(path.join(root, '.vibe', 'agent', 'project-decisions.jsonl'), '');
 
   if (includeRoadmap) {

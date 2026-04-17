@@ -19,7 +19,8 @@
 | gap-review-reproducibility | 리뷰가 사람 주관 기반 -> 입력 재현 불가 | `/vibe-review` SKILL.md + `test/vibe-review-inputs.test.ts` exist (M8) | covered |
 | gap-phase0-commit-forget | Phase 0 산출물 커밋 누락으로 첫 Sprint 가 dirty tree 위에서 시작 | `vibe-phase0-seal.mjs` (M7) | covered |
 | gap-opt-in-visibility | bundle/browserSmoke opt-in 미인지로 frontend 프로젝트가 검증 없이 진행 | `/vibe-review` detectOptInGaps + test coverage (M8) | covered |
-| gap-rule-only-in-md | 규칙이 MD 에만 존재 -> Orchestrator 가 잊음 | `CLAUDE.md` hook table expanded (M10), but not all rules are script-gated yet | partial |
+| gap-rule-only-in-md | 규칙이 MD 에만 존재 -> Orchestrator 가 잊음 | Audit cadence is enforced by `scripts/vibe-preflight.mjs` gate (M-audit); remaining MD-only rules are promoted gradually in M-harness-gates | partial |
+| gap-zod-single-source | state JSON schema drift between runtime validators and `.schema.json` files | `src/lib/schemas/*.ts` + `scripts/vibe-gen-schemas.mjs` (M-audit) | covered |
 | gap-statusline-visibility | Agent 위임 중 Orchestrator 상태 불투명 | `.claude/statusline.{sh,ps1}` + `vibe-status-tick.mjs` + tests (M9) | covered |
 | gap-permission-noise | Agent 위임 시 권한 프롬프트 반복 | `vibe-sprint-mode.mjs` + settings-presets + tests (M9) | covered |
 | gap-integration-smoke | end-to-end meta smoke 부재 | `test/integration/meta-smoke.test.ts` (M10, this Sprint) | covered |

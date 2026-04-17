@@ -20,5 +20,7 @@
 
 ## Entries
 
+
+- 2026-04-17T00:14:05.802Z [sprint-complete] sprint-M-audit -> passed. Sprint sprint-M-audit completed with passed LOC +809/-22 (net +787)
 - 2026-04-16T<iter-2-kickoff>Z [decision][iteration-2-seed] dogfood7 /vibe-review (review-10-2026-04-16.md) 흡수 후 iteration-2 roadmap 시드 (3 slot: M-audit / M-process-discipline / M-harness-gates). 사용자가 자율모드 아님 + 각 Sprint 시작 전 승인 + Zod v3 런타임 dep + planner.md → sprint-planner.md 교체 + §14 Wiring Checklist 전부 승인. dogfood7 review 의 M-spec-fix / M-arch-reconcile 은 project 이슈로 분리 — dogfood8 phase 0 seed 로 이월.
 - 2026-04-16T<m-audit-planner>Z [decision][m-audit-planner-ready] M-audit Planner (opus) 소환 산출 = docs/prompts/sprint-M-audit.md (724 lines). Codex 위임 직전 사용자 세션 종료 요청. Codex 중간 산출 (schemas/ + audit-lightweight + migration 1.4.0 등) 은 zod 미설치 + implicit any 다수로 revert 완료. 재시작 시 sprint-M-audit.md 가 커밋된 상태에서 바로 `cat docs/prompts/sprint-M-audit.md | ./scripts/run-codex.sh -` 재위임 가능.

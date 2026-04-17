@@ -1,27 +1,16 @@
 import path from 'node:path';
 import { fileExists, readJson, writeJson } from './fs.js';
 import { paths } from './paths.js';
+import {
+  ActivePlatformRuleSchema,
+  ProjectMapModuleSchema,
+  ProjectMapSchema,
+  type ActivePlatformRule,
+  type ProjectMap,
+  type ProjectMapModule,
+} from './schemas/project-map.js';
 
-export interface ProjectMapModule {
-  exports: string[];
-  imports: string[];
-  sprintAdded?: string;
-}
-
-export interface ActivePlatformRule {
-  rule: string;
-  location: string;
-  sprintAdded: string;
-}
-
-export interface ProjectMap {
-  $schema?: string;
-  schemaVersion: string;
-  updatedAt: string;
-  lastSprintId?: string;
-  modules: Record<string, ProjectMapModule>;
-  activePlatformRules: ActivePlatformRule[];
-}
+export type { ActivePlatformRule, ProjectMap, ProjectMapModule };
 
 function resolveRoot(root?: string): string {
   return root ?? paths.root;
@@ -29,14 +18,6 @@ function resolveRoot(root?: string): string {
 
 function projectMapPath(root?: string): string {
   return path.join(resolveRoot(root), '.vibe', 'agent', 'project-map.json');
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
-function isStringArray(value: unknown): value is string[] {
-  return Array.isArray(value) && value.every((entry) => typeof entry === 'string');
 }
 
 function normalizeModulePath(value: string): string {
@@ -52,61 +33,12 @@ function emptyProjectMap(): ProjectMap {
   };
 }
 
-function cloneProjectMapModule(module: ProjectMapModule): ProjectMapModule {
-  return {
-    exports: [...module.exports],
-    imports: [...module.imports],
-    ...(module.sprintAdded === undefined ? {} : { sprintAdded: module.sprintAdded }),
-  };
-}
-
-function cloneActivePlatformRule(rule: ActivePlatformRule): ActivePlatformRule {
-  return { ...rule };
-}
-
-function cloneProjectMap(map: ProjectMap): ProjectMap {
-  return {
-    ...(map.$schema === undefined ? {} : { $schema: map.$schema }),
-    schemaVersion: map.schemaVersion,
-    updatedAt: map.updatedAt,
-    ...(map.lastSprintId === undefined ? {} : { lastSprintId: map.lastSprintId }),
-    modules: Object.fromEntries(
-      Object.entries(map.modules).map(([key, value]) => [key, cloneProjectMapModule(value)]),
-    ),
-    activePlatformRules: map.activePlatformRules.map(cloneActivePlatformRule),
-  };
-}
-
-function isProjectMapModule(value: unknown): value is ProjectMapModule {
-  return (
-    isRecord(value) &&
-    isStringArray(value.exports) &&
-    isStringArray(value.imports) &&
-    (value.sprintAdded === undefined || typeof value.sprintAdded === 'string')
-  );
-}
-
-function isActivePlatformRule(value: unknown): value is ActivePlatformRule {
-  return (
-    isRecord(value) &&
-    typeof value.rule === 'string' &&
-    typeof value.location === 'string' &&
-    typeof value.sprintAdded === 'string'
-  );
+function cloneJson<T>(value: T): T {
+  return JSON.parse(JSON.stringify(value)) as T;
 }
 
 export function isProjectMap(value: unknown): value is ProjectMap {
-  return (
-    isRecord(value) &&
-    (value.$schema === undefined || typeof value.$schema === 'string') &&
-    typeof value.schemaVersion === 'string' &&
-    typeof value.updatedAt === 'string' &&
-    (value.lastSprintId === undefined || typeof value.lastSprintId === 'string') &&
-    isRecord(value.modules) &&
-    Object.values(value.modules).every(isProjectMapModule) &&
-    Array.isArray(value.activePlatformRules) &&
-    value.activePlatformRules.every(isActivePlatformRule)
-  );
+  return ProjectMapSchema.safeParse(value).success;
 }
 
 export async function loadProjectMap(root?: string): Promise<ProjectMap> {
@@ -116,15 +48,16 @@ export async function loadProjectMap(root?: string): Promise<ProjectMap> {
   }
 
   const loaded = await readJson<unknown>(filePath);
-  if (!isProjectMap(loaded)) {
-    throw new Error(`Invalid project map at ${filePath}`);
+  const parsed = ProjectMapSchema.safeParse(loaded);
+  if (!parsed.success) {
+    throw new Error(`Invalid project map at ${filePath}: ${parsed.error.message}`);
   }
 
-  return cloneProjectMap(loaded);
+  return cloneJson(parsed.data);
 }
 
 export async function saveProjectMap(map: ProjectMap, root?: string): Promise<void> {
-  const nextMap = cloneProjectMap(map);
+  const nextMap = ProjectMapSchema.parse(cloneJson(map));
   nextMap.updatedAt = new Date().toISOString();
   await writeJson(projectMapPath(root), nextMap);
 }
@@ -174,32 +107,32 @@ export async function registerPlatformRule(args: {
 }
 
 export function mergeProjectMaps(base: ProjectMap, incoming: Partial<ProjectMap>): ProjectMap {
-  const mergedModules: Record<string, ProjectMapModule> = {
-    ...Object.fromEntries(
-      Object.entries(base.modules).map(([key, value]) => [key, cloneProjectMapModule(value)]),
-    ),
-  };
+  const mergedModules: Record<string, ProjectMapModule> = Object.fromEntries(
+    Object.entries(base.modules).map(([key, value]) => [key, cloneJson(value)]),
+  );
   for (const [key, value] of Object.entries(incoming.modules ?? {})) {
-    if (isProjectMapModule(value)) {
-      mergedModules[key] = cloneProjectMapModule(value);
+    const parsed = ProjectMapModuleSchema.safeParse(value);
+    if (parsed.success) {
+      mergedModules[key] = cloneJson(parsed.data);
     }
   }
 
   const rules: ActivePlatformRule[] = [];
   const seen = new Set<string>();
   for (const rule of [...base.activePlatformRules, ...(incoming.activePlatformRules ?? [])]) {
-    if (!isActivePlatformRule(rule)) {
+    const parsed = ActivePlatformRuleSchema.safeParse(rule);
+    if (!parsed.success) {
       continue;
     }
-    const dedupeKey = `${rule.rule}\u0000${rule.location}`;
+    const dedupeKey = `${parsed.data.rule}\u0000${parsed.data.location}`;
     if (seen.has(dedupeKey)) {
       continue;
     }
     seen.add(dedupeKey);
-    rules.push(cloneActivePlatformRule(rule));
+    rules.push(cloneJson(parsed.data));
   }
 
-  return {
+  return ProjectMapSchema.parse({
     ...(incoming.$schema !== undefined
       ? { $schema: incoming.$schema }
       : base.$schema !== undefined
@@ -214,5 +147,5 @@ export function mergeProjectMaps(base: ProjectMap, incoming: Partial<ProjectMap>
         : {}),
     modules: mergedModules,
     activePlatformRules: rules,
-  };
+  });
 }

@@ -1,23 +1,11 @@
 import path from 'node:path';
+import { ZodError } from 'zod';
 import { readJson } from './fs.js';
 import { paths } from './paths.js';
+import { ModelRegistrySchema } from './schemas/model-registry.js';
 
-export interface ModelEntry {
-  apiId: string;
-  release: string;
-}
-
-export interface ProviderRegistryEntry {
-  tiers: Partial<Record<'flagship' | 'performant' | 'efficient', string>>;
-  knownModels: Record<string, ModelEntry>;
-}
-
-export interface ModelRegistry {
-  schemaVersion: number;
-  updatedAt: string;
-  source: string;
-  providers: Record<string, ProviderRegistryEntry>;
-}
+export type { ModelEntry, ModelRegistry, ProviderRegistryEntry } from './schemas/model-registry.js';
+import type { ModelRegistry, ProviderRegistryEntry } from './schemas/model-registry.js';
 
 export type TierRef = {
   provider: string;
@@ -54,15 +42,22 @@ function availableTiers(provider: ProviderRegistryEntry): TierRef['tier'][] {
 
 export async function loadRegistry(root?: string): Promise<ModelRegistry> {
   const filePath = registryPath(root);
-  const registry = await readJson<ModelRegistry>(filePath);
+  const loaded = await readJson<unknown>(filePath);
 
-  if (registry.schemaVersion !== 1) {
-    throw new Error(
-      `registry schemaVersion ${String(registry.schemaVersion)} is unsupported; run npm run vibe:sync to refresh the harness registry`,
-    );
+  try {
+    return ModelRegistrySchema.parse(loaded);
+  } catch (error) {
+    if (error instanceof ZodError) {
+      const versionIssue = error.issues.find((issue) => issue.path.includes('schemaVersion'));
+      if (versionIssue && typeof loaded === 'object' && loaded !== null && 'schemaVersion' in loaded) {
+        const schemaVersion = (loaded as { schemaVersion: unknown }).schemaVersion;
+        throw new Error(
+          `registry schemaVersion ${String(schemaVersion)} is unsupported; run npm run vibe:sync to refresh the harness registry`,
+        );
+      }
+    }
+    throw error;
   }
-
-  return registry;
 }
 
 export function resolveModel(

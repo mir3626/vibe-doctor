@@ -7,13 +7,30 @@
     "runtime": "node24",
     "framework": "claude-code-template"
   },
-  "sprints": [],
+  "sprints": [
+    {
+      "id": "sprint-M-audit",
+      "name": "sprint-M-audit",
+      "status": "passed",
+      "completedAt": "2026-04-17T00:14:05.802Z",
+      "actualLoc": {
+        "added": 809,
+        "deleted": 22,
+        "net": 787,
+        "filesChanged": 3
+      }
+    }
+  ],
   "handoff": {
     "currentSprintId": "idle",
     "contextWindow": "main (Orchestrator)",
     "pendingPrompt": null,
     "lastHandoffAt": "2026-04-16T00:00:00Z",
-    "nextAction": "run /vibe-init to start a new project"
+    "nextAction": "run /vibe-init to start a new project",
+    "lastActionSummary": "Sprint sprint-M-audit completed with passed",
+    "orchestratorContextBudget": "medium",
+    "preferencesActive": [],
+    "updatedAt": "2026-04-17T00:14:05.802Z"
   },
   "policies": {
     "scratchpadPath": ".vibe/agent/handoff.md",
@@ -21,9 +38,58 @@
     "verificationCommands": []
   },
   "pendingRisks": [],
-  "lastSprintScope": [],
-  "lastSprintScopeGlob": [],
-  "sprintsSinceLastAudit": 0,
-  "stateUpdatedAt": "2026-04-16T00:00:00.000Z",
-  "verifiedAt": null
+  "lastSprintScope": [
+    "src/lib/schemas/**",
+    "scripts/vibe-audit-lightweight.mjs",
+    "scripts/vibe-gen-schemas.mjs",
+    "scripts/vibe-gen-schemas-impl.ts",
+    "scripts/vibe-validate-state.ts",
+    "migrations/1.4.0.mjs",
+    ".gitignore",
+    ".vibe/agent/iteration-history.schema.json",
+    ".vibe/agent/project-map.schema.json",
+    ".vibe/agent/sprint-api-contracts.schema.json",
+    ".vibe/agent/sprint-status.schema.json",
+    ".vibe/config.json",
+    ".vibe/model-registry.schema.json",
+    ".vibe/sync-manifest.json",
+    "CLAUDE.md",
+    "README.md",
+    "docs/context/harness-gaps.md",
+    "docs/plans/sprint-roadmap.md",
+    "docs/prompts/sprint-M-audit.md",
+    "package-lock.json",
+    "package.json",
+    "scripts/vibe-preflight.mjs",
+    "scripts/vibe-sprint-complete.mjs",
+    "src/lib/model-registry.ts",
+    "src/lib/project-map.ts",
+    "src/lib/sprint-status.ts",
+    "test/model-registry.test.ts",
+    "test/sprint-commit.test.ts",
+    "test/sprint-status.test.ts",
+    ".vibe/agent/dashboard.pid",
+    "docs/release/v1.4.0.md",
+    "src/lib/schemas/index.ts",
+    "src/lib/schemas/iteration-history.ts",
+    "src/lib/schemas/model-registry.ts",
+    "src/lib/schemas/project-map.ts",
+    "src/lib/schemas/sprint-api-contracts.ts",
+    "src/lib/schemas/sprint-status.ts",
+    "test/audit-lightweight.test.ts",
+    "test/preflight-audit-gate.test.ts",
+    "test/schemas.test.ts"
+  ],
+  "lastSprintScopeGlob": [
+    "src/lib/schemas/**",
+    "scripts/vibe-audit-lightweight.mjs",
+    "scripts/vibe-gen-schemas.mjs",
+    "scripts/vibe-gen-schemas-impl.ts",
+    "scripts/vibe-validate-state.ts",
+    "migrations/1.4.0.mjs"
+  ],
+  "sprintsSinceLastAudit": 1,
+  "stateUpdatedAt": "2026-04-17T00:14:05.802Z",
+  "verifiedAt": null,
+  "verificationCommands": []
 }
