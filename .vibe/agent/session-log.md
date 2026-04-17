@@ -23,6 +23,7 @@
 
 
 
+- 2026-04-17T03:50:07.756Z [decision][iteration-2-closure] iteration-2 (v1.4.0) 3 sprints 완료: M-audit(bc8f90f) + M-process-discipline(20a612e) + M-harness-gates(4d9a002). harnessVersion 1.3.1→1.4.0 bump + iteration-history.json iter-2 entry append + v1.4.0 annotated tag 수동 생성. auto-tag 로직 production 검증은 다음 harness bump 시 자연 발생 예정. 27 uncovered rules(vibe-rule-audit) + gap-review-catch-wiring-drift는 iteration-3 candidate.
 - 2026-04-17T03:26:24.039Z [sprint-complete] sprint-M-harness-gates -> passed. Sprint sprint-M-harness-gates completed with passed LOC +1147/-109 (net +1038)
 - 2026-04-17T02:52:11.931Z [sprint-complete] sprint-M-process-discipline -> passed. Sprint sprint-M-process-discipline completed with passed LOC +2241/-796 (net +1445)
 - 2026-04-17T00:14:16.000Z [decision] [m-audit-codex-fix] Codex 1차 위임 후 tsc 에러 4개 + 테스트 3개 실패. 원인: (1) 기존 테스트-Zod 타입 불일치, (2) Zod parse가 manual schemaVersion 체크보다 먼저 fail, (3) runLightweightAudit가 alreadyClosed에서도 실행. 2회 추가 Codex 위임으로 fix. total Codex tokens: 444K.

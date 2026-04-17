@@ -1,4 +1,4 @@
-# Orchestrator Handoff — iteration-2 / M-audit 완료, M-process-discipline 대기
+# Orchestrator Handoff — iteration-2 CLOSED (v1.4.0 released)
 
 > 이 파일은 Orchestrator 재인스턴스화의 **연료**다. 컨텍스트 압축/세션 종료 후 새
 > Orchestrator가 부팅될 때 `CLAUDE.md → MEMORY → sprint-status.json → session-log.md →
@@ -8,64 +8,72 @@
 
 - **repo**: `C:\Users\Tony\Workspace\vibe-doctor`
 - **branch**: `main`
-- **last commit**: `bc8f90f feat(sprint-M-audit): sprint-M-audit`
+- **last release**: `v1.4.0` (tagged from iteration-2 closure commit)
+- **harnessVersion**: `1.4.0`
 - **language/tone**: 한국어 반말
 
-## 2. Status: IDLE - Sprint sprint-M-harness-gates passed
+## 2. Status: iteration-2 COMPLETE — 다음 iteration 대기
 
-iteration-2 harness hardening (v1.4.0) 진행 중. 3 slot 중 **1/3 완료**.
+iteration-2 harness hardening (v1.4.0) 3 slot **3/3 완료**. `.vibe/agent/iteration-history.json`에 iter-2 entry 기록.
 
-### Sprint M-audit 산출 요약 (커밋 `bc8f90f`)
+### Sprint 요약
 
-| 카테고리 | 내용 |
-|---------|------|
-| Zod 스키마 | `src/lib/schemas/` 6파일 (sprint-status, project-map, sprint-api-contracts, iteration-history, model-registry, index) |
-| JSON schema 생성기 | `scripts/vibe-gen-schemas.mjs` + `scripts/vibe-gen-schemas-impl.ts` → `--check` / `--write` 모드 |
-| State validator | `scripts/vibe-validate-state.ts` — sprint-complete 시 Zod validation gate |
-| Lightweight audit | `scripts/vibe-audit-lightweight.mjs` — diff stats / spec keyword / test coverage / tmp residue / LOC outlier |
-| Preflight audit gate | `scripts/vibe-preflight.mjs` 확장 — `audit.overdue` check + `--ack-audit-overdue` 우회 경로 |
-| Migration | `migrations/1.4.0.mjs` — 기존 state 파일 패치 |
-| CLAUDE.md | Two-tier audit convention 섹션 추가 + hook table 갱신 |
-| 테스트 | +22 신규 (175 pass / 0 fail / 1 skip) |
+| Sprint | 커밋 | LOC | 핵심 |
+|--------|------|-----|------|
+| M-audit | `bc8f90f` | +809/-22 | Zod single-source + audit gates + lightweight audit + migration 1.4.0 |
+| M-process-discipline | `20a612e` | +2241/-796 | planner.md → sprint-planner.md 교체 + trivial 룰 현실화 + preflight planner.presence |
+| M-harness-gates | `4d9a002` | +1124/-41 | sprint-commit auto-tag + harness-gaps 6컬럼 schema + vibe-rule-audit + audit-skipped-mode |
 
-### 해결한 review findings
+### 해결한 dogfood7 review findings
 
-- `review-evaluator-audit-overdue` — lightweight per-sprint + heavyweight per-N 2단 감사
-- `review-status-json-schema-drift` — Zod single-source + `vibe-gen-schemas --check` drift 감지
-- `review-tmp-debug-scripts-residue` — audit-lightweight `flagTmpScripts` 자동 감지
+- `review-evaluator-audit-overdue` (#1) — 2단 감사 (lightweight per-sprint + heavyweight per-N)
+- `review-status-json-schema-drift` (#2) — Zod single-source + `vibe-gen-schemas --check` drift 감지
+- `review-planner-skip-without-justification` (#3) — preflight planner.presence + vibe-planner-skip-log
+- `review-planner-subagent-readonly-conflict` (#4) — sprint-planner frontmatter tools 명시
+- `review-harness-gaps-open-ledger` (#7) — harness-gaps schema 확장 + 2 gap covered 전환
+- `review-tmp-debug-scripts-residue` (#8) — audit-lightweight `flagTmpScripts`
 
-## 3. 다음 행동: M-process-discipline 진입 (사용자 승인 필요)
+### 검증 통계
 
-**M-process-discipline** (P1 Friction) 목표:
-- `.claude/agents/planner.md` → `sprint-planner.md` 교체 (공존 X) + 전 참조 업데이트
-- trivial 룰 현실화 (100 LOC 기준 조정 등)
-- Planner 소환 필수 (매 Sprint Must 트리거)
+- tsc: 0 errors
+- tests: 196 pass / 0 fail / 1 skip (iteration-2 시작 시 154 → +42 신규)
+- `rg planner.md` live refs: 16 → 0
+- `rg subagent_type.*planner`: 0 → 0
+- 태그 누수 (test가 real repo에 태그 생성): 없음
 
-**Pre-requisites**: M-audit 최신 preflight.mjs 위에서 작업. `rg planner.md` 결과 0 hit 확인 필수.
+## 3. 다음 행동 후보 (사용자 결정 대기)
 
-### Step-by-step
+### A. iteration-3 kickoff (/vibe-iterate)
 
-1. `node scripts/vibe-preflight.mjs` → all OK
-2. Planner (opus) 소환 → `docs/prompts/sprint-M-process-discipline.md`
-3. `cat docs/prompts/sprint-M-process-discipline.md | ./scripts/run-codex.sh -`
-4. 샌드박스 밖 재검증 (tsc + test + `rg planner.md` 0 hit)
-5. `node scripts/vibe-sprint-commit.mjs sprint-M-process-discipline passed`
-6. M-harness-gates 시작 승인 요청
+- `vibe-rule-audit` 결과 27 uncovered MUST/반드시/금지 rules → iteration-3 candidate pool
+- dogfood7 잔여 project 이슈 (rate-limit / architecture-reconcile) → dogfood8 Phase 0 seed
+- open gap: `gap-review-catch-wiring-drift` (deadline +3 sprints) — iteration-3 필수 slot
+- `/vibe-iterate` 실행 시 차등 인터뷰 → 새 iteration sprint roadmap append
 
-## 4. pendingRisks
+### B. dogfood8 신규 프로젝트
 
-없음. sprintsSinceLastAudit = 1 (M-audit counted).
+- 별도 디렉토리에서 `/vibe-init` → harness v1.4.0 기반 첫 dogfood
+- iteration-2에서 도입한 sprint-planner 교체 + audit gates가 downstream에서 정상 동작하는지 실사용 검증
 
-## 5. 주의사항
+### C. v1.4.0 릴리스 자체 검증 태스크
 
-- §14 Wiring Integration Checklist: 본 iteration 모든 Sprint Final report 필수 섹션
-- M-process-discipline에서 `planner.md` 삭제 시 참조 전량 업데이트 (§14.2 D1)
-- Zod deps가 package.json에 추가됨 → downstream vibe:sync 호환성 고려
-- M-audit에서 `runLightweightAudit`가 `alreadyClosed` 시 skip하도록 fix됨
+- downstream 프로젝트에서 `/vibe-sync` 시도하여 v1.4.0 tag + Zod runtime dep + sprint-planner rename migration이 깨끗하게 적용되는지 확인
+
+## 4. pendingRisks (현재)
+
+- `lightweight-audit-sprint-M-process-discipline` (INFO) — `src/lib/schemas/{index,iteration-history,sprint-api-contracts}.ts` 가 개별 `test/*.test.ts` 없음. 실제로는 `test/schemas.test.ts`에 통합 테스트로 커버됨 — 의도된 디자인이므로 다음 audit cadence 때 resolve 처리 예정.
+
+## 5. Residual observations (차기 iteration 후보)
+
+- sprint-commit의 archive staging 로직: `.vibe/archive/prompts/sprint-<id>.md` (suffix 없는 경우) 매칭 실패 → 매 sprint마다 amend 수동 처리 반복. `collectArchivedPromptFiles` 수정 필요.
+- sprint-commit의 harness-tag production 검증: 이번 iteration에서는 sprintwise config.json bump가 한 번도 없어 auto-tag 발동 안 함 (1.3.1 → 1.4.0 bump는 iteration-closure 커밋에서 수동 tag). 다음 bump (예: iter-3 중간) 때 자연스럽게 검증.
+- `vibe-rule-audit` 결과 27 uncovered rules — 다음 iteration planner가 pool로 활용.
+- preflight `planner.presence` 의 "next pending sprint" 탐색 로직이 historical sprint (`sprint-M1-schema-foundation`) 를 pending으로 오인 — sprint-status.sprints[] 과 roadmap 비교 로직 보정 필요.
 
 ## 6. 링크
 
 - Review SOT: `C:\Users\Tony\Workspace\dogfood7\docs\reports\review-10-2026-04-16.md`
-- Iteration-2 roadmap: `docs/plans/sprint-roadmap.md` (line 279 이하)
+- Iteration-2 roadmap: `docs/plans/sprint-roadmap.md` (line 281+)
 - Wiring 체크리스트: `.vibe/agent/_common-rules.md §14`
-- M-audit archived prompt: `.vibe/archive/prompts/sprint-M-audit.md`
+- iteration-history: `.vibe/agent/iteration-history.json` (iter-2 entry)
+- v1.4.0 release notes: `docs/release/v1.4.0.md`
