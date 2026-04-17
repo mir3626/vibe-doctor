@@ -126,7 +126,14 @@ async function scaffoldReportProject(
   );
   await writeText(
     path.join(root, '.vibe', 'agent', 'session-log.md'),
-    ['# Session Log', '', '## Entries', '- 2026-04-16T00:00:00.000Z [decision] keep reports local'].join('\n'),
+    [
+      '# Session Log',
+      '',
+      '## Entries',
+      '- 2026-04-16T00:00:00.000Z [decision] keep reports local',
+      '- 2026-04-16T00:05:00.000Z [decision][planner-skip] skip planner for trivial report copy update',
+      '- 2026-04-16T00:10:00.000Z [failure] this is a deliberately long verification failure entry that should render inside collapsed details by default because it is longer than the content threshold used by the report renderer and needs the expansion controls to expose the full text',
+    ].join('\n'),
   );
 }
 
@@ -152,10 +159,13 @@ describe('project report', () => {
       stdout: { write: () => undefined },
     });
 
-    for (const section of ['overview', 'iterations', 'milestones', 'sprints', 'decisions', 'verification', 'next-steps']) {
+    for (const section of ['iterations', 'sprints', 'decisions', 'verification', 'next-steps']) {
       assert.match(result.html, new RegExp(`data-section="${section}"`));
     }
+    assert.equal(result.html.includes('data-section="milestones"'), false);
     assert.match(result.html, /No iterations recorded yet/);
+    assert.match(result.html, /<header class="site-header">/);
+    assert.match(result.html, /<main id="content" class="container">/);
   });
 
   it('excludes sprint-M cards for meta projects', async () => {
@@ -205,7 +215,7 @@ describe('project report', () => {
     assert.equal(spawnCount, 0);
   });
 
-  it('writes self-contained HTML without external assets', async () => {
+  it('writes inline report HTML with only optional Google Font links', async () => {
     const root = await makeTempDir('project-report-self-contained-');
     const { runProjectReportCli } = await loadReportModule();
     await scaffoldReportProject(root);
@@ -216,7 +226,49 @@ describe('project report', () => {
     });
     const html = await readFile(outPath, 'utf8');
 
-    assert.equal(/<link[^>]+href=["']http/i.test(html), false);
     assert.equal(/<script[^>]+src=["']http/i.test(html), false);
+    const externalLinks = [...html.matchAll(/<link[^>]+href=["'](https?:\/\/[^"']+)/gi)].map((match) =>
+      String(match[1]),
+    );
+    assert.equal(
+      externalLinks.every(
+        (href) => href.startsWith('https://fonts.googleapis.com') || href.startsWith('https://fonts.gstatic.com'),
+      ),
+      true,
+    );
+  });
+
+  it('renders key decision filters and collapsed long entries by default', async () => {
+    const root = await makeTempDir('project-report-decisions-');
+    const { runProjectReportCli } = await loadReportModule();
+    await scaffoldReportProject(root);
+
+    const result = await runProjectReportCli(['--no-open'], {
+      root,
+      stdout: { write: () => undefined },
+    });
+
+    assert.match(result.html, /data-active-tags="decision failure sprint-complete user-directive audit planner-skip drift-observed"/);
+    assert.match(result.html, /data-filter="planner-skip" aria-pressed="true"/);
+    assert.match(result.html, /data-filter="failure" aria-pressed="true"/);
+    assert.match(result.html, /data-decision-action="expand"/);
+    assert.match(result.html, /data-decision-action="collapse"/);
+    assert.match(result.html, /<details><summary>this is a deliberately long verification failure entry/);
+    assert.equal(result.html.includes('<details open'), false);
+  });
+
+  it('keeps the report visual system free of rejected decorative patterns', async () => {
+    const root = await makeTempDir('project-report-style-');
+    const { runProjectReportCli } = await loadReportModule();
+    await scaffoldReportProject(root);
+
+    const result = await runProjectReportCli(['--no-open'], {
+      root,
+      stdout: { write: () => undefined },
+    });
+
+    assert.equal(/gradient|backdrop-filter|box-shadow|<br>/i.test(result.html), false);
+    assert.match(result.html, /@media print/);
+    assert.match(result.html, /border-radius:6px/);
   });
 });
