@@ -1,5 +1,13 @@
 try {
+  $utf8NoBom = New-Object System.Text.UTF8Encoding $false
+  [Console]::InputEncoding = $utf8NoBom
+  [Console]::OutputEncoding = $utf8NoBom
+  $writer = New-Object System.IO.StreamWriter -ArgumentList ([Console]::OpenStandardOutput()), $utf8NoBom
+  $writer.AutoFlush = $true
+  [Console]::SetOut($writer)
   $root = (Get-Location).Path
+  $emojiTarget = [char]::ConvertFromUtf32(0x1F3AF); $emojiThought = [char]::ConvertFromUtf32(0x1F4AD); $emojiWrench = [char]::ConvertFromUtf32(0x1F527)
+  $emojiStopwatch = "$([char]::ConvertFromUtf32(0x23F1))$([char]0xFE0F)"; $emojiWarning = "$([char]::ConvertFromUtf32(0x26A0))$([char]0xFE0F)"; $emojiLabel = "$([char]::ConvertFromUtf32(0x1F3F7))$([char]0xFE0F)"
 
   function Read-JsonOptional([string]$Path) {
     try {
@@ -13,6 +21,44 @@ try {
     return $null
   }
 
+  function Read-StatuslineInput() {
+    if ($env:VIBE_STATUSLINE_READ_STDIN -ne '1') { return $null }
+    try {
+      if (-not [Console]::IsInputRedirected) { return $null }
+      $raw = [Console]::In.ReadToEnd()
+      if ([string]::IsNullOrWhiteSpace($raw)) { return $null }
+      return $raw | ConvertFrom-Json
+    } catch { return $null }
+  }
+  function Get-FiniteNumber($Value) {
+    try {
+      $number = [double]$Value
+      if ($null -eq $Value -or [double]::IsNaN($number) -or [double]::IsInfinity($number)) { return 0 }
+      return $number
+    } catch { return 0 }
+  }
+  function Get-ClaudeTokens($InputData) {
+    $transcriptPath = Get-NonEmptyString $InputData.transcript_path
+    if ($null -eq $transcriptPath -or -not (Test-Path -LiteralPath $transcriptPath -PathType Leaf)) {
+      return $null
+    }
+
+    $total = 0
+    foreach ($line in [System.IO.File]::ReadLines($transcriptPath)) {
+      if ([string]::IsNullOrWhiteSpace($line)) {
+        continue
+      }
+      try {
+        $entry = $line | ConvertFrom-Json
+        $usage = if ($entry.message -and $entry.message.usage) { $entry.message.usage } else { $entry.usage }
+        if ($null -ne $usage) {
+          $total += (Get-FiniteNumber $usage.input_tokens) + (Get-FiniteNumber $usage.output_tokens)
+        }
+      } catch {
+      }
+    }
+    return $total
+  }
   function Get-NonEmptyString($Value) {
     if ($Value -is [string] -and $Value.Trim().Length -gt 0) {
       return $Value.Trim()
@@ -80,6 +126,8 @@ try {
   }
 
   $status = Get-Content $statusPath -Raw | ConvertFrom-Json
+  $statuslineInput = Read-StatuslineInput
+  $claudeTokens = Get-ClaudeTokens $statuslineInput
   $sprints = @($status.sprints)
   $pendingRisks = @($status.pendingRisks)
   $sprintsSinceLastAudit = if ($null -ne $status.sprintsSinceLastAudit) {
@@ -96,22 +144,25 @@ try {
   $totalCount = $sprints.Count
   $openRisks = @($pendingRisks | Where-Object { $_.status -eq "open" }).Count
   $parts = [System.Collections.Generic.List[string]]::new()
-  $parts.Add("S $currentSprintId ($passedCount/$totalCount)")
+  $parts.Add("$emojiTarget $currentSprintId ($passedCount/$totalCount)")
   [void]$sprintsSinceLastAudit
+  if ($null -ne $claudeTokens) {
+    $parts.Add("$emojiThought $([math]::Floor($claudeTokens / 1000))K")
+  }
 
   $tokensPath = Join-Path $root ".vibe/agent/tokens.json"
   if (Test-Path $tokensPath) {
     $tokens = Get-Content $tokensPath -Raw | ConvertFrom-Json
     $elapsedSeconds = if ($null -ne $tokens.elapsedSeconds) { [double]$tokens.elapsedSeconds } else { 0 }
     $cumulativeTokens = if ($null -ne $tokens.cumulativeTokens) { [double]$tokens.cumulativeTokens } else { 0 }
-    $parts.Add("$([math]::Round($elapsedSeconds / 60))m")
-    $parts.Add("$([math]::Floor($cumulativeTokens / 1000))K tok")
+    $parts.Add("$emojiWrench $([math]::Floor($cumulativeTokens / 1000))K")
+    $parts.Add("$emojiStopwatch $([math]::Round($elapsedSeconds / 60))m")
   }
 
-  $parts.Add("$openRisks risks")
+  $parts.Add("$emojiWarning $openRisks")
   $versionSuffix = Get-HarnessVersionSuffix $root
   if ($null -ne $versionSuffix) {
-    $parts.Add($versionSuffix)
+    $parts.Add("$emojiLabel $versionSuffix")
   }
   [Console]::Out.Write(($parts -join " | "))
 } catch {

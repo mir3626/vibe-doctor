@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { execFile as execFileCallback, execFileSync } from 'node:child_process';
+import { execFile as execFileCallback, execFileSync, spawnSync } from 'node:child_process';
 import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -75,8 +75,20 @@ async function runBashStatusline(root: string) {
   });
 }
 
+function runBashStatuslineBytes(root: string, input?: string, envOverride: NodeJS.ProcessEnv = {}): Buffer {
+  const result = spawnSync(bashCommand ?? 'bash', [bashScriptPath], {
+    cwd: root,
+    env: { ...process.env, ...envOverride },
+    input,
+  });
+
+  assert.equal(result.status, 0, result.stderr.toString('utf8'));
+  assert.ok(Buffer.isBuffer(result.stdout));
+  return result.stdout;
+}
+
 async function runPowerShellStatusline(root: string) {
-  return execFile('powershell', ['-File', powershellScriptPath], {
+  return execFile('powershell', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', powershellScriptPath], {
     cwd: root,
     env: process.env,
   });
@@ -97,7 +109,7 @@ describe('statusline.sh', { skip: bashCommand === null }, () => {
 
     const { stdout } = await runBashStatusline(root);
 
-    assert.match(stdout, /^S .+ \(\d+\/\d+\) \|\s*\d+m \|\s*\d+K tok \|\s*\d+ risks$/);
+    assert.match(stdout, /^🎯 .+ \(\d+\/\d+\) \| 🔧 \d+K \| ⏱️ \d+m \| ⚠️ \d+$/u);
   });
 
   it('renders sprint info and risks when tokens.json is missing', async () => {
@@ -106,8 +118,9 @@ describe('statusline.sh', { skip: bashCommand === null }, () => {
 
     const { stdout } = await runBashStatusline(root);
 
-    assert.equal(stdout, 'S sprint-M9-statusline-permissions (2/3) | 2 risks');
-    assert.doesNotMatch(stdout, /tok|m \|/);
+    assert.equal(stdout, '🎯 sprint-M9-statusline-permissions (2/3) | ⚠️ 2');
+    assert.doesNotMatch(stdout, /🔧|⏱️/u);
+    assert.doesNotMatch(stdout, /💭/u);
   });
 
   it('prints nothing and exits successfully when sprint-status.json is missing', async () => {
@@ -131,7 +144,46 @@ describe('statusline.sh', { skip: bashCommand === null }, () => {
 
     const { stdout } = await runBashStatusline(root);
 
-    assert.match(stdout, /\| 0K tok \|/);
+    assert.match(stdout, /\| 🔧 0K \|/u);
+  });
+
+  it('bash statusline sums Claude usage from stdin transcript_path', async () => {
+    const root = await makeTempDir('statusline-claude-usage-');
+    await writeStatus(root);
+    await writeJson(root, path.join('.vibe', 'agent', 'tokens.json'), {
+      updatedAt: '2026-04-16T00:00:00.000Z',
+      cumulativeTokens: 4_999,
+      elapsedSeconds: 180,
+      sprintTokens: {},
+    });
+    await writeText(
+      root,
+      'transcript.jsonl',
+      [
+        JSON.stringify({ message: { usage: { input_tokens: 1200, output_tokens: 800 } } }),
+        JSON.stringify({ usage: { input_tokens: 2500, output_tokens: 600 } }),
+        JSON.stringify({ message: { usage: { input_tokens: 100, output_tokens: 0, cache_read_input_tokens: 900 } } }),
+      ].join('\n'),
+    );
+
+    const transcriptPath = path.join(root, 'transcript.jsonl');
+    const stdout = runBashStatuslineBytes(
+      root,
+      `${JSON.stringify({ transcript_path: transcriptPath })}\n`,
+      { VIBE_STATUSLINE_READ_STDIN: '1' },
+    ).toString('utf8');
+
+    assert.equal(stdout, '🎯 sprint-M9-statusline-permissions (2/3) | 💭 5K | 🔧 4K | ⏱️ 3m | ⚠️ 2');
+  });
+
+  it('bash statusline emits expected emoji bytes', async () => {
+    const root = await makeTempDir('statusline-emoji-bytes-');
+    await writeStatus(root);
+    const stdout = runBashStatuslineBytes(root);
+
+    assert.ok(stdout.includes(Buffer.from('🎯', 'utf8')));
+    assert.ok(stdout.includes(Buffer.from('⚠️', 'utf8')));
+    assert.equal(stdout.toString('utf8'), '🎯 sprint-M9-statusline-permissions (2/3) | ⚠️ 2');
   });
 
   it('bash statusline shows version suffix when config has harnessVersionInstalled', async () => {
@@ -143,7 +195,7 @@ describe('statusline.sh', { skip: bashCommand === null }, () => {
 
     const { stdout } = await runBashStatusline(root);
 
-    assert.equal(stdout, 'S sprint-M9-statusline-permissions (2/3) | 2 risks | v1.3.1');
+    assert.equal(stdout, '🎯 sprint-M9-statusline-permissions (2/3) | ⚠️ 2 | 🏷️ v1.3.1');
   });
 
   it('bash statusline shows update hint when latestVersion > installed', async () => {
@@ -158,7 +210,7 @@ describe('statusline.sh', { skip: bashCommand === null }, () => {
 
     const { stdout } = await runBashStatusline(root);
 
-    assert.equal(stdout, 'S sprint-M9-statusline-permissions (2/3) | 2 risks | v1.3.1 \u26A0 v1.4.0 (/vibe-sync)');
+    assert.equal(stdout, '🎯 sprint-M9-statusline-permissions (2/3) | ⚠️ 2 | 🏷️ v1.3.1 \u26A0 v1.4.0 (/vibe-sync)');
   });
 
   it('bash statusline omits suffix when config missing', async () => {
@@ -170,7 +222,7 @@ describe('statusline.sh', { skip: bashCommand === null }, () => {
 
     const { stdout } = await runBashStatusline(root);
 
-    assert.equal(stdout, 'S sprint-M9-statusline-permissions (2/3) | 2 risks');
+    assert.equal(stdout, '🎯 sprint-M9-statusline-permissions (2/3) | ⚠️ 2');
   });
 
   it('bash statusline omits suffix when config unparseable', async () => {
@@ -183,7 +235,7 @@ describe('statusline.sh', { skip: bashCommand === null }, () => {
 
     const { stdout } = await runBashStatusline(root);
 
-    assert.equal(stdout, 'S sprint-M9-statusline-permissions (2/3) | 2 risks');
+    assert.equal(stdout, '🎯 sprint-M9-statusline-permissions (2/3) | ⚠️ 2');
   });
 });
 
@@ -202,6 +254,6 @@ describe('statusline.ps1', { skip: process.platform !== 'win32' }, () => {
 
     const { stdout } = await runPowerShellStatusline(root);
 
-    assert.equal(stdout, 'S sprint-M9-statusline-permissions (2/3) | 1m | 2K tok | 2 risks');
+    assert.equal(stdout, '🎯 sprint-M9-statusline-permissions (2/3) | 🔧 2K | ⏱️ 1m | ⚠️ 2');
   });
 });

@@ -14,6 +14,48 @@ try {
     }
   };
   const getString = (value) => (typeof value === "string" && value.trim().length > 0 ? value.trim() : undefined);
+  const parseStatuslineInput = (raw) => {
+    const trimmed = raw.trim();
+    if (trimmed.length === 0) return undefined;
+    const parsed = JSON.parse(trimmed);
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : undefined;
+  };
+  const readStatuslineInput = () => {
+    if (process.env.VIBE_STATUSLINE_READ_STDIN !== "1") return undefined;
+    try {
+      const stat = fs.fstatSync(0);
+      if (stat.isCharacterDevice()) return undefined;
+      return parseStatuslineInput(fs.readFileSync(0, "utf8"));
+    } catch {
+      return undefined;
+    }
+  };
+  const getFiniteNumber = (value) => (Number.isFinite(value) ? value : 0);
+  const getUsageTotal = (usage) => {
+    return usage && typeof usage === "object" && !Array.isArray(usage)
+      ? getFiniteNumber(usage.input_tokens) + getFiniteNumber(usage.output_tokens)
+      : 0;
+  };
+  const getClaudeTokens = (input) => {
+    const transcriptPath = getString(input?.transcript_path);
+    if (!transcriptPath) return undefined;
+    try {
+      if (!fs.statSync(transcriptPath).isFile()) return undefined;
+      let total = 0;
+      for (const line of fs.readFileSync(transcriptPath, "utf8").split(/\r?\n/)) {
+        const trimmed = line.trim();
+        if (trimmed.length === 0) continue;
+        try {
+          const entry = JSON.parse(trimmed);
+          total += getUsageTotal(entry?.message?.usage ?? entry?.usage);
+        } catch {
+        }
+      }
+      return total;
+    } catch {
+      return undefined;
+    }
+  };
   const normalizeVersion = (version) => version.trim().replace(/^v/i, "");
   const toVersionParts = (version) => {
     const normalized = normalizeVersion(version);
@@ -60,6 +102,8 @@ try {
   }
 
   const status = readJson(statusPath);
+  const statuslineInput = readStatuslineInput();
+  const claudeTokens = getClaudeTokens(statuslineInput);
   const sprints = Array.isArray(status.sprints) ? status.sprints : [];
   const pendingRisks = Array.isArray(status.pendingRisks) ? status.pendingRisks : [];
   const sprintsSinceLastAudit = Number.isInteger(status.sprintsSinceLastAudit)
@@ -72,22 +116,26 @@ try {
   const passedCount = sprints.filter((entry) => entry?.status === "passed").length;
   const totalCount = sprints.length;
   const openRisks = pendingRisks.filter((entry) => entry?.status === "open").length;
-  const parts = [`S ${currentSprintId} (${passedCount}/${totalCount})`];
+  const parts = [`🎯 ${currentSprintId} (${passedCount}/${totalCount})`];
   void sprintsSinceLastAudit;
+
+  if (typeof claudeTokens === "number") {
+    parts.push(`💭 ${Math.floor(claudeTokens / 1000)}K`);
+  }
 
   const tokensPath = path.join(root, ".vibe", "agent", "tokens.json");
   if (fs.existsSync(tokensPath)) {
     const tokens = readJson(tokensPath);
     const elapsedSeconds = Number.isFinite(tokens.elapsedSeconds) ? tokens.elapsedSeconds : 0;
     const cumulativeTokens = Number.isFinite(tokens.cumulativeTokens) ? tokens.cumulativeTokens : 0;
-    parts.push(`${Math.round(elapsedSeconds / 60)}m`);
-    parts.push(`${Math.floor(cumulativeTokens / 1000)}K tok`);
+    parts.push(`🔧 ${Math.floor(cumulativeTokens / 1000)}K`);
+    parts.push(`⏱️ ${Math.round(elapsedSeconds / 60)}m`);
   }
 
-  parts.push(`${openRisks} risks`);
+  parts.push(`⚠️ ${openRisks}`);
   const versionSuffix = getVersionSuffix();
   if (versionSuffix) {
-    parts.push(versionSuffix);
+    parts.push(`🏷️ ${versionSuffix}`);
   }
   process.stdout.write(parts.join(" | "));
 } catch {

@@ -42,7 +42,7 @@
   },
   "statusLine": {
     "type": "command",
-    "command": "bash .claude/statusline.sh",
+    "command": "VIBE_STATUSLINE_READ_STDIN=1 bash .claude/statusline.sh",
     "padding": 0
   },
   "hooks": {
