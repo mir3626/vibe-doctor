@@ -29,6 +29,8 @@
 
 
 
+
+- 2026-04-17T17:30:38.868Z [decision][planner-skip] sprint=run-codex-windows-sandbox-skip reason=run-codex.sh Windows OS 감지 시 sandbox verify skip 헤더 prepend. 기존 _common-rules.md prepend 패턴 계승. 아키텍처 변동 없음. AC 3항목 기계 검증.
 - 2026-04-17T17:08:21.319Z [decision][planner-skip] sprint=statusline-format-tune reason=소모시간 두번째로 이동 + 에이전트 토큰 이모티콘 뒤에 이름 기입. 직전 iter-3.2 패턴 계승 + 아키텍처 변동 없음 + AC 3항목 기계 검증 가능.
 - 2026-04-17T15:23:39.837Z [decision][planner-skip] sprint=statusline-agent-emoji-patch reason=trivial exception 3조건 충족: patch-level statusline UX 개선 (agent-tracking + emoji). 아키텍처 변동 없음, 체크리스트 3항목 기계 검증 가능 (tsc/test/render smoke).
 - 2026-04-17T08:55:07.338Z [sprint-complete] sprint-N3-freeze-mode-flag -> passed. Sprint sprint-N3-freeze-mode-flag completed with passed LOC +867/-22 (net +845)

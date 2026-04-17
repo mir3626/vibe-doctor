@@ -274,6 +274,40 @@ cleanup() {
 }
 trap cleanup EXIT
 
+is_windows_host() {
+  local uname_s os_name
+
+  uname_s="$(uname -s 2>/dev/null || true)"
+  os_name="${OS:-}"
+
+  case "$uname_s" in
+    MINGW*|MSYS*|CYGWIN*)
+      return 0
+      ;;
+  esac
+
+  [[ "$os_name" == "Windows_NT" ]]
+}
+
+windows_sandbox_limitation_header() {
+  cat <<'EOF'
+## Host OS sandbox limitation (auto-injected)
+
+현 호스트는 Windows. Codex sandbox 는 Windows 에서 child process spawn 을 대부분 차단 (spawn EPERM). 다음 명령은 Codex self-verify 단계에서 시도 금지 — 실패 확정이며 wall-clock 만 소모한다:
+
+- `npx tsc --noEmit`, `npm test`, `node --test`
+- `node scripts/vibe-preflight.mjs`
+- `node scripts/vibe-gen-schemas.mjs --check`
+- `tsx` / `esbuild` 또는 기타 child process spawn 을 필요로 하는 명령
+
+대신 **static inspection** (파일 read + 타입/패턴 분석) 만으로 Acceptance Criteria 판정. 실제 실행 검증은 Orchestrator 가 sandbox 밖에서 수행.
+
+Final report `## Sandbox-only failures` 섹션에 위 명령 언급 불필요 — Windows 는 기본값.
+
+---
+EOF
+}
+
 trim_section_body() {
   awk '
     {
@@ -391,6 +425,10 @@ fi
 RULES_FILE=".vibe/agent/_common-rules.md"
 if [[ -n "$stdin_buf" && -f "$RULES_FILE" ]]; then
   rules_content=$(cat "$RULES_FILE")
+  if is_windows_host; then
+    rules_content="$(printf '%s\n\n%s' "$(windows_sandbox_limitation_header)" "$rules_content")"
+    echo "[run-codex] injected Windows sandbox limitation header" >&2
+  fi
   stdin_buf="$(printf '%s\n\n---\n\n%s' "$rules_content" "$stdin_buf")"
   echo "[run-codex] injected common rules from $RULES_FILE" >&2
 fi

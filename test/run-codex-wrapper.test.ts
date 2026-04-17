@@ -47,6 +47,11 @@ async function writeExecutable(filePath: string, content: string): Promise<void>
   }
 }
 
+async function writeUnameStub(binDir: string, output: string): Promise<void> {
+  const escapedOutput = output.replace(/"/g, '\\"');
+  await writeExecutable(path.join(binDir, 'uname'), `#!/usr/bin/env bash\necho "${escapedOutput}"\n`);
+}
+
 async function createShellStubBin(mode: 'ok' | 'auth' | 'timeout' | 'stdin' | 'fail' | 'tokens'): Promise<string> {
   const binDir = await makeTempDir('run-codex-shell-bin-');
   const codexScript = `#!/usr/bin/env bash
@@ -257,6 +262,41 @@ describe('run-codex.sh wrapper', { skip: bashCommand === null }, () => {
     assert.equal(child.status, 0);
     assert.match(child.stdout, /hello from stdin/);
     assert.match(child.stdout, new RegExp(firstRuleLine.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+  });
+
+  it('prepends the Windows sandbox limitation header on Windows hosts', async () => {
+    const binDir = await createShellStubBin('stdin');
+    await writeUnameStub(binDir, 'MINGW64_NT-10.0');
+    const rules = await readFile(rulesPath, 'utf8');
+    const firstRuleLine = rules.split(/\r?\n/).find((line) => line.length > 0) ?? '';
+    const child = spawnSync(bashCommand ?? 'bash', [bashScriptPath, '-'], {
+      env: shellEnv(binDir, { OS: '' }),
+      input: 'hello from stdin',
+      encoding: 'utf8',
+    });
+
+    assert.equal(child.status, 0);
+    assert.match(child.stderr, /injected Windows sandbox limitation header/);
+    const headerIndex = child.stdout.indexOf('## Host OS sandbox limitation (auto-injected)');
+    const commonRulesIndex = child.stdout.indexOf(firstRuleLine);
+    const promptIndex = child.stdout.indexOf('hello from stdin');
+    assert.ok(headerIndex >= 0);
+    assert.ok(commonRulesIndex > headerIndex);
+    assert.ok(promptIndex > commonRulesIndex);
+  });
+
+  it('does not prepend the Windows sandbox limitation header on non-Windows hosts', async () => {
+    const binDir = await createShellStubBin('stdin');
+    await writeUnameStub(binDir, 'Linux');
+    const child = spawnSync(bashCommand ?? 'bash', [bashScriptPath, '-'], {
+      env: shellEnv(binDir, { OS: '' }),
+      input: 'hello from stdin',
+      encoding: 'utf8',
+    });
+
+    assert.equal(child.status, 0);
+    assert.doesNotMatch(child.stderr, /injected Windows sandbox limitation header/);
+    assert.doesNotMatch(child.stdout, /## Host OS sandbox limitation \(auto-injected\)/);
   });
 
   it('invokes status-tick after successful codex run when VIBE_SPRINT_ID is set', async () => {
