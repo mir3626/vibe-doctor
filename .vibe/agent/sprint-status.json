@@ -43,6 +43,18 @@
         "net": 1038,
         "filesChanged": 16
       }
+    },
+    {
+      "id": "sprint-N1-rule-audit-diet",
+      "name": "sprint-N1-rule-audit-diet",
+      "status": "passed",
+      "completedAt": "2026-04-17T07:47:15.809Z",
+      "actualLoc": {
+        "added": 863,
+        "deleted": 52,
+        "net": 811,
+        "filesChanged": 5
+      }
     }
   ],
   "handoff": {
@@ -51,10 +63,10 @@
     "pendingPrompt": null,
     "lastHandoffAt": "2026-04-16T00:00:00Z",
     "nextAction": "run /vibe-init to start a new project",
-    "lastActionSummary": "Sprint sprint-M-harness-gates completed with passed",
+    "lastActionSummary": "Sprint sprint-N1-rule-audit-diet completed with passed",
     "orchestratorContextBudget": "medium",
     "preferencesActive": [],
-    "updatedAt": "2026-04-17T03:26:24.039Z"
+    "updatedAt": "2026-04-17T07:47:15.809Z"
   },
   "policies": {
     "scratchpadPath": ".vibe/agent/handoff.md",
@@ -123,7 +135,10 @@
     "scripts/vibe-sprint-commit.mjs",
     ".vibe/config.local.example.json",
     "test/rule-audit.test.ts",
-    "test/vibe-audit-skip-set.test.ts"
+    "test/vibe-audit-skip-set.test.ts",
+    ".vibe/agent/iteration-history.json",
+    ".vibe/audit/iter-3/rule-audit-report.md",
+    ".vibe/audit/iter-3/rules-deleted.md"
   ],
   "lastSprintScopeGlob": [
     "src/lib/schemas/**",
@@ -139,8 +154,8 @@
     "scripts/vibe-audit-skip-set.mjs",
     "scripts/vibe-sprint-commit.mjs"
   ],
-  "sprintsSinceLastAudit": 3,
-  "stateUpdatedAt": "2026-04-17T03:26:24.039Z",
+  "sprintsSinceLastAudit": 4,
+  "stateUpdatedAt": "2026-04-17T07:47:15.809Z",
   "verifiedAt": null,
   "verificationCommands": []
 }

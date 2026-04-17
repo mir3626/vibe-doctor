@@ -13,7 +13,7 @@
 - **harnessVersion**: `1.4.0` (iter-3 N2 에서 artificial `1.4.1` bump 예정)
 - **language/tone**: 한국어 반말
 
-## 2. Status: iter-3 kickoff — Sprint N1 Planner 소환 대기
+## 2. Status: IDLE - Sprint sprint-N1-rule-audit-diet passed
 
 /vibe-iterate Phase 1~3 완료:
 - Differential Interview 7 rounds, ambiguity terminate (log: `.vibe/interview-log/iter-3.json`)
@@ -29,6 +29,7 @@
 | **N1** (dominant) | `sprint-N1-rule-audit-diet` | 28 rules semantic cluster 재정의 + dogfood6~7 transcript 재스캔 + S/A/B/C tier + B/C delete + Should→Must 격상 | +130 / -300~600 |
 | **N2** | `sprint-N2-critical-bug-triage` | sprint-commit archive staging fix + artificial v1.4.1 bump 으로 auto-tag 자기 검증 + run-codex auto status-tick + dogfood8 인계 프롬프트 작성 | +150 / ~0 |
 | **N3** | `sprint-N3-freeze-mode-flag` | CLAUDE.md §0 Charter (file top) + §1+ Extensions 재구조화 + config.json.mode 2-value define-only + soft freeze declaration + /vibe-review rules-deleted hook | +80 / -100 |
+| `sprint-N1-rule-audit-diet` | sprint-N1-rule-audit-diet | passed |
 
 **Growth budget 총합**: net ≤ +150 LOC, 0 new scripts.
 

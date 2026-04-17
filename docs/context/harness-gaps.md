@@ -19,7 +19,7 @@
 | gap-review-reproducibility | 리뷰가 사람 주관 기반 -> 입력 재현 불가 | `/vibe-review` SKILL.md + `test/vibe-review-inputs.test.ts` exist (M8) | covered | covered | — |
 | gap-phase0-commit-forget | Phase 0 산출물 커밋 누락으로 첫 Sprint 가 dirty tree 위에서 시작 | `vibe-phase0-seal.mjs` (M7) | covered | covered | — |
 | gap-opt-in-visibility | bundle/browserSmoke opt-in 미인지로 frontend 프로젝트가 검증 없이 진행 | `/vibe-review` detectOptInGaps + test coverage (M8) | covered | covered | — |
-| gap-rule-only-in-md | 규칙이 MD 에만 존재 -> Orchestrator 가 잊음 | `scripts/vibe-rule-audit.mjs` rule scanner (M-harness-gates) | covered | covered | — |
+| gap-rule-only-in-md | 규칙이 MD 에만 존재 -> Orchestrator 가 잊음 | `scripts/vibe-rule-audit.mjs` rule scanner (M-harness-gates) + retrospective transcript scan via `--scan-transcripts` (iter-3 N1) → tier-based delete | covered | covered | — |
 | gap-zod-single-source | state JSON schema drift between runtime validators and `.schema.json` files | `src/lib/schemas/*.ts` + `scripts/vibe-gen-schemas.mjs` (M-audit) | covered | covered | — |
 | gap-statusline-visibility | Agent 위임 중 Orchestrator 상태 불투명 | `.claude/statusline.{sh,ps1}` + `vibe-status-tick.mjs` + tests (M9) | covered | covered | — |
 | gap-permission-noise | Agent 위임 시 권한 프롬프트 반복 | `vibe-sprint-mode.mjs` + settings-presets + tests (M9) | covered | covered | — |
@@ -31,6 +31,7 @@
 | gap-v1.3-wiring | v1.3.0 핵심 기능 `/vibe-iterate` 및 `scripts/vibe-project-report.mjs` 가 CLAUDE.md 에 전혀 등장하지 않아 Orchestrator 가 자기 존재를 인지 못함. M12 sprint 의 Planner/Codex 가 SKILL.md 만 만들고 CLAUDE.md wiring 을 빠뜨림 | Sprint M13 에서 CLAUDE.md Sprint flow 절차 9 에 project-report 자동 호출 + /vibe-iterate 진입 문구 명기, "관련 스킬" 목록에 /vibe-iterate 추가 + 한 줄 설명. 향후 **"artifact created but not wired"** 탐지를 /vibe-review rubric 의 명시적 체크 항목으로 추가 필요 (open sub-gap) | covered | covered | — |
 | gap-dead-stub-files | `scripts/run-claude.{sh,cmd}` 가 exit 2 "not wired" stub 상태로 manifest + README 에만 언급. 실 호출처 0. YAGNI violation | Sprint M13 에서 삭제 + manifest/README 참조 제거. 미래 provider 편입 시 재생성. | covered | covered | — |
 | gap-review-catch-wiring-drift | /vibe-review 가 "artifact created but not wired" 패턴을 구조적으로 감지 안 함. statusline/run-claude/vibe-iterate/project-report 같은 사례가 review cadence 로 잡히지 않았음 | `.claude/skills/vibe-review/SKILL.md` rubric 에 "wiring-drift" 체크 추가 필요: 각 scripts/`*.mjs` 가 package.json · CLAUDE.md · settings.json · skill 중 최소 1곳에서 참조되는지 자동 스캔. 아직 미구현 | open | pending | +3 sprints |
+| gap-harness-bloat-self-expansion | 하네스 rule 이 실제 incident signal 없이 preventive 목적만으로 누적되어 agent context 를 조용히 압박 | `scripts/vibe-rule-audit.mjs --scan-transcripts` + iter-3 rules-deleted ledger (iter-3 N1) | partial | partial | +3 sprints |
 
 Update protocol:
 1. 새 gap 발견 시 id `gap-<slug>` 로 표 끝에 append 한다.
