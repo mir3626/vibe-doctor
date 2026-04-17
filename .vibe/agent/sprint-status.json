@@ -19,6 +19,18 @@
         "net": 787,
         "filesChanged": 3
       }
+    },
+    {
+      "id": "sprint-M-process-discipline",
+      "name": "sprint-M-process-discipline",
+      "status": "passed",
+      "completedAt": "2026-04-17T02:52:11.931Z",
+      "actualLoc": {
+        "added": 2241,
+        "deleted": 796,
+        "net": 1445,
+        "filesChanged": 42
+      }
     }
   ],
   "handoff": {
@@ -27,17 +39,26 @@
     "pendingPrompt": null,
     "lastHandoffAt": "2026-04-16T00:00:00Z",
     "nextAction": "run /vibe-init to start a new project",
-    "lastActionSummary": "Sprint sprint-M-audit completed with passed",
+    "lastActionSummary": "Sprint sprint-M-process-discipline completed with passed",
     "orchestratorContextBudget": "medium",
     "preferencesActive": [],
-    "updatedAt": "2026-04-17T00:14:05.802Z"
+    "updatedAt": "2026-04-17T02:52:11.931Z"
   },
   "policies": {
     "scratchpadPath": ".vibe/agent/handoff.md",
     "sessionLogPath": ".vibe/agent/session-log.md",
     "verificationCommands": []
   },
-  "pendingRisks": [],
+  "pendingRisks": [
+    {
+      "id": "lightweight-audit-sprint-M-process-discipline",
+      "raisedBy": "vibe-audit-lightweight",
+      "targetSprint": "*",
+      "text": "src/lib/schemas/index.ts has no test/index.test.ts; src/lib/schemas/iteration-history.ts has no test/iteration-history.test.ts; src/lib/schemas/sprint-api-contracts.ts has no test/sprint-api-contracts.test.ts",
+      "status": "open",
+      "createdAt": "2026-04-17T02:52:12.458Z"
+    }
+  ],
   "lastSprintScope": [
     "src/lib/schemas/**",
     "scripts/vibe-audit-lightweight.mjs",
@@ -78,7 +99,13 @@
     "src/lib/schemas/sprint-status.ts",
     "test/audit-lightweight.test.ts",
     "test/preflight-audit-gate.test.ts",
-    "test/schemas.test.ts"
+    "test/schemas.test.ts",
+    ".claude/agents/sprint-planner.md",
+    "scripts/vibe-planner-skip-log.mjs",
+    ".claude/agents/planner.md",
+    ".vibe/agent/_common-rules.md",
+    "test/preflight-planner-presence.test.ts",
+    "test/vibe-planner-skip-log.test.ts"
   ],
   "lastSprintScopeGlob": [
     "src/lib/schemas/**",
@@ -86,10 +113,13 @@
     "scripts/vibe-gen-schemas.mjs",
     "scripts/vibe-gen-schemas-impl.ts",
     "scripts/vibe-validate-state.ts",
-    "migrations/1.4.0.mjs"
+    "migrations/1.4.0.mjs",
+    ".claude/agents/sprint-planner.md",
+    "scripts/vibe-planner-skip-log.mjs",
+    "scripts/vibe-preflight.mjs"
   ],
-  "sprintsSinceLastAudit": 1,
-  "stateUpdatedAt": "2026-04-17T00:14:05.802Z",
+  "sprintsSinceLastAudit": 2,
+  "stateUpdatedAt": "2026-04-17T02:52:11.931Z",
   "verifiedAt": null,
   "verificationCommands": []
 }

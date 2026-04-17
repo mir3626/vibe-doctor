@@ -114,7 +114,7 @@ Orchestrator가 허용되는 **메타 편집** 범위 (본문 재작성 X):
 - 포맷 보정 (마크다운 렌더링 깨짐 수정 등)
 
 Orchestrator가 본문을 **직접 작성**하는 것은 다음 예외 상황에서만 허용되며, session-log에 `[decision]` 태그로 사유 기록:
-- 🟢 Sprint가 trivial(<100 LOC + 단일 파일) 이고 사용자가 "간소화" 명시
+- 🟢 Sprint 가 trivial (패턴 직접 계승 + 새 아키텍처 결정 없음 + 체크리스트 ≤3 항목) 이고 사용자가 "간소화" 명시. **반드시** `node scripts/vibe-planner-skip-log.mjs <sprintId> <reason>` 으로 session-log 에 `[decision][planner-skip]` 태그 기록 (수동 편집 금지). LOC 기준은 제거됨 (gameable).
 - 🟡 Planner 소환이 2회 연속 실패(타임아웃 / 에러 반환) 후 사용자가 fallback 승인
 
 어느 예외든 발동 시 **자동으로 Evaluator Should 트리거**로 간주한다 (작성자=평가자 우려 완화를 위해 Evaluator를 강제 소환). CLAUDE.md 트리거 매트릭스의 예외 조건과 충돌 시 이 규칙이 우선.

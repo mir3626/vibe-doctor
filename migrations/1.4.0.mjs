@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 function compareVersions(left, right) {
@@ -102,9 +102,32 @@ function updateConfig(root) {
   return 'updated';
 }
 
+function migrateAgentFiles(root) {
+  const oldPath = path.join(root, '.claude', 'agents', 'planner.md');
+  const newPath = path.join(root, '.claude', 'agents', 'sprint-planner.md');
+
+  if (!existsSync(oldPath)) {
+    return 'idempotent';
+  }
+
+  if (existsSync(newPath)) {
+    rmSync(oldPath);
+    return 'removed-orphan';
+  }
+
+  process.stderr.write(
+    `[migrate 1.4.0] warning: ${oldPath} exists but ${newPath} is missing; leaving old file in place\n`,
+  );
+  return 'skipped-missing-replacement';
+}
+
 function main() {
   const root = path.resolve(process.argv[2] ?? process.cwd());
-  const actions = [`sprintStatus=${patchSprintStatus(root)}`, `config=${updateConfig(root)}`];
+  const actions = [
+    `sprintStatus=${patchSprintStatus(root)}`,
+    `config=${updateConfig(root)}`,
+    `agentFiles=${migrateAgentFiles(root)}`,
+  ];
   const idempotent = actions.every((entry) => entry.endsWith('=idempotent') || entry.endsWith('=missing'));
   process.stdout.write(`[migrate 1.4.0] ${actions.join(' ')}${idempotent ? ' idempotent' : ''}\n`);
 }

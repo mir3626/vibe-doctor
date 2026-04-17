@@ -4,7 +4,7 @@
 // Usage: node scripts/vibe-preflight.mjs [--json]
 
 import { execFileSync, execSync, spawnSync } from 'node:child_process';
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import path, { resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
@@ -165,6 +165,125 @@ function runStateValidation() {
     const message = typeof err.message === 'string' ? err.message : 'invalid state file';
     const suggestion = typeof err.fixSuggestion === 'string' ? `\n  suggest: ${err.fixSuggestion}` : '';
     record(`state.schema.${file}`, false, `${message}${suggestion}`, 'fail');
+  }
+}
+
+function parseRoadmapIds(roadmapContent) {
+  return Array.from(roadmapContent.matchAll(/^- \*\*id\*\*: `([^`]+)`/gm), (match) => match[1]).filter(
+    (id) => typeof id === 'string' && id.trim() !== '',
+  );
+}
+
+function findPlannerPromptFile(pendingId) {
+  const promptsDir = resolve('docs/prompts');
+  if (!existsSync(promptsDir)) {
+    return null;
+  }
+
+  const prefixes = [`sprint-${pendingId}-`];
+  if (pendingId.startsWith('sprint-')) {
+    prefixes.unshift(`${pendingId}-`);
+  }
+
+  const match = readdirSync(promptsDir)
+    .filter((entry) => prefixes.some((prefix) => entry.startsWith(prefix)) && entry.endsWith('.md'))
+    .sort()[0];
+
+  return match ? { path: path.join(promptsDir, match), name: match } : null;
+}
+
+function hasRecentPlannerSkipEntry(pendingId, stateUpdatedAt) {
+  if (!existsSync(sessionLogPath)) {
+    return false;
+  }
+
+  const stateTime = parseIso(stateUpdatedAt);
+  if (!stateTime) {
+    return false;
+  }
+
+  const content = readFileSync(sessionLogPath, 'utf8');
+  return content.split(/\r?\n/).some((line) => {
+    if (!line.includes('[decision][planner-skip]') || !line.includes(`sprint=${pendingId}`)) {
+      return false;
+    }
+
+    const timestamp = line.match(/^- ([^ ]+) /)?.[1];
+    const loggedAt = parseIso(timestamp);
+    return loggedAt !== null && loggedAt.getTime() > stateTime.getTime();
+  });
+}
+
+function runPlannerPresenceCheck() {
+  try {
+    if (BOOTSTRAP_MODE) {
+      record('planner.presence', true, 'bootstrap mode - planner presence check skipped');
+      return;
+    }
+
+    if (!sprintStatus) {
+      record('planner.presence', true, 'no sprint-status.json yet (planner presence skipped)');
+      return;
+    }
+
+    const roadmapPath = resolve('docs/plans/sprint-roadmap.md');
+    if (!existsSync(roadmapPath)) {
+      record('planner.presence', true, 'no roadmap IDs parseable (planner presence skipped)', 'info');
+      return;
+    }
+
+    const roadmapIds = parseRoadmapIds(readFileSync(roadmapPath, 'utf8'));
+    if (roadmapIds.length === 0) {
+      record('planner.presence', true, 'no roadmap IDs parseable (planner presence skipped)', 'info');
+      return;
+    }
+
+    const completedIds = new Set(
+      (Array.isArray(sprintStatus.sprints) ? sprintStatus.sprints : [])
+        .filter((sprint) => sprint?.status === 'passed' && typeof sprint?.id === 'string')
+        .map((sprint) => sprint.id),
+    );
+    const pendingId = roadmapIds.find((id) => !completedIds.has(id));
+
+    if (!pendingId) {
+      record('planner.presence', true, 'all roadmap sprints completed (planner presence skipped)');
+      return;
+    }
+
+    if (hasRecentPlannerSkipEntry(pendingId, sprintStatus.stateUpdatedAt)) {
+      record('planner.presence', true, `planner intentionally skipped for ${pendingId} (recorded in session-log)`);
+      return;
+    }
+
+    const promptFile = findPlannerPromptFile(pendingId);
+    if (!promptFile) {
+      record(
+        'planner.presence',
+        true,
+        `next sprint ${pendingId} has no prompt file at docs/prompts/sprint-${pendingId}-*.md. Either summon sprint-planner (Agent subagent_type: 'sprint-planner') OR record an explicit skip with: node scripts/vibe-planner-skip-log.mjs ${pendingId} "<reason>"`,
+        'warn',
+      );
+      return;
+    }
+
+    const stateUpdatedAt = parseIso(sprintStatus.stateUpdatedAt);
+    if (stateUpdatedAt) {
+      const promptMtime = statSync(promptFile.path).mtime.getTime();
+      if (promptMtime <= stateUpdatedAt.getTime()) {
+        record(
+          'planner.presence',
+          true,
+          `prompt file is older than last state update (possibly stale from previous sprint - verify it's the intended prompt): docs/prompts/${promptFile.name}`,
+          'warn',
+        );
+        return;
+      }
+    }
+
+    record('planner.presence', true, `found: docs/prompts/${promptFile.name} (mtime newer than stateUpdatedAt)`);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    record('planner.presence', true, `planner presence check errored: ${message} (non-blocking)`, 'info');
   }
 }
 
@@ -446,6 +565,15 @@ if (existsSync(orchestrationPath)) {
 } else {
   record('orchestration.doc', true, 'missing (optional shard - v1.1.0+)');
 }
+
+// 9. Planner presence check (non-blocking warn)
+//
+// Derives the next pending sprint from sprint-status.json + sprint-roadmap.md.
+// If the next sprint has no corresponding docs/prompts/sprint-<id>-*.md whose
+// mtime is newer than sprintStatus.stateUpdatedAt, emit WARN with guidance to
+// either summon the sprint-planner agent OR record a [decision][planner-skip]
+// entry via scripts/vibe-planner-skip-log.mjs.
+runPlannerPresenceCheck();
 
 if (JSON_MODE) {
   process.stdout.write(JSON.stringify(results, null, 2) + '\n');
