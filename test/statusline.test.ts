@@ -109,7 +109,7 @@ describe('statusline.sh', { skip: bashCommand === null }, () => {
 
     const { stdout } = await runBashStatusline(root);
 
-    assert.match(stdout, /^🎯 .+ \(\d+\/\d+\) \| 🔧 \d+K \| ⏱️ \d+m \| ⚠️ \d+$/u);
+    assert.match(stdout, /^🎯 .+ \(\d+\/\d+\) \| ⏱️ \d+m \| 🔧 Codex \d+K \| ⚠️ \d+$/u);
   });
 
   it('renders sprint info and risks when tokens.json is missing', async () => {
@@ -144,7 +144,7 @@ describe('statusline.sh', { skip: bashCommand === null }, () => {
 
     const { stdout } = await runBashStatusline(root);
 
-    assert.match(stdout, /\| 🔧 0K \|/u);
+    assert.match(stdout, /\| 🔧 Codex 0K \|/u);
   });
 
   it('bash statusline sums Claude usage from stdin transcript_path', async () => {
@@ -173,7 +173,7 @@ describe('statusline.sh', { skip: bashCommand === null }, () => {
       { VIBE_STATUSLINE_READ_STDIN: '1' },
     ).toString('utf8');
 
-    assert.equal(stdout, '🎯 sprint-M9-statusline-permissions (2/3) | 💭 5K | 🔧 4K | ⏱️ 3m | ⚠️ 2');
+    assert.equal(stdout, '🎯 sprint-M9-statusline-permissions (2/3) | ⏱️ 3m | 💭 Claude 5K | 🔧 Codex 4K | ⚠️ 2');
   });
 
   it('bash statusline emits expected emoji bytes', async () => {
@@ -254,6 +254,6 @@ describe('statusline.ps1', { skip: process.platform !== 'win32' }, () => {
 
     const { stdout } = await runPowerShellStatusline(root);
 
-    assert.equal(stdout, '🎯 sprint-M9-statusline-permissions (2/3) | 🔧 2K | ⏱️ 1m | ⚠️ 2');
+    assert.equal(stdout, '🎯 sprint-M9-statusline-permissions (2/3) | ⏱️ 1m | 🔧 Codex 2K | ⚠️ 2');
   });
 });

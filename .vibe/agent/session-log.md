@@ -28,6 +28,8 @@
 
 
 
+
+- 2026-04-17T17:08:21.319Z [decision][planner-skip] sprint=statusline-format-tune reason=소모시간 두번째로 이동 + 에이전트 토큰 이모티콘 뒤에 이름 기입. 직전 iter-3.2 패턴 계승 + 아키텍처 변동 없음 + AC 3항목 기계 검증 가능.
 - 2026-04-17T15:23:39.837Z [decision][planner-skip] sprint=statusline-agent-emoji-patch reason=trivial exception 3조건 충족: patch-level statusline UX 개선 (agent-tracking + emoji). 아키텍처 변동 없음, 체크리스트 3항목 기계 검증 가능 (tsc/test/render smoke).
 - 2026-04-17T08:55:07.338Z [sprint-complete] sprint-N3-freeze-mode-flag -> passed. Sprint sprint-N3-freeze-mode-flag completed with passed LOC +867/-22 (net +845)
 - 2026-04-17T08:29:44.019Z [audit-clear] resolved=1 note=Evaluator (첫 소환, iter-3 milestone) audit completed: verdict=partial, blocking=0. 12/12 checks reviewed, 10 pass + 2 partial (dangling refs). Non-blocking findings resolved via Codex cleanup (README, product.md, qa.md, re-incarnation.md). N1 evidence-based rule audit + dogfood6~7 retrospective scan was the de-facto heavyweight audit for this cadence cycle.

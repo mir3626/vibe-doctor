@@ -146,17 +146,18 @@ try {
   $parts = [System.Collections.Generic.List[string]]::new()
   $parts.Add("$emojiTarget $currentSprintId ($passedCount/$totalCount)")
   [void]$sprintsSinceLastAudit
-  if ($null -ne $claudeTokens) {
-    $parts.Add("$emojiThought $([math]::Floor($claudeTokens / 1000))K")
-  }
-
   $tokensPath = Join-Path $root ".vibe/agent/tokens.json"
   if (Test-Path $tokensPath) {
     $tokens = Get-Content $tokensPath -Raw | ConvertFrom-Json
     $elapsedSeconds = if ($null -ne $tokens.elapsedSeconds) { [double]$tokens.elapsedSeconds } else { 0 }
     $cumulativeTokens = if ($null -ne $tokens.cumulativeTokens) { [double]$tokens.cumulativeTokens } else { 0 }
-    $parts.Add("$emojiWrench $([math]::Floor($cumulativeTokens / 1000))K")
     $parts.Add("$emojiStopwatch $([math]::Round($elapsedSeconds / 60))m")
+    if ($null -ne $claudeTokens) {
+      $parts.Add("$emojiThought Claude $([math]::Floor($claudeTokens / 1000))K")
+    }
+    $parts.Add("$emojiWrench Codex $([math]::Floor($cumulativeTokens / 1000))K")
+  } elseif ($null -ne $claudeTokens) {
+    $parts.Add("$emojiThought Claude $([math]::Floor($claudeTokens / 1000))K")
   }
 
   $parts.Add("$emojiWarning $openRisks")

@@ -119,17 +119,18 @@ try {
   const parts = [`🎯 ${currentSprintId} (${passedCount}/${totalCount})`];
   void sprintsSinceLastAudit;
 
-  if (typeof claudeTokens === "number") {
-    parts.push(`💭 ${Math.floor(claudeTokens / 1000)}K`);
-  }
-
   const tokensPath = path.join(root, ".vibe", "agent", "tokens.json");
   if (fs.existsSync(tokensPath)) {
     const tokens = readJson(tokensPath);
     const elapsedSeconds = Number.isFinite(tokens.elapsedSeconds) ? tokens.elapsedSeconds : 0;
     const cumulativeTokens = Number.isFinite(tokens.cumulativeTokens) ? tokens.cumulativeTokens : 0;
-    parts.push(`🔧 ${Math.floor(cumulativeTokens / 1000)}K`);
     parts.push(`⏱️ ${Math.round(elapsedSeconds / 60)}m`);
+    if (typeof claudeTokens === "number") {
+      parts.push(`💭 Claude ${Math.floor(claudeTokens / 1000)}K`);
+    }
+    parts.push(`🔧 Codex ${Math.floor(cumulativeTokens / 1000)}K`);
+  } else if (typeof claudeTokens === "number") {
+    parts.push(`💭 Claude ${Math.floor(claudeTokens / 1000)}K`);
   }
 
   parts.push(`⚠️ ${openRisks}`);
