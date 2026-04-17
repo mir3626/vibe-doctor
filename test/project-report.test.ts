@@ -164,7 +164,8 @@ describe('project report', () => {
     }
     assert.equal(result.html.includes('data-section="milestones"'), false);
     assert.match(result.html, /No iterations recorded yet/);
-    assert.match(result.html, /<header class="site-header">/);
+    assert.match(result.html, /<nav class="site-nav"/);
+    assert.match(result.html, /<div class="outer-frame">/);
     assert.match(result.html, /<main id="content" class="container">/);
   });
 
@@ -257,7 +258,7 @@ describe('project report', () => {
     assert.equal(result.html.includes('<details open'), false);
   });
 
-  it('keeps the report visual system free of rejected decorative patterns', async () => {
+  it('renders glassmorphism dark theme with iridescent brand orb', async () => {
     const root = await makeTempDir('project-report-style-');
     const { runProjectReportCli } = await loadReportModule();
     await scaffoldReportProject(root);
@@ -267,8 +268,12 @@ describe('project report', () => {
       stdout: { write: () => undefined },
     });
 
-    assert.equal(/gradient|backdrop-filter|box-shadow|<br>/i.test(result.html), false);
+    assert.equal(/<br>/i.test(result.html), false);
+    assert.match(result.html, /color-scheme:dark/);
+    assert.match(result.html, /backdrop-filter:blur/);
+    assert.match(result.html, /class="orb"/);
+    assert.match(result.html, /orb-core/);
+    assert.match(result.html, /@keyframes orb-spin/);
     assert.match(result.html, /@media print/);
-    assert.match(result.html, /border-radius:6px/);
   });
 });

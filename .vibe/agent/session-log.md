@@ -20,8 +20,7 @@
 
 ## Entries
 
-
-
+- 2026-04-18T05:30:00.000Z [user-directive][orchestrator-direct-edit-report-styling] report.html glassmorphism/luxury redesign 은 Orchestrator(Claude) 가 직접 수정하라고 명시. scripts/vibe-project-report.mjs 의 CSS/HTML shell 을 Codex 위임 없이 Edit 으로 재작성. 근거: (1) ref1/ref2/ref3 디자인 해석에 visual judgment 개입 필요, (2) 이전 Codex redesign 522s 의 속도-품질 trade-off 개선 시도. 이번 sprint 한정 예외 — 일반 소스코드 수정은 여전히 Codex 위임 원칙. 추가 directive: 주요 색상 grayscale (gray/white) 유지, iridescent orb 와 status badge tint 만 예외. iter-3 freeze posture 위반 아님 (downstream style patch, core value 무관).
 
 
 
