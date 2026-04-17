@@ -13,6 +13,14 @@ const DEFAULT_GIT_COMMITS = 20;
 const PHASE3_UTILITY_OPT_IN_TAG = '[decision][phase3-utility-opt-in]';
 const WEB_PLATFORM_PATTERN = /\b(web|mobile|browser)\b/i;
 
+export interface PendingRestoration {
+  sourceFile: string;
+  ruleSlug: string;
+  title: string;
+  tier: 'S' | 'A' | 'B' | 'C';
+  reason: string;
+}
+
 export interface ReviewInputs {
   handoff: string;
   sessionLog: string;
@@ -28,6 +36,7 @@ export interface ReviewInputs {
   productText: string;
   harnessGaps: string;
   openHarnessGapCount: number;
+  pendingRestorations: PendingRestoration[];
 }
 
 export interface ReviewConfigInput {
@@ -99,6 +108,14 @@ function harnessGapsPath(root?: string): string {
   return path.join(resolveRoot(root), 'docs', 'context', 'harness-gaps.md');
 }
 
+function archiveRulesDeletedPath(root?: string): string {
+  return path.join(resolveRoot(root), '.vibe', 'archive');
+}
+
+function auditPath(root?: string): string {
+  return path.join(resolveRoot(root), '.vibe', 'audit');
+}
+
 function reportsPath(root?: string): string {
   return path.join(resolveRoot(root), 'docs', 'reports');
 }
@@ -151,11 +168,66 @@ function extractYamlBlocks(markdown: string): string[] {
 }
 
 function parseYamlScalar(line: string, key: string): string | null {
-  const match = line.match(new RegExp(`^\\s*${key}:\\s*(.+?)\\s*$`));
+  const match = line.match(new RegExp(`^\\s*-?\\s*${key}:\\s*(.+?)\\s*$`));
   if (!match?.[1]) {
     return null;
   }
   return match[1].replace(/^['"]|['"]$/g, '').trim();
+}
+
+function parseRestorationHeading(heading: string): Pick<PendingRestoration, 'ruleSlug' | 'title'> {
+  const match = heading.trim().match(/^(.+?)\s+(?:—|-)\s+(.+)$/);
+  const title = match?.[2]?.trim() ?? heading.trim();
+  const ruleSlug = match?.[1]?.trim() ?? title
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9가-힣]+/gi, '-')
+    .replace(/^-+|-+$/g, '');
+  return { ruleSlug, title };
+}
+
+function validRestorationTier(value: string | null | undefined): value is PendingRestoration['tier'] {
+  return value === 'S' || value === 'A' || value === 'B' || value === 'C';
+}
+
+function restorationValue(lines: string[], key: string): string | null {
+  return lines.map((line) => parseYamlScalar(line, key)).find(Boolean) ?? null;
+}
+
+function splitRestorationSection(section: string): { heading: string; lines: string[] } | null {
+  const lines = section.split(/\r?\n/);
+  const heading = lines[0]?.replace(/^##\s+/, '').trim();
+  if (!heading) {
+    return null;
+  }
+  const body = lines.slice(1);
+  const boundaryIndex = body.findIndex((line) => /^---\s*$/.test(line));
+  return { heading, lines: boundaryIndex === -1 ? body : body.slice(0, boundaryIndex) };
+}
+
+function parseRestorationSections(markdown: string, sourceFile: string): PendingRestoration[] {
+  const restorations: PendingRestoration[] = [];
+
+  for (const section of markdown.split(/\r?\n(?=##\s+)/).filter((entry) => entry.startsWith('## '))) {
+    const parsedSection = splitRestorationSection(section);
+    if (!parsedSection || restorationValue(parsedSection.lines, 'restoration_decision') !== 'pending') {
+      continue;
+    }
+
+    const parsedHeading = parseRestorationHeading(parsedSection.heading);
+    const rawTier = restorationValue(parsedSection.lines, 'tier');
+    const reason = restorationValue(parsedSection.lines, 'reason') ?? '';
+
+    restorations.push({
+      sourceFile,
+      ruleSlug: parsedHeading.ruleSlug,
+      title: parsedHeading.title,
+      tier: validRestorationTier(rawTier) ? rawTier : 'C',
+      reason: validRestorationTier(rawTier) ? reason : `[tier-fallback] ${reason}`.trim(),
+    });
+  }
+
+  return restorations;
 }
 
 function parseReviewIssuesFromBlock(
@@ -341,6 +413,57 @@ function countOpenHarnessGaps(markdown: string): number {
     .filter((line) => /^\|\s*gap-[^|]+\|.*\|\s*open\s*\|$/i.test(line.trim())).length;
 }
 
+function sourceFilePath(root: string, absolutePath: string): string {
+  return path.relative(root, absolutePath).replace(/\\/g, '/');
+}
+
+function auditIterationPriority(filePath: string): number {
+  const match = filePath.replace(/\\/g, '/').match(/\.vibe\/audit\/iter-(\d+)\/rules-deleted\.md$/);
+  return match?.[1] ? 1000 + Number.parseInt(match[1], 10) : 1000;
+}
+
+async function collectRulesDeletedFiles(
+  root: string,
+): Promise<Array<{ absolutePath: string; priority: number }>> {
+  const files: Array<{ absolutePath: string; priority: number }> = [];
+  const archiveDir = archiveRulesDeletedPath(root);
+  if (await fileExists(archiveDir)) {
+    for (const fileName of await readdir(archiveDir)) {
+      if (/^rules-deleted-.*\.md$/i.test(fileName)) {
+        files.push({ absolutePath: path.join(archiveDir, fileName), priority: 0 });
+      }
+    }
+  }
+
+  const auditDir = auditPath(root);
+  if (await fileExists(auditDir)) {
+    for (const dirName of await readdir(auditDir)) {
+      const absolutePath = path.join(auditDir, dirName, 'rules-deleted.md');
+      if (dirName.startsWith('iter-') && (await fileExists(absolutePath))) {
+        files.push({ absolutePath, priority: auditIterationPriority(absolutePath) });
+      }
+    }
+  }
+
+  return files.sort((left, right) => left.priority - right.priority || left.absolutePath.localeCompare(right.absolutePath));
+}
+
+export async function collectPendingRestorationDecisions(
+  root?: string,
+): Promise<PendingRestoration[]> {
+  const resolvedRoot = resolveRoot(root);
+  const bySlug = new Map<string, PendingRestoration>();
+
+  for (const file of await collectRulesDeletedFiles(resolvedRoot)) {
+    const sourceFile = sourceFilePath(resolvedRoot, file.absolutePath);
+    for (const restoration of parseRestorationSections(await readText(file.absolutePath), sourceFile)) {
+      bySlug.set(restoration.ruleSlug, restoration);
+    }
+  }
+
+  return [...bySlug.values()];
+}
+
 function normalizePlatformSignals(seed: ReviewSeedInput): string[] {
   const signals: string[] = [];
 
@@ -369,16 +492,25 @@ export async function collectReviewInputs(root?: string): Promise<ReviewInputs> 
   const resolvedRoot = resolveRoot(root);
   const config = await readJson<unknown>(sharedConfigPath(resolvedRoot)).catch(() => ({}));
   const recentEntriesLimit = readRecentEntriesLimit(config);
-  const [handoff, sessionLog, status, decisions, productText, harnessGaps, latestReviewReportPath] =
-    await Promise.all([
-      readOptionalText(handoffPath(resolvedRoot)),
-      readOptionalText(sessionLogPath(resolvedRoot)),
-      loadSprintStatus(resolvedRoot),
-      readDecisions(resolvedRoot),
-      readOptionalText(productPath(resolvedRoot)),
-      readOptionalText(harnessGapsPath(resolvedRoot)),
-      findLatestReviewReport(resolvedRoot),
-    ]);
+  const [
+    handoff,
+    sessionLog,
+    status,
+    decisions,
+    productText,
+    harnessGaps,
+    latestReviewReportPath,
+    pendingRestorations,
+  ] = await Promise.all([
+    readOptionalText(handoffPath(resolvedRoot)),
+    readOptionalText(sessionLogPath(resolvedRoot)),
+    loadSprintStatus(resolvedRoot),
+    readDecisions(resolvedRoot),
+    readOptionalText(productPath(resolvedRoot)),
+    readOptionalText(harnessGapsPath(resolvedRoot)),
+    findLatestReviewReport(resolvedRoot),
+    collectPendingRestorationDecisions(resolvedRoot),
+  ]);
   const gitLogState = await readGitLog(resolvedRoot, latestReviewReportPath);
 
   return {
@@ -396,6 +528,7 @@ export async function collectReviewInputs(root?: string): Promise<ReviewInputs> 
     productText,
     harnessGaps,
     openHarnessGapCount: countOpenHarnessGaps(harnessGaps),
+    pendingRestorations,
   };
 }
 

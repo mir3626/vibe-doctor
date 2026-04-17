@@ -25,6 +25,7 @@ node --import tsx -e "import { collectReviewInputs, detectOptInGaps } from './sr
    - `.vibe/agent/sprint-status.json` 의 `pendingRisks` 중 `open` 상태만
    - `.vibe/agent/project-decisions.jsonl` 전체
    - `docs/context/harness-gaps.md` 전체
+   - `.vibe/archive/rules-deleted-*.md` + `.vibe/audit/iter-*/rules-deleted.md` pending 복원 결정 목록
 
 3. 출력 파일 경로:
    - `docs/reports/review-<sprintCount>-<YYYY-MM-DD>.md`
@@ -32,10 +33,15 @@ node --import tsx -e "import { collectReviewInputs, detectOptInGaps } from './sr
 
 ## Rubric
 
-- 🔴 Blocker — process/harness 가 다음 Sprint 를 못 돌게 만드는 결함
-- 🟡 Friction — 사용자/Orchestrator 가 반복적으로 우회하는 마찰 지점
-- 🟢 Polish — UX 개선, 문구 정비
-- 🔵 Structural — 아키텍처/계약 수준의 장기 개선
+Primary metric = **dogfood friction incident count per sprint** + **delivered product feature count**.
+
+- 🔴 Blocker — sprint 당 friction incident ≥ 3 발생 또는 product delivery 차단
+- 🟡 Friction — sprint 당 friction incident 1~2, 사용자/Orchestrator 우회 반복
+- 🟢 Polish — friction 0 이지만 UX/문서 개선 여지
+- 🔵 Structural — friction 잠재 + 장기 유지보수 축 영향
+
+`uncovered rule` 수와 open harness gap 수는 secondary signal 로만 사용한다. 단,
+`openHarnessGapCount > 0` 이면 기존처럼 최소 1개 finding 에 ledger 상태를 근거로 연결한다.
 
 ## Findings Format
 
@@ -55,6 +61,11 @@ node --import tsx -e "import { collectReviewInputs, detectOptInGaps } from './sr
 ## Automatic Checks
 
 - `detectOptInGaps()` 를 호출해 M7 opt-in 누락을 먼저 시드한다.
+- `pendingRestorations.length > 0` 이면 각 entry 당 `🟡 Friction` finding 을 자동 seed 한다.
+  - `id: review-pending-restoration-<ruleSlug>`
+  - `proposal: '<title>' 복원 여부 결정 필요 (tier=<tier>, reason=<reason>, source=<file>)`
+  - `estimated_loc: 0`
+  - `proposed_sprint: 'backlog'`
 - `.vibe/config.json.bundle.enabled === false` 이고 `product.md` 또는 interview seed 의 platform 이 `web|mobile|browser` 를 포함하면:
   - 🟡 Friction entry
   - `proposal: "frontend 프로젝트인데 bundle-size gate 가 opt-in 되지 않음"`

@@ -206,7 +206,7 @@
       },
       ".vibe/config.json": {
         "strategy": "json-deep-merge",
-        "harnessKeys": ["harnessVersion", "qa"],
+        "harnessKeys": ["harnessVersion", "qa", "mode"],
         "projectKeys": ["orchestrator", "sprintRoles", "sprint", "providers", "harnessVersionInstalled", "upstream", "bundle", "browserSmoke"]
       }
     },

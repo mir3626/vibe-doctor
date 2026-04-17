@@ -53,5 +53,6 @@
   "audit": {
     "everyN": 5
   },
+  "mode": "human",
   "harnessVersionInstalled": "1.4.1"
 }

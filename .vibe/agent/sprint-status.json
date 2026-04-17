@@ -67,6 +67,18 @@
         "net": 740,
         "filesChanged": 13
       }
+    },
+    {
+      "id": "sprint-N3-freeze-mode-flag",
+      "name": "sprint-N3-freeze-mode-flag",
+      "status": "passed",
+      "completedAt": "2026-04-17T08:55:07.338Z",
+      "actualLoc": {
+        "added": 867,
+        "deleted": 22,
+        "net": 845,
+        "filesChanged": 18
+      }
     }
   ],
   "handoff": {
@@ -75,10 +87,10 @@
     "pendingPrompt": null,
     "lastHandoffAt": "2026-04-16T00:00:00Z",
     "nextAction": "run /vibe-init to start a new project",
-    "lastActionSummary": "Sprint sprint-N2-critical-bug-triage completed with passed",
+    "lastActionSummary": "Sprint sprint-N3-freeze-mode-flag completed with passed",
     "orchestratorContextBudget": "medium",
     "preferencesActive": [],
-    "updatedAt": "2026-04-17T08:11:17.686Z"
+    "updatedAt": "2026-04-17T08:55:07.338Z"
   },
   "policies": {
     "scratchpadPath": ".vibe/agent/handoff.md",
@@ -167,7 +179,12 @@
     "docs/release/v1.4.1.md",
     ".vibe/agent/re-incarnation.md",
     "docs/context/product.md",
-    "docs/context/qa.md"
+    "docs/context/qa.md",
+    "src/lib/config.ts",
+    "src/lib/review.ts",
+    ".claude/skills/vibe-review/SKILL.md",
+    "test/config.test.ts",
+    "test/vibe-review-inputs.test.ts"
   ],
   "lastSprintScopeGlob": [
     "src/lib/schemas/**",
@@ -184,10 +201,15 @@
     "scripts/vibe-sprint-commit.mjs",
     "scripts/run-codex.sh",
     "scripts/run-codex.cmd",
-    ".vibe/config.json"
+    ".vibe/config.json",
+    "CLAUDE.md",
+    "src/lib/config.ts",
+    "src/lib/review.ts",
+    ".claude/skills/vibe-review/SKILL.md",
+    ".vibe/agent/iteration-history.json"
   ],
-  "sprintsSinceLastAudit": 0,
-  "stateUpdatedAt": "2026-04-17T08:29:44.017Z",
+  "sprintsSinceLastAudit": 1,
+  "stateUpdatedAt": "2026-04-17T08:55:07.338Z",
   "verifiedAt": null,
   "verificationCommands": []
 }

@@ -5,7 +5,11 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { promisify } from 'node:util';
 import { afterEach, describe, it } from 'node:test';
-import { collectReviewInputs, detectOptInGaps } from '../src/lib/review.js';
+import {
+  collectPendingRestorationDecisions,
+  collectReviewInputs,
+  detectOptInGaps,
+} from '../src/lib/review.js';
 
 const execFile = promisify(execFileCallback);
 const tempDirs: string[] = [];
@@ -160,8 +164,54 @@ describe('review inputs', () => {
     assert.equal(inputs.decisions[0]?.decision, 'keep-audit');
     assert.equal(inputs.passedSprintCount, 1);
     assert.equal(inputs.openHarnessGapCount, 1);
+    assert.deepEqual(inputs.pendingRestorations, []);
     assert.equal(inputs.gitLogMode, 'since-last-review');
     assert.equal(inputs.gitLog.length >= 1, true);
+  });
+
+  it('collectPendingRestorationDecisions parses pending entries from audit ledgers', async () => {
+    const root = await makeTempDir('review-restorations-');
+    await writeText(
+      path.join(root, '.vibe', 'audit', 'iter-3', 'rules-deleted.md'),
+      [
+        '# ledger',
+        '',
+        '## old-rule — Old rule title',
+        '',
+        '- tier: B',
+        '- reason: "incident_count=0"',
+        '- restoration_decision: pending',
+        '',
+        '---',
+        '',
+        '## invalid-tier — Invalid tier title',
+        '',
+        '- tier: Z',
+        "- reason: 'bad tier'",
+        '- restoration_decision: pending',
+      ].join('\n'),
+    );
+
+    const restorations = await collectPendingRestorationDecisions(root);
+
+    assert.equal(restorations.length, 2);
+    assert.deepEqual(restorations[0], {
+      sourceFile: '.vibe/audit/iter-3/rules-deleted.md',
+      ruleSlug: 'old-rule',
+      title: 'Old rule title',
+      tier: 'B',
+      reason: 'incident_count=0',
+    });
+    assert.equal(restorations[1]?.tier, 'C');
+    assert.equal(restorations[1]?.reason, '[tier-fallback] bad tier');
+  });
+
+  it('collectPendingRestorationDecisions returns an empty list when no ledgers exist', async () => {
+    const root = await makeTempDir('review-restorations-empty-');
+
+    const restorations = await collectPendingRestorationDecisions(root);
+
+    assert.deepEqual(restorations, []);
   });
 
   it('detectOptInGaps returns bundle and browser smoke friction entries for web projects without a recent opt-in decision', () => {

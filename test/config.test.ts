@@ -55,3 +55,9 @@ test('mergeConfig deep-merges sprint config', () => {
   assert.equal(merged.sprint.unit, 'page');
   assert.equal(merged.sprint.subAgentPerRole, true);
 });
+
+test('mergeConfig copies mode override as a top-level field', () => {
+  const merged = mergeConfig({ ...base, mode: 'human' }, { mode: 'agent' });
+
+  assert.equal(merged.mode, 'agent');
+});

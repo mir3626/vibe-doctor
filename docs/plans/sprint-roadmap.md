@@ -2,7 +2,7 @@
 
 <!-- BEGIN:VIBE:CURRENT-SPRINT -->
 > **Current**: idle (not started, started 2026-04-17)
-> **Completed**: sprint-N2-critical-bug-triage, sprint-N1-rule-audit-diet, sprint-M-harness-gates, sprint-M-process-discipline, sprint-M-audit
+> **Completed**: sprint-N3-freeze-mode-flag, sprint-N2-critical-bug-triage, sprint-N1-rule-audit-diet, sprint-M-harness-gates, sprint-M-process-discipline, sprint-M-audit
 > **Pending**: —
 <!-- END:VIBE:CURRENT-SPRINT -->
 
@@ -393,6 +393,8 @@ iter-2 closure 리뷰 + vibe-rule-audit 결과 **28 uncovered MUST/반드시/금
 **Evidence source 확대**: session-log `[failure]` tag 뿐 아니라 dogfood6~7 session transcripts 의 retrospective 재스캔까지 포함. implicit incident 의 tier 분류 증거 확보.
 
 **Meta 원칙**: agent 가 Should 조건은 실제로 준수하지 않음 — Should 는 전면 재판단해 Must 로 격상 (trigger 조건 tighten) 또는 rule 자체 삭제. Must Not 은 rule-level prohibition 에만 한정 (trigger matrix 에서는 사용 금지).
+
+> **Review metric (iter-3 closure)**: 평가 우선순위는 "dogfood friction incident per sprint + delivered product value" — 기존 "uncovered rule / harness gap 수" 는 secondary signal 로 강등.
 
 ## 범위 요약
 

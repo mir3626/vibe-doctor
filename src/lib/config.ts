@@ -42,6 +42,7 @@ export interface VibeConfig {
   orchestrator: string;
   harnessVersion?: string;
   harnessVersionInstalled?: string;
+  mode?: 'human' | 'agent';
   upstream?: {
     type: 'git' | 'local';
     url: string;
