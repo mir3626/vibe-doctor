@@ -1,146 +1,100 @@
-# dogfood8 인계 — iter-3 완료 브리핑
+# dogfood8 인계 — iter-3 closure (v1.4.1) 브리핑
 
-## iter-3 요약
+## 목적
 
-이 메시지는 dogfood8 세션 첫 입력으로 그대로 붙여 넣기 위한 브리핑입니다.
+iter-3 (harness diet + tune-up) 종료 후 **downstream dogfood8 프로젝트** 에서
+post-acceptance 검증 수행. 이 문서는 **사용자 참고용** — 실제 agent 에게 전달되는
+first-class prompt 는 `.claude/templates/agent-delegation-prompt.md` 가 생성.
 
-작업 대상은 `C:\Users\Tony\Workspace\vibe-doctor` 입니다.
+## iter-3 요약 (v1.4.1 released)
 
-iter-3는 self-evolution harness를 실제 사용 흐름에서 더 가볍고 덜 잊히게 만드는 라운드입니다.
+| Sprint | commit | 핵심 결과 |
+|--------|--------|----------|
+| N1 | `8c2d2a5` | CLAUDE.md 292→248 lines. 4 B/C tier cluster 삭제 + `.vibe/audit/iter-3/rules-deleted.md` 보관. dogfood6~7 transcript retrospective 재스캔. |
+| N2 | `2a229e3` | sprint-commit archive staging fix (자체 검증). run-codex auto status-tick. **artificial v1.4.1 bump → auto-tag `v1.4.1` production 자동 생성 성공**. dogfood8 handoff prompt 작성. |
+| N3 | `fb97967` | CLAUDE.md §0 Charter (line 1-40) + FREEZE-POSTURE + Extensions 재구조화. `.vibe/config.json.mode` 2-value define-only. `/vibe-review` rules-deleted hook + metric shift. |
+| closure | `d10dfb7` | `docs/reports/project-report.html` Phase 5 생성. |
 
-완료된 Sprint는 다음과 같습니다.
+**Evaluator 첫 소환** 완료 (verdict=partial, blocking=0). 4 dangling references 발견 → cleanup.
 
-- N1 `rule-audit-diet`: `CLAUDE.md` rule audit 내용을 292 lines에서 248 lines로 줄였습니다.
-- N2 `critical-bug-triage`: archive prompt staging, Codex status tick, auto-tag self-test, dogfood8 handoff를 처리했습니다.
-- N3: 아직 미착수입니다. progressive MD 재구조화와 `mode: "human" | "agent"` 기본값 도입이 예정되어 있습니다.
+Core values 보존: interview / sprint-loop / Codex delegation / sub-agent isolation 건드리지 않음.
 
-Harness version은 `1.4.0`에서 `1.4.1`로 승격되었습니다.
+## dogfood8 실행 순서 (사용자 작업)
 
-N1 기준 검증 상태는 `199 tests pass / 0 fail / 1 skip` 이었습니다.
+### Step 1 — dogfood8 디렉토리 준비
 
-N2는 `scripts/vibe-sprint-commit.mjs`의 production commit 경로로 `v1.4.1` annotated tag 생성을 self-test합니다.
+새 디렉토리 (예: `C:\Users\Tony\Workspace\dogfood8`) 에 vibe-doctor template 을 sync.
+기존 방식 그대로 (git clone 또는 `/vibe-sync`). **v1.4.1 tag 를 명시적으로 pull** 하여 iter-3
+산출물 포함 여부 확인.
 
-dogfood8에서는 새 규칙이 실제 사용 중 마찰을 줄였는지, 반대로 복원해야 할 rule 손실이 있는지 관찰해야 합니다.
+### Step 2 — 새 Claude Code 세션에서 `/vibe-init`
 
-## 자동 tag self-test 결과
+dogfood8 디렉토리를 workspace 로 열고 새 Claude Code 세션 시작. `/vibe-init` 실행.
 
-N2 Sprint commit 직후 아래 명령으로 tag 존재를 확인합니다.
+### Step 3 — Step 1-0 에서 "agent" 선택
 
-```bash
-git tag -l v1.4.1
-```
+`/vibe-init` 의 Step 1-0 세션 진행 모드 질문에 **`agent`** 답변.
 
-기대 출력:
+### Step 4 — ONE_LINER 입력
 
-```text
-v1.4.1
-```
+`/vibe-init` 이 후속 질문: "무엇을 만들고 싶은지 한 줄로 정의해주세요."
 
-N2 commit stdout에는 아래 라인이 포함되어야 합니다.
+**추천 one-liner** (A/B/C 중 택 1, 또는 직접 입력):
 
-```text
-[vibe-sprint-commit] harness-tag: created v1.4.1 (prev=1.4.0)
-```
+- **A. (추천)** `커맨드라인 가계부 도구 (CLI + JSON store). 태그별 월간 요약 + 일일 지출 cap 경고. 차별점: 같은 카테고리에서 예산 초과 2일 연속 발생 시 다음 날 자동 경고.`
+- **B.** `개인 독서 기록 웹앱. 책 등록 → 한줄평 → 월간 페이지 차트. 차별점: 독서 리듬 (요일별 분포) 시각화.`
+- **C.** `Pomodoro + 세션 일기 겸용 웹앱. 25분 사이클 후 자동 프롬프트 "이번 세션 무엇을 했는지?" → 주간 요약 리포트.`
 
-위 라인이 `skipped (tag v1.4.1 already exists)` 로 바뀌면 이전 세션에서 tag가 이미 만들어진 것입니다.
+### Step 5 — 출력된 prompt 를 copy-paste
 
-위 라인이 `FAILED` 로 바뀌면 수동 tag를 만들지 말고 원인만 기록합니다.
+`/vibe-init` 이 `agent-delegation-prompt.md` template 에 `<ONE_LINER>` 를 치환한 뒤
+완성된 prompt 를 **터미널에 markdown 코드블록으로 출력** + skill 즉시 종료.
 
-dogfood8 시작 시에는 `git tag -l v1.4.1` 결과와 N2 Final report의 commit stdout을 대조합니다.
+출력된 prompt 를 **동일 세션 또는 새로운 Claude Code 세션의 첫 user turn** 에
+copy-paste. agent 가 Charter first-class 해석 하에 Phase 2~4 + Sprint 로드맵 +
+Sprint 실행 + closure 자율 진행.
 
-## dogfood8 진입 체크리스트
+### Step 6 — 완료 후 검증
 
-- `node scripts/vibe-preflight.mjs` 를 실행하고 blocking error가 없는지 확인합니다.
-- `npm run vibe:sync --dry-run` 을 실행해 `v1.4.0` 또는 `v1.4.1` tag 기반 manifest pull이 정상인지 확인합니다.
-- `.vibe/audit/iter-3/rules-deleted.md` 의 `two-tier-audit-convention` cluster가 dogfood8 실행 중 마찰을 만들면 incident로 기록합니다.
-- `.vibe/audit/iter-3/rules-deleted.md` 의 실패 에스컬레이션 cluster가 필요한 순간이 있었는지 기록합니다.
-- `.vibe/audit/iter-3/rules-deleted.md` 의 항상 지킬 것 cluster 삭제가 실제 품질 저하로 이어졌는지 관찰합니다.
-- `.vibe/audit/iter-3/rules-deleted.md` 의 필요할 때만 읽을 문서 cluster가 누락으로 느껴지는지 확인합니다.
-- 새 `mode: "human"` default가 `/vibe-init` Step 1-0에서 제시되는지는 N3 미완료 상태에서는 해당 없음으로 처리합니다.
-- `scripts/vibe-status-tick.mjs` 가 Codex 호출마다 `.vibe/agent/tokens.json` 을 자동 갱신하는지 1회 이상 육안 확인합니다.
+agent 가 최종 보고 7 항목 제출 (`agent-delegation-prompt.md` 하단 참조):
 
-Status tick 확인 예시는 다음과 같습니다.
+1. 총 소요 시간 + Codex token 사용량
+2. Planner skip / 소환 비율
+3. Evaluator 소환 발동 여부
+4. harnessVersion bump 시 auto-tag 자동 생성 여부
+5. session-log `[failure]` / `[drift-observed]` incident 총 카운트
+6. `.vibe/audit/iter-3/rules-deleted.md` 복원 후보 rule id list
+7. mode=agent 진행 중 사용자 개입 실제 회수 (이상적 = 0)
 
-```bash
-cat .vibe/agent/tokens.json
-```
+### Step 7 — `/vibe-review` 실행
 
-확인할 필드는 다음과 같습니다.
+dogfood8 프로젝트 완료 후 dogfood8 디렉토리에서 `/vibe-review` 실행.
+iter-3 N3 D4 hook 이 `.vibe/audit/iter-3/rules-deleted.md` 를 자동 체크하여 **미결정
+복원 케이스를 자동 findings** 로 append 한다. 복원 여부를 여기서 결정.
 
-- `updatedAt`
-- `cumulativeTokens`
-- `elapsedSeconds`
-- `sprintTokens`
+## iter-3 가 측정하려는 것
 
-Codex 호출이 성공했는데 `tokens.json` 이 변하지 않으면 `run-codex` wrapper stderr의 `status-tick` 라인을 확인합니다.
+사용자 관찰: dogfood7 대비 **작업 시간이 길었고** vanilla Claude 로 했으면 2 시간 내 완료 가능.
+iter-3 diet 와 agent-delegation template 가 이 gap 을 얼마나 줄이는지가 핵심 metric.
 
-`status-tick: skipped reason=no-sprint` 는 현재 Sprint ID를 찾지 못한 상태입니다.
+**기대**:
+- 총 소요 시간: 1.5~2.5 시간 (Sprint 당 20~40 분, Planner 절반 이상 skip 가정)
+- 사용자 개입: 0~2 회 (이상적 0, 초기 정착 단계 허용치 2)
+- auto-tag: harness bump 없으면 N/A. bump 발생 시 자동 tag 생성 확인.
 
-`status-tick: skipped reason=no-tokens` 는 Codex 출력에서 token count를 찾지 못한 상태입니다.
+## 수동 조치 필요 사항 (iter-3 residual)
 
-`status-tick: skipped reason=cli-failed` 는 `vibe-status-tick.mjs` 호출 자체가 실패한 상태입니다.
+- **dogfood8 종료 후 rules-deleted 복원 결정**: `/vibe-review` findings 기반.
+- **`.vibe/audit/iter-3/` cleansing**: dogfood8 post-acceptance 승인 후 `rm -rf
+  .vibe/audit/iter-3/` 로 template initial state 복원 (downstream 에 audit artifacts
+  확산 방지).
+- **iter-3 관련 uncommitted template files** 없음 (모두 commit 완료).
 
-## 이상 발견 시 feedback template
+## 참고 링크
 
-dogfood8 종료 후 `/vibe-review` 에 append할 feedback은 아래 JSON skeleton을 사용합니다.
-
-```json
-{
-  "iteration": "dogfood8",
-  "sprint": "iter-3",
-  "signal_type": "agent",
-  "priority_score": 10,
-  "recommended_approach": "script-wrapper",
-  "summary": "",
-  "evidence": [
-    {
-      "path": "",
-      "quote": "",
-      "observed_at": "2026-04-17T00:00:00.000Z"
-    }
-  ],
-  "proposed_next_sprint": ""
-}
-```
-
-`signal_type` 값은 다음 중 하나로 고릅니다.
-
-- `agent`: agent가 반복해서 잊거나 잘못 수행한 문제입니다.
-- `token`: context budget, rule 길이, prompt 중복 때문에 생긴 문제입니다.
-- `user`: 사용자가 수동으로 기억하거나 실행해야 해서 생긴 문제입니다.
-
-`priority_score` 계산식은 다음과 같습니다.
-
-```text
-10 * agent + 5 * token + 1 * user
-```
-
-`recommended_approach` 우선순위는 다음과 같습니다.
-
-```text
-script-wrapper > md-rule > config-default > user-action
-```
-
-같은 문제가 script로 막을 수 있으면 markdown rule을 늘리지 않습니다.
-
-같은 문제가 config default로 해결되면 사용자 행동 지시를 늘리지 않습니다.
-
-증거는 가능한 한 파일 경로, stderr 라인, session-log 라인 중 하나로 남깁니다.
-
-## 복원 가이드
-
-iter-3 rule trim이 과도했다고 판단되면 아래 절차로 복원합니다.
-
-1. `.vibe/audit/iter-3/rules-deleted.md` 에서 문제 cluster를 찾습니다.
-2. 해당 cluster의 `restoration_decision: pending` 값을 `restoration_decision: restored(<dogfood8 commit sha>)` 로 바꿉니다.
-3. 같은 cluster의 `original_text:` 내용을 확인합니다.
-4. `CLAUDE.md` 의 가장 가까운 관련 섹션에 `original_text:` 를 재삽입합니다.
-5. 복원 이유와 dogfood8 증거를 `.vibe/agent/session-log.md` 에 `[decision]` 으로 남깁니다.
-
-복원은 한 번에 하나의 cluster만 처리합니다.
-
-복원 후에는 `node scripts/vibe-rule-audit.mjs --scan-transcripts` 를 다시 실행해 삭제 ledger와 실제 rule 상태가 맞는지 확인합니다.
-
-복원 여부가 애매하면 `restoration_decision: pending` 을 유지하고 incident만 feedback template에 남깁니다.
-
-N3가 완료된 뒤에는 `mode: "human"` 기본값과 progressive MD 구조가 dogfood8 진입 마찰을 줄였는지도 함께 평가합니다.
+- agent-delegation template: `.claude/templates/agent-delegation-prompt.md`
+- vibe-init Step 1-0-agent 분기: `.claude/skills/vibe-init/SKILL.md`
+- iter-3 roadmap: `docs/plans/sprint-roadmap.md` (line 385+)
+- CLAUDE.md Charter: `CLAUDE.md` line 1-40 (BEGIN:CHARTER ~ END:CHARTER)
+- rule audit artifacts: `.vibe/audit/iter-3/{rule-audit-report,rules-deleted}.md`
+- v1.4.1 release notes: `docs/release/v1.4.1.md`
