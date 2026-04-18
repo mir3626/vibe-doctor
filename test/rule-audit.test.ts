@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -170,5 +170,9 @@ describe('vibe-rule-audit', () => {
     assert.ok((parsed.summary.byTier.C ?? 0) >= 1);
     assert.equal(byId.get('alpha-high')?.recommendedAction, 'keep-script');
     assert.equal(byId.get('epsilon-none')?.recommendedAction, 'delete-md-and-script');
+  });
+
+  it('records iter-4 deleted-rule closure ledger', async () => {
+    assert.match(await readFile('.vibe/audit/iter-3/rules-deleted.md', 'utf8'), /iter-4 판정/);
   });
 });

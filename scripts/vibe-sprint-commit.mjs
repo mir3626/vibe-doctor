@@ -24,6 +24,7 @@ const STATE_FILES = new Set([
   '.vibe/agent/handoff.md',
   '.vibe/agent/session-log.md',
 ]);
+const LOCKFILE_BLACKLIST = new Set(['package-lock.json', 'pnpm-lock.yaml', 'yarn.lock', 'bun.lockb']);
 const LOC_EXTENSION_FALLBACK = ['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs', '.py', '.go', '.rs'];
 
 function fail(message) {
@@ -227,6 +228,7 @@ function computeLocSummary(codeExtensions) {
     if (!filePath) {
       continue;
     }
+    if (LOCKFILE_BLACKLIST.has(path.basename(filePath))) continue;
     if (!codeExtensions.some((extension) => filePath.endsWith(extension))) {
       continue;
     }

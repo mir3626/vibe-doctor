@@ -22,4 +22,10 @@ Responsibilities:
 - include the required Files Generator may touch / Do NOT modify / Verification sections
 - explicitly cover `.vibe/agent/_common-rules.md` §14 Wiring Integration Checklist when new files, scripts, skills, renames, or removals are involved
 
+### Component integration contract (when UI components change)
+
+- Verify root-level mount placement for global-state provider components such as Toaster, ToastProvider, or ThemeProvider.
+- Require null-safe event handlers via `event?.target?.value` optional chaining or an early-return guard before target access.
+- Review optimistic UI updates for a rollback path that restores prior state on failure.
+
 Orchestrator may only apply the metadata and formatting edits allowed by `.vibe/agent/_common-rules.md` §10.

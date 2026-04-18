@@ -13,7 +13,7 @@
 - **harnessVersion**: `1.4.1` (iter-4 종료 후 v1.4.2 patch 예정)
 - **language/tone**: 한국어 반말
 
-## 2. Status: IDLE - Sprint sprint-O2-script-wrapper-triage passed
+## 2. Status: IDLE - Sprint sprint-O3-planner-contract-polish passed
 
 `/vibe-iterate` Phase 0~3 완료:
 - Phase 0 state load: handoff(iter-3), iteration-history, roadmap iter-3 section, review-6 carryover
@@ -30,6 +30,7 @@
 | **O3** | `sprint-O3-planner-contract-polish` | `#7` Planner common checklist component-integration + `#6` actualLoc lockfile blacklist + pending restoration 4건 최종 판정 | +50 |
 | `sprint-O1-interview-coverage` | sprint-O1-interview-coverage | passed |
 | `sprint-O2-script-wrapper-triage` | sprint-O2-script-wrapper-triage | passed |
+| `sprint-O3-planner-contract-polish` | sprint-O3-planner-contract-polish | passed |
 
 **Growth budget (예외)**: net ≤ +285 LOC (default +150 대비 1회 예외, 사용자 명시 승인). **0 new scripts 유지**. iter-5 부터 +150 복귀.
 

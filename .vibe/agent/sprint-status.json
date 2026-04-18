@@ -103,6 +103,18 @@
         "net": 633,
         "filesChanged": 9
       }
+    },
+    {
+      "id": "sprint-O3-planner-contract-polish",
+      "name": "sprint-O3-planner-contract-polish",
+      "status": "passed",
+      "completedAt": "2026-04-18T16:17:16.343Z",
+      "actualLoc": {
+        "added": 1190,
+        "deleted": 46,
+        "net": 1144,
+        "filesChanged": 19
+      }
     }
   ],
   "handoff": {
@@ -111,10 +123,10 @@
     "pendingPrompt": null,
     "lastHandoffAt": "2026-04-16T00:00:00Z",
     "nextAction": "run /vibe-init to start a new project",
-    "lastActionSummary": "Sprint sprint-O2-script-wrapper-triage completed with passed",
+    "lastActionSummary": "Sprint sprint-O3-planner-contract-polish completed with passed",
     "orchestratorContextBudget": "medium",
     "preferencesActive": [],
-    "updatedAt": "2026-04-18T16:03:22.556Z"
+    "updatedAt": "2026-04-18T16:17:16.343Z"
   },
   "policies": {
     "scratchpadPath": ".vibe/agent/handoff.md",
@@ -146,6 +158,14 @@
       "text": "src/lib/interview.ts has no test/interview.test.ts",
       "status": "open",
       "createdAt": "2026-04-18T16:03:23.061Z"
+    },
+    {
+      "id": "lightweight-audit-sprint-O3-planner-contract-polish",
+      "raisedBy": "vibe-audit-lightweight",
+      "targetSprint": "*",
+      "text": "src/lib/preflight-roadmap.ts has no test/preflight-roadmap.test.ts",
+      "status": "open",
+      "createdAt": "2026-04-18T16:17:16.859Z"
     }
   ],
   "lastSprintScope": [
@@ -227,7 +247,9 @@
     "src/lib/preflight-roadmap.ts",
     "test/audit-skip-set-bootstrap.test.ts",
     "test/config-path-resolution.test.ts",
-    "test/preflight-roadmap-iteration.test.ts"
+    "test/preflight-roadmap-iteration.test.ts",
+    "test/sprint-commit-lockfile-blacklist.test.ts",
+    "test/sprint-planner-contract.test.ts"
   ],
   "lastSprintScopeGlob": [
     "src/lib/schemas/**",
@@ -251,8 +273,8 @@
     ".claude/skills/vibe-review/SKILL.md",
     ".vibe/agent/iteration-history.json"
   ],
-  "sprintsSinceLastAudit": 3,
-  "stateUpdatedAt": "2026-04-18T16:03:22.556Z",
+  "sprintsSinceLastAudit": 4,
+  "stateUpdatedAt": "2026-04-18T16:17:16.343Z",
   "verifiedAt": null,
   "verificationCommands": []
 }

@@ -80,3 +80,13 @@
     - 하네스 사각지대: `docs/context/harness-gaps.md`
 
 ---
+
+## iter-4 판정 (2026-04-19)
+
+- 판정 일자: 2026-04-19 (iter-4 O3 sprint 종결 시점)
+- 4건 모두 `restoration_decision: delete-confirmed`
+- `two-tier-audit-convention` — gap-rule-only-in-md 커버리지 + iter-4 O2 `vibe-audit-skip-set.mjs` bootstrap 보강으로 자연 해소. **delete-confirmed**.
+- `실패-에스컬레이션` — tier-C, incident 0, gap-* 매핑 없음. **delete-confirmed**.
+- `항상-지킬-것` — tier-C, incident 0, 잔존 role constraint + sprint flow 섹션으로 중복 커버. **delete-confirmed**.
+- `필요할-때만-읽을-문서` — tier-C, incident 0, gap-* 매핑 없음. Context shards pointer 섹션이 현재 CLAUDE.md 에 포함되어 동등 기능 대체. **delete-confirmed**.
+- 다음 감사 (`vibe-rule-audit.mjs`) 에서 본 4건은 closed-ledger 로 간주.
