@@ -647,9 +647,9 @@ function renderHtml(model) {
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
 <style>
-:root{color-scheme:light;--bg-0:#f1efea;--bg-1:#eae7e1;--bg-2:#e2ded7;--frame-bg:rgba(255,255,255,0.35);--text:#1c1c1e;--secondary:rgba(60,60,67,0.62);--muted:rgba(60,60,67,0.36);--border:rgba(60,60,67,0.1);--border-strong:rgba(60,60,67,0.18);--accent:#007aff;--accent-subtle:rgba(0,122,255,0.1);--glass-bg:linear-gradient(155deg,rgba(255,255,255,0.78),rgba(255,255,255,0.55) 55%,rgba(255,255,255,0.72));--glass-bg-flat:rgba(255,255,255,0.65);--glass-highlight:inset 0 1px 0 rgba(255,255,255,0.9),inset 0 -1px 0 rgba(0,0,0,0.025);--glass-depth:0 1px 2px rgba(0,0,0,0.04),0 8px 24px rgba(0,0,0,0.06),0 24px 56px rgba(0,0,0,0.04);--complete-bg:rgba(52,199,89,0.14);--complete-text:#248a3d;--progress-bg:rgba(0,122,255,0.12);--progress-text:#0062cc;--partial-bg:rgba(255,149,0,0.14);--partial-text:#c76a00;--failed-bg:rgba(255,59,48,0.14);--failed-text:#c2271f;--idle-bg:rgba(120,120,128,0.12);--idle-text:rgba(60,60,67,0.6)}
+:root{color-scheme:light;--bg-0:#f1efea;--bg-1:#eae7e1;--bg-2:#e2ded7;--frame-bg:rgba(255,255,255,0.35);--text:#1c1c1e;--secondary:rgba(60,60,67,0.62);--muted:rgba(60,60,67,0.36);--border:rgba(60,60,67,0.1);--border-strong:rgba(60,60,67,0.18);--accent:#007aff;--accent-subtle:rgba(0,122,255,0.1);--glass-bg:rgba(255,255,255,0.42);--glass-bg-flat:rgba(255,255,255,0.45);--glass-highlight:inset 0 1px 0 rgba(255,255,255,0.9),inset 0 -1px 0 rgba(0,0,0,0.025);--glass-depth:0 1px 2px rgba(0,0,0,0.04),0 8px 24px rgba(0,0,0,0.06),0 24px 56px rgba(0,0,0,0.04);--complete-bg:rgba(52,199,89,0.14);--complete-text:#248a3d;--progress-bg:rgba(0,122,255,0.12);--progress-text:#0062cc;--partial-bg:rgba(255,149,0,0.14);--partial-text:#c76a00;--failed-bg:rgba(255,59,48,0.14);--failed-text:#c2271f;--idle-bg:rgba(120,120,128,0.12);--idle-text:rgba(60,60,67,0.6)}
 *{box-sizing:border-box}
-body{margin:0;min-height:100vh;background:radial-gradient(ellipse at 8% -8%,rgba(255,255,255,0.9),transparent 50%),radial-gradient(ellipse at 100% 8%,rgba(210,198,180,0.28),transparent 48%),radial-gradient(ellipse at 50% 120%,rgba(180,170,155,0.22),transparent 55%),linear-gradient(180deg,var(--bg-0) 0%,var(--bg-1) 58%,var(--bg-2) 100%);background-attachment:fixed;color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display",Inter,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;font-size:15px;line-height:1.65;padding:18px;font-variant-numeric:tabular-nums}
+body{margin:0;min-height:100vh;background:radial-gradient(ellipse 1100px 700px at 0% 0%,rgba(255,255,255,0.55),transparent 70%),radial-gradient(ellipse 900px 700px at 100% 0%,rgba(215,200,180,0.22),transparent 70%),radial-gradient(ellipse 1200px 800px at 50% 120%,rgba(180,170,155,0.2),transparent 70%),linear-gradient(180deg,var(--bg-0) 0%,var(--bg-1) 58%,var(--bg-2) 100%);background-attachment:fixed;color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display",Inter,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;font-size:15px;line-height:1.65;padding:0;font-variant-numeric:tabular-nums}
 a{color:var(--accent);text-decoration:none}
 a:hover{text-decoration:underline;text-underline-offset:3px}
 button{font:inherit;color:inherit;background:transparent;border:0;padding:0;cursor:pointer}
@@ -657,11 +657,11 @@ button:focus-visible,a:focus-visible,summary:focus-visible{outline:2px solid var
 code,time{font-family:"JetBrains Mono","SF Mono",Menlo,Consolas,monospace;font-size:13px;font-weight:500}
 .skip-link{position:absolute;left:32px;top:24px;z-index:20;transform:translateY(-160%);background:var(--glass-bg-flat);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:10px 16px;backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px)}
 .skip-link:focus{transform:translateY(0)}
-.outer-frame{border:1px solid var(--border);border-radius:28px;padding:24px;min-height:calc(100vh - 36px);background:linear-gradient(180deg,var(--frame-bg),rgba(255,255,255,0.15));position:relative;overflow:hidden;box-shadow:inset 0 1px 0 rgba(255,255,255,0.7),0 1px 2px rgba(0,0,0,0.03)}
+.outer-frame{border:0;border-radius:0;padding:0;min-height:100vh;background:transparent;position:relative;overflow:visible}
 .ambient-glow{position:fixed;pointer-events:none;width:440px;height:440px;border-radius:50%;filter:blur(80px);opacity:0.45;z-index:-1;will-change:opacity}
 .ambient-glow.one{top:-220px;left:-170px;background:radial-gradient(circle,rgba(255,240,220,0.5) 0%,transparent 68%)}
 .ambient-glow.two{bottom:-230px;right:-130px;background:radial-gradient(circle,rgba(200,190,175,0.35) 0%,transparent 70%)}
-.site-nav{position:sticky;top:16px;z-index:10;display:flex;align-items:center;justify-content:space-between;gap:24px;padding:10px 18px;background:var(--glass-bg);border:1px solid var(--border);border-radius:999px;backdrop-filter:blur(18px) saturate(180%);-webkit-backdrop-filter:blur(18px) saturate(180%);box-shadow:var(--glass-highlight),var(--glass-depth);margin-bottom:66px;will-change:transform}
+.site-nav{position:fixed;top:16px;left:24px;right:24px;z-index:10;display:flex;align-items:center;justify-content:space-between;gap:24px;padding:10px 22px;background:rgba(255,255,255,0.22);border:1px solid var(--border);border-radius:999px;backdrop-filter:blur(22px) saturate(180%);-webkit-backdrop-filter:blur(22px) saturate(180%);box-shadow:inset 0 1px 0 rgba(255,255,255,0.8),0 1px 2px rgba(0,0,0,0.04),0 8px 24px rgba(0,0,0,0.05);will-change:transform}
 .site-nav::after{content:"";position:absolute;inset:1px;border-radius:inherit;pointer-events:none;background:linear-gradient(180deg,rgba(255,255,255,0.08),transparent 42%)}
 .brand{display:flex;align-items:center;gap:12px;font-weight:600}
 .brand-name{font-size:13px;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;color:var(--text)}
@@ -674,7 +674,7 @@ code,time{font-family:"JetBrains Mono","SF Mono",Menlo,Consolas,monospace;font-s
 .nav-anchors a{display:inline-block;padding:6px 14px;font-size:13px;color:var(--secondary);border-radius:999px;transition:background .2s ease,color .2s ease}
 .nav-anchors a:hover{color:var(--text);background:var(--accent-subtle);text-decoration:none}
 .nav-meta{display:flex;align-items:center;gap:12px;font-size:12px;color:var(--muted);font-family:"JetBrains Mono","SF Mono",Menlo,Consolas,monospace}
-.container{max-width:1180px;margin:0 auto;padding:0 8px}
+.container{max-width:none;margin:0 auto;padding:0 24px}
 .hero{padding:50px 0 62px;max-width:860px}
 .eyebrow{font-size:11px;font-weight:600;letter-spacing:0.18em;text-transform:uppercase;color:var(--muted);margin:0 0 16px}
 h1{font-size:56px;line-height:1.05;font-weight:600;letter-spacing:-0.02em;margin:0 0 20px;color:var(--text)}
@@ -682,12 +682,12 @@ h2{font-size:28px;line-height:1.2;font-weight:600;letter-spacing:-0.01em;color:v
 h3{font-size:16px;line-height:1.4;font-weight:600;color:var(--text);margin:0}
 .subtitle{font-size:17px;line-height:1.55;color:var(--secondary);margin:0 0 24px;max-width:720px}
 .meta-row{display:flex;flex-wrap:wrap;gap:24px;font-size:13px;color:var(--muted);font-family:"JetBrains Mono","SF Mono",Menlo,Consolas,monospace}
-main.container{padding-top:0;padding-bottom:0}
+main.container{padding-top:90px;padding-bottom:0;padding-left:24px;padding-right:24px}
 .report-section{margin-top:80px;content-visibility:auto;contain-intrinsic-size:0 600px}
 .section-heading{display:flex;align-items:baseline;justify-content:space-between;gap:16px;margin-bottom:24px}
 .section-heading span{color:var(--muted);font-size:13px;font-weight:500}
 .metric-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:20px}
-.metric-card,.sprint-card,.milestone-row,.verification-row,.decision-groups{background:var(--glass-bg);border:1px solid var(--border);border-radius:14px;box-shadow:var(--glass-highlight),0 12px 32px rgba(0,0,0,0.28),0 4px 12px rgba(0,0,0,0.2)}
+.metric-card,.sprint-card,.milestone-row,.verification-row,.decision-groups{background:var(--glass-bg);border:1px solid var(--border);border-radius:18px;backdrop-filter:blur(14px) saturate(180%);-webkit-backdrop-filter:blur(14px) saturate(180%);box-shadow:var(--glass-highlight),var(--glass-depth)}
 .metric-card{padding:24px;transition:transform .2s ease,border-color .2s ease;position:relative;overflow:hidden}
 .metric-card:hover{transform:translateY(-2px);border-color:var(--border-strong)}
 .metric-card p{font-size:11px;font-weight:600;letter-spacing:0.15em;text-transform:uppercase;color:var(--muted);margin:0 0 16px}
