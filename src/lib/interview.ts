@@ -17,6 +17,8 @@ export interface DimensionSpec {
   required: boolean;
 }
 
+const REQUIRED_SOFT_TERMINATE_RATIO = 0.8;
+
 function clampConfidence(value: number): number {
   if (!Number.isFinite(value)) {
     return 0;
@@ -170,7 +172,7 @@ export function shouldTerminate(
     .filter((spec) => spec.required)
     .every((spec) => {
       const ratio = dimensionCoverageRatio(spec, coverage[spec.id] ?? { ratio: 0, subFields: {} });
-      return ratio >= 0.5;
+      return ratio >= REQUIRED_SOFT_TERMINATE_RATIO;
     });
 
   if (allRequiredCovered && ambiguity <= 0.3) {

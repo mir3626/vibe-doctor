@@ -79,6 +79,18 @@
         "net": 845,
         "filesChanged": 18
       }
+    },
+    {
+      "id": "sprint-O1-interview-coverage",
+      "name": "sprint-O1-interview-coverage",
+      "status": "passed",
+      "completedAt": "2026-04-18T15:38:38.887Z",
+      "actualLoc": {
+        "added": 2,
+        "deleted": 1,
+        "net": 1,
+        "filesChanged": 1
+      }
     }
   ],
   "handoff": {
@@ -87,10 +99,10 @@
     "pendingPrompt": null,
     "lastHandoffAt": "2026-04-16T00:00:00Z",
     "nextAction": "run /vibe-init to start a new project",
-    "lastActionSummary": "Sprint sprint-N3-freeze-mode-flag completed with passed",
+    "lastActionSummary": "Sprint sprint-O1-interview-coverage completed with passed",
     "orchestratorContextBudget": "medium",
     "preferencesActive": [],
-    "updatedAt": "2026-04-17T08:55:07.338Z"
+    "updatedAt": "2026-04-18T15:38:38.887Z"
   },
   "policies": {
     "scratchpadPath": ".vibe/agent/handoff.md",
@@ -184,7 +196,10 @@
     "src/lib/review.ts",
     ".claude/skills/vibe-review/SKILL.md",
     "test/config.test.ts",
-    "test/vibe-review-inputs.test.ts"
+    "test/vibe-review-inputs.test.ts",
+    "scripts/vibe-interview.mjs",
+    "src/lib/interview.ts",
+    "test/interview-coverage.test.ts"
   ],
   "lastSprintScopeGlob": [
     "src/lib/schemas/**",
@@ -208,8 +223,8 @@
     ".claude/skills/vibe-review/SKILL.md",
     ".vibe/agent/iteration-history.json"
   ],
-  "sprintsSinceLastAudit": 1,
-  "stateUpdatedAt": "2026-04-17T08:55:07.338Z",
+  "sprintsSinceLastAudit": 2,
+  "stateUpdatedAt": "2026-04-18T15:38:38.887Z",
   "verifiedAt": null,
   "verificationCommands": []
 }

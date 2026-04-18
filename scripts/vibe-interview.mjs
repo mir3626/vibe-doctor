@@ -106,6 +106,7 @@ const DOMAIN_PROBE_MAP = [
   ['terminal', 'cli-tool.md'],
 ];
 const CROSS_DIMENSION_SIGNAL_CONFIDENCE = 0.25;
+const REQUIRED_SOFT_TERMINATE_RATIO = 0.8;
 const UNKNOWN_QUESTIONS_PLACEHOLDER =
   '[Questions were synthesized by the Orchestrator from the prior prompt; exact text was not echoed back to the engine.]';
 
@@ -503,7 +504,7 @@ function allRequiredDimensionsCovered(dimensions, coverage) {
         dimension,
         coverage[dimension.id] ?? { ratio: 0, subFields: {} },
       );
-      return ratio >= 0.5;
+      return ratio >= REQUIRED_SOFT_TERMINATE_RATIO;
     });
 }
 
@@ -538,6 +539,37 @@ function coverageSnapshot(state) {
   return Object.fromEntries(
     state.dimensions.map((dimension) => [dimension.id, state.coverage[dimension.id]?.ratio ?? 0]),
   );
+}
+
+function pendingSubFieldsForDimension(state, dimension) {
+  const dimensionCoverage = state.coverage[dimension.id] ?? { ratio: 0, subFields: {} };
+  if (dimension.subFields.length === 0) {
+    const freeForm = dimensionCoverage.subFields.free_form;
+    return freeForm && sanitizeInput(freeForm.value) !== '' ? [] : ['free_form'];
+  }
+
+  return dimension.subFields.filter((subFieldId) => {
+    const subField = dimensionCoverage.subFields[subFieldId];
+    return !subField || subFieldCoverageValue(subField) < 1;
+  });
+}
+
+function pendingDimensionSnapshot(state) {
+  if (!state.pending) {
+    return null;
+  }
+
+  const dimension = state.dimensions.find((candidate) => candidate.id === state.pending.dimensionId);
+  if (!dimension) {
+    return null;
+  }
+
+  return {
+    id: dimension.id,
+    label: dimension.label,
+    subFields: dimension.subFields,
+    pendingSubFields: pendingSubFieldsForDimension(state, dimension),
+  };
 }
 
 function renderTemplate(template, replacements) {
@@ -737,16 +769,34 @@ function ensureDimensionCoverageSlot(state, dimensionId) {
   return dimension;
 }
 
+function mergeSubFieldCoverage(existing, incoming) {
+  const deferred = Boolean(incoming.deferred);
+  if (deferred) {
+    return { value: '', confidence: 0, deferred: true };
+  }
+
+  const next = {
+    value: sanitizeInput(incoming.value ?? ''),
+    confidence: clampConfidence(Number(incoming.confidence ?? 0)),
+    deferred: false,
+  };
+
+  if (!existing || next.confidence >= clampConfidence(Number(existing.confidence ?? 0))) {
+    return next;
+  }
+
+  return existing;
+}
+
 function applyAttributionToDimension(state, dimension, attributionMap) {
   const dimensionCoverage = state.coverage[dimension.id] ?? { ratio: 0, subFields: {} };
   if (dimension.subFields.length === 0) {
     const freeForm = attributionMap.free_form;
     if (typeof freeForm === 'object' && freeForm !== null) {
-      dimensionCoverage.subFields.free_form = {
-        value: sanitizeInput(freeForm.value ?? ''),
-        confidence: clampConfidence(Number(freeForm.confidence ?? 0)),
-        deferred: Boolean(freeForm.deferred),
-      };
+      dimensionCoverage.subFields.free_form = mergeSubFieldCoverage(
+        dimensionCoverage.subFields.free_form,
+        freeForm,
+      );
     }
   } else {
     for (const subFieldId of dimension.subFields) {
@@ -755,11 +805,10 @@ function applyAttributionToDimension(state, dimension, attributionMap) {
         continue;
       }
 
-      dimensionCoverage.subFields[subFieldId] = {
-        value: sanitizeInput(incoming.value ?? ''),
-        confidence: clampConfidence(Number(incoming.confidence ?? 0)),
-        deferred: Boolean(incoming.deferred),
-      };
+      dimensionCoverage.subFields[subFieldId] = mergeSubFieldCoverage(
+        dimensionCoverage.subFields[subFieldId],
+        incoming,
+      );
     }
   }
 
@@ -776,14 +825,14 @@ function applyCrossDimensionSignals(state, signals) {
 
     const dimensionCoverage = state.coverage[dimension.id];
     if (dimension.subFields.length === 0) {
-      const existing = dimensionCoverage.subFields.free_form;
-      if (!existing || existing.value.trim() === '') {
-        dimensionCoverage.subFields.free_form = {
+      dimensionCoverage.subFields.free_form = mergeSubFieldCoverage(
+        dimensionCoverage.subFields.free_form,
+        {
           value: signal.note,
           confidence: CROSS_DIMENSION_SIGNAL_CONFIDENCE,
           deferred: false,
-        };
-      }
+        },
+      );
     } else {
       const targetSubFieldId =
         dimension.subFields.find((subFieldId) => {
@@ -792,14 +841,14 @@ function applyCrossDimensionSignals(state, signals) {
         }) ?? dimension.subFields[0];
 
       if (targetSubFieldId) {
-        const current = dimensionCoverage.subFields[targetSubFieldId];
-        if (!current || current.value.trim() === '') {
-          dimensionCoverage.subFields[targetSubFieldId] = {
+        dimensionCoverage.subFields[targetSubFieldId] = mergeSubFieldCoverage(
+          dimensionCoverage.subFields[targetSubFieldId],
+          {
             value: signal.note,
             confidence: CROSS_DIMENSION_SIGNAL_CONFIDENCE,
             deferred: false,
-          };
-        }
+          },
+        );
       }
     }
 
@@ -1154,6 +1203,7 @@ function statusCommand() {
         inferredDomain: state.inferredDomain,
         rounds: state.rounds.length,
         pendingDimensionId: state.pending?.dimensionId ?? null,
+        pendingDimension: pendingDimensionSnapshot(state),
         ambiguity: computeAmbiguity(state.dimensions, state.coverage),
         coverage: coverageSnapshot(state),
       },
