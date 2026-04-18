@@ -52,7 +52,7 @@ main.container{padding-top:90px;padding-bottom:0;padding-left:24px;padding-right
 .report-section.wrap .sprint-grid{margin-top:4px}
 .report-section.wrap .sprint-card,.report-section.wrap .milestone-row,.report-section.wrap .verification-row{background:rgba(255,255,255,0.5);border-color:rgba(60,60,67,0.1);box-shadow:inset 0 1px 0 rgba(255,255,255,0.7),0 1px 2px rgba(60,60,67,0.04)}
 .report-section.wrap .decision-groups{background:transparent;border:0;box-shadow:none;padding:0}
-.report-grid{display:grid;grid-template-columns:3fr 2fr;gap:40px;align-items:start}
+.report-grid{display:grid;grid-template-columns:1fr 1fr;gap:40px;align-items:start}
 .col-main{min-width:0}
 .col-side{min-width:0}
 .col-side .report-section{margin-top:0}
@@ -112,8 +112,9 @@ dd{margin:0;min-width:0;word-break:break-word;color:var(--secondary);font-size:1
 .decision-groups{padding:24px 28px}
 .decision-date-group{margin-top:32px}
 .decision-date-group:first-child{margin-top:0}
-.decision-date-group>h3{position:sticky;top:92px;background:rgba(250,248,244,0.92);border-bottom:1px solid var(--border);color:var(--muted);font-size:12px;font-family:"JetBrains Mono","SF Mono",Menlo,Consolas,monospace;font-weight:500;padding:10px 0;margin-bottom:12px;letter-spacing:0.06em}
-.decision-entry{display:none;grid-template-columns:56px auto minmax(0,1fr);gap:14px;align-items:start;padding:14px 0;border-bottom:1px solid var(--border)}
+.decision-date-group>h3{position:sticky;top:92px;background:transparent;border-bottom:1px solid var(--border);color:#0a0a0a;font-size:12px;font-family:"JetBrains Mono","SF Mono",Menlo,Consolas,monospace;font-weight:700;padding:10px 0;margin-bottom:12px;letter-spacing:0.06em}
+.decision-entry{display:none;grid-template-columns:76px 124px minmax(0,1fr);gap:14px;align-items:start;padding:14px 0;border-bottom:1px solid var(--border)}
+.decision-entry .status-badge{justify-content:center;width:100%}
 .decision-entry:last-child{border-bottom:0}
 .decision-entry time{color:var(--muted);font-size:12px}
 .decision-entry p{margin:0;color:var(--text);font-size:14px;line-height:1.6}
@@ -165,7 +166,7 @@ dd{margin:0;min-width:0;word-break:break-word;color:var(--secondary);font-size:1
   <h1>Product context</h1>
   <p class="subtitle">이 저장소는 **vibe-doctor** — Claude Code 오케스트레이션 기반 Sprint 개발 템플릿입니다.</p>
   <div class="meta-row" aria-label="Report metadata">
-    <span>Generated 2026-04-18 21:19:19 KST</span>
+    <span>Generated 2026-04-18 21:32:08 KST</span>
     <span>Platform: unspecified</span>
     <span>Status: <span class="status-badge" data-status="in-progress">iter-3-in-progress</span></span>
   </div>
@@ -284,7 +285,7 @@ dd{margin:0;min-width:0;word-break:break-word;color:var(--secondary);font-size:1
     <section id="next-steps" data-section="next-steps" class="report-section wrap"><div class="section-heading"><h2>Next Steps</h2></div><ol class="next-steps"><li>Continue iter-3 with the next roadmap slot.</li><li>Triage 1 open risk.</li></ol></section>
   </div>
   <aside class="col-side">
-    <section id="decisions" data-section="decisions" class="report-section wrap decisions-section"><div class="section-heading"><h2>Key Decisions</h2><span>17 entries</span></div><div class="decision-tools" aria-label="Decision filters">
+    <section id="decisions" data-section="decisions" class="report-section wrap decisions-section"><div class="section-heading"><h2>Key Decisions</h2><span>18 entries</span></div><div class="decision-tools" aria-label="Decision filters">
       <div class="filter-list" role="group" aria-label="Filter key decisions"><button class="filter-chip" type="button" data-filter="all" aria-pressed="true">All</button><button class="filter-chip" type="button" data-filter="decision" aria-pressed="false">decision</button><button class="filter-chip" type="button" data-filter="failure" aria-pressed="false">failure</button><button class="filter-chip" type="button" data-filter="sprint-complete" aria-pressed="false">sprint-complete</button><button class="filter-chip" type="button" data-filter="user-directive" aria-pressed="false">user-directive</button><button class="filter-chip" type="button" data-filter="audit" aria-pressed="false">audit</button><button class="filter-chip" type="button" data-filter="planner-skip" aria-pressed="false">planner-skip</button><button class="filter-chip" type="button" data-filter="drift-observed" aria-pressed="false">drift-observed</button></div>
       <div class="expand-actions">
         <button type="button" data-decision-action="expand">Expand all</button>
@@ -294,6 +295,10 @@ dd{margin:0;min-width:0;word-break:break-word;color:var(--secondary);font-size:1
     <div class="decision-groups" data-active-tags="decision failure sprint-complete user-directive audit planner-skip drift-observed"><section class="decision-date-group" aria-label="Decisions for 2026-04-18">
           <h3>2026-04-18</h3>
           <article class="decision-entry" data-tag="user-directive">
+                <time>10:00:00</time>
+                <span class="status-badge" data-status="idle">user-directive</span>
+                <div><details><summary>사용자 결정 B: 모든 기록 timestamp 는 UTC ISO Z 유지. Display 만 KST (Asia/Seoul) 로 변환 — project-report.html 의 fo...</summary><p>사용자 결정 B: 모든 기록 timestamp 는 UTC ISO Z 유지. Display 만 KST (Asia/Seoul) 로 변환 — project-report.html 의 formatDate / formatDateTime 한정. 이유: (1) ISO Z 가 국제 표준, (2) cross-TZ 협업 / dogfood 프로젝트 호환 유지, (3) Zod schema datetime 검증 안정. 사용자 local 경험은 display layer 로 충분.</p></details></div>
+              </article><article class="decision-entry" data-tag="user-directive">
                 <time>06:30:00</time>
                 <span class="status-badge" data-status="idle">user-directive</span>
                 <div><details><summary>project-report.html 의 backdrop-filter / ambient-glow blur 150px / mix-blend-mode 가 compositor layer...</summary><p>project-report.html 의 backdrop-filter / ambient-glow blur 150px / mix-blend-mode 가 compositor layer 폭증 유발하여 paint 무거움. 사용자가 &quot;C 로 진행&quot; = Orchestrator 직접 CSS 수정 허용 (두 번째 예외). 5 포인트 최적화: ambient-glow blur 축소, card 들의 backdrop-filter 제거 (sticky nav + sticky date header 만 유지), orb mix-blend 제거, orb animation scale 변형 제거, will-change 힌트 추가. 기대 효과: 초기 paint 수백ms → 수십ms. Core value 무관, single-file HTML 전략 유지 (Vite+React 마이그레이션 불필요).</p></details></div>
@@ -373,7 +378,7 @@ dd{margin:0;min-width:0;word-break:break-word;color:var(--secondary);font-size:1
 </div>
 </main>
 <footer class="site-footer">
-  <div class="container">Generated by vibe-doctor 1.3.1 / 2026-04-18 21:19:19 KST</div>
+  <div class="container">Generated by vibe-doctor 1.3.1 / 2026-04-18 21:32:08 KST</div>
 </footer>
 </div>
 <script>

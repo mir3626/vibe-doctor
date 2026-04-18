@@ -704,7 +704,7 @@ main.container{padding-top:90px;padding-bottom:0;padding-left:24px;padding-right
 .report-section.wrap .sprint-grid{margin-top:4px}
 .report-section.wrap .sprint-card,.report-section.wrap .milestone-row,.report-section.wrap .verification-row{background:rgba(255,255,255,0.5);border-color:rgba(60,60,67,0.1);box-shadow:inset 0 1px 0 rgba(255,255,255,0.7),0 1px 2px rgba(60,60,67,0.04)}
 .report-section.wrap .decision-groups{background:transparent;border:0;box-shadow:none;padding:0}
-.report-grid{display:grid;grid-template-columns:3fr 2fr;gap:40px;align-items:start}
+.report-grid{display:grid;grid-template-columns:1fr 1fr;gap:40px;align-items:start}
 .col-main{min-width:0}
 .col-side{min-width:0}
 .col-side .report-section{margin-top:0}
@@ -764,8 +764,9 @@ dd{margin:0;min-width:0;word-break:break-word;color:var(--secondary);font-size:1
 .decision-groups{padding:24px 28px}
 .decision-date-group{margin-top:32px}
 .decision-date-group:first-child{margin-top:0}
-.decision-date-group>h3{position:sticky;top:92px;background:rgba(250,248,244,0.92);border-bottom:1px solid var(--border);color:var(--muted);font-size:12px;font-family:"JetBrains Mono","SF Mono",Menlo,Consolas,monospace;font-weight:500;padding:10px 0;margin-bottom:12px;letter-spacing:0.06em}
-.decision-entry{display:none;grid-template-columns:56px auto minmax(0,1fr);gap:14px;align-items:start;padding:14px 0;border-bottom:1px solid var(--border)}
+.decision-date-group>h3{position:sticky;top:92px;background:transparent;border-bottom:1px solid var(--border);color:#0a0a0a;font-size:12px;font-family:"JetBrains Mono","SF Mono",Menlo,Consolas,monospace;font-weight:700;padding:10px 0;margin-bottom:12px;letter-spacing:0.06em}
+.decision-entry{display:none;grid-template-columns:76px 124px minmax(0,1fr);gap:14px;align-items:start;padding:14px 0;border-bottom:1px solid var(--border)}
+.decision-entry .status-badge{justify-content:center;width:100%}
 .decision-entry:last-child{border-bottom:0}
 .decision-entry time{color:var(--muted);font-size:12px}
 .decision-entry p{margin:0;color:var(--text);font-size:14px;line-height:1.6}
