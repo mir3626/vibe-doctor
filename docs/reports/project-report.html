@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
 <style>
-:root{color-scheme:light;--bg-0:#f1efea;--bg-1:#eae7e1;--bg-2:#e2ded7;--frame-bg:rgba(255,255,255,0.35);--text:#1c1c1e;--secondary:rgba(60,60,67,0.62);--muted:rgba(60,60,67,0.36);--border:rgba(60,60,67,0.1);--border-strong:rgba(60,60,67,0.18);--accent:#007aff;--accent-subtle:rgba(0,122,255,0.1);--glass-bg:rgba(255,255,255,0.42);--glass-bg-flat:rgba(255,255,255,0.45);--glass-highlight:inset 0 1px 0 rgba(255,255,255,0.9),inset 0 -1px 0 rgba(0,0,0,0.025);--glass-depth:0 1px 2px rgba(0,0,0,0.04),0 8px 24px rgba(0,0,0,0.06),0 24px 56px rgba(0,0,0,0.04);--complete-bg:rgba(52,199,89,0.14);--complete-text:#248a3d;--progress-bg:rgba(0,122,255,0.12);--progress-text:#0062cc;--partial-bg:rgba(255,149,0,0.14);--partial-text:#c76a00;--failed-bg:rgba(255,59,48,0.14);--failed-text:#c2271f;--idle-bg:rgba(120,120,128,0.12);--idle-text:rgba(60,60,67,0.6)}
+:root{color-scheme:light;--bg-0:#f1efea;--bg-1:#eae7e1;--bg-2:#e2ded7;--frame-bg:rgba(255,255,255,0.35);--text:#1c1c1e;--secondary:rgba(60,60,67,0.82);--muted:rgba(60,60,67,0.58);--border:rgba(60,60,67,0.1);--border-strong:rgba(60,60,67,0.18);--accent:#007aff;--accent-subtle:rgba(0,122,255,0.12);--glass-bg:rgba(255,255,255,0.44);--glass-bg-flat:rgba(255,255,255,0.5);--glass-highlight:inset 0 1px 0 rgba(255,255,255,0.9),inset 0 -1px 0 rgba(0,0,0,0.03);--glass-depth:0 1px 2px rgba(0,0,0,0.05),0 8px 24px rgba(0,0,0,0.07),0 24px 56px rgba(0,0,0,0.05);--complete-bg:rgba(52,199,89,0.18);--complete-text:#1f7a36;--progress-bg:rgba(0,122,255,0.16);--progress-text:#0057b3;--partial-bg:rgba(255,149,0,0.2);--partial-text:#aa5c00;--failed-bg:rgba(255,59,48,0.18);--failed-text:#a9211b;--idle-bg:rgba(120,120,128,0.16);--idle-text:rgba(60,60,67,0.72);--loc-add:#1f7a36;--loc-del:#a9211b;--loc-net-neutral:rgba(60,60,67,0.7)}
 *{box-sizing:border-box}
 body{margin:0;min-height:100vh;background:radial-gradient(ellipse 1100px 700px at 0% 0%,rgba(255,255,255,0.55),transparent 70%),radial-gradient(ellipse 900px 700px at 100% 0%,rgba(215,200,180,0.22),transparent 70%),radial-gradient(ellipse 1200px 800px at 50% 120%,rgba(180,170,155,0.2),transparent 70%),linear-gradient(180deg,var(--bg-0) 0%,var(--bg-1) 58%,var(--bg-2) 100%);background-attachment:fixed;color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display",Inter,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;font-size:15px;line-height:1.65;padding:0;font-variant-numeric:tabular-nums}
 a{color:var(--accent);text-decoration:none}
@@ -22,10 +22,10 @@ code,time{font-family:"JetBrains Mono","SF Mono",Menlo,Consolas,monospace;font-s
 .ambient-glow{position:fixed;pointer-events:none;width:440px;height:440px;border-radius:50%;filter:blur(80px);opacity:0.45;z-index:-1;will-change:opacity}
 .ambient-glow.one{top:-220px;left:-170px;background:radial-gradient(circle,rgba(255,240,220,0.5) 0%,transparent 68%)}
 .ambient-glow.two{bottom:-230px;right:-130px;background:radial-gradient(circle,rgba(200,190,175,0.35) 0%,transparent 70%)}
-.site-nav{position:fixed;top:16px;left:24px;right:24px;z-index:10;display:flex;align-items:center;justify-content:space-between;gap:24px;padding:10px 22px;background:rgba(255,255,255,0.22);border:1px solid var(--border);border-radius:999px;backdrop-filter:blur(22px) saturate(180%);-webkit-backdrop-filter:blur(22px) saturate(180%);box-shadow:inset 0 1px 0 rgba(255,255,255,0.8),0 1px 2px rgba(0,0,0,0.04),0 8px 24px rgba(0,0,0,0.05);will-change:transform}
+.site-nav{position:fixed;top:16px;left:24px;right:24px;z-index:10;display:flex;align-items:center;justify-content:space-between;gap:24px;padding:11px 22px;background:rgba(255,255,255,0.1);border:1px solid var(--border);border-radius:999px;backdrop-filter:blur(28px) saturate(200%);-webkit-backdrop-filter:blur(28px) saturate(200%);box-shadow:inset 0 1px 0 rgba(255,255,255,0.85),0 1px 2px rgba(0,0,0,0.03),0 8px 24px rgba(0,0,0,0.05);will-change:transform}
 .site-nav::after{content:"";position:absolute;inset:1px;border-radius:inherit;pointer-events:none;background:linear-gradient(180deg,rgba(255,255,255,0.08),transparent 42%)}
 .brand{display:flex;align-items:center;gap:12px;font-weight:600}
-.brand-name{font-size:13px;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;color:var(--text)}
+.brand-name{font-size:15px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;background:linear-gradient(135deg,#8e8e93 0%,#1c1c1e 40%,#636366 100%);-webkit-background-clip:text;background-clip:text;color:transparent}
 .orb{width:32px;height:32px;position:relative;border-radius:50%;overflow:hidden;flex-shrink:0;background:#050505;box-shadow:0 1px 3px rgba(0,0,0,0.08),0 6px 16px rgba(0,0,0,0.08),inset 0 0 0 1px rgba(0,0,0,0.06)}
 .orb-core{position:absolute;inset:-22%;border-radius:50%;background:conic-gradient(from 28deg at 48% 50%,#ff9d6c 0deg,#7b61ff 68deg,#75a7ff 132deg,#2de2e6 196deg,#f4f7ff 242deg,#b26cff 304deg,#ff9d6c 360deg);animation:orb-spin 10s linear infinite;filter:blur(1.2px) saturate(155%);transform-origin:50% 50%;will-change:transform}
 .orb-glass{position:absolute;inset:0;border-radius:50%;background:radial-gradient(circle at 28% 23%,rgba(255,255,255,0.55) 0%,rgba(255,255,255,0.22) 13%,rgba(255,255,255,0) 34%),radial-gradient(circle at 72% 76%,rgba(0,0,0,0.5) 0%,transparent 54%);opacity:0.9}
@@ -45,21 +45,25 @@ h3{font-size:16px;line-height:1.4;font-weight:600;color:var(--text);margin:0}
 .meta-row{display:flex;flex-wrap:wrap;gap:24px;font-size:13px;color:var(--muted);font-family:"JetBrains Mono","SF Mono",Menlo,Consolas,monospace}
 main.container{padding-top:90px;padding-bottom:0;padding-left:24px;padding-right:24px}
 .report-section{margin-top:80px;content-visibility:auto;contain-intrinsic-size:0 600px}
+.report-grid{display:grid;grid-template-columns:2fr 1fr;gap:40px;align-items:start}
+.col-main{min-width:0}
+.col-side{min-width:0}
+.col-side .report-section{margin-top:0}
 .section-heading{display:flex;align-items:baseline;justify-content:space-between;gap:16px;margin-bottom:24px}
 .section-heading span{color:var(--muted);font-size:13px;font-weight:500}
 .metric-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:20px}
-.metric-card,.sprint-card,.milestone-row,.verification-row,.decision-groups{background:var(--glass-bg);border:1px solid var(--border);border-radius:18px;backdrop-filter:blur(14px) saturate(180%);-webkit-backdrop-filter:blur(14px) saturate(180%);box-shadow:var(--glass-highlight),var(--glass-depth)}
+.metric-card,.sprint-card,.milestone-row,.verification-row,.decision-groups{background:var(--glass-bg);border:1px solid var(--border);border-radius:18px;box-shadow:var(--glass-highlight),var(--glass-depth)}
 .metric-card{padding:24px;transition:transform .2s ease,border-color .2s ease;position:relative;overflow:hidden}
 .metric-card:hover{transform:translateY(-2px);border-color:var(--border-strong)}
 .metric-card p{font-size:11px;font-weight:600;letter-spacing:0.15em;text-transform:uppercase;color:var(--muted);margin:0 0 16px}
 .metric-card strong{display:block;font-size:44px;line-height:1;font-weight:600;font-variant-numeric:tabular-nums;color:var(--text);margin-bottom:12px;letter-spacing:-0.02em}
 .metric-card span{color:var(--secondary);font-size:13px;font-weight:500}
-.iteration-timeline{position:relative;display:flex;gap:32px;list-style:none;margin:0;padding:24px 0 0;overflow-x:auto}
-.iteration-timeline::before{content:"";position:absolute;left:0;right:0;top:31px;border-top:1px solid var(--border-strong)}
-.timeline-item{position:relative;min-width:160px;padding-top:32px}
-.timeline-dot{position:absolute;top:5px;left:0;width:16px;height:16px;border-radius:50%;border:2px solid var(--border-strong);background:#ffffff;box-shadow:0 0 0 4px var(--bg-0),inset 0 1px 0 rgba(255,255,255,0.9)}
-.timeline-item[data-status="current"] .timeline-dot{background:var(--accent);border-color:var(--accent);box-shadow:0 0 0 4px var(--bg-1),0 0 14px rgba(0,122,255,0.4)}
-.timeline-item[data-status="complete"] .timeline-dot{background:var(--text);border-color:var(--text)}
+.iteration-timeline{position:relative;display:flex;gap:24px;list-style:none;margin:0;padding:28px 0 0;overflow-x:auto;justify-content:flex-start}
+.iteration-timeline::before{content:"";position:absolute;left:12px;right:12px;top:36px;border-top:1px dashed var(--border-strong);opacity:0.7}
+.timeline-item{position:relative;min-width:160px;padding-top:40px;text-align:center}
+.timeline-dot{position:absolute;top:16px;left:50%;transform:translateX(-50%);width:20px;height:20px;border-radius:50%;border:1px solid var(--border);background:rgba(255,255,255,0.6);box-shadow:inset 0 1px 0 rgba(255,255,255,0.95),inset 0 -1px 0 rgba(0,0,0,0.06),0 2px 4px rgba(0,0,0,0.08),0 0 0 4px var(--bg-0)}
+.timeline-item[data-status="current"] .timeline-dot{background:linear-gradient(135deg,#3396ff,#007aff);border-color:rgba(0,122,255,0.4);box-shadow:inset 0 1px 0 rgba(255,255,255,0.5),0 2px 6px rgba(0,122,255,0.35),0 0 0 4px var(--bg-0),0 0 0 5px rgba(0,122,255,0.2)}
+.timeline-item[data-status="complete"] .timeline-dot{background:linear-gradient(135deg,rgba(255,255,255,0.9),rgba(210,210,215,0.85));border-color:var(--border-strong);box-shadow:inset 0 1px 0 rgba(255,255,255,1),inset 0 -1px 0 rgba(0,0,0,0.08),0 2px 4px rgba(0,0,0,0.1),0 0 0 4px var(--bg-0)}
 .timeline-label{display:block;font-weight:600;color:var(--text);line-height:1.35;margin-bottom:4px}
 .timeline-status,.timeline-item time{display:block;color:var(--muted);font-size:13px;font-family:"JetBrains Mono","SF Mono",Menlo,Consolas,monospace}
 .sprint-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:20px}
@@ -71,12 +75,18 @@ main.container{padding-top:90px;padding-bottom:0;padding-left:24px;padding-right
 dl{display:grid;grid-template-columns:100px minmax(0,1fr);gap:8px 12px;margin:0;padding-top:16px;border-top:1px solid var(--border)}
 dt{color:var(--muted);font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:0.06em}
 dd{margin:0;min-width:0;word-break:break-word;color:var(--secondary);font-size:13px;font-family:"JetBrains Mono","SF Mono",Menlo,Consolas,monospace}
-.status-badge{display:inline-flex;align-items:center;border-radius:999px;padding:4px 10px;font-size:10px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;white-space:nowrap;border:1px solid transparent}
-.status-badge[data-status="complete"]{background:var(--complete-bg);color:var(--complete-text);border-color:rgba(52,199,89,0.32)}
-.status-badge[data-status="in-progress"]{background:var(--progress-bg);color:var(--progress-text);border-color:rgba(0,122,255,0.28)}
-.status-badge[data-status="partial"]{background:var(--partial-bg);color:var(--partial-text);border-color:rgba(255,149,0,0.32)}
-.status-badge[data-status="failed"]{background:var(--failed-bg);color:var(--failed-text);border-color:rgba(255,59,48,0.32)}
-.status-badge[data-status="idle"]{background:var(--idle-bg);color:var(--idle-text);border-color:var(--border)}
+.loc-add{color:var(--loc-add);font-weight:600}
+.loc-del{color:var(--loc-del);font-weight:600}
+.loc-net{font-weight:600}
+.loc-net.pos{color:var(--loc-add)}
+.loc-net.neg{color:var(--loc-del)}
+.loc-net.zero{color:var(--loc-net-neutral)}
+.status-badge{display:inline-flex;align-items:center;border-radius:999px;padding:4px 11px;font-size:10px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;white-space:nowrap;border:1px solid transparent;box-shadow:inset 0 1px 0 rgba(255,255,255,0.65),0 1px 2px rgba(0,0,0,0.05)}
+.status-badge[data-status="complete"]{background:linear-gradient(135deg,rgba(52,199,89,0.28),rgba(52,199,89,0.14));color:var(--complete-text);border-color:rgba(52,199,89,0.42)}
+.status-badge[data-status="in-progress"]{background:linear-gradient(135deg,rgba(0,122,255,0.26),rgba(0,122,255,0.12));color:var(--progress-text);border-color:rgba(0,122,255,0.38)}
+.status-badge[data-status="partial"]{background:linear-gradient(135deg,rgba(255,149,0,0.3),rgba(255,149,0,0.14));color:var(--partial-text);border-color:rgba(255,149,0,0.42)}
+.status-badge[data-status="failed"]{background:linear-gradient(135deg,rgba(255,59,48,0.28),rgba(255,59,48,0.14));color:var(--failed-text);border-color:rgba(255,59,48,0.42)}
+.status-badge[data-status="idle"]{background:linear-gradient(135deg,rgba(120,120,128,0.22),rgba(120,120,128,0.1));color:var(--idle-text);border-color:rgba(120,120,128,0.28)}
 .milestone-list{display:grid;gap:16px}
 .milestone-row{display:grid;grid-template-columns:minmax(0,1fr) 240px;gap:24px;align-items:center;padding:20px 24px}
 .milestone-row p{color:var(--secondary);margin:8px 0 0;font-size:14px}
@@ -88,8 +98,8 @@ dd{margin:0;min-width:0;word-break:break-word;color:var(--secondary);font-size:1
 .filter-chip{padding:6px 14px;border-radius:999px;color:var(--muted);font-size:12px;font-weight:500;background:transparent;border:1px solid var(--border);transition:all .2s ease}
 .filter-chip[aria-pressed="true"]{color:var(--text);background:var(--accent-subtle);border-color:var(--border-strong)}
 .filter-chip:hover{color:var(--text);border-color:var(--border-strong)}
-.expand-actions button{color:var(--muted);font-size:12px;font-weight:500;padding:6px 12px;border-radius:6px;transition:color .2s ease}
-.expand-actions button:hover{color:var(--text)}
+.expand-actions button{color:var(--secondary);font-size:13px;font-weight:500;padding:8px 16px;border-radius:999px;background:rgba(255,255,255,0.55);border:1px solid var(--border);box-shadow:inset 0 1px 0 rgba(255,255,255,0.8),0 1px 2px rgba(0,0,0,0.05);transition:all .2s ease}
+.expand-actions button:hover{color:var(--text);background:rgba(255,255,255,0.8);border-color:var(--border-strong)}
 .decision-groups{padding:24px 28px}
 .decision-date-group{margin-top:32px}
 .decision-date-group:first-child{margin-top:0}
@@ -109,7 +119,7 @@ dd{margin:0;min-width:0;word-break:break-word;color:var(--secondary);font-size:1
 .next-steps li::marker{color:var(--text);font-weight:600}
 .empty-state{color:var(--muted);margin:0;font-style:italic}
 .site-footer{border-top:1px solid var(--border);color:var(--muted);font-size:12px;font-family:"JetBrains Mono","SF Mono",Menlo,Consolas,monospace;padding:32px 0 16px;margin-top:80px;text-align:center}
-@media (max-width:1024px){h1{font-size:44px}.nav-anchors{display:none}}
+@media (max-width:1024px){h1{font-size:44px}.nav-anchors{display:none}.report-grid{grid-template-columns:1fr;gap:0}.col-side .report-section{margin-top:80px}}
 @media (max-width:640px){body{padding:8px}.outer-frame{padding:12px;border-radius:16px}.site-nav{padding:10px 14px;border-radius:20px;flex-wrap:wrap;gap:12px;margin-bottom:48px}.nav-meta{display:none}h1{font-size:32px}.hero{padding:32px 0 48px}.report-section{margin-top:48px}.section-heading,.decision-tools{display:block}.filter-list,.expand-actions{margin-top:16px}.milestone-row{grid-template-columns:1fr}.decision-entry{grid-template-columns:1fr;gap:8px}.decision-date-group>h3{top:80px}.metric-card strong{font-size:36px}.subtitle{font-size:15px}}
 @media (prefers-reduced-motion:reduce){.orb-core{animation:none}.metric-card,.sprint-card{transition:none}}
 @media print{body{background:#fff;color:#000;padding:0}.outer-frame{border:0;padding:0;background:none;backdrop-filter:none}.ambient-glow{display:none}.site-nav{position:static;margin-bottom:32px;border:1px solid #ccc;background:#fff;box-shadow:none;backdrop-filter:none;color:#000}.nav-anchors,.nav-meta,.skip-link,.decision-tools,.orb{display:none}.brand-name{color:#000}.metric-card,.sprint-card,.milestone-row,.verification-row,.decision-groups{background:#fff;border:1px solid #ccc;box-shadow:none;backdrop-filter:none;color:#000}.metric-card p,.metric-card span,.sprint-card>p,dt,dd,.eyebrow,.subtitle,.meta-row,.timeline-status,.timeline-item time,.next-steps li,.decision-entry p{color:#000}h1,h2,h3{color:#000}.report-section{break-inside:avoid;margin-top:32px}details:not([open])>summary{margin-bottom:8px}details:not([open])>:not(summary){display:block}.site-footer::after{content:" / " counter(page)}a::after{content:" (" attr(href) ")";color:#666;font-size:90%}}
@@ -146,12 +156,14 @@ dd{margin:0;min-width:0;word-break:break-word;color:var(--secondary);font-size:1
   <h1>Product context</h1>
   <p class="subtitle">이 저장소는 **vibe-doctor** — Claude Code 오케스트레이션 기반 Sprint 개발 템플릿입니다.</p>
   <div class="meta-row" aria-label="Report metadata">
-    <span>Generated 2026-04-18 02:01:16 UTC</span>
+    <span>Generated 2026-04-18 03:46:42 UTC</span>
     <span>Platform: unspecified</span>
     <span>Status: <span class="status-badge" data-status="in-progress">iter-3-in-progress</span></span>
   </div>
 </section>
-<section class="metric-grid" aria-label="Project metrics"><article class="metric-card">
+<div class="report-grid">
+  <div class="col-main">
+    <section class="metric-grid" aria-label="Project metrics"><article class="metric-card">
         <p>TOTAL SPRINTS</p>
         <strong>6</strong>
         <span>6 recorded</span>
@@ -168,7 +180,7 @@ dd{margin:0;min-width:0;word-break:break-word;color:var(--secondary);font-size:1
         <strong>1</strong>
         <span>1 sprints since audit</span>
       </article></section>
-<section id="iterations" data-section="iterations" class="report-section"><div class="section-heading"><h2>Iteration Timeline</h2></div><ol class="iteration-timeline" aria-label="Iteration timeline"><li class="timeline-item" data-status="current">
+    <section id="iterations" data-section="iterations" class="report-section"><div class="section-heading"><h2>Iteration Timeline</h2></div><ol class="iteration-timeline" aria-label="Iteration timeline"><li class="timeline-item" data-status="current">
         <button class="timeline-dot" type="button" aria-label="harness diet + tune-up: Negative-scope iteration. 28 uncovered rules 를 semantic cluster 단위로 재정의 + dogfood6~7 transcript retrospective 기반 S/A/B/C tier 분류 + B/C delete + Should→Must 단일방향 격상. Progressive MD Charter-first 재구조화 (§0 Charter file top + §1+ Extensions pointer). Critical bug triage (sprint-commit archive staging, auto-tag production 자기 검증 via artificial v1.4.1 bump, run-codex auto status-tick). Soft freeze posture 선언 + mode flag human/agent 2-value define-only (분기 로직은 iter-4+ defer)." title="Negative-scope iteration. 28 uncovered rules 를 semantic cluster 단위로 재정의 + dogfood6~7 transcript retrospective 기반 S/A/B/C tier 분류 + B/C delete + Should→Must 단일방향 격상. Progressive MD Charter-first 재구조화 (§0 Charter file top + §1+ Extensions pointer). Critical bug triage (sprint-commit archive staging, auto-tag production 자기 검증 via artificial v1.4.1 bump, run-codex auto status-tick). Soft freeze posture 선언 + mode flag human/agent 2-value define-only (분기 로직은 iter-4+ defer)."></button>
         <span class="timeline-label">iter-3</span>
         <span class="timeline-status">current</span>
@@ -179,14 +191,14 @@ dd{margin:0;min-width:0;word-break:break-word;color:var(--secondary);font-size:1
         <span class="timeline-status">complete</span>
         <time datetime="2026-04-17T03:50:07.756Z">2026-04-17</time>
       </li></ol></section>
-<section id="sprints" data-section="sprints" class="report-section"><div class="section-heading"><h2>Sprint Outputs</h2><span>6 sprints across 2 iterations</span></div><div class="sprint-grid"><article class="sprint-card" data-sprint-id="sprint-M-audit">
+    <section id="sprints" data-section="sprints" class="report-section"><div class="section-heading"><h2>Sprint Outputs</h2><span>6 sprints across 2 iterations</span></div><div class="sprint-grid"><article class="sprint-card" data-sprint-id="sprint-M-audit">
         <div class="card-head">
           <h3>sprint-M-audit</h3>
           <span class="status-badge" data-status="complete">passed</span>
         </div>
         <p>No goal recorded.</p>
         <dl>
-          <dt>LOC delta</dt><dd>809/-22 net 787</dd>
+          <dt>LOC delta</dt><dd><span class="loc-add">+809</span> / <span class="loc-del">-22</span> · net <span class="loc-net pos">+787</span></dd>
           <dt>Commit</dt><dd><code>n/a</code></dd>
           <dt>Completed</dt><dd><time datetime="2026-04-17T00:14:05.802Z">2026-04-17</time></dd>
         </dl>
@@ -197,7 +209,7 @@ dd{margin:0;min-width:0;word-break:break-word;color:var(--secondary);font-size:1
         </div>
         <p>No goal recorded.</p>
         <dl>
-          <dt>LOC delta</dt><dd>2241/-796 net 1445</dd>
+          <dt>LOC delta</dt><dd><span class="loc-add">+2241</span> / <span class="loc-del">-796</span> · net <span class="loc-net pos">+1445</span></dd>
           <dt>Commit</dt><dd><code>n/a</code></dd>
           <dt>Completed</dt><dd><time datetime="2026-04-17T02:52:11.931Z">2026-04-17</time></dd>
         </dl>
@@ -208,7 +220,7 @@ dd{margin:0;min-width:0;word-break:break-word;color:var(--secondary);font-size:1
         </div>
         <p>No goal recorded.</p>
         <dl>
-          <dt>LOC delta</dt><dd>1147/-109 net 1038</dd>
+          <dt>LOC delta</dt><dd><span class="loc-add">+1147</span> / <span class="loc-del">-109</span> · net <span class="loc-net pos">+1038</span></dd>
           <dt>Commit</dt><dd><code>n/a</code></dd>
           <dt>Completed</dt><dd><time datetime="2026-04-17T03:26:24.039Z">2026-04-17</time></dd>
         </dl>
@@ -219,7 +231,7 @@ dd{margin:0;min-width:0;word-break:break-word;color:var(--secondary);font-size:1
         </div>
         <p>No goal recorded.</p>
         <dl>
-          <dt>LOC delta</dt><dd>863/-52 net 811</dd>
+          <dt>LOC delta</dt><dd><span class="loc-add">+863</span> / <span class="loc-del">-52</span> · net <span class="loc-net pos">+811</span></dd>
           <dt>Commit</dt><dd><code>n/a</code></dd>
           <dt>Completed</dt><dd><time datetime="2026-04-17T07:47:15.809Z">2026-04-17</time></dd>
         </dl>
@@ -230,7 +242,7 @@ dd{margin:0;min-width:0;word-break:break-word;color:var(--secondary);font-size:1
         </div>
         <p>No goal recorded.</p>
         <dl>
-          <dt>LOC delta</dt><dd>840/-100 net 740</dd>
+          <dt>LOC delta</dt><dd><span class="loc-add">+840</span> / <span class="loc-del">-100</span> · net <span class="loc-net pos">+740</span></dd>
           <dt>Commit</dt><dd><code>n/a</code></dd>
           <dt>Completed</dt><dd><time datetime="2026-04-17T08:11:17.686Z">2026-04-17</time></dd>
         </dl>
@@ -241,98 +253,13 @@ dd{margin:0;min-width:0;word-break:break-word;color:var(--secondary);font-size:1
         </div>
         <p>No goal recorded.</p>
         <dl>
-          <dt>LOC delta</dt><dd>867/-22 net 845</dd>
+          <dt>LOC delta</dt><dd><span class="loc-add">+867</span> / <span class="loc-del">-22</span> · net <span class="loc-net pos">+845</span></dd>
           <dt>Commit</dt><dd><code>n/a</code></dd>
           <dt>Completed</dt><dd><time datetime="2026-04-17T08:55:07.338Z">2026-04-17</time></dd>
         </dl>
       </article></div></section>
-
-<section id="decisions" data-section="decisions" class="report-section"><div class="section-heading"><h2>Key Decisions</h2><span>17 entries</span></div><div class="decision-tools" aria-label="Decision filters">
-      <div class="filter-list" role="group" aria-label="Filter key decisions"><button class="filter-chip" type="button" data-filter="all" aria-pressed="true">All</button><button class="filter-chip" type="button" data-filter="decision" aria-pressed="true">decision</button><button class="filter-chip" type="button" data-filter="failure" aria-pressed="true">failure</button><button class="filter-chip" type="button" data-filter="sprint-complete" aria-pressed="true">sprint-complete</button><button class="filter-chip" type="button" data-filter="user-directive" aria-pressed="true">user-directive</button><button class="filter-chip" type="button" data-filter="audit" aria-pressed="true">audit</button><button class="filter-chip" type="button" data-filter="planner-skip" aria-pressed="true">planner-skip</button><button class="filter-chip" type="button" data-filter="drift-observed" aria-pressed="true">drift-observed</button></div>
-      <div class="expand-actions">
-        <button type="button" data-decision-action="expand">Expand all</button>
-        <button type="button" data-decision-action="collapse">Collapse all</button>
-      </div>
-    </div>
-    <div class="decision-groups" data-active-tags="decision failure sprint-complete user-directive audit planner-skip drift-observed"><section class="decision-date-group" aria-label="Decisions for 2026-04-18">
-          <h3>2026-04-18</h3>
-          <article class="decision-entry" data-tag="user-directive">
-                <time>06:30</time>
-                <span class="status-badge" data-status="idle">user-directive</span>
-                <div><details><summary>project-report.html 의 backdrop-filter / ambient-glow blur 150px / mix-blend-mode 가 compositor layer...</summary><p>project-report.html 의 backdrop-filter / ambient-glow blur 150px / mix-blend-mode 가 compositor layer 폭증 유발하여 paint 무거움. 사용자가 &quot;C 로 진행&quot; = Orchestrator 직접 CSS 수정 허용 (두 번째 예외). 5 포인트 최적화: ambient-glow blur 축소, card 들의 backdrop-filter 제거 (sticky nav + sticky date header 만 유지), orb mix-blend 제거, orb animation scale 변형 제거, will-change 힌트 추가. 기대 효과: 초기 paint 수백ms → 수십ms. Core value 무관, single-file HTML 전략 유지 (Vite+React 마이그레이션 불필요).</p></details></div>
-              </article><article class="decision-entry" data-tag="user-directive">
-                <time>05:30</time>
-                <span class="status-badge" data-status="idle">user-directive</span>
-                <div><details><summary>report.html glassmorphism/luxury redesign 은 Orchestrator(Claude) 가 직접 수정하라고 명시. scripts/vibe-project...</summary><p>report.html glassmorphism/luxury redesign 은 Orchestrator(Claude) 가 직접 수정하라고 명시. scripts/vibe-project-report.mjs 의 CSS/HTML shell 을 Codex 위임 없이 Edit 으로 재작성. 근거: (1) ref1/ref2/ref3 디자인 해석에 visual judgment 개입 필요, (2) 이전 Codex redesign 522s 의 속도-품질 trade-off 개선 시도. 이번 sprint 한정 예외 — 일반 소스코드 수정은 여전히 Codex 위임 원칙. 추가 directive: 주요 색상 grayscale (gray/white) 유지, iridescent orb 와 status badge tint 만 예외. iter-3 freeze posture 위반 아님 (downstream style patch, core value 무관).</p></details></div>
-              </article>
-        </section><section class="decision-date-group" aria-label="Decisions for 2026-04-17">
-          <h3>2026-04-17</h3>
-          <article class="decision-entry" data-tag="planner-skip">
-                <time>17:30</time>
-                <span class="status-badge" data-status="idle">planner-skip</span>
-                <div><details><summary>sprint=run-codex-windows-sandbox-skip reason=run-codex.sh Windows OS 감지 시 sandbox verify skip 헤더 pre...</summary><p>sprint=run-codex-windows-sandbox-skip reason=run-codex.sh Windows OS 감지 시 sandbox verify skip 헤더 prepend. 기존 _common-rules.md prepend 패턴 계승. 아키텍처 변동 없음. AC 3항목 기계 검증.</p></details></div>
-              </article><article class="decision-entry" data-tag="planner-skip">
-                <time>17:08</time>
-                <span class="status-badge" data-status="idle">planner-skip</span>
-                <div><p>sprint=statusline-format-tune reason=소모시간 두번째로 이동 + 에이전트 토큰 이모티콘 뒤에 이름 기입. 직전 iter-3.2 패턴 계승 + 아키텍처 변동 없음 + AC 3항목 기계 검증 가능.</p></div>
-              </article><article class="decision-entry" data-tag="planner-skip">
-                <time>15:23</time>
-                <span class="status-badge" data-status="idle">planner-skip</span>
-                <div><details><summary>sprint=statusline-agent-emoji-patch reason=trivial exception 3조건 충족: patch-level statusline UX 개선 (a...</summary><p>sprint=statusline-agent-emoji-patch reason=trivial exception 3조건 충족: patch-level statusline UX 개선 (agent-tracking + emoji). 아키텍처 변동 없음, 체크리스트 3항목 기계 검증 가능 (tsc/test/render smoke).</p></details></div>
-              </article><article class="decision-entry" data-tag="sprint-complete">
-                <time>08:55</time>
-                <span class="status-badge" data-status="complete">sprint-complete</span>
-                <div><p>sprint-N3-freeze-mode-flag -&gt; passed. Sprint sprint-N3-freeze-mode-flag completed with passed LOC +867/-22 (net +845)</p></div>
-              </article><article class="decision-entry" data-tag="audit">
-                <time>08:29</time>
-                <span class="status-badge" data-status="idle">audit</span>
-                <div><details><summary>resolved=1 note=Evaluator (첫 소환, iter-3 milestone) audit completed: verdict=partial, blocking=0. 12/...</summary><p>resolved=1 note=Evaluator (첫 소환, iter-3 milestone) audit completed: verdict=partial, blocking=0. 12/12 checks reviewed, 10 pass + 2 partial (dangling refs). Non-blocking findings resolved via Codex cleanup (README, product.md, qa.md, re-incarnation.md). N1 evidence-based rule audit + dogfood6~7 retrospective scan was the de-facto heavyweight audit for this cadence cycle.</p></details></div>
-              </article><article class="decision-entry" data-tag="sprint-complete">
-                <time>08:11</time>
-                <span class="status-badge" data-status="complete">sprint-complete</span>
-                <div><p>sprint-N2-critical-bug-triage -&gt; passed. Sprint sprint-N2-critical-bug-triage completed with passed LOC +840/-100 (net +740)</p></div>
-              </article><article class="decision-entry" data-tag="sprint-complete">
-                <time>07:47</time>
-                <span class="status-badge" data-status="complete">sprint-complete</span>
-                <div><p>sprint-N1-rule-audit-diet -&gt; passed. Sprint sprint-N1-rule-audit-diet completed with passed LOC +863/-52 (net +811)</p></div>
-              </article><article class="decision-entry" data-tag="decision">
-                <time>06:59</time>
-                <span class="status-badge" data-status="idle">decision</span>
-                <div><details><summary>[iter-3-kickoff] /vibe-iterate Phase 1~3 완료. Differential Interview 7 rounds (ambiguity terminate)....</summary><p>[iter-3-kickoff] /vibe-iterate Phase 1~3 완료. Differential Interview 7 rounds (ambiguity terminate). 핵심 결정: (1) 28 rules 를 semantic cluster 단위로 재정의 + dogfood6~7 transcript retrospective 재스캔 기반 S/A/B/C tier 분류 + B/C delete + Should→Must 단일방향 격상. (2) Progressive MD — CLAUDE.md §0 Charter (file top) + §1+ Extensions pointer 재구조화. trigger matrix + wiring checklist + role 호출 표까지 Charter 포함 (agent self-containment). (3) Critical bug triage — sprint-commit archive staging + auto-tag production 검증 via artificial v1.4.1 bump + run-codex auto status-tick hook. (4) Soft freeze + mode flag human/agent 2-value define-only (분기 로직은 iter-4+ defer). Priority a&gt;b&gt;c&gt;d. Growth budget: net +150 LOC / iter, 0 new scripts. Validation: Windows + macOS. Artifacts .vibe/audit/iter-3/ 격리. Core values 절대 보존. dogfood8 인계 프롬프트 작성 필수.</p></details></div>
-              </article><article class="decision-entry" data-tag="decision">
-                <time>03:50</time>
-                <span class="status-badge" data-status="idle">decision</span>
-                <div><details><summary>[iteration-2-closure] iteration-2 (v1.4.0) 3 sprints 완료: M-audit(bc8f90f) + M-process-discipline(20a...</summary><p>[iteration-2-closure] iteration-2 (v1.4.0) 3 sprints 완료: M-audit(bc8f90f) + M-process-discipline(20a612e) + M-harness-gates(4d9a002). harnessVersion 1.3.1→1.4.0 bump + iteration-history.json iter-2 entry append + v1.4.0 annotated tag 수동 생성. auto-tag 로직 production 검증은 다음 harness bump 시 자연 발생 예정. 27 uncovered rules(vibe-rule-audit) + gap-review-catch-wiring-drift는 iteration-3 candidate.</p></details></div>
-              </article><article class="decision-entry" data-tag="sprint-complete">
-                <time>03:26</time>
-                <span class="status-badge" data-status="complete">sprint-complete</span>
-                <div><p>sprint-M-harness-gates -&gt; passed. Sprint sprint-M-harness-gates completed with passed LOC +1147/-109 (net +1038)</p></div>
-              </article><article class="decision-entry" data-tag="sprint-complete">
-                <time>02:52</time>
-                <span class="status-badge" data-status="complete">sprint-complete</span>
-                <div><p>sprint-M-process-discipline -&gt; passed. Sprint sprint-M-process-discipline completed with passed LOC +2241/-796 (net +1445)</p></div>
-              </article><article class="decision-entry" data-tag="decision">
-                <time>00:14</time>
-                <span class="status-badge" data-status="idle">decision</span>
-                <div><details><summary>[m-audit-codex-fix] Codex 1차 위임 후 tsc 에러 4개 + 테스트 3개 실패. 원인: (1) 기존 테스트-Zod 타입 불일치, (2) Zod parse가 m...</summary><p>[m-audit-codex-fix] Codex 1차 위임 후 tsc 에러 4개 + 테스트 3개 실패. 원인: (1) 기존 테스트-Zod 타입 불일치, (2) Zod parse가 manual schemaVersion 체크보다 먼저 fail, (3) runLightweightAudit가 alreadyClosed에서도 실행. 2회 추가 Codex 위임으로 fix. total Codex tokens: 444K.</p></details></div>
-              </article><article class="decision-entry" data-tag="sprint-complete">
-                <time>00:14</time>
-                <span class="status-badge" data-status="complete">sprint-complete</span>
-                <div><p>sprint-M-audit -&gt; passed. Sprint sprint-M-audit completed with passed LOC +809/-22 (net +787)</p></div>
-              </article>
-        </section><section class="decision-date-group" aria-label="Decisions for 2026-04-16">
-          <h3>2026-04-16</h3>
-          <article class="decision-entry" data-tag="decision">
-                <time>&lt;iter</time>
-                <span class="status-badge" data-status="idle">decision</span>
-                <div><details><summary>dogfood7 /vibe-review (review-10-2026-04-16.md) 흡수 후 iteration-2 roadmap 시드 (3 slot: M-audit / M-pro...</summary><p>dogfood7 /vibe-review (review-10-2026-04-16.md) 흡수 후 iteration-2 roadmap 시드 (3 slot: M-audit / M-process-discipline / M-harness-gates). 사용자가 자율모드 아님 + 각 Sprint 시작 전 승인 + Zod v3 런타임 dep + planner.md → sprint-planner.md 교체 + §14 Wiring Checklist 전부 승인. dogfood7 review 의 M-spec-fix / M-arch-reconcile 은 project 이슈로 분리 — dogfood8 phase 0 seed 로 이월.</p></details></div>
-              </article><article class="decision-entry" data-tag="decision">
-                <time>&lt;m-au</time>
-                <span class="status-badge" data-status="idle">decision</span>
-                <div><details><summary>M-audit Planner (opus) 소환 산출 = docs/prompts/sprint-M-audit.md (724 lines). Codex 위임 직전 사용자 세션 종료 요청....</summary><p>M-audit Planner (opus) 소환 산출 = docs/prompts/sprint-M-audit.md (724 lines). Codex 위임 직전 사용자 세션 종료 요청. Codex 중간 산출 (schemas/ + audit-lightweight + migration 1.4.0 등) 은 zod 미설치 + implicit any 다수로 revert 완료. 재시작 시 sprint-M-audit.md 가 커밋된 상태에서 바로 `cat docs/prompts/sprint-M-audit.md | ./scripts/run-codex.sh -` 재위임 가능.</p></details></div>
-              </article>
-        </section></div></section>
-<section id="verification" data-section="verification" class="report-section"><div class="section-heading"><h2>Verification Status</h2></div><div class="verification-list"><article class="verification-row">
+    
+    <section id="verification" data-section="verification" class="report-section"><div class="section-heading"><h2>Verification Status</h2></div><div class="verification-list"><article class="verification-row">
         <code>typecheck</code>
         <span class="status-badge" data-status="idle">idle</span>
         <span>tsc -p tsconfig.json --noEmit</span>
@@ -345,10 +272,99 @@ dd{margin:0;min-width:0;word-break:break-word;color:var(--secondary);font-size:1
         <span class="status-badge" data-status="idle">idle</span>
         <span>tsc -p tsconfig.json</span>
       </article></div></section>
-<section id="next-steps" data-section="next-steps" class="report-section"><div class="section-heading"><h2>Next Steps</h2></div><ol class="next-steps"><li>Continue iter-3 with the next roadmap slot.</li><li>Triage 1 open risk.</li></ol></section>
+    <section id="next-steps" data-section="next-steps" class="report-section"><div class="section-heading"><h2>Next Steps</h2></div><ol class="next-steps"><li>Continue iter-3 with the next roadmap slot.</li><li>Triage 1 open risk.</li></ol></section>
+  </div>
+  <aside class="col-side">
+    <section id="decisions" data-section="decisions" class="report-section decisions-section"><div class="section-heading"><h2>Key Decisions</h2><span>17 entries</span></div><div class="decision-tools" aria-label="Decision filters">
+      <div class="filter-list" role="group" aria-label="Filter key decisions"><button class="filter-chip" type="button" data-filter="all" aria-pressed="true">All</button><button class="filter-chip" type="button" data-filter="decision" aria-pressed="false">decision</button><button class="filter-chip" type="button" data-filter="failure" aria-pressed="false">failure</button><button class="filter-chip" type="button" data-filter="sprint-complete" aria-pressed="false">sprint-complete</button><button class="filter-chip" type="button" data-filter="user-directive" aria-pressed="false">user-directive</button><button class="filter-chip" type="button" data-filter="audit" aria-pressed="false">audit</button><button class="filter-chip" type="button" data-filter="planner-skip" aria-pressed="false">planner-skip</button><button class="filter-chip" type="button" data-filter="drift-observed" aria-pressed="false">drift-observed</button></div>
+      <div class="expand-actions">
+        <button type="button" data-decision-action="expand">Expand all</button>
+        <button type="button" data-decision-action="collapse">Collapse all</button>
+      </div>
+    </div>
+    <div class="decision-groups" data-active-tags="decision failure sprint-complete user-directive audit planner-skip drift-observed"><section class="decision-date-group" aria-label="Decisions for 2026-04-18">
+          <h3>2026-04-18</h3>
+          <article class="decision-entry" data-tag="user-directive">
+                <time>06:30:00</time>
+                <span class="status-badge" data-status="idle">user-directive</span>
+                <div><details><summary>project-report.html 의 backdrop-filter / ambient-glow blur 150px / mix-blend-mode 가 compositor layer...</summary><p>project-report.html 의 backdrop-filter / ambient-glow blur 150px / mix-blend-mode 가 compositor layer 폭증 유발하여 paint 무거움. 사용자가 &quot;C 로 진행&quot; = Orchestrator 직접 CSS 수정 허용 (두 번째 예외). 5 포인트 최적화: ambient-glow blur 축소, card 들의 backdrop-filter 제거 (sticky nav + sticky date header 만 유지), orb mix-blend 제거, orb animation scale 변형 제거, will-change 힌트 추가. 기대 효과: 초기 paint 수백ms → 수십ms. Core value 무관, single-file HTML 전략 유지 (Vite+React 마이그레이션 불필요).</p></details></div>
+              </article><article class="decision-entry" data-tag="user-directive">
+                <time>05:30:00</time>
+                <span class="status-badge" data-status="idle">user-directive</span>
+                <div><details><summary>report.html glassmorphism/luxury redesign 은 Orchestrator(Claude) 가 직접 수정하라고 명시. scripts/vibe-project...</summary><p>report.html glassmorphism/luxury redesign 은 Orchestrator(Claude) 가 직접 수정하라고 명시. scripts/vibe-project-report.mjs 의 CSS/HTML shell 을 Codex 위임 없이 Edit 으로 재작성. 근거: (1) ref1/ref2/ref3 디자인 해석에 visual judgment 개입 필요, (2) 이전 Codex redesign 522s 의 속도-품질 trade-off 개선 시도. 이번 sprint 한정 예외 — 일반 소스코드 수정은 여전히 Codex 위임 원칙. 추가 directive: 주요 색상 grayscale (gray/white) 유지, iridescent orb 와 status badge tint 만 예외. iter-3 freeze posture 위반 아님 (downstream style patch, core value 무관).</p></details></div>
+              </article>
+        </section><section class="decision-date-group" aria-label="Decisions for 2026-04-17">
+          <h3>2026-04-17</h3>
+          <article class="decision-entry" data-tag="planner-skip">
+                <time>17:30:38</time>
+                <span class="status-badge" data-status="idle">planner-skip</span>
+                <div><details><summary>sprint=run-codex-windows-sandbox-skip reason=run-codex.sh Windows OS 감지 시 sandbox verify skip 헤더 pre...</summary><p>sprint=run-codex-windows-sandbox-skip reason=run-codex.sh Windows OS 감지 시 sandbox verify skip 헤더 prepend. 기존 _common-rules.md prepend 패턴 계승. 아키텍처 변동 없음. AC 3항목 기계 검증.</p></details></div>
+              </article><article class="decision-entry" data-tag="planner-skip">
+                <time>17:08:21</time>
+                <span class="status-badge" data-status="idle">planner-skip</span>
+                <div><p>sprint=statusline-format-tune reason=소모시간 두번째로 이동 + 에이전트 토큰 이모티콘 뒤에 이름 기입. 직전 iter-3.2 패턴 계승 + 아키텍처 변동 없음 + AC 3항목 기계 검증 가능.</p></div>
+              </article><article class="decision-entry" data-tag="planner-skip">
+                <time>15:23:39</time>
+                <span class="status-badge" data-status="idle">planner-skip</span>
+                <div><details><summary>sprint=statusline-agent-emoji-patch reason=trivial exception 3조건 충족: patch-level statusline UX 개선 (a...</summary><p>sprint=statusline-agent-emoji-patch reason=trivial exception 3조건 충족: patch-level statusline UX 개선 (agent-tracking + emoji). 아키텍처 변동 없음, 체크리스트 3항목 기계 검증 가능 (tsc/test/render smoke).</p></details></div>
+              </article><article class="decision-entry" data-tag="sprint-complete">
+                <time>08:55:07</time>
+                <span class="status-badge" data-status="complete">sprint-complete</span>
+                <div><p>sprint-N3-freeze-mode-flag -&gt; passed. Sprint sprint-N3-freeze-mode-flag completed with passed LOC +867/-22 (net +845)</p></div>
+              </article><article class="decision-entry" data-tag="audit">
+                <time>08:29:44</time>
+                <span class="status-badge" data-status="idle">audit</span>
+                <div><details><summary>resolved=1 note=Evaluator (첫 소환, iter-3 milestone) audit completed: verdict=partial, blocking=0. 12/...</summary><p>resolved=1 note=Evaluator (첫 소환, iter-3 milestone) audit completed: verdict=partial, blocking=0. 12/12 checks reviewed, 10 pass + 2 partial (dangling refs). Non-blocking findings resolved via Codex cleanup (README, product.md, qa.md, re-incarnation.md). N1 evidence-based rule audit + dogfood6~7 retrospective scan was the de-facto heavyweight audit for this cadence cycle.</p></details></div>
+              </article><article class="decision-entry" data-tag="sprint-complete">
+                <time>08:11:17</time>
+                <span class="status-badge" data-status="complete">sprint-complete</span>
+                <div><p>sprint-N2-critical-bug-triage -&gt; passed. Sprint sprint-N2-critical-bug-triage completed with passed LOC +840/-100 (net +740)</p></div>
+              </article><article class="decision-entry" data-tag="sprint-complete">
+                <time>07:47:15</time>
+                <span class="status-badge" data-status="complete">sprint-complete</span>
+                <div><p>sprint-N1-rule-audit-diet -&gt; passed. Sprint sprint-N1-rule-audit-diet completed with passed LOC +863/-52 (net +811)</p></div>
+              </article><article class="decision-entry" data-tag="decision">
+                <time>06:59:41</time>
+                <span class="status-badge" data-status="idle">decision</span>
+                <div><details><summary>[iter-3-kickoff] /vibe-iterate Phase 1~3 완료. Differential Interview 7 rounds (ambiguity terminate)....</summary><p>[iter-3-kickoff] /vibe-iterate Phase 1~3 완료. Differential Interview 7 rounds (ambiguity terminate). 핵심 결정: (1) 28 rules 를 semantic cluster 단위로 재정의 + dogfood6~7 transcript retrospective 재스캔 기반 S/A/B/C tier 분류 + B/C delete + Should→Must 단일방향 격상. (2) Progressive MD — CLAUDE.md §0 Charter (file top) + §1+ Extensions pointer 재구조화. trigger matrix + wiring checklist + role 호출 표까지 Charter 포함 (agent self-containment). (3) Critical bug triage — sprint-commit archive staging + auto-tag production 검증 via artificial v1.4.1 bump + run-codex auto status-tick hook. (4) Soft freeze + mode flag human/agent 2-value define-only (분기 로직은 iter-4+ defer). Priority a&gt;b&gt;c&gt;d. Growth budget: net +150 LOC / iter, 0 new scripts. Validation: Windows + macOS. Artifacts .vibe/audit/iter-3/ 격리. Core values 절대 보존. dogfood8 인계 프롬프트 작성 필수.</p></details></div>
+              </article><article class="decision-entry" data-tag="decision">
+                <time>03:50:07</time>
+                <span class="status-badge" data-status="idle">decision</span>
+                <div><details><summary>[iteration-2-closure] iteration-2 (v1.4.0) 3 sprints 완료: M-audit(bc8f90f) + M-process-discipline(20a...</summary><p>[iteration-2-closure] iteration-2 (v1.4.0) 3 sprints 완료: M-audit(bc8f90f) + M-process-discipline(20a612e) + M-harness-gates(4d9a002). harnessVersion 1.3.1→1.4.0 bump + iteration-history.json iter-2 entry append + v1.4.0 annotated tag 수동 생성. auto-tag 로직 production 검증은 다음 harness bump 시 자연 발생 예정. 27 uncovered rules(vibe-rule-audit) + gap-review-catch-wiring-drift는 iteration-3 candidate.</p></details></div>
+              </article><article class="decision-entry" data-tag="sprint-complete">
+                <time>03:26:24</time>
+                <span class="status-badge" data-status="complete">sprint-complete</span>
+                <div><p>sprint-M-harness-gates -&gt; passed. Sprint sprint-M-harness-gates completed with passed LOC +1147/-109 (net +1038)</p></div>
+              </article><article class="decision-entry" data-tag="sprint-complete">
+                <time>02:52:11</time>
+                <span class="status-badge" data-status="complete">sprint-complete</span>
+                <div><p>sprint-M-process-discipline -&gt; passed. Sprint sprint-M-process-discipline completed with passed LOC +2241/-796 (net +1445)</p></div>
+              </article><article class="decision-entry" data-tag="decision">
+                <time>00:14:16</time>
+                <span class="status-badge" data-status="idle">decision</span>
+                <div><details><summary>[m-audit-codex-fix] Codex 1차 위임 후 tsc 에러 4개 + 테스트 3개 실패. 원인: (1) 기존 테스트-Zod 타입 불일치, (2) Zod parse가 m...</summary><p>[m-audit-codex-fix] Codex 1차 위임 후 tsc 에러 4개 + 테스트 3개 실패. 원인: (1) 기존 테스트-Zod 타입 불일치, (2) Zod parse가 manual schemaVersion 체크보다 먼저 fail, (3) runLightweightAudit가 alreadyClosed에서도 실행. 2회 추가 Codex 위임으로 fix. total Codex tokens: 444K.</p></details></div>
+              </article><article class="decision-entry" data-tag="sprint-complete">
+                <time>00:14:05</time>
+                <span class="status-badge" data-status="complete">sprint-complete</span>
+                <div><p>sprint-M-audit -&gt; passed. Sprint sprint-M-audit completed with passed LOC +809/-22 (net +787)</p></div>
+              </article>
+        </section><section class="decision-date-group" aria-label="Decisions for 2026-04-16">
+          <h3>2026-04-16</h3>
+          <article class="decision-entry" data-tag="decision">
+                <time>&lt;iter-2-</time>
+                <span class="status-badge" data-status="idle">decision</span>
+                <div><details><summary>dogfood7 /vibe-review (review-10-2026-04-16.md) 흡수 후 iteration-2 roadmap 시드 (3 slot: M-audit / M-pro...</summary><p>dogfood7 /vibe-review (review-10-2026-04-16.md) 흡수 후 iteration-2 roadmap 시드 (3 slot: M-audit / M-process-discipline / M-harness-gates). 사용자가 자율모드 아님 + 각 Sprint 시작 전 승인 + Zod v3 런타임 dep + planner.md → sprint-planner.md 교체 + §14 Wiring Checklist 전부 승인. dogfood7 review 의 M-spec-fix / M-arch-reconcile 은 project 이슈로 분리 — dogfood8 phase 0 seed 로 이월.</p></details></div>
+              </article><article class="decision-entry" data-tag="decision">
+                <time>&lt;m-audit</time>
+                <span class="status-badge" data-status="idle">decision</span>
+                <div><details><summary>M-audit Planner (opus) 소환 산출 = docs/prompts/sprint-M-audit.md (724 lines). Codex 위임 직전 사용자 세션 종료 요청....</summary><p>M-audit Planner (opus) 소환 산출 = docs/prompts/sprint-M-audit.md (724 lines). Codex 위임 직전 사용자 세션 종료 요청. Codex 중간 산출 (schemas/ + audit-lightweight + migration 1.4.0 등) 은 zod 미설치 + implicit any 다수로 revert 완료. 재시작 시 sprint-M-audit.md 가 커밋된 상태에서 바로 `cat docs/prompts/sprint-M-audit.md | ./scripts/run-codex.sh -` 재위임 가능.</p></details></div>
+              </article>
+        </section></div></section>
+  </aside>
+</div>
 </main>
 <footer class="site-footer">
-  <div class="container">Generated by vibe-doctor 1.3.1 / 2026-04-18 02:01:16 UTC</div>
+  <div class="container">Generated by vibe-doctor 1.3.1 / 2026-04-18 03:46:42 UTC</div>
 </footer>
 </div>
 <script>
@@ -357,24 +373,28 @@ dd{margin:0;min-width:0;word-break:break-word;color:var(--secondary);font-size:1
   if (!groups) return;
   const filters = Array.from(document.querySelectorAll('[data-filter]'));
   const tags = ["decision","failure","sprint-complete","user-directive","audit","planner-skip","drift-observed"];
-  const sync = (active) => {
-    const next = active.length === 0 ? tags : active;
-    groups.dataset.activeTags = next.join(' ');
-    for (const button of filters) {
-      const filter = button.dataset.filter;
-      button.setAttribute('aria-pressed', filter === 'all' ? String(next.length === tags.length) : String(next.includes(filter)));
-    }
+  const allBtn = filters.find((b) => b.dataset.filter === 'all');
+  const others = filters.filter((b) => b.dataset.filter !== 'all');
+  const showAll = () => {
+    groups.dataset.activeTags = tags.join(' ');
+    if (allBtn) allBtn.setAttribute('aria-pressed', 'true');
+    for (const b of others) b.setAttribute('aria-pressed', 'false');
   };
-  for (const button of filters) {
-    button.addEventListener('click', () => {
-      if (button.dataset.filter === 'all') {
-        sync(tags);
-        return;
-      }
-      const current = new Set((groups.dataset.activeTags || '').split(/\s+/).filter(Boolean));
-      if (current.has(button.dataset.filter)) current.delete(button.dataset.filter);
-      else current.add(button.dataset.filter);
-      sync(Array.from(current).filter((tag) => tags.includes(tag)));
+  const applyIndividual = () => {
+    const active = others.filter((b) => b.getAttribute('aria-pressed') === 'true').map((b) => b.dataset.filter);
+    if (active.length === 0 || active.length === others.length) {
+      showAll();
+      return;
+    }
+    if (allBtn) allBtn.setAttribute('aria-pressed', 'false');
+    groups.dataset.activeTags = active.join(' ');
+  };
+  if (allBtn) allBtn.addEventListener('click', () => showAll());
+  for (const b of others) {
+    b.addEventListener('click', () => {
+      const cur = b.getAttribute('aria-pressed') === 'true';
+      b.setAttribute('aria-pressed', cur ? 'false' : 'true');
+      applyIndividual();
     });
   }
   for (const button of document.querySelectorAll('[data-decision-action]')) {

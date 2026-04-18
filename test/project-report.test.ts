@@ -250,8 +250,9 @@ describe('project report', () => {
     });
 
     assert.match(result.html, /data-active-tags="decision failure sprint-complete user-directive audit planner-skip drift-observed"/);
-    assert.match(result.html, /data-filter="planner-skip" aria-pressed="true"/);
-    assert.match(result.html, /data-filter="failure" aria-pressed="true"/);
+    assert.match(result.html, /data-filter="all" aria-pressed="true"/);
+    assert.match(result.html, /data-filter="planner-skip" aria-pressed="false"/);
+    assert.match(result.html, /data-filter="failure" aria-pressed="false"/);
     assert.match(result.html, /data-decision-action="expand"/);
     assert.match(result.html, /data-decision-action="collapse"/);
     assert.match(result.html, /<details><summary>this is a deliberately long verification failure entry/);
