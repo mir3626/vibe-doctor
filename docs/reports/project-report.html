@@ -20,7 +20,7 @@ code,time{font-family:"JetBrains Mono","SF Mono",Menlo,Consolas,monospace;font-s
 .skip-link:focus{transform:translateY(0)}
 .outer-frame{border:0;border-radius:0;padding:0;min-height:100vh;background:transparent;position:relative;overflow:visible}
 .ambient-glow{display:none}
-.site-nav{position:fixed;top:16px;left:24px;right:24px;z-index:10;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:24px;padding:11px 22px;background:transparent;border:1px solid var(--border);border-radius:999px;backdrop-filter:blur(28px) saturate(200%);-webkit-backdrop-filter:blur(28px) saturate(200%);box-shadow:inset 0 1px 0 rgba(255,255,255,0.85),0 1px 2px rgba(0,0,0,0.03),0 8px 24px rgba(0,0,0,0.05);will-change:transform}
+.site-nav{position:fixed;top:16px;left:50%;transform:translateX(-50%);width:calc(100% - 48px);max-width:1552px;z-index:10;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:24px;padding:11px 22px;background:transparent;border:1px solid var(--border);border-radius:999px;backdrop-filter:blur(60px) saturate(100%);-webkit-backdrop-filter:blur(60px) saturate(100%);box-shadow:inset 0 1px 0 rgba(255,255,255,0.85),0 1px 2px rgba(0,0,0,0.03),0 8px 24px rgba(0,0,0,0.05);will-change:transform}
 .site-nav .brand{justify-self:start}
 .site-nav .nav-anchors{justify-self:center}
 .site-nav .nav-meta{justify-self:end}
@@ -46,14 +46,19 @@ h3{font-size:16px;line-height:1.4;font-weight:600;color:var(--text);margin:0}
 .meta-row{display:flex;flex-wrap:wrap;align-items:center;gap:12px 24px;font-size:13px;color:var(--muted);font-family:"JetBrains Mono","SF Mono",Menlo,Consolas,monospace}
 .meta-row>span{display:inline-flex;align-items:center;gap:8px}
 main.container{padding-top:90px;padding-bottom:0;padding-left:24px;padding-right:24px}
-.report-section{margin-top:80px;scroll-margin-top:96px;content-visibility:auto;contain-intrinsic-size:0 600px}
+.report-section{margin-top:56px;scroll-margin-top:96px;content-visibility:auto;contain-intrinsic-size:0 600px}
+.report-section.wrap{padding:32px;border-radius:20px;background:linear-gradient(135deg,rgba(245,245,247,0.58) 0%,rgba(220,220,225,0.42) 50%,rgba(200,200,205,0.46) 100%);border:1px solid rgba(160,160,170,0.22);box-shadow:inset 0 1px 0 rgba(255,255,255,0.85),inset 0 -1px 0 rgba(0,0,0,0.04),0 1px 2px rgba(60,60,67,0.06),0 6px 20px rgba(60,60,67,0.06)}
+.report-section.wrap .section-heading{margin-bottom:20px}
+.report-section.wrap .sprint-grid{margin-top:4px}
+.report-section.wrap .sprint-card,.report-section.wrap .milestone-row,.report-section.wrap .verification-row{background:rgba(255,255,255,0.5);border-color:rgba(60,60,67,0.1);box-shadow:inset 0 1px 0 rgba(255,255,255,0.7),0 1px 2px rgba(60,60,67,0.04)}
+.report-section.wrap .decision-groups{background:transparent;border:0;box-shadow:none;padding:0}
 .report-grid{display:grid;grid-template-columns:3fr 2fr;gap:40px;align-items:start}
 .col-main{min-width:0}
 .col-side{min-width:0}
 .col-side .report-section{margin-top:0}
 .section-heading{display:flex;align-items:baseline;justify-content:space-between;gap:16px;margin-bottom:24px}
 .section-heading span{color:var(--muted);font-size:13px;font-weight:500}
-.metric-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:20px}
+.metric-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:20px}
 .metric-card,.sprint-card,.milestone-row,.verification-row,.decision-groups{background:var(--glass-bg);border:1px solid var(--border);border-radius:18px;box-shadow:var(--glass-highlight),var(--glass-depth)}
 .metric-card{padding:24px;transition:transform .2s ease,border-color .2s ease;position:relative;overflow:hidden}
 .metric-card:hover{transform:translateY(-2px);border-color:var(--border-strong)}
@@ -123,7 +128,7 @@ dd{margin:0;min-width:0;word-break:break-word;color:var(--secondary);font-size:1
 .next-steps li::marker{color:var(--text);font-weight:600}
 .empty-state{color:var(--muted);margin:0;font-style:italic}
 .site-footer{border-top:1px solid var(--border);color:var(--muted);font-size:12px;font-family:"JetBrains Mono","SF Mono",Menlo,Consolas,monospace;padding:32px 0 16px;margin-top:80px;text-align:center}
-@media (max-width:1024px){h1{font-size:44px}.nav-anchors{display:none}.report-grid{grid-template-columns:1fr;gap:0}.col-side .report-section{margin-top:80px}}
+@media (max-width:1024px){h1{font-size:44px}.nav-anchors{display:none}.report-grid{grid-template-columns:1fr;gap:0}.col-side .report-section{margin-top:80px}.metric-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (max-width:640px){body{padding:8px}.outer-frame{padding:12px;border-radius:16px}.site-nav{padding:10px 14px;border-radius:20px;flex-wrap:wrap;gap:12px;margin-bottom:48px}.nav-meta{display:none}h1{font-size:32px}.hero{padding:32px 0 48px}.report-section{margin-top:48px}.section-heading,.decision-tools{display:block}.filter-list,.expand-actions{margin-top:16px}.milestone-row{grid-template-columns:1fr}.decision-entry{grid-template-columns:1fr;gap:8px}.decision-date-group>h3{top:80px}.metric-card strong{font-size:36px}.subtitle{font-size:15px}}
 @media (prefers-reduced-motion:reduce){.orb-core{animation:none}.metric-card,.sprint-card{transition:none}}
 @media print{body{background:#fff;color:#000;padding:0}.outer-frame{border:0;padding:0;background:none;backdrop-filter:none}.ambient-glow{display:none}.site-nav{position:static;margin-bottom:32px;border:1px solid #ccc;background:#fff;box-shadow:none;backdrop-filter:none;color:#000}.nav-anchors,.nav-meta,.skip-link,.decision-tools,.orb{display:none}.brand-name{color:#000}.metric-card,.sprint-card,.milestone-row,.verification-row,.decision-groups{background:#fff;border:1px solid #ccc;box-shadow:none;backdrop-filter:none;color:#000}.metric-card p,.metric-card span,.sprint-card>p,dt,dd,.eyebrow,.subtitle,.meta-row,.timeline-status,.timeline-item time,.next-steps li,.decision-entry p{color:#000}h1,h2,h3{color:#000}.report-section{break-inside:avoid;margin-top:32px}details:not([open])>summary{margin-bottom:8px}details:not([open])>:not(summary){display:block}.site-footer::after{content:" / " counter(page)}a::after{content:" (" attr(href) ")";color:#666;font-size:90%}}
@@ -140,7 +145,7 @@ dd{margin:0;min-width:0;word-break:break-word;color:var(--secondary);font-size:1
       <div class="orb-core"></div>
       <div class="orb-glass"></div>
     </div>
-    <span class="brand-name">vibe doctor</span>
+    <span class="brand-name">𝓿𝓲𝓫𝓮 𝓭𝓸𝓬𝓽𝓸𝓻</span>
   </div>
   <ul class="nav-anchors">
     <li><a href="#iterations">Iterations</a></li>
@@ -160,7 +165,7 @@ dd{margin:0;min-width:0;word-break:break-word;color:var(--secondary);font-size:1
   <h1>Product context</h1>
   <p class="subtitle">이 저장소는 **vibe-doctor** — Claude Code 오케스트레이션 기반 Sprint 개발 템플릿입니다.</p>
   <div class="meta-row" aria-label="Report metadata">
-    <span>Generated 2026-04-18 12:05:02 UTC</span>
+    <span>Generated 2026-04-18 21:19:19 KST</span>
     <span>Platform: unspecified</span>
     <span>Status: <span class="status-badge" data-status="in-progress">iter-3-in-progress</span></span>
   </div>
@@ -184,7 +189,7 @@ dd{margin:0;min-width:0;word-break:break-word;color:var(--secondary);font-size:1
         <strong>1</strong>
         <span>1 sprints since audit</span>
       </article></section>
-    <section id="iterations" data-section="iterations" class="report-section"><div class="section-heading"><h2>Iteration Timeline</h2></div><ol class="iteration-timeline" aria-label="Iteration timeline"><li class="timeline-item" data-status="current">
+    <section id="iterations" data-section="iterations" class="report-section wrap"><div class="section-heading"><h2>Iteration Timeline</h2></div><ol class="iteration-timeline" aria-label="Iteration timeline"><li class="timeline-item" data-status="current">
         <button class="timeline-dot" type="button" aria-label="harness diet + tune-up: Negative-scope iteration. 28 uncovered rules 를 semantic cluster 단위로 재정의 + dogfood6~7 transcript retrospective 기반 S/A/B/C tier 분류 + B/C delete + Should→Must 단일방향 격상. Progressive MD Charter-first 재구조화 (§0 Charter file top + §1+ Extensions pointer). Critical bug triage (sprint-commit archive staging, auto-tag production 자기 검증 via artificial v1.4.1 bump, run-codex auto status-tick). Soft freeze posture 선언 + mode flag human/agent 2-value define-only (분기 로직은 iter-4+ defer)." title="Negative-scope iteration. 28 uncovered rules 를 semantic cluster 단위로 재정의 + dogfood6~7 transcript retrospective 기반 S/A/B/C tier 분류 + B/C delete + Should→Must 단일방향 격상. Progressive MD Charter-first 재구조화 (§0 Charter file top + §1+ Extensions pointer). Critical bug triage (sprint-commit archive staging, auto-tag production 자기 검증 via artificial v1.4.1 bump, run-codex auto status-tick). Soft freeze posture 선언 + mode flag human/agent 2-value define-only (분기 로직은 iter-4+ defer)."></button>
         <span class="timeline-label">iter-3</span>
         <span class="timeline-status">current</span>
@@ -195,7 +200,7 @@ dd{margin:0;min-width:0;word-break:break-word;color:var(--secondary);font-size:1
         <span class="timeline-status">complete</span>
         <time datetime="2026-04-17T03:50:07.756Z">2026-04-17</time>
       </li></ol></section>
-    <section id="sprints" data-section="sprints" class="report-section"><div class="section-heading"><h2>Sprint Outputs</h2><span>6 sprints across 2 iterations</span></div><div class="sprint-grid"><article class="sprint-card" data-sprint-id="sprint-M-audit">
+    <section id="sprints" data-section="sprints" class="report-section wrap"><div class="section-heading"><h2>Sprint Outputs</h2><span>6 sprints across 2 iterations</span></div><div class="sprint-grid"><article class="sprint-card" data-sprint-id="sprint-M-audit">
         <div class="card-head">
           <h3>sprint-M-audit</h3>
           <span class="status-badge" data-status="complete">passed</span>
@@ -263,7 +268,7 @@ dd{margin:0;min-width:0;word-break:break-word;color:var(--secondary);font-size:1
         </dl>
       </article></div></section>
     
-    <section id="verification" data-section="verification" class="report-section"><div class="section-heading"><h2>Verification Status</h2></div><div class="verification-list"><article class="verification-row">
+    <section id="verification" data-section="verification" class="report-section wrap"><div class="section-heading"><h2>Verification Status</h2></div><div class="verification-list"><article class="verification-row">
         <code>typecheck</code>
         <span class="status-badge" data-status="idle">idle</span>
         <span>tsc -p tsconfig.json --noEmit</span>
@@ -276,10 +281,10 @@ dd{margin:0;min-width:0;word-break:break-word;color:var(--secondary);font-size:1
         <span class="status-badge" data-status="idle">idle</span>
         <span>tsc -p tsconfig.json</span>
       </article></div></section>
-    <section id="next-steps" data-section="next-steps" class="report-section"><div class="section-heading"><h2>Next Steps</h2></div><ol class="next-steps"><li>Continue iter-3 with the next roadmap slot.</li><li>Triage 1 open risk.</li></ol></section>
+    <section id="next-steps" data-section="next-steps" class="report-section wrap"><div class="section-heading"><h2>Next Steps</h2></div><ol class="next-steps"><li>Continue iter-3 with the next roadmap slot.</li><li>Triage 1 open risk.</li></ol></section>
   </div>
   <aside class="col-side">
-    <section id="decisions" data-section="decisions" class="report-section decisions-section"><div class="section-heading"><h2>Key Decisions</h2><span>17 entries</span></div><div class="decision-tools" aria-label="Decision filters">
+    <section id="decisions" data-section="decisions" class="report-section wrap decisions-section"><div class="section-heading"><h2>Key Decisions</h2><span>17 entries</span></div><div class="decision-tools" aria-label="Decision filters">
       <div class="filter-list" role="group" aria-label="Filter key decisions"><button class="filter-chip" type="button" data-filter="all" aria-pressed="true">All</button><button class="filter-chip" type="button" data-filter="decision" aria-pressed="false">decision</button><button class="filter-chip" type="button" data-filter="failure" aria-pressed="false">failure</button><button class="filter-chip" type="button" data-filter="sprint-complete" aria-pressed="false">sprint-complete</button><button class="filter-chip" type="button" data-filter="user-directive" aria-pressed="false">user-directive</button><button class="filter-chip" type="button" data-filter="audit" aria-pressed="false">audit</button><button class="filter-chip" type="button" data-filter="planner-skip" aria-pressed="false">planner-skip</button><button class="filter-chip" type="button" data-filter="drift-observed" aria-pressed="false">drift-observed</button></div>
       <div class="expand-actions">
         <button type="button" data-decision-action="expand">Expand all</button>
@@ -368,7 +373,7 @@ dd{margin:0;min-width:0;word-break:break-word;color:var(--secondary);font-size:1
 </div>
 </main>
 <footer class="site-footer">
-  <div class="container">Generated by vibe-doctor 1.3.1 / 2026-04-18 12:05:02 UTC</div>
+  <div class="container">Generated by vibe-doctor 1.3.1 / 2026-04-18 21:19:19 KST</div>
 </footer>
 </div>
 <script>

@@ -300,26 +300,32 @@ const DECISION_FILTERS = [
   'drift-observed',
 ];
 
+const SEOUL_TZ = 'Asia/Seoul';
+function toSeoulParts(parsed) {
+  const formatter = new Intl.DateTimeFormat('en-CA', {
+    timeZone: SEOUL_TZ,
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+    hour12: false,
+  });
+  const parts = Object.fromEntries(formatter.formatToParts(parsed).map((p) => [p.type, p.value]));
+  return parts;
+}
+
 function formatDate(value) {
-  if (!value) {
-    return 'unknown';
-  }
+  if (!value) return 'unknown';
   const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) {
-    return String(value);
-  }
-  return parsed.toISOString().slice(0, 10);
+  if (Number.isNaN(parsed.getTime())) return String(value);
+  const p = toSeoulParts(parsed);
+  return `${p.year}-${p.month}-${p.day}`;
 }
 
 function formatDateTime(value) {
-  if (!value) {
-    return 'unknown';
-  }
+  if (!value) return 'unknown';
   const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) {
-    return String(value);
-  }
-  return parsed.toISOString().replace('T', ' ').replace(/\.\d{3}Z$/, ' UTC');
+  if (Number.isNaN(parsed.getTime())) return String(value);
+  const p = toSeoulParts(parsed);
+  return `${p.year}-${p.month}-${p.day} ${p.hour}:${p.minute}:${p.second} KST`;
 }
 
 function normalizeStatus(value) {
@@ -666,7 +672,7 @@ code,time{font-family:"JetBrains Mono","SF Mono",Menlo,Consolas,monospace;font-s
 .skip-link:focus{transform:translateY(0)}
 .outer-frame{border:0;border-radius:0;padding:0;min-height:100vh;background:transparent;position:relative;overflow:visible}
 .ambient-glow{display:none}
-.site-nav{position:fixed;top:16px;left:24px;right:24px;z-index:10;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:24px;padding:11px 22px;background:transparent;border:1px solid var(--border);border-radius:999px;backdrop-filter:blur(28px) saturate(200%);-webkit-backdrop-filter:blur(28px) saturate(200%);box-shadow:inset 0 1px 0 rgba(255,255,255,0.85),0 1px 2px rgba(0,0,0,0.03),0 8px 24px rgba(0,0,0,0.05);will-change:transform}
+.site-nav{position:fixed;top:16px;left:50%;transform:translateX(-50%);width:calc(100% - 48px);max-width:1552px;z-index:10;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:24px;padding:11px 22px;background:transparent;border:1px solid var(--border);border-radius:999px;backdrop-filter:blur(60px) saturate(100%);-webkit-backdrop-filter:blur(60px) saturate(100%);box-shadow:inset 0 1px 0 rgba(255,255,255,0.85),0 1px 2px rgba(0,0,0,0.03),0 8px 24px rgba(0,0,0,0.05);will-change:transform}
 .site-nav .brand{justify-self:start}
 .site-nav .nav-anchors{justify-self:center}
 .site-nav .nav-meta{justify-self:end}
@@ -692,14 +698,19 @@ h3{font-size:16px;line-height:1.4;font-weight:600;color:var(--text);margin:0}
 .meta-row{display:flex;flex-wrap:wrap;align-items:center;gap:12px 24px;font-size:13px;color:var(--muted);font-family:"JetBrains Mono","SF Mono",Menlo,Consolas,monospace}
 .meta-row>span{display:inline-flex;align-items:center;gap:8px}
 main.container{padding-top:90px;padding-bottom:0;padding-left:24px;padding-right:24px}
-.report-section{margin-top:80px;scroll-margin-top:96px;content-visibility:auto;contain-intrinsic-size:0 600px}
+.report-section{margin-top:56px;scroll-margin-top:96px;content-visibility:auto;contain-intrinsic-size:0 600px}
+.report-section.wrap{padding:32px;border-radius:20px;background:linear-gradient(135deg,rgba(245,245,247,0.58) 0%,rgba(220,220,225,0.42) 50%,rgba(200,200,205,0.46) 100%);border:1px solid rgba(160,160,170,0.22);box-shadow:inset 0 1px 0 rgba(255,255,255,0.85),inset 0 -1px 0 rgba(0,0,0,0.04),0 1px 2px rgba(60,60,67,0.06),0 6px 20px rgba(60,60,67,0.06)}
+.report-section.wrap .section-heading{margin-bottom:20px}
+.report-section.wrap .sprint-grid{margin-top:4px}
+.report-section.wrap .sprint-card,.report-section.wrap .milestone-row,.report-section.wrap .verification-row{background:rgba(255,255,255,0.5);border-color:rgba(60,60,67,0.1);box-shadow:inset 0 1px 0 rgba(255,255,255,0.7),0 1px 2px rgba(60,60,67,0.04)}
+.report-section.wrap .decision-groups{background:transparent;border:0;box-shadow:none;padding:0}
 .report-grid{display:grid;grid-template-columns:3fr 2fr;gap:40px;align-items:start}
 .col-main{min-width:0}
 .col-side{min-width:0}
 .col-side .report-section{margin-top:0}
 .section-heading{display:flex;align-items:baseline;justify-content:space-between;gap:16px;margin-bottom:24px}
 .section-heading span{color:var(--muted);font-size:13px;font-weight:500}
-.metric-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:20px}
+.metric-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:20px}
 .metric-card,.sprint-card,.milestone-row,.verification-row,.decision-groups{background:var(--glass-bg);border:1px solid var(--border);border-radius:18px;box-shadow:var(--glass-highlight),var(--glass-depth)}
 .metric-card{padding:24px;transition:transform .2s ease,border-color .2s ease;position:relative;overflow:hidden}
 .metric-card:hover{transform:translateY(-2px);border-color:var(--border-strong)}
@@ -769,7 +780,7 @@ dd{margin:0;min-width:0;word-break:break-word;color:var(--secondary);font-size:1
 .next-steps li::marker{color:var(--text);font-weight:600}
 .empty-state{color:var(--muted);margin:0;font-style:italic}
 .site-footer{border-top:1px solid var(--border);color:var(--muted);font-size:12px;font-family:"JetBrains Mono","SF Mono",Menlo,Consolas,monospace;padding:32px 0 16px;margin-top:80px;text-align:center}
-@media (max-width:1024px){h1{font-size:44px}.nav-anchors{display:none}.report-grid{grid-template-columns:1fr;gap:0}.col-side .report-section{margin-top:80px}}
+@media (max-width:1024px){h1{font-size:44px}.nav-anchors{display:none}.report-grid{grid-template-columns:1fr;gap:0}.col-side .report-section{margin-top:80px}.metric-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (max-width:640px){body{padding:8px}.outer-frame{padding:12px;border-radius:16px}.site-nav{padding:10px 14px;border-radius:20px;flex-wrap:wrap;gap:12px;margin-bottom:48px}.nav-meta{display:none}h1{font-size:32px}.hero{padding:32px 0 48px}.report-section{margin-top:48px}.section-heading,.decision-tools{display:block}.filter-list,.expand-actions{margin-top:16px}.milestone-row{grid-template-columns:1fr}.decision-entry{grid-template-columns:1fr;gap:8px}.decision-date-group>h3{top:80px}.metric-card strong{font-size:36px}.subtitle{font-size:15px}}
 @media (prefers-reduced-motion:reduce){.orb-core{animation:none}.metric-card,.sprint-card{transition:none}}
 @media print{body{background:#fff;color:#000;padding:0}.outer-frame{border:0;padding:0;background:none;backdrop-filter:none}.ambient-glow{display:none}.site-nav{position:static;margin-bottom:32px;border:1px solid #ccc;background:#fff;box-shadow:none;backdrop-filter:none;color:#000}.nav-anchors,.nav-meta,.skip-link,.decision-tools,.orb{display:none}.brand-name{color:#000}.metric-card,.sprint-card,.milestone-row,.verification-row,.decision-groups{background:#fff;border:1px solid #ccc;box-shadow:none;backdrop-filter:none;color:#000}.metric-card p,.metric-card span,.sprint-card>p,dt,dd,.eyebrow,.subtitle,.meta-row,.timeline-status,.timeline-item time,.next-steps li,.decision-entry p{color:#000}h1,h2,h3{color:#000}.report-section{break-inside:avoid;margin-top:32px}details:not([open])>summary{margin-bottom:8px}details:not([open])>:not(summary){display:block}.site-footer::after{content:" / " counter(page)}a::after{content:" (" attr(href) ")";color:#666;font-size:90%}}
@@ -786,7 +797,7 @@ dd{margin:0;min-width:0;word-break:break-word;color:var(--secondary);font-size:1
       <div class="orb-core"></div>
       <div class="orb-glass"></div>
     </div>
-    <span class="brand-name">vibe doctor</span>
+    <span class="brand-name">𝓿𝓲𝓫𝓮 𝓭𝓸𝓬𝓽𝓸𝓻</span>
   </div>
   <ul class="nav-anchors">
     <li><a href="#iterations">Iterations</a></li>
@@ -814,14 +825,14 @@ dd{margin:0;min-width:0;word-break:break-word;color:var(--secondary);font-size:1
 <div class="report-grid">
   <div class="col-main">
     ${renderMetricCards(model)}
-    <section id="iterations" data-section="iterations" class="report-section">${renderSectionHeading('Iteration Timeline')}${renderIterationTimeline(model.iterationHistory)}</section>
-    <section id="sprints" data-section="sprints" class="report-section">${renderSectionHeading('Sprint Outputs', `${getVisibleSprints(model.status, model.iterationHistory, model.metaProject).length} sprints across ${model.iterationHistory.iterations.length} iterations`)}${renderSprintCards(model.status, model.roadmapDetails, model.iterationHistory, model.metaProject)}</section>
+    <section id="iterations" data-section="iterations" class="report-section wrap">${renderSectionHeading('Iteration Timeline')}${renderIterationTimeline(model.iterationHistory)}</section>
+    <section id="sprints" data-section="sprints" class="report-section wrap">${renderSectionHeading('Sprint Outputs', `${getVisibleSprints(model.status, model.iterationHistory, model.metaProject).length} sprints across ${model.iterationHistory.iterations.length} iterations`)}${renderSprintCards(model.status, model.roadmapDetails, model.iterationHistory, model.metaProject)}</section>
     ${renderMilestones(model.milestones, model.milestoneProgress)}
-    <section id="verification" data-section="verification" class="report-section">${renderSectionHeading('Verification Status')}${renderScriptStatus(model.status, model.packageJson)}</section>
-    <section id="next-steps" data-section="next-steps" class="report-section">${renderSectionHeading('Next Steps')}${renderNextSteps(model.status, model.roadmapIds, model.iterationHistory)}</section>
+    <section id="verification" data-section="verification" class="report-section wrap">${renderSectionHeading('Verification Status')}${renderScriptStatus(model.status, model.packageJson)}</section>
+    <section id="next-steps" data-section="next-steps" class="report-section wrap">${renderSectionHeading('Next Steps')}${renderNextSteps(model.status, model.roadmapIds, model.iterationHistory)}</section>
   </div>
   <aside class="col-side">
-    <section id="decisions" data-section="decisions" class="report-section decisions-section">${renderSectionHeading('Key Decisions', `${model.reportEntries.length} entries`)}${renderDecisions(model.productMd, model.reportEntries, model.metaSummary)}</section>
+    <section id="decisions" data-section="decisions" class="report-section wrap decisions-section">${renderSectionHeading('Key Decisions', `${model.reportEntries.length} entries`)}${renderDecisions(model.productMd, model.reportEntries, model.metaSummary)}</section>
   </aside>
 </div>
 </main>
