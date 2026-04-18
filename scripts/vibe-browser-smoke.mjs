@@ -17,13 +17,14 @@ function readJsonIfPresent(filePath) {
   return JSON.parse(readFileSync(filePath, 'utf8'));
 }
 
-function loadBrowserSmokeSettings() {
+export function loadBrowserSmokeSettings() {
   const shared = readJsonIfPresent(SHARED_CONFIG_PATH);
   const local = readJsonIfPresent(LOCAL_CONFIG_PATH);
 
   return {
     enabled: local.browserSmoke?.enabled ?? shared.browserSmoke?.enabled ?? false,
     configPath: local.browserSmoke?.configPath ?? shared.browserSmoke?.configPath ?? '.vibe/smoke.config.js',
+    dist: local.browserSmoke?.dist ?? shared.browserSmoke?.dist ?? 'dist',
   };
 }
 

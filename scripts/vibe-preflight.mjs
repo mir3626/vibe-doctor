@@ -16,6 +16,7 @@ const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const statusPath = resolve('.vibe/agent/sprint-status.json');
 const handoffPath = resolve('.vibe/agent/handoff.md');
 const sessionLogPath = resolve('.vibe/agent/session-log.md');
+const iterationHistoryPath = resolve('.vibe/agent/iteration-history.json');
 
 function record(id, ok, detail, level = 'ok') {
   results.push({ id, ok, detail, level });
@@ -173,9 +174,11 @@ function activeAuditSkippedModeDetail(directive) {
 function runStateValidation() {
   const tsxLoader = path.join(scriptDir, '..', 'node_modules', 'tsx', 'dist', 'loader.mjs');
   const tsxImport = existsSync(tsxLoader) ? pathToFileURL(tsxLoader).href : 'tsx';
+  const validatorUrl = pathToFileURL(path.join(scriptDir, 'vibe-validate-state.ts')).href;
+  const validatorImport = `await import(${JSON.stringify(validatorUrl)});`;
   const result = spawnSync(
     process.execPath,
-    ['--import', tsxImport, path.join(scriptDir, 'vibe-validate-state.ts')],
+    ['--import', tsxImport, '--input-type=module', '--eval', validatorImport],
     { encoding: 'utf8' },
   );
 
@@ -213,6 +216,78 @@ function parseRoadmapIds(roadmapContent) {
   );
 }
 
+function parseIterationSections(roadmapContent) {
+  const matches = Array.from(roadmapContent.matchAll(/^(#|##)\s+Iteration\s+(?:iter-)?(\d+)\b[^\n]*$/gm));
+
+  return matches.flatMap((match, index) => {
+    const startOffset = match.index;
+    const iterationNumber = match[2];
+    if (startOffset === undefined || iterationNumber === undefined) {
+      return [];
+    }
+
+    const header = match[0];
+    const nextStartOffset = matches[index + 1]?.index ?? roadmapContent.length;
+    const bodyStartOffset = startOffset + header.length;
+    const body = roadmapContent.slice(bodyStartOffset, nextStartOffset).replace(/^\r?\n/, '');
+
+    return [
+      {
+        iterationId: `iter-${iterationNumber}`,
+        header,
+        body,
+      },
+    ];
+  });
+}
+
+function normalizeIterationId(iterationId) {
+  const match = iterationId.trim().match(/^(?:iter-)?(\d+)$/);
+  return match?.[1] ? `iter-${match[1]}` : iterationId.trim();
+}
+
+function resolveNextSprintFromRoadmap(roadmapContent, currentIterationId, completedIds) {
+  const sections = parseIterationSections(roadmapContent);
+  if (sections.length === 0 || currentIterationId === null) {
+    return {
+      pendingId: parseRoadmapIds(roadmapContent).find((id) => !completedIds.has(id)) ?? null,
+      scanScope: 'legacy-flat',
+      iterationHeader: null,
+    };
+  }
+
+  const normalizedCurrentIterationId = normalizeIterationId(currentIterationId);
+  const section = sections.find((entry) => entry.iterationId === normalizedCurrentIterationId);
+  if (!section) {
+    return {
+      pendingId: null,
+      scanScope: 'iteration-scoped',
+      iterationHeader: null,
+    };
+  }
+
+  return {
+    pendingId: parseRoadmapIds(section.body).find((id) => !completedIds.has(id)) ?? null,
+    scanScope: 'iteration-scoped',
+    iterationHeader: section.header,
+  };
+}
+
+function readCurrentIterationId() {
+  if (!existsSync(iterationHistoryPath)) {
+    return null;
+  }
+
+  try {
+    const history = JSON.parse(readFileSync(iterationHistoryPath, 'utf8'));
+    return typeof history?.currentIteration === 'string' && history.currentIteration.trim() !== ''
+      ? history.currentIteration.trim()
+      : null;
+  } catch {
+    return null;
+  }
+}
+
 function findPlannerPromptFile(pendingId) {
   const promptsDir = resolve('docs/prompts');
   if (!existsSync(promptsDir)) {
@@ -225,7 +300,14 @@ function findPlannerPromptFile(pendingId) {
   }
 
   const match = readdirSync(promptsDir)
-    .filter((entry) => prefixes.some((prefix) => entry.startsWith(prefix)) && entry.endsWith('.md'))
+    .filter((entry) => {
+      if (!entry.endsWith('.md')) {
+        return false;
+      }
+
+      const baseName = entry.slice(0, -'.md'.length);
+      return baseName === pendingId || prefixes.some((prefix) => entry.startsWith(prefix));
+    })
     .sort()[0];
 
   return match ? { path: path.join(promptsDir, match), name: match } : null;
@@ -271,21 +353,37 @@ function runPlannerPresenceCheck() {
       return;
     }
 
-    const roadmapIds = parseRoadmapIds(readFileSync(roadmapPath, 'utf8'));
-    if (roadmapIds.length === 0) {
-      record('planner.presence', true, 'no roadmap IDs parseable (planner presence skipped)', 'info');
-      return;
-    }
-
     const completedIds = new Set(
       (Array.isArray(sprintStatus.sprints) ? sprintStatus.sprints : [])
         .filter((sprint) => sprint?.status === 'passed' && typeof sprint?.id === 'string')
         .map((sprint) => sprint.id),
     );
-    const pendingId = roadmapIds.find((id) => !completedIds.has(id));
+    const roadmapContent = readFileSync(roadmapPath, 'utf8');
+    const currentIterationId = readCurrentIterationId();
+    const resolvedRoadmap = resolveNextSprintFromRoadmap(roadmapContent, currentIterationId, completedIds);
+    const pendingId = resolvedRoadmap.pendingId;
+
+    if (resolvedRoadmap.scanScope === 'legacy-flat' && parseRoadmapIds(roadmapContent).length === 0) {
+      record('planner.presence', true, 'no roadmap IDs parseable (planner presence skipped)', 'info');
+      return;
+    }
+
+    if (resolvedRoadmap.scanScope === 'iteration-scoped' && resolvedRoadmap.iterationHeader === null) {
+      record(
+        'planner.presence',
+        true,
+        `current iteration ${currentIterationId ?? 'n/a'} not found in roadmap (planner presence skipped)`,
+        'info',
+      );
+      return;
+    }
 
     if (!pendingId) {
-      record('planner.presence', true, 'all roadmap sprints completed (planner presence skipped)');
+      const scopeDetail =
+        resolvedRoadmap.scanScope === 'iteration-scoped'
+          ? `all roadmap sprints completed for ${currentIterationId} (planner presence skipped)`
+          : 'all roadmap sprints completed (planner presence skipped)';
+      record('planner.presence', true, scopeDetail);
       return;
     }
 

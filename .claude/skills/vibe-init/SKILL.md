@@ -472,6 +472,8 @@ Apply the result by patching `.vibe/config.json`:
 }
 ```
 
+If the product build output uses a custom path such as `app/dist`, set `.vibe/config.json` `bundle.path` and `browserSmoke.dist` to that path (default: `dist`).
+
 Always append one session log entry with the rationale:
 
 ```md

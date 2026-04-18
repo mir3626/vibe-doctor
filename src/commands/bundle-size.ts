@@ -78,10 +78,15 @@ export function renderTable(entries: BundleEntry[], limitGzipKB: number): string
   ].join('\n');
 }
 
-function resolveBundleConfig(bundle: BundleConfig | undefined): BundleConfig {
+export type ResolvedBundleConfig = Required<Omit<BundleConfig, 'path'>> & { path: string };
+
+export function resolveBundleConfig(bundle: Partial<BundleConfig> | undefined): ResolvedBundleConfig {
+  const resolvedPath = bundle?.path ?? bundle?.dir ?? 'dist';
+
   return {
     enabled: bundle?.enabled ?? false,
     dir: bundle?.dir ?? 'dist',
+    path: resolvedPath,
     limitGzipKB: bundle?.limitGzipKB ?? 80,
     excludeExt: bundle?.excludeExt ?? ['.map'],
   };
@@ -96,7 +101,7 @@ async function main(): Promise<void> {
     return;
   }
 
-  const rootDir = path.resolve(bundle.dir);
+  const rootDir = path.resolve(bundle.path);
   const files = await walk(rootDir);
   const entries = summarize(files, rootDir, bundle.excludeExt);
   const output = renderTable(entries, bundle.limitGzipKB);

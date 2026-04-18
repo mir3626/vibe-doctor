@@ -29,6 +29,7 @@ export interface SprintConfig {
 export interface BundleConfig {
   enabled: boolean;
   dir: string;
+  path?: string;
   limitGzipKB: number;
   excludeExt: string[];
 }
@@ -36,6 +37,7 @@ export interface BundleConfig {
 export interface BrowserSmokeConfig {
   enabled: boolean;
   configPath: string;
+  dist?: string;
 }
 
 export interface VibeConfig {
@@ -58,50 +60,80 @@ export interface VibeConfig {
   browserSmoke?: BrowserSmokeConfig;
 }
 
-function mergeOptionalObject<T extends object>(
-  base?: T,
-  override?: Partial<T>,
-): T | undefined {
-  if (!base && !override) {
-    return undefined;
-  }
+export type VibeConfigOverride = Partial<
+  Omit<VibeConfig, 'sprintRoles' | 'sprint' | 'providers' | 'qa' | 'bundle' | 'browserSmoke'>
+> & {
+  sprintRoles?: Partial<SprintRoles>;
+  sprint?: Partial<SprintConfig>;
+  providers?: Record<string, ProviderRunner>;
+  qa?: Partial<NonNullable<VibeConfig['qa']>>;
+  bundle?: Partial<BundleConfig>;
+  browserSmoke?: Partial<BrowserSmokeConfig>;
+};
+
+function resolveBundleConfig(
+  base: Partial<BundleConfig> | undefined,
+  override: Partial<BundleConfig> | undefined,
+): BundleConfig {
+  const dir = override?.dir ?? base?.dir ?? 'dist';
 
   return {
-    ...(base ?? {}),
-    ...(override ?? {}),
-  } as T;
+    enabled: override?.enabled ?? base?.enabled ?? false,
+    dir,
+    path: override?.path ?? base?.path ?? dir,
+    limitGzipKB: override?.limitGzipKB ?? base?.limitGzipKB ?? 80,
+    excludeExt: override?.excludeExt ?? base?.excludeExt ?? ['.map'],
+  };
 }
 
-function mergeConfig(base: VibeConfig, override: Partial<VibeConfig>): VibeConfig {
+function resolveBrowserSmokeConfig(
+  base: Partial<BrowserSmokeConfig> | undefined,
+  override: Partial<BrowserSmokeConfig> | undefined,
+): BrowserSmokeConfig {
+  return {
+    enabled: override?.enabled ?? base?.enabled ?? false,
+    configPath: override?.configPath ?? base?.configPath ?? '.vibe/smoke.config.js',
+    dist: override?.dist ?? base?.dist ?? 'dist',
+  };
+}
+
+function mergeConfig(base: VibeConfig, override: VibeConfigOverride): VibeConfig {
+  const {
+    sprintRoles,
+    sprint,
+    providers,
+    qa,
+    bundle,
+    browserSmoke,
+    ...overrideRest
+  } = override;
   const merged: VibeConfig = {
     ...base,
-    ...override,
+    ...overrideRest,
     sprintRoles: {
       ...base.sprintRoles,
-      ...(override.sprintRoles ?? {}),
+      ...(sprintRoles ?? {}),
     },
     sprint: {
       ...base.sprint,
-      ...(override.sprint ?? {}),
+      ...(sprint ?? {}),
     },
     providers: {
       ...base.providers,
-      ...(override.providers ?? {}),
+      ...(providers ?? {}),
     },
     qa: {
       ...(base.qa ?? {}),
-      ...(override.qa ?? {}),
+      ...(qa ?? {}),
     },
   };
 
-  const bundle = mergeOptionalObject(base.bundle, override.bundle);
-  if (bundle) {
-    merged.bundle = bundle;
+  if (base.bundle || bundle) {
+    merged.bundle = resolveBundleConfig(base.bundle, bundle);
   }
 
-  const browserSmoke = mergeOptionalObject(base.browserSmoke, override.browserSmoke);
-  if (browserSmoke) {
-    merged.browserSmoke = browserSmoke;
+  if (base.browserSmoke || browserSmoke) {
+    merged.browserSmoke = resolveBrowserSmokeConfig(base.browserSmoke, browserSmoke);
   }
 
   return merged;
@@ -111,7 +143,7 @@ export async function loadConfig(): Promise<VibeConfig> {
   const shared = await readJson<VibeConfig>(paths.sharedConfig);
 
   try {
-    const local = await readJson<Partial<VibeConfig>>(paths.localConfig);
+    const local = await readJson<VibeConfigOverride>(paths.localConfig);
     return mergeConfig(shared, local);
   } catch {
     return shared;

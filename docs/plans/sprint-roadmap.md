@@ -2,7 +2,7 @@
 
 <!-- BEGIN:VIBE:CURRENT-SPRINT -->
 > **Current**: idle (not started, started 2026-04-18)
-> **Completed**: sprint-O1-interview-coverage, sprint-N3-freeze-mode-flag, sprint-N2-critical-bug-triage, sprint-N1-rule-audit-diet, sprint-M-harness-gates, sprint-M-process-discipline, sprint-M-audit
+> **Completed**: sprint-O2-script-wrapper-triage, sprint-O1-interview-coverage, sprint-N3-freeze-mode-flag, sprint-N2-critical-bug-triage, sprint-N1-rule-audit-diet, sprint-M-harness-gates, sprint-M-process-discipline, sprint-M-audit
 > **Pending**: —
 <!-- END:VIBE:CURRENT-SPRINT -->
 
@@ -562,6 +562,7 @@ iter-3 preservation list 그대로 승계:
 - Rule delete 10개 이상 발생 시 사용자 승인 gate (N1 checkpoint).
 - Sprint AC 미달 시 재Codex 위임 (기존 방식).
 - iter-3 net LOC > +150 초과 시 Sprint scope 재협상 필수.
+
 
 
 

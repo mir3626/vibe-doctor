@@ -14,7 +14,8 @@
         "sprint-O3-planner-contract-polish"
       ],
       "completedSprints": [
-        "sprint-O1-interview-coverage"
+        "sprint-O1-interview-coverage",
+        "sprint-O2-script-wrapper-triage"
       ],
       "milestoneProgress": {
         "interview-coverage": 0,

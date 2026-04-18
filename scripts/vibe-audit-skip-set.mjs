@@ -49,6 +49,17 @@ function writeConfig(config) {
   writeFileSync(configLocalPath, `${JSON.stringify(config, null, 2)}\n`, 'utf8');
 }
 
+function writeConfigSkeleton() {
+  const schemaPath = resolve('.vibe/config.local.schema.json');
+  const skeleton = existsSync(schemaPath)
+    ? { $schema: './config.local.schema.json', userDirectives: {} }
+    : { userDirectives: {} };
+
+  writeConfig(skeleton);
+  process.stdout.write('created .vibe/config.local.json with default skeleton\n');
+  return skeleton;
+}
+
 function validateReason(rawReason) {
   if (rawReason.includes('\n') || rawReason.includes('\r')) {
     fail('reason must be single-line');
@@ -77,7 +88,7 @@ function validateDuration(rawDuration) {
 
 function loadConfigLocal() {
   if (!existsSync(configLocalPath)) {
-    fail('config.local.json not found; run /vibe-init first');
+    return writeConfigSkeleton();
   }
 
   const config = readJson(configLocalPath);
