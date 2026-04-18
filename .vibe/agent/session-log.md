@@ -20,6 +20,7 @@
 
 ## Entries
 
+- 2026-04-18T06:30:00.000Z [user-directive][orchestrator-direct-edit-css-perf] project-report.html 의 backdrop-filter / ambient-glow blur 150px / mix-blend-mode 가 compositor layer 폭증 유발하여 paint 무거움. 사용자가 "C 로 진행" = Orchestrator 직접 CSS 수정 허용 (두 번째 예외). 5 포인트 최적화: ambient-glow blur 축소, card 들의 backdrop-filter 제거 (sticky nav + sticky date header 만 유지), orb mix-blend 제거, orb animation scale 변형 제거, will-change 힌트 추가. 기대 효과: 초기 paint 수백ms → 수십ms. Core value 무관, single-file HTML 전략 유지 (Vite+React 마이그레이션 불필요).
 - 2026-04-18T05:30:00.000Z [user-directive][orchestrator-direct-edit-report-styling] report.html glassmorphism/luxury redesign 은 Orchestrator(Claude) 가 직접 수정하라고 명시. scripts/vibe-project-report.mjs 의 CSS/HTML shell 을 Codex 위임 없이 Edit 으로 재작성. 근거: (1) ref1/ref2/ref3 디자인 해석에 visual judgment 개입 필요, (2) 이전 Codex redesign 522s 의 속도-품질 trade-off 개선 시도. 이번 sprint 한정 예외 — 일반 소스코드 수정은 여전히 Codex 위임 원칙. 추가 directive: 주요 색상 grayscale (gray/white) 유지, iridescent orb 와 status badge tint 만 예외. iter-3 freeze posture 위반 아님 (downstream style patch, core value 무관).
 
 
