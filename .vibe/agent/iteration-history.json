@@ -6,7 +6,7 @@
       "id": "iter-4",
       "label": "harness-stability-tune",
       "startedAt": "2026-04-18T13:45:00.000Z",
-      "completedAt": null,
+      "completedAt": "2026-04-19T01:20:00.000Z",
       "goal": "dogfood8 iter-4 MVP run 인계 후 review-6 findings 6건(#2~#7) 수용. (O1) interview engine sub-field coverage 회계 버그 fix — iter-4 kickoff interview 자체가 14 rounds success_metric↔goal 무한 loop 로 #2 재현 후 --abort. (O2) script-wrapper triage 3종: audit-skip-set bootstrap + preflight roadmap iteration 경계 인식 + bundle/browserSmoke path configurable. (O3) Planner common checklist 의 component-integration 계약(Toaster root mount + null-safe event) + actualLoc lockfile blacklist + pending restoration 4건 최종 판정. Growth budget 1회 예외 승인: net +285 LOC (slot-1 +80 / slot-2 +155 / slot-3 +50). 0 new scripts 유지. soft freeze posture 지속 (iter-5 부터 +150 복귀).",
       "plannedSprints": [
         "sprint-O1-interview-coverage",
@@ -19,11 +19,11 @@
         "sprint-O3-planner-contract-polish"
       ],
       "milestoneProgress": {
-        "interview-coverage": 0,
-        "script-wrapper-triage": 0,
-        "planner-contract-polish": 0
+        "interview-coverage": 1,
+        "script-wrapper-triage": 1,
+        "planner-contract-polish": 1
       },
-      "summary": ""
+      "summary": "O1 (4096574): vibe-interview.mjs high-watermark replace 회계 + --status pendingDimension 확장 + soft-terminate 0.8 상향 + test/interview-coverage.test.ts 7 regression (iter-4 kickoff 14-round abort fixture 포함). O2 (225dacc): vibe-audit-skip-set config.local.json skeleton bootstrap + src/lib/preflight-roadmap.ts iteration 경계 파싱 + bundle.path/browserSmoke.dist configurable + Windows spawn import() url bug 수정. O3 (b938512): sprint-planner.md component-integration 계약(Toaster root mount / null-safe / optimistic rollback) + vibe-sprint-commit.mjs LOCKFILE_BLACKLIST + iter-3 pending restoration 4건 delete-confirmed. 테스트 228 → 249 (+21 pass / 0 fail / 1 skip). harnessVersion 1.4.1 유지 (patch v1.4.2 릴리스 노트 docs/release/v1.4.2.md 준비). review-6 #2~#7 전부 기계 검증 해소."
     },
     {
       "id": "iter-3",

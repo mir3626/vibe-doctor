@@ -23,6 +23,7 @@
 
 
 
+- 2026-04-19T01:20:00.000Z [decision] [iter-4-closure] iter-4 (harness-stability-tune) 3 sprints 완료. O1 (4096574): vibe-interview.mjs high-watermark replace 회계 + --status pendingDimension + soft-terminate 0.8 + 7 regression (iter-4 kickoff 14-round abort fixture 포함). O2 (225dacc): vibe-audit-skip-set config.local.json skeleton bootstrap + src/lib/preflight-roadmap.ts iteration 경계 + bundle.path/browserSmoke.dist configurable + Windows spawn import() url bug fix. O3 (b938512): sprint-planner.md component-integration 계약 + vibe-sprint-commit.mjs LOCKFILE_BLACKLIST + iter-3 pending restoration 4건 delete-confirmed. 테스트 228 → 249 (+21 pass / 0 fail / 1 skip). harnessVersion 1.4.1 → 1.4.2 bump → auto-tag v1.4.2 생성 예정. iteration-history completedAt/summary/milestoneProgress 갱신. review-6 #2~#7 전부 해소. preflight WARN 0.
 - 2026-04-19T00:00:00.000Z [user-directive] [iter-4-autonomous-batch] 사용자 "나머지 스프린트 모두 일괄 진행" 지시 → O1 / O2 / O3 + iter-4 closure 까지 Sprint 단위 승인 없이 자율 실행. feedback_autonomous_execution 패턴 재적용. 각 Sprint: Planner(opus subagent_type=sprint-planner) → Codex 위임 → tsc/node --test 재검증 → vibe-sprint-complete → vibe-sprint-commit. Evaluator 는 audit.everyN=5 counter 나 self-QA 실패 시에만 조건부 소환. 실패 시에만 사용자 복귀.
 - 2026-04-18T16:17:16.343Z [sprint-complete] sprint-O3-planner-contract-polish -> passed. Sprint sprint-O3-planner-contract-polish completed with passed LOC +1190/-46 (net +1144)
 - 2026-04-18T16:03:22.556Z [sprint-complete] sprint-O2-script-wrapper-triage -> passed. Sprint sprint-O2-script-wrapper-triage completed with passed LOC +664/-31 (net +633)
