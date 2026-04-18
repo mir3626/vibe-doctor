@@ -18,3 +18,7 @@ config/credentials.json
 .vibe/sync-hashes.json
 scripts/tmp-*.ts
 scripts/tmp-*.mjs
+# dashboard runtime artifacts (M14-B)
+.vibe/agent/dashboard.pid
+.vibe/agent/daily/
+.vibe/agent/attention.jsonl
