@@ -836,6 +836,18 @@ ${renderMilestones(model.milestones, model.milestoneProgress)}
       });
     });
   }
+  const prefersReduced = typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  for (const link of document.querySelectorAll('a[href^="#"]')) {
+    link.addEventListener('click', (event) => {
+      const id = link.getAttribute('href').slice(1);
+      if (!id) return;
+      const target = document.getElementById(id);
+      if (!target) return;
+      event.preventDefault();
+      target.scrollIntoView({ behavior: prefersReduced ? 'auto' : 'smooth', block: 'start' });
+      history.replaceState(null, '', '#' + id);
+    });
+  }
 })();
 </script>
 </body>
