@@ -258,7 +258,7 @@ describe('project report', () => {
     assert.equal(result.html.includes('<details open'), false);
   });
 
-  it('renders glassmorphism dark theme with iridescent brand orb', async () => {
+  it('renders iOS liquid-glass light theme with iridescent brand orb', async () => {
     const root = await makeTempDir('project-report-style-');
     const { runProjectReportCli } = await loadReportModule();
     await scaffoldReportProject(root);
@@ -269,8 +269,9 @@ describe('project report', () => {
     });
 
     assert.equal(/<br>/i.test(result.html), false);
-    assert.match(result.html, /color-scheme:dark/);
+    assert.match(result.html, /color-scheme:light/);
     assert.match(result.html, /backdrop-filter:blur/);
+    assert.match(result.html, /#007aff/);
     assert.match(result.html, /class="orb"/);
     assert.match(result.html, /orb-core/);
     assert.match(result.html, /@keyframes orb-spin/);
