@@ -465,6 +465,92 @@ iter-3 diet 중에도 아래는 **line-level 절대 보존**:
   5. **Metric shift**: `/vibe-review` 의 기준을 "harness gap 수" → "dogfood friction-per-sprint trend + product shipped value" 로 전환.
 - **예상 LOC**: add ~80 (mode flag 20 + freeze declaration 10 + rules-deleted hook 50). delete ~100 (CLAUDE.md 중복 제거 재구조화 중).
 
+---
+
+# Iteration 4 — harness-stability-tune (v1.4.2 or v1.5.0)
+
+## 배경
+
+dogfood8 iter-4 MVP run (Bucket 가계부 4 Sprint 자율 완주, 94분, incident 1) 인계 프롬프트 흡수 → `/vibe-review` 수행 → `docs/reports/review-6-2026-04-18.md` 6 findings 수용. iter-3 harness diet 기조는 유효 판정(Codex EPERM skip 으로 시간 50%+ 단축 + MVP 퀄리티 만족). 본 iter 는 그 위에 **agent-mode 재현성 안정화** 한 축으로 script-wrapper 및 계약 수준 버그를 정리한다.
+
+**Self-reproduction evidence**: iter-4 kickoff interview 자체가 review-6 #2 coverage 누적 버그를 재현 (14 rounds success_metric ↔ goal 무한 loop → `--abort`). O1 acceptance 의 regression test 직접 근거.
+
+> **Review metric 유지**: "dogfood friction incident per sprint + delivered product value" primary. harness gap / uncovered rule 은 secondary.
+
+## 범위 요약
+
+- **총 Sprint**: 3 (O1 → O2 → O3)
+- **Priority**: a (O1 agent-mode unblock) > b (O2 script-wrapper triage) > c (O3 Planner 계약 + polish)
+- **Growth budget (예외)**: **net ≤ +285 LOC / iter** (default +150 대비 1회 예외 승인: slot-1 +80 + slot-2 +155 + slot-3 +50). iter-5 부터 +150 복귀. **0 new scripts** 유지 (기존 script 확장만).
+- **Release 타깃**: v1.4.2 (patch) 기본. 버그 수정 성격 + 신규 기능 없음.
+- **사용자 모드**: 자율 아님 — 각 Sprint 시작 전 명시적 승인.
+- **Platform validation**: Windows(MINGW bash + PowerShell) + macOS.
+
+## 핵심 가치 (절대 삭제 금지)
+
+iter-3 preservation list 그대로 승계:
+
+- `scripts/vibe-interview.mjs` + `.claude/skills/vibe-init` / `vibe-interview` (socratic core) — O1 에서 수정하되 **socratic 구조 + sub-field 기반 ledger 는 유지**, 가중치 회계만 교정.
+- sprint-planner agent + `vibe-sprint-complete` / `vibe-sprint-commit` (sprint loop)
+- `run-codex.sh` + `run-codex.cmd` wrapper (Windows/UTF-8 + EPERM skip)
+- Codex Generator 위임 원칙
+- Sub-agent context isolation
+
+## 공통 제약
+
+- 산출물: `.vibe/audit/iter-4/` iteration-scoped 디렉토리. iter 종료 후 `rm -rf` cleansing 가능.
+- pending restoration 4건 (iter-3 rules-deleted) 은 **O2 `#3` audit-skip-set 작업과 묶어 재평가**. `two-tier-audit-convention` 만 gap-rule-only-in-md 해제 조건으로 후보.
+- `#5` bundle/browserSmoke path configurable 은 downstream web 프로젝트 전용 영향 → upstream 회귀 없음 검증 필수.
+- Soft freeze posture 유지: 본 iter 외 harness 변경 금지. 분기 1회 원칙 iter-5 부터 재적용.
+
+## Sprint O1 — Interview coverage 회계 버그 fix (dominant)
+
+- **id**: `sprint-O1-interview-coverage`
+- **목표**: review-6 `#2` — success_metric / key_metrics / measurement_scheme 같은 sub-field 에 confidence 0.95+ 로 재답변해도 coverage ratio 가 누적/업데이트되지 않는 회계 버그를 수정. soft-terminate 임계(기본 0.3) 재점검 포함.
+- **핵심 산출**:
+  1. **`scripts/vibe-interview.mjs` 확장** (기존 script 수정):
+     - sub-field 재답변 시 기존 confidence 보다 새 confidence 가 높으면 **replace (accumulate 아님)**. 낮으면 기존 유지. deferred=true 는 confidence 0 으로 덮어쓰기 허용.
+     - coverage ratio 계산을 sub-field `confidence * (1 if not deferred else 0)` 평균으로 정규화 (현재 계산 경로 감사 + 버그 지점 명시).
+     - `--status` 에 `pendingDimensionId` + 각 dimension 의 remaining sub-fields 명시 노출 (agent-mode 에서 round 불일치 디버깅 용).
+  2. **Regression test** (`test/interview-coverage.test.ts`):
+     - 동일 sub-field 에 confidence 0.25 → 0.95 재답변 시 ratio 가 0.95 반영되는지.
+     - 3 sub-fields 중 2 개 deferred → ratio = (confidence_of_one) / 3.
+     - ambiguity 0.218 + success_metric coverage 미충족 상태에서 soft-terminate 임계 비교 검증.
+  3. **이번 iter-4 kickoff 에서 실제로 --abort 했던 14-round 시나리오**를 fixture 로 포함 (가장 강한 재현 evidence).
+- **예상 LOC**: add ~80 (engine 수정 30 + tests 50). delete ~0.
+- **의존**: 없음 (dominant slot).
+- **Wiring 주의**: `.vibe/interview-log/*.json` schema 는 compat 유지. 이전 iter-3 interview log 가 그대로 읽혀야 함.
+
+## Sprint O2 — Script-wrapper triage (3건)
+
+- **id**: `sprint-O2-script-wrapper-triage`
+- **목표**: review-6 `#3` + `#4` + `#5` 3건의 script-wrapper / config 계약을 고친다. LOC 예산 slot 상 가장 무거움 (+155) → `#5` 일부 defer 옵션 확보.
+- **핵심 산출**:
+  1. **`#3` `vibe-audit-skip-set.mjs` bootstrap**: `.vibe/config.local.json` 미존재 시 hard-fail 하지 않고 기본 skeleton (`{"$schema":"...", "userDirectives":{}}`) 생성 후 `auditSkippedMode` 세팅 로직 이어 실행. prototype 면제 경로 복원. pending restoration `two-tier-audit-convention` 복원 여부도 이 sprint 에서 결정 (gap-rule-only-in-md 해제 조건).
+  2. **`#4` `vibe-preflight.mjs` planner.presence iteration 경계**: `docs/plans/sprint-roadmap.md` 를 스캔할 때 `# Iteration iter-N` (또는 `## Iteration iter-N`) 경계를 인식. `currentIteration` 이후 섹션만 next-sprint 후보로. 이전 iteration 의 M1~M10 섹션 오인 제거.
+  3. **`#5` `.vibe/config.json.bundle.path` + `browserSmoke.dist` configurable**: 기본값 `"dist"` 유지. `app/dist` 같은 downstream 경로 허용. Phase 3 Step 3-4 opt-in 시 path 질의 추가.
+  4. **Regression tests**: audit-skip-set bootstrap 경로, preflight roadmap iteration 경계 파싱, bundle/browserSmoke path custom 해석.
+- **예상 LOC**: add ~155 (각 55/45/55 + tests). delete ~0. 초과 시 `#5` 를 O3 또는 backlog 로 분리.
+- **의존**: O1 완료 (interview 회계 수정이 agent-mode 흐름의 우선 축).
+- **Wiring 주의**: config schema (`.vibe/config.schema.json`) Zod source 동기화. script-wrapper 변경이 cascade 되는 test 목록 확인.
+
+## Sprint O3 — Planner 계약 + LOC polish
+
+- **id**: `sprint-O3-planner-contract-polish`
+- **목표**: review-6 `#7` + `#6` + pending restoration 최종 판정.
+- **핵심 산출**:
+  1. **`#7` Planner common checklist 확장** (`.claude/skills/sprint-planner/SKILL.md` 또는 해당 프롬프트 템플릿):
+     - "render Toaster / ToastProvider inside root provider" 계약.
+     - "이벤트 핸들러는 null-safe (event?.target?.xxx)" 계약.
+     - component-integration 서브섹션 추가. downstream React/컴포넌트 프로젝트에서 Codex 산출물 누락 재발 방지.
+  2. **`#6` `scripts/vibe-sprint-commit.mjs` actualLoc lockfile blacklist**: `package-lock.json` / `pnpm-lock.yaml` / `yarn.lock` / `bun.lockb` 자동 제외. +150 growth budget 게이트 판정 noise 제거.
+  3. **Pending restoration 4건 판정**:
+     - `two-tier-audit-convention` — O2 `#3` 와 결합 결과에 따라 복원 or delete 확정.
+     - 나머지 tier-C 3건 — iter-4 종료까지 재발 0 → delete 확정 (rules-deleted 에 "delete-confirmed" 마킹).
+- **예상 LOC**: add ~50 (Planner MD 확장 20 + lockfile blacklist 15 + pending tests 15). delete ~0.
+- **의존**: O2 완료.
+- **Wiring 주의**: Planner SKILL.md 변경 시 기존 sprint-planner frontmatter tool 권한 불변 확인. lockfile blacklist 는 upstream LOC 회귀 테스트로 검증.
+
 ## Iteration 경계 처리
 
 - iter-3 완료 = 3 Sprint AC pass. dogfood8 production 검증은 **post-acceptance** (iter-3 scope 밖).

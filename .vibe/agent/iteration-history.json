@@ -1,7 +1,26 @@
 {
   "$schema": "./iteration-history.schema.json",
-  "currentIteration": "iter-3",
+  "currentIteration": "iter-4",
   "iterations": [
+    {
+      "id": "iter-4",
+      "label": "harness-stability-tune",
+      "startedAt": "2026-04-18T13:45:00.000Z",
+      "completedAt": null,
+      "goal": "dogfood8 iter-4 MVP run 인계 후 review-6 findings 6건(#2~#7) 수용. (O1) interview engine sub-field coverage 회계 버그 fix — iter-4 kickoff interview 자체가 14 rounds success_metric↔goal 무한 loop 로 #2 재현 후 --abort. (O2) script-wrapper triage 3종: audit-skip-set bootstrap + preflight roadmap iteration 경계 인식 + bundle/browserSmoke path configurable. (O3) Planner common checklist 의 component-integration 계약(Toaster root mount + null-safe event) + actualLoc lockfile blacklist + pending restoration 4건 최종 판정. Growth budget 1회 예외 승인: net +285 LOC (slot-1 +80 / slot-2 +155 / slot-3 +50). 0 new scripts 유지. soft freeze posture 지속 (iter-5 부터 +150 복귀).",
+      "plannedSprints": [
+        "sprint-O1-interview-coverage",
+        "sprint-O2-script-wrapper-triage",
+        "sprint-O3-planner-contract-polish"
+      ],
+      "completedSprints": [],
+      "milestoneProgress": {
+        "interview-coverage": 0,
+        "script-wrapper-triage": 0,
+        "planner-contract-polish": 0
+      },
+      "summary": ""
+    },
     {
       "id": "iter-3",
       "label": "harness diet + tune-up",
