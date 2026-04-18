@@ -649,7 +649,6 @@ function renderHtml(model) {
 <style>
 :root{color-scheme:dark;--bg-0:#090909;--bg-1:#111112;--bg-2:#1a1a1d;--frame-bg:rgba(255,255,255,0.012);--text:#f7f7f7;--secondary:rgba(247,247,247,0.74);--muted:rgba(247,247,247,0.48);--border:rgba(255,255,255,0.1);--border-strong:rgba(255,255,255,0.18);--accent:#ffffff;--accent-subtle:rgba(255,255,255,0.09);--glass-bg:linear-gradient(145deg,rgba(255,255,255,0.105),rgba(255,255,255,0.026) 45%,rgba(255,255,255,0.052));--glass-bg-flat:rgba(255,255,255,0.045);--glass-highlight:inset 0 1px 0 rgba(255,255,255,0.18),inset 0 -18px 36px rgba(255,255,255,0.025),inset 0 -1px 0 rgba(0,0,0,0.22);--glass-depth:0 20px 60px rgba(0,0,0,0.4),0 8px 24px rgba(0,0,0,0.25);--complete-bg:rgba(163,230,53,0.11);--complete-text:#d9f99d;--progress-bg:rgba(255,255,255,0.09);--progress-text:#f3f4f6;--partial-bg:rgba(251,191,36,0.1);--partial-text:#fde68a;--failed-bg:rgba(248,113,113,0.11);--failed-text:#fecaca;--idle-bg:rgba(255,255,255,0.045);--idle-text:rgba(255,255,255,0.58)}
 *{box-sizing:border-box}
-html{scroll-behavior:smooth}
 body{margin:0;min-height:100vh;background:radial-gradient(ellipse at 12% -10%,rgba(255,255,255,0.055),transparent 52%),radial-gradient(ellipse at 100% 12%,rgba(255,255,255,0.028),transparent 45%),linear-gradient(180deg,var(--bg-0) 0%,var(--bg-1) 58%,var(--bg-2) 100%);background-attachment:fixed;color:var(--text);font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;font-size:15px;line-height:1.65;padding:18px;font-variant-numeric:tabular-nums}
 a{color:var(--accent);text-decoration:none}
 a:hover{text-decoration:underline;text-underline-offset:3px}
@@ -684,7 +683,7 @@ h3{font-size:16px;line-height:1.4;font-weight:600;color:var(--text);margin:0}
 .subtitle{font-size:17px;line-height:1.55;color:var(--secondary);margin:0 0 24px;max-width:720px}
 .meta-row{display:flex;flex-wrap:wrap;gap:24px;font-size:13px;color:var(--muted);font-family:"JetBrains Mono","SF Mono",Menlo,Consolas,monospace}
 main.container{padding-top:0;padding-bottom:0}
-.report-section{margin-top:80px}
+.report-section{margin-top:80px;content-visibility:auto;contain-intrinsic-size:0 600px}
 .section-heading{display:flex;align-items:baseline;justify-content:space-between;gap:16px;margin-bottom:24px}
 .section-heading span{color:var(--muted);font-size:13px;font-weight:500}
 .metric-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:20px}
@@ -751,6 +750,7 @@ dd{margin:0;min-width:0;word-break:break-word;color:var(--secondary);font-size:1
 .site-footer{border-top:1px solid var(--border);color:var(--muted);font-size:12px;font-family:"JetBrains Mono","SF Mono",Menlo,Consolas,monospace;padding:32px 0 16px;margin-top:80px;text-align:center}
 @media (max-width:1024px){h1{font-size:44px}.nav-anchors{display:none}}
 @media (max-width:640px){body{padding:8px}.outer-frame{padding:12px;border-radius:16px}.site-nav{padding:10px 14px;border-radius:20px;flex-wrap:wrap;gap:12px;margin-bottom:48px}.nav-meta{display:none}h1{font-size:32px}.hero{padding:32px 0 48px}.report-section{margin-top:48px}.section-heading,.decision-tools{display:block}.filter-list,.expand-actions{margin-top:16px}.milestone-row{grid-template-columns:1fr}.decision-entry{grid-template-columns:1fr;gap:8px}.decision-date-group>h3{top:80px}.metric-card strong{font-size:36px}.subtitle{font-size:15px}}
+@media (prefers-reduced-motion:reduce){.orb-core{animation:none}.metric-card,.sprint-card{transition:none}}
 @media print{body{background:#fff;color:#000;padding:0}.outer-frame{border:0;padding:0;background:none;backdrop-filter:none}.ambient-glow{display:none}.site-nav{position:static;margin-bottom:32px;border:1px solid #ccc;background:#fff;box-shadow:none;backdrop-filter:none;color:#000}.nav-anchors,.nav-meta,.skip-link,.decision-tools,.orb{display:none}.brand-name{color:#000}.metric-card,.sprint-card,.milestone-row,.verification-row,.decision-groups{background:#fff;border:1px solid #ccc;box-shadow:none;backdrop-filter:none;color:#000}.metric-card p,.metric-card span,.sprint-card>p,dt,dd,.eyebrow,.subtitle,.meta-row,.timeline-status,.timeline-item time,.next-steps li,.decision-entry p{color:#000}h1,h2,h3{color:#000}.report-section{break-inside:avoid;margin-top:32px}details:not([open])>summary{margin-bottom:8px}details:not([open])>:not(summary){display:block}.site-footer::after{content:" / " counter(page)}a::after{content:" (" attr(href) ")";color:#666;font-size:90%}}
 </style>
 </head>
