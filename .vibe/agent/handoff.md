@@ -64,6 +64,4 @@ IDLE. 사용자 지시 대기:
 - iter-6 roadmap: `docs/plans/sprint-roadmap.md` (line 569+, `# Iteration 6`)
 - iter-6 history: `.vibe/agent/iteration-history.json.iterations[0]`
 - iter-6 release note: `docs/release/v1.4.3.md`
-- Evaluator report: `docs/reports/evaluator-iter-6-m2-2026-04-19.md`
-- dogfood9 review-14 요약: session-log `[iter-6-kickoff]`
 - iter-4 closure ref: commit `e4f45d5` + tag `v1.4.2` (pushed)

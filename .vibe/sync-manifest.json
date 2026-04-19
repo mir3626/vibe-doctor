@@ -163,7 +163,21 @@
       "test/integration/meta-smoke.test.ts",
       ".vibe/agent/iteration-history.schema.json",
       "migrations/1.2.1.mjs",
-      "migrations/1.3.0.mjs"
+      "migrations/1.3.0.mjs",
+      "scripts/vibe-dashboard.mjs",
+      "scripts/vibe-attention.mjs",
+      "scripts/vibe-attention-notify.mjs",
+      "scripts/vibe-daily-log.mjs",
+      "scripts/vibe-session-started.mjs",
+      "src/lib/daily-log.ts",
+      "test/attention-notify.test.ts",
+      "test/daily-log.test.ts",
+      "test/dashboard-server.test.ts",
+      "test/interview-coverage.test.ts",
+      "test/sprint-planner-contract.test.ts",
+      "test/sprint-commit-lockfile-blacklist.test.ts",
+      "docs/release/v1.4.1.md",
+      "docs/release/v1.4.3.md"
     ],
     "hybrid": {
       "CLAUDE.md": {
