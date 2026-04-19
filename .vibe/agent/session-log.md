@@ -24,6 +24,7 @@
 
 
 
+- 2026-04-19T13:00:00.000Z [decision] [iter-6-closure] iter-6 (harness-dogfood9-regression-fix) 2 sprints 완료. M2 (95b45fc): collectDeleteConfirmedSlugs helper + parseRestorationSections post-decision skip + parseRoadmapSprintIds inline id bullet fallback. Evaluator 첫 iter-6 소환 verdict=pass blocking=0 (F1/F2 non-blocking). M3 (e808ac9): run-codex.sh extract_token_count regex 확장 (`tokens used N` 신 포맷 + `tr -d '\\r'`) + fixture 3 추가. 테스트 249 → 254. harnessVersion 1.4.2 → 1.4.3 bump → auto-tag v1.4.3 local 생성. **push 금지 — 사용자 직접**. review-14 실 regression 2건 전부 해소. defer findings (auto-opt-in, sprite-assets) dogfood10 후 재평가.
 - 2026-04-19T12:55:10.884Z [sprint-complete] sprint-M3-status-tick-windows-regression -> passed. Sprint sprint-M3-status-tick-windows-regression completed with passed LOC +449/-15 (net +434)
 - 2026-04-19T12:45:31.659Z [audit-clear] resolved=1 note=Evaluator iter-6 M2: pass, blocking=0. 2 non-blocking findings 무해.
 - 2026-04-19T12:45:16.964Z [audit-clear] resolved=0 note=Evaluator iter-6 M2: pass, blocking=0. 2 non-blocking findings (roadmap Pending exposure, actualLoc pre-commit) — neither violates M2 spec.

@@ -6,7 +6,7 @@
       "id": "iter-6",
       "label": "harness-dogfood9-regression-fix",
       "startedAt": "2026-04-19T02:00:00.000Z",
-      "completedAt": null,
+      "completedAt": "2026-04-19T13:00:00.000Z",
       "goal": "dogfood9 (Penguin Run, iter-5 product-only) review-14 의 8 findings 중 실 regression 2건만 수용. M2: src/lib/review.ts rules-deleted parser 가 iter-4 O3 delete-confirmed 마커 인식 못해 pending restoration 4건 auto-seed false-positive + scripts/vibe-sprint-complete.mjs iter-1 M* heading id 미추출 warning 2건 해소. M3: scripts/run-codex.sh 의 auto status-tick hook Windows 샌드박스 silent-skip regression 복원 (iter-3 N2 도입분 Windows 호환성 회복). Growth budget net +65 LOC (기본 +150 내). 0 new scripts. auto-opt-in / sprint-complete-heading / sprite-assets 등 나머지 review-14 findings 는 defer (dogfood10 후 재평가). Release 타깃 v1.4.3 (patch). push 금지 — local commit only.",
       "plannedSprints": [
         "sprint-M2-parser-false-positive",
@@ -17,10 +17,10 @@
         "sprint-M3-status-tick-windows-regression"
       ],
       "milestoneProgress": {
-        "parser-false-positive": 0,
-        "status-tick-windows-regression": 0
+        "parser-false-positive": 1,
+        "status-tick-windows-regression": 1
       },
-      "summary": ""
+      "summary": "M2 (95b45fc): src/lib/review.ts collectDeleteConfirmedSlugs helper + parseRestorationSections 가 iter-4 O3 append 된 '## iter-4 판정' 섹션 내 rule slug 를 pending 에서 제외. scripts/vibe-sprint-complete.mjs parseRoadmapSprintIds lookahead 확장 + inline id bullet fallback 으로 iter-1 M* heading id 추출. Evaluator 첫 iter-6 소환 verdict=pass blocking=0 (docs/reports/evaluator-iter-6-m2-2026-04-19.md). M3 (e808ac9): scripts/run-codex.sh extract_token_count regex 가 Codex CLI 신 포맷 'tokens used N' 을 인식하도록 tr -d '\\r' + 확장 regex 적용 (iter-3 N2 도입 후 Codex CLI 포맷 변경으로 drift). 기존 'tokens: N' 구 포맷 하위 호환. test/run-codex-wrapper.test.ts fixture 3 추가 (tokens-used / tokens-crlf / tokens-malformed). 테스트 249 → 254 (+5 pass / 0 fail / 1 skip). harnessVersion 1.4.2 → 1.4.3 bump. review-14 실 regression 2건 전부 해소."
     },
     {
       "id": "iter-4",
