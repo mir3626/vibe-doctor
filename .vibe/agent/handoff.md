@@ -1,4 +1,4 @@
-# Orchestrator Handoff — iter-4 closure (v1.4.2)
+# Orchestrator Handoff — iter-6 kickoff (harness-dogfood9-regression-fix)
 
 > 이 파일은 Orchestrator 재인스턴스화의 **연료**다. 압축/세션 전환 후 새 Orchestrator 는
 > `CLAUDE.md → MEMORY → sprint-status.json → session-log.md → 이 파일` 순으로 읽어 직전
@@ -8,56 +8,79 @@
 
 - **repo**: `C:\Users\Tony\Workspace\vibe-doctor`
 - **branch**: `main`
-- **last release**: `v1.4.2` (iter-4 closure, harness-stability-tune)
-- **current iteration**: IDLE (iter-4 completed 2026-04-19T01:20:00Z)
-- **harnessVersion**: `1.4.2`
+- **last release**: `v1.4.2` (iter-4 closure, tag pushed)
+- **current iteration**: `iter-6` (startedAt 2026-04-19T02:00:00Z)
+- **harnessVersion**: `1.4.2` (iter-6 종료 후 v1.4.3 patch bump 예정, local only)
 - **language/tone**: 한국어 반말
+- **push mode**: **local-only** — 모든 commit / tag 는 local 에서만. 사용자가 직접 push.
 
-## 2. Status: IDLE — iter-4 완료
+## 2. Status: iter-6 kickoff 완료, M2 대기
 
-iter-4 3 Sprint 전부 passed. review-6 findings 6건(#2~#7) + pending restoration 4건 모두 해소.
+dogfood9 리뷰 인계 수용 → iter-6 scope 축소 결정 (옵션 B: bug-only, M2+M3, +65 LOC).
 
-| Sprint | commit | 핵심 |
-|--------|--------|------|
-| O1 | `4096574` | interview coverage 회계 fix (high-watermark replace) + --status pendingDim + 7 regression tests (14-round abort fixture 포함) |
-| O2 | `225dacc` | audit-skip-set bootstrap + preflight iteration 경계 + bundle/browserSmoke path configurable + Windows import() url bug fix |
-| O3 | `b938512` | sprint-planner component-integration 계약 + LOCKFILE_BLACKLIST + pending restoration 4건 delete-confirmed |
+dogfood9 metric 이 iter-4 fixes 전부 실효 증명 (41.7분 / 483K tokens / incident 0 / interview auto-terminate / 재위임 0.0 / preflight WARN 0). review-14 findings 8건 중 실 regression 2건만 수용:
 
-테스트: 228 → 249 (+21 pass / 0 fail / 1 skip). harness WARN 0 (preflight planner.presence OK).
+- **M2 대상**: rules-deleted parser false-positive (iter-4 O3 회귀) + sprint-complete heading warnings.
+- **M3 대상**: run-codex status-tick Windows silent-skip (iter-3 N2 회귀). 본 세션에서도 실제 재현 확인.
 
-## 3. 다음 iteration 후보 (iter-5 seed)
+defer findings: auto-opt-in (web-scoped), sprite-assets (product scope).
 
-- **Growth budget 복귀**: iter-5 부터 net ≤ +150 LOC 재적용. 0 new scripts 계속.
-- **Soft freeze posture 지속**: 변경 경로 = `/vibe-review` findings 또는 user directive.
-- **Candidate 이월**:
-  - `harness-gaps.md.gap-rule-only-in-md` status=under-review → iter-5 에서 close 또는 delete (O2 의 two-tier-audit-convention delete 확정 반영).
-  - Planner component-integration 계약 실효 추적 (dogfood9 review-7 에서).
+## 3. iter-6 Sprint 구조
+
+| Sprint | id | Focus | 예상 LOC |
+|--------|-----|------|---------|
+| **M2** | `sprint-M2-parser-false-positive` | src/lib/review.ts delete-confirmed skip + sprint-complete iter-1 heading parser | +35 |
+| **M3** | `sprint-M3-status-tick-windows-regression` | run-codex.sh token 추출 Windows 호환 fix + regression test | +30 |
+
+**Growth budget**: net ≤ +65 LOC (default +150 내). **0 new scripts**.
+
+**Audit cadence**: `sprintsSinceLastAudit=4/5` 현재 상태. M2 완료 시 5 도달 → **Evaluator Must** 소환. audit-clear 후 M3 진행.
 
 ## 4. 핵심 가치 (절대 보존)
 
-- `scripts/vibe-interview.mjs` + `.claude/skills/vibe-init` / `vibe-interview` (socratic core)
-- sprint-planner agent + `vibe-sprint-complete` / `vibe-sprint-commit` (sprint loop)
-- `run-codex.{sh,cmd}` wrapper (Windows/UTF-8 + EPERM skip)
+- `scripts/vibe-interview.mjs` core synthesizer/parser 불변 (auto-opt-in post-process 는 defer)
+- sprint-planner agent + `vibe-sprint-complete` / `vibe-sprint-commit`
+- `run-codex.{sh,cmd}` wrapper 계약 (M3 는 확장만)
 - Codex Generator 위임 원칙
 - Sub-agent context isolation
 
-## 5. pendingRisks (open)
+## 5. iter-6 제약
 
-- `lightweight-audit-sprint-M-process-discipline` (INFO, iter-2 carryover) — iter-5 이후 자연 해소 관찰.
+- **Evidence source**: dogfood9 review-14 요약 (user-provided handoff). 원본 파일 접근 금지.
+- **No push**: `git push` 금지 (사용자 명시). 모든 commit + tag 는 local.
+- **Platform validation**: Windows(MINGW + PowerShell) + macOS.
+- **Release 타깃**: v1.4.3 (patch, bug-fix only).
+- **Out of scope**: auto-opt-in 기능, downstream dogfood9 파일 수정, 새 스크립트 추가.
 
-## 6. 다음 행동 (세션 재시작 직후)
+## 6. 다음 행동 (이 세션 재시작 직후)
 
-IDLE. 사용자 지시 대기:
+### Step 1 — iter-6 kickoff commit (즉시)
 
-- **dogfood9 준비**: `.vibe/audit/iter-4/dogfood9-handoff-prompt.md` (iter-3 의 dogfood8 인계 패턴 계승).
-- **`/vibe-sync`**: downstream 프로젝트에서 v1.4.2 반영.
-- **`/vibe-iterate`**: iter-5 kickoff (dogfood9 결과 + review-7 기준).
+```bash
+git add .vibe/agent/{handoff.md,session-log.md,iteration-history.json} docs/plans/sprint-roadmap.md
+git commit -m "chore(iter-6): kickoff — harness-dogfood9-regression-fix"
+```
 
-## 7. 링크
+### Step 2 — Sprint M2 Planner 소환 (autonomous, user approved)
 
-- iter-4 review 근거: `docs/reports/review-6-2026-04-18.md`
-- iter-4 roadmap: `docs/plans/sprint-roadmap.md` (line 468+, `# Iteration 4`)
-- iter-4 history: `.vibe/agent/iteration-history.json.iterations[0]`
-- iter-4 release note: `docs/release/v1.4.2.md`
-- pending restoration 판정: `.vibe/audit/iter-3/rules-deleted.md` (iter-4 append 섹션)
-- project report: `docs/reports/project-report.html` (regenerated at iter-4 closure)
+```
+Agent({ subagent_type: 'planner', model: 'opus', prompt: ... })
+→ docs/prompts/sprint-M2-parser-false-positive.md
+```
+
+### Step 3 — Codex 위임 → verify → sprint-commit
+### Step 4 — Evaluator Must (audit counter=5) → audit-clear
+### Step 5 — Sprint M3 동일 패턴
+### Step 6 — iter-6 closure: v1.4.3 bump + tag (local only)
+
+## 7. pendingRisks
+
+- `lightweight-audit-sprint-M-process-discipline` (INFO, iter-2 carryover) — iter-5 이후 자연 해소 관찰 중.
+
+## 8. 링크
+
+- iter-6 roadmap: `docs/plans/sprint-roadmap.md` (line 569+, `# Iteration 6`)
+- iter-6 history entry: `.vibe/agent/iteration-history.json.iterations[0]`
+- dogfood9 review-14 요약: session-log `[decision][iter-6-kickoff]` + 본 handoff §2
+- iter-4 closure ref: commit `e4f45d5` + tag `v1.4.2` (pushed)
+- status-tick regression evidence: 본 세션 Codex 호출 로그 전수에서 `status-tick: skipped reason=no-tokens`

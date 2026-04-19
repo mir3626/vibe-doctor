@@ -563,6 +563,78 @@ iter-3 preservation list 그대로 승계:
 - Sprint AC 미달 시 재Codex 위임 (기존 방식).
 - iter-3 net LOC > +150 초과 시 Sprint scope 재협상 필수.
 
+---
+
+# Iteration 6 — harness-dogfood9-regression-fix (v1.4.3)
+
+## 배경
+
+dogfood9 (Penguin Run HTML5 Canvas 게임) 가 iter-5 product-only iteration 으로 5 Sprint 자율 완주. metric 은 iter-4 fixes 실효를 증명 (41.7분, 483K tokens, incident 0, interview auto-terminate, 재위임 0.0, preflight WARN 0).
+
+dogfood9 `/vibe-review` → review-14 (dogfood9 저장소) 에서 8 findings 분류 결과, **실 regression 2건만 수용**:
+
+1. `src/lib/review.ts` rules-deleted parser 가 iter-4 O3 가 도입한 `delete-confirmed` 마커를 인식 못해 pending restoration 4건이 매 review 마다 auto-seed 되는 false-positive.
+2. `scripts/run-codex.sh` 의 token 추출 → `vibe-status-tick` 호출 경로가 Windows 샌드박스에서 silent-skip (`status-tick: skipped reason=no-tokens` 매 Codex 호출에서 재현 확인). tokens.json 누적 0 유지.
+
+나머지 findings (auto-opt-in / sprint-complete heading / sprite-assets) 는 defer (dogfood10 후 재평가).
+
+> **Review metric 유지**: "dogfood friction incident per sprint + delivered product value" primary. 본 iter 는 regression 복원 성격이라 shipped value 간접 개선.
+
+## 범위 요약
+
+- **총 Sprint**: 2 (M2 → M3). `iter-6 M1` label 은 defer 된 auto-opt-in scope 고유 식별자 유지용으로 skip.
+- **Priority**: a (M2 parser) ~ b (M3 status-tick). 독립. 순서는 Evaluator 발동 타이밍 고려 (audit counter 4/5 → M2 후 5 도달).
+- **Growth budget**: **net ≤ +65 LOC** (기본 +150 default 내). **0 new scripts**.
+- **Release 타깃**: v1.4.3 (patch). bug-fix only.
+- **사용자 모드**: 자율 batch. push 없음 (사용자 명시 지시: 모든 commit local-only).
+- **Platform validation**: Windows(MINGW + PowerShell) + macOS.
+
+## 핵심 가치 (절대 보존)
+
+- `scripts/vibe-interview.mjs` core synthesizer/parser 불변 (M1 auto-opt-in post-process 는 defer)
+- sprint-planner agent + `vibe-sprint-complete` / `vibe-sprint-commit`
+- `run-codex.{sh,cmd}` wrapper 계약 (M3 는 확장만, 계약 불변)
+- Codex Generator 위임 원칙
+- Sub-agent context isolation
+
+## 공통 제약
+
+- Artifacts: 별도 `.vibe/audit/iter-6/` 디렉토리 생성 없음 (regression 두 건은 code + test 로만 해소).
+- downstream dogfood9 프로젝트 파일 접근 금지 (upstream only).
+- review-14 은 dogfood9 저장소 파일. upstream 은 요약만 받고 원본 다시 읽지 않음.
+
+## Sprint M2 — review parser + sprint-complete heading false-positive
+
+- **id**: `sprint-M2-parser-false-positive`
+- **목표**: dogfood9 review-14 의 B group (4 pending-restoration) + Polish 1 건 (sprint-complete heading warnings) 을 두 파서 수정으로 해소.
+- **핵심 산출**:
+  1. **`src/lib/review.ts` `collectPendingRestorationDecisions()` 교정**: `.vibe/audit/iter-*/rules-deleted.md` 파싱 시 "delete-confirmed" 마커 또는 iter-4 O3 가 append 한 post-decision 섹션에 속한 entry 는 pending 에서 제외. fixture 로 `test/review-inputs.test.ts` 또는 신규 `test/review-rules-deleted-parser.test.ts` 에 iter-3 실제 파일 기반 regression (expected pending count 0).
+  2. **`scripts/vibe-sprint-complete.mjs` 의 roadmap heading parser 교정**: 현재 `warning=roadmap-id-missing headingLine=*` 이 iter-1 M* heading 스타일 (예: `## Sprint M1 — Schema foundation (state files)`) 을 id 미추출로 처리. id 추출 regex 를 확장해서 `- **id**: \`<sprint-id>\`` 인접 캡처 방식으로 보완. 경고 0.
+  3. **regression 테스트**: 2건 모두 grep/structural 기반 assertion.
+- **예상 LOC**: add ~35, delete ~0.
+- **의존**: 없음.
+- **Wiring**: W12 (tests) + W10 (release note draft `docs/release/v1.4.3.md`).
+- **Audit trigger**: sprint 완료 시 `sprintsSinceLastAudit` 4 → 5 도달 → **Evaluator Must** (audit.everyN=5). audit-clear 후 M3 진행.
+
+## Sprint M3 — run-codex status-tick Windows regression
+
+- **id**: `sprint-M3-status-tick-windows-regression`
+- **목표**: dogfood9 review-14 structural finding `review-tokens-json-not-updating` 해소. iter-3 N2 가 도입한 `run-codex.sh` auto status-tick hook 이 Windows 샌드박스에서 `skipped reason=no-tokens` 로 silent-skip. tokens.json 누적 0 유지 회귀.
+- **핵심 산출**:
+  1. **`scripts/run-codex.sh` 토큰 추출 경로 점검**: 현재 추출 로직이 stdout 의 `tokens used <N>` 줄을 읽을 때 CRLF / UTF-8 BOM / PowerShell 출력 차이로 match 실패하는 지점 확인. awk/grep 패턴 검증.
+  2. **`scripts/run-codex.cmd` 동등 경로 확인 및 필요 시 대응**.
+  3. **`node scripts/vibe-status-tick.mjs --add-tokens N --sprint <id> --elapsed-start <ts>` 호출이 실제 tokens.json 갱신하는지** 샌드박스 밖 재검증 (Windows MINGW bash).
+  4. **regression test**: `test/run-codex-status-tick.test.ts` (신규) — synthetic Codex stdout fixture (`tokens used 12345\nelapsed=60s\n`) 를 wrapper 에 주입해 tokens.json 누적이 +12345 증가함을 assert. Windows + macOS 호환 경로 처리 명시.
+- **예상 LOC**: add ~30, delete ~0.
+- **의존**: M2 완료 + Evaluator 통과 (audit counter 리셋 후).
+- **Wiring**: W12 (tests) + W10 (release note append).
+
+## Iteration 경계 처리
+
+- iter-6 완료 = 2 Sprint AC pass + Evaluator audit-clear. product 검증은 dogfood10 에서 post-acceptance (iter-6 scope 밖).
+- harnessVersion 1.4.2 → 1.4.3 (patch) bump → auto-tag `v1.4.3` 자동 생성 (local only). 사용자가 직접 push.
+- defer 된 auto-opt-in (구 M1) 은 dogfood10 선정 후 재평가. web 프로젝트 아니면 delete 확정.
+
 
 
 
