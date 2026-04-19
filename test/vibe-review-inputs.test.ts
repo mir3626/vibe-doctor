@@ -206,6 +206,37 @@ describe('review inputs', () => {
     assert.equal(restorations[1]?.reason, '[tier-fallback] bad tier');
   });
 
+  it('suppresses pending entries marked delete-confirmed in a post-decision section', async () => {
+    const root = await makeTempDir('review-restorations-delete-confirmed-');
+    await writeText(
+      path.join(root, '.vibe', 'audit', 'iter-3', 'rules-deleted.md'),
+      [
+        '# ledger',
+        '',
+        '## old-rule - Old rule title',
+        '',
+        '- tier: B',
+        '- reason: "incident_count=0"',
+        '- restoration_decision: pending',
+        '',
+        '## invalid-tier - Invalid tier title',
+        '',
+        '- tier: Z',
+        "- reason: 'bad tier'",
+        '- restoration_decision: pending',
+        '',
+        '## iter-4 decision (2026-04-19)',
+        '',
+        '- `old-rule` - reviewed and marked **delete-confirmed**.',
+      ].join('\n'),
+    );
+
+    const restorations = await collectPendingRestorationDecisions(root);
+
+    assert.equal(restorations.length, 1);
+    assert.equal(restorations[0]?.ruleSlug, 'invalid-tier');
+  });
+
   it('collectPendingRestorationDecisions returns an empty list when no ledgers exist', async () => {
     const root = await makeTempDir('review-restorations-empty-');
 

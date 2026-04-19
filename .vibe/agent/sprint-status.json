@@ -115,6 +115,18 @@
         "net": 1144,
         "filesChanged": 19
       }
+    },
+    {
+      "id": "sprint-M2-parser-false-positive",
+      "name": "sprint-M2-parser-false-positive",
+      "status": "passed",
+      "completedAt": "2026-04-19T12:40:56.744Z",
+      "actualLoc": {
+        "added": 150,
+        "deleted": 39,
+        "net": 111,
+        "filesChanged": 4
+      }
     }
   ],
   "handoff": {
@@ -123,10 +135,10 @@
     "pendingPrompt": null,
     "lastHandoffAt": "2026-04-16T00:00:00Z",
     "nextAction": "run /vibe-init to start a new project",
-    "lastActionSummary": "Sprint sprint-O3-planner-contract-polish completed with passed",
+    "lastActionSummary": "Sprint sprint-M2-parser-false-positive completed with passed",
     "orchestratorContextBudget": "medium",
     "preferencesActive": [],
-    "updatedAt": "2026-04-18T16:17:16.343Z"
+    "updatedAt": "2026-04-19T12:40:56.744Z"
   },
   "policies": {
     "scratchpadPath": ".vibe/agent/handoff.md",
@@ -166,6 +178,15 @@
       "text": "src/lib/preflight-roadmap.ts has no test/preflight-roadmap.test.ts",
       "status": "open",
       "createdAt": "2026-04-18T16:17:16.859Z"
+    },
+    {
+      "id": "audit-after-sprint-M2-parser-false-positive",
+      "raisedBy": "vibe-sprint-complete",
+      "targetSprint": "*",
+      "text": "Evaluator audit due (sprintsSinceLastAudit=5, everyN=5).",
+      "status": "resolved",
+      "createdAt": "2026-04-19T12:40:56.744Z",
+      "resolvedAt": "2026-04-19T12:45:31.658Z"
     }
   ],
   "lastSprintScope": [
@@ -249,7 +270,9 @@
     "test/config-path-resolution.test.ts",
     "test/preflight-roadmap-iteration.test.ts",
     "test/sprint-commit-lockfile-blacklist.test.ts",
-    "test/sprint-planner-contract.test.ts"
+    "test/sprint-planner-contract.test.ts",
+    "docs/release/v1.4.3.md",
+    "docs/reports/evaluator-iter-6-m2-2026-04-19.md"
   ],
   "lastSprintScopeGlob": [
     "src/lib/schemas/**",
@@ -273,8 +296,8 @@
     ".claude/skills/vibe-review/SKILL.md",
     ".vibe/agent/iteration-history.json"
   ],
-  "sprintsSinceLastAudit": 4,
-  "stateUpdatedAt": "2026-04-18T16:17:16.343Z",
+  "sprintsSinceLastAudit": 0,
+  "stateUpdatedAt": "2026-04-19T12:45:31.657Z",
   "verifiedAt": null,
   "verificationCommands": []
 }

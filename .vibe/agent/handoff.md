@@ -14,7 +14,7 @@
 - **language/tone**: 한국어 반말
 - **push mode**: **local-only** — 모든 commit / tag 는 local 에서만. 사용자가 직접 push.
 
-## 2. Status: iter-6 kickoff 완료, M2 대기
+## 2. Status: IDLE - Sprint sprint-M2-parser-false-positive passed
 
 dogfood9 리뷰 인계 수용 → iter-6 scope 축소 결정 (옵션 B: bug-only, M2+M3, +65 LOC).
 
@@ -31,6 +31,7 @@ defer findings: auto-opt-in (web-scoped), sprite-assets (product scope).
 |--------|-----|------|---------|
 | **M2** | `sprint-M2-parser-false-positive` | src/lib/review.ts delete-confirmed skip + sprint-complete iter-1 heading parser | +35 |
 | **M3** | `sprint-M3-status-tick-windows-regression` | run-codex.sh token 추출 Windows 호환 fix + regression test | +30 |
+| `sprint-M2-parser-false-positive` | sprint-M2-parser-false-positive | passed |
 
 **Growth budget**: net ≤ +65 LOC (default +150 내). **0 new scripts**.
 

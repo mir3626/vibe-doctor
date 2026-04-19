@@ -12,7 +12,9 @@
         "sprint-M2-parser-false-positive",
         "sprint-M3-status-tick-windows-regression"
       ],
-      "completedSprints": [],
+      "completedSprints": [
+        "sprint-M2-parser-false-positive"
+      ],
       "milestoneProgress": {
         "parser-false-positive": 0,
         "status-tick-windows-regression": 0

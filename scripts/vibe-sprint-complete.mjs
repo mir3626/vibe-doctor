@@ -115,7 +115,7 @@ function normalizeScopeEntries(entries) {
   return merged;
 }
 
-function parseRoadmapSprintIds(roadmapMd) {
+export function parseRoadmapSprintIds(roadmapMd) {
   const lines = roadmapMd.split(/\r?\n/);
   const sprintIds = [];
 
@@ -125,13 +125,13 @@ function parseRoadmapSprintIds(roadmapMd) {
     }
 
     let matchedId = null;
-    for (let offset = 1; offset <= 6; offset += 1) {
+    for (let offset = 1; offset <= 12; offset += 1) {
       const line = lines[index + offset];
-      if (!line) {
+      if (line === undefined || /^## /.test(line)) {
         break;
       }
 
-      const match = line.match(/^\s*-\s+\*\*id\*\*:\s+`([^`]+)`/);
+      const match = line.match(/^\s*[-*]\s+\*\*id\*\*:\s*`([^`]+)`/);
       if (match?.[1]) {
         matchedId = match[1];
         break;

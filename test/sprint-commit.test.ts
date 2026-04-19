@@ -177,14 +177,16 @@ async function runSprintCommit(
 }
 
 async function loadSprintCompleteHelpers(): Promise<{
+  parseRoadmapSprintIds: (roadmapMd: string) => string[];
   computeCurrentPointerBlock: (
     roadmapMd: string,
     sessionLogMd: string,
     lastSprintId: string,
     startedDateIso?: string,
   ) => string;
-  }> {
+}> {
   return import(pathToFileURL(path.resolve('scripts', 'vibe-sprint-complete.mjs')).href) as Promise<{
+    parseRoadmapSprintIds: (roadmapMd: string) => string[];
     computeCurrentPointerBlock: (
       roadmapMd: string,
       sessionLogMd: string,
@@ -253,6 +255,31 @@ describe('collectArchivedPromptFiles', () => {
 });
 
 describe('computeCurrentPointerBlock', () => {
+  it('parses delayed roadmap id bullets and warns when ids are missing', async () => {
+    const { parseRoadmapSprintIds } = await loadSprintCompleteHelpers();
+    const originalWrite = process.stderr.write;
+    const chunks: string[] = [];
+    process.stderr.write = ((chunk: string | Uint8Array) => {
+      chunks.push(String(chunk));
+      return true;
+    }) as typeof process.stderr.write;
+
+    try {
+      const delayedIdRoadmap = [
+        '# Roadmap\n\n## Sprint M1 - Schema foundation (state files)\n\n- **goal**: create schema state files',
+        '- **outputs**:\n  - status json\n  - handoff markdown\n\nnotes before id',
+        '- **id**: `sprint-M1-schema-foundation`',
+      ].join('\n');
+
+      assert.deepEqual(parseRoadmapSprintIds(delayedIdRoadmap), ['sprint-M1-schema-foundation']);
+      assert.equal(chunks.join(''), '');
+      assert.deepEqual(parseRoadmapSprintIds('## Sprint M1\n\n- **goal**: missing id'), []);
+      assert.match(chunks.join(''), /warning=roadmap-id-missing headingLine=1/);
+    } finally {
+      process.stderr.write = originalWrite;
+    }
+  });
+
   it('computes current, completed, and pending lists from roadmap and session log', async () => {
     const { computeCurrentPointerBlock } = await loadSprintCompleteHelpers();
     const roadmap = [

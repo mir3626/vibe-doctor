@@ -205,8 +205,32 @@ function splitRestorationSection(section: string): { heading: string; lines: str
   return { heading, lines: boundaryIndex === -1 ? body : body.slice(0, boundaryIndex) };
 }
 
+function collectDeleteConfirmedSlugs(markdown: string): Set<string> {
+  const slugs = new Set<string>();
+  for (const section of markdown.split(/\r?\n(?=##\s+)/).filter((entry) => entry.startsWith('## '))) {
+    const parsedSection = splitRestorationSection(section);
+    if (!parsedSection) continue;
+    const scalarDeleteConfirmed = parsedSection.lines.some(
+      (line) =>
+        parseYamlScalar(line, 'restoration_decision')?.replace(/\*/g, '').toLowerCase() === 'delete-confirmed',
+    );
+    if (scalarDeleteConfirmed) {
+      slugs.add(parseRestorationHeading(parsedSection.heading).ruleSlug);
+    }
+    const heading = parsedSection.heading.toLowerCase();
+    if (/\biter-\d+\b/.test(heading) || heading.includes('delete-confirmed')) {
+      for (const line of parsedSection.lines) {
+        const slug = /delete-confirmed/i.test(line) ? line.match(/`([^`]+)`/)?.[1]?.trim() : null;
+        if (slug) slugs.add(slug);
+      }
+    }
+  }
+  return slugs;
+}
+
 function parseRestorationSections(markdown: string, sourceFile: string): PendingRestoration[] {
   const restorations: PendingRestoration[] = [];
+  const deleteConfirmedSlugs = collectDeleteConfirmedSlugs(markdown);
 
   for (const section of markdown.split(/\r?\n(?=##\s+)/).filter((entry) => entry.startsWith('## '))) {
     const parsedSection = splitRestorationSection(section);
@@ -215,6 +239,10 @@ function parseRestorationSections(markdown: string, sourceFile: string): Pending
     }
 
     const parsedHeading = parseRestorationHeading(parsedSection.heading);
+    if (deleteConfirmedSlugs.has(parsedHeading.ruleSlug)) {
+      continue;
+    }
+
     const rawTier = restorationValue(parsedSection.lines, 'tier');
     const reason = restorationValue(parsedSection.lines, 'reason') ?? '';
 
