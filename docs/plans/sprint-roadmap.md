@@ -1,8 +1,8 @@
 # vibe-doctor 메타-프로젝트 Sprint Roadmap — v1.2.0 하네스 진화
 
 <!-- BEGIN:VIBE:CURRENT-SPRINT -->
-> **Current**: sprint-M3-status-tick-windows-regression (not started, started 2026-04-19)
-> **Completed**: sprint-M2-parser-false-positive, sprint-O3-planner-contract-polish, sprint-O2-script-wrapper-triage, sprint-O1-interview-coverage, sprint-N3-freeze-mode-flag, sprint-N2-critical-bug-triage, sprint-N1-rule-audit-diet, sprint-M-harness-gates, sprint-M-process-discipline, sprint-M-audit
+> **Current**: idle (not started, started 2026-04-19)
+> **Completed**: sprint-M3-status-tick-windows-regression, sprint-M2-parser-false-positive, sprint-O3-planner-contract-polish, sprint-O2-script-wrapper-triage, sprint-O1-interview-coverage, sprint-N3-freeze-mode-flag, sprint-N2-critical-bug-triage, sprint-N1-rule-audit-diet, sprint-M-harness-gates, sprint-M-process-discipline, sprint-M-audit
 > **Pending**: sprint-M1-schema-foundation, sprint-M2-platform-wrappers, sprint-M3-sprint-flow-automation, sprint-M4-model-tier, sprint-M5-native-interview, sprint-M6-pattern-shards, sprint-M7-phase0-seal-and-utilities, sprint-M8-audit-review-gaps, sprint-M9-statusline-permissions, sprint-M10-integration-release
 <!-- END:VIBE:CURRENT-SPRINT -->
 
@@ -634,6 +634,7 @@ dogfood9 `/vibe-review` → review-14 (dogfood9 저장소) 에서 8 findings 분
 - iter-6 완료 = 2 Sprint AC pass + Evaluator audit-clear. product 검증은 dogfood10 에서 post-acceptance (iter-6 scope 밖).
 - harnessVersion 1.4.2 → 1.4.3 (patch) bump → auto-tag `v1.4.3` 자동 생성 (local only). 사용자가 직접 push.
 - defer 된 auto-opt-in (구 M1) 은 dogfood10 선정 후 재평가. web 프로젝트 아니면 delete 확정.
+
 
 
 

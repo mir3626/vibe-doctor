@@ -172,7 +172,8 @@ extract_token_count() {
 
   tokens="$(
     tail -n 10 "$attempt_output" 2>/dev/null |
-      grep -Eio 'tokens?[: ]+[0-9]+' |
+      tr -d '\r' |
+      grep -Eio '(^|[^[:alnum:]_])tokens?[[:space:]:][^0-9]{0,19}[0-9]+' |
       tail -n 1 |
       grep -Eo '[0-9]+' || true
   )"

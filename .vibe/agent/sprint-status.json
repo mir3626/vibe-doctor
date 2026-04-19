@@ -127,6 +127,18 @@
         "net": 111,
         "filesChanged": 4
       }
+    },
+    {
+      "id": "sprint-M3-status-tick-windows-regression",
+      "name": "sprint-M3-status-tick-windows-regression",
+      "status": "passed",
+      "completedAt": "2026-04-19T12:55:10.884Z",
+      "actualLoc": {
+        "added": 449,
+        "deleted": 15,
+        "net": 434,
+        "filesChanged": 12
+      }
     }
   ],
   "handoff": {
@@ -135,10 +147,10 @@
     "pendingPrompt": null,
     "lastHandoffAt": "2026-04-16T00:00:00Z",
     "nextAction": "run /vibe-init to start a new project",
-    "lastActionSummary": "Sprint sprint-M2-parser-false-positive completed with passed",
+    "lastActionSummary": "Sprint sprint-M3-status-tick-windows-regression completed with passed",
     "orchestratorContextBudget": "medium",
     "preferencesActive": [],
-    "updatedAt": "2026-04-19T12:40:56.744Z"
+    "updatedAt": "2026-04-19T12:55:10.884Z"
   },
   "policies": {
     "scratchpadPath": ".vibe/agent/handoff.md",
@@ -187,6 +199,14 @@
       "status": "resolved",
       "createdAt": "2026-04-19T12:40:56.744Z",
       "resolvedAt": "2026-04-19T12:45:31.658Z"
+    },
+    {
+      "id": "lightweight-audit-sprint-M3-status-tick-windows-regression",
+      "raisedBy": "vibe-audit-lightweight",
+      "targetSprint": "*",
+      "text": "src/lib/review.ts has no test/review.test.ts",
+      "status": "open",
+      "createdAt": "2026-04-19T12:55:14.038Z"
     }
   ],
   "lastSprintScope": [
@@ -272,7 +292,8 @@
     "test/sprint-commit-lockfile-blacklist.test.ts",
     "test/sprint-planner-contract.test.ts",
     "docs/release/v1.4.3.md",
-    "docs/reports/evaluator-iter-6-m2-2026-04-19.md"
+    "docs/reports/evaluator-iter-6-m2-2026-04-19.md",
+    "docs/reports/project-report.html"
   ],
   "lastSprintScopeGlob": [
     "src/lib/schemas/**",
@@ -296,8 +317,8 @@
     ".claude/skills/vibe-review/SKILL.md",
     ".vibe/agent/iteration-history.json"
   ],
-  "sprintsSinceLastAudit": 0,
-  "stateUpdatedAt": "2026-04-19T12:45:31.657Z",
+  "sprintsSinceLastAudit": 1,
+  "stateUpdatedAt": "2026-04-19T12:55:10.884Z",
   "verifiedAt": null,
   "verificationCommands": []
 }

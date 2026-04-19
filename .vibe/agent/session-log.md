@@ -23,6 +23,8 @@
 
 
 
+
+- 2026-04-19T12:55:10.884Z [sprint-complete] sprint-M3-status-tick-windows-regression -> passed. Sprint sprint-M3-status-tick-windows-regression completed with passed LOC +449/-15 (net +434)
 - 2026-04-19T12:45:31.659Z [audit-clear] resolved=1 note=Evaluator iter-6 M2: pass, blocking=0. 2 non-blocking findings 무해.
 - 2026-04-19T12:45:16.964Z [audit-clear] resolved=0 note=Evaluator iter-6 M2: pass, blocking=0. 2 non-blocking findings (roadmap Pending exposure, actualLoc pre-commit) — neither violates M2 spec.
 - 2026-04-19T12:40:56.744Z [sprint-complete] sprint-M2-parser-false-positive -> passed. Sprint sprint-M2-parser-false-positive completed with passed LOC +150/-39 (net +111)

@@ -52,7 +52,18 @@ async function writeUnameStub(binDir: string, output: string): Promise<void> {
   await writeExecutable(path.join(binDir, 'uname'), `#!/usr/bin/env bash\necho "${escapedOutput}"\n`);
 }
 
-async function createShellStubBin(mode: 'ok' | 'auth' | 'timeout' | 'stdin' | 'fail' | 'tokens'): Promise<string> {
+type ShellStubMode =
+  | 'ok'
+  | 'auth'
+  | 'timeout'
+  | 'stdin'
+  | 'fail'
+  | 'tokens'
+  | 'tokens-used'
+  | 'tokens-crlf'
+  | 'tokens-malformed';
+
+async function createShellStubBin(mode: ShellStubMode): Promise<string> {
   const binDir = await makeTempDir('run-codex-shell-bin-');
   const codexScript = `#!/usr/bin/env bash
 if [[ "\${1:-}" == "--version" ]]; then
@@ -86,6 +97,18 @@ if [[ "\${1:-}" == "exec" ]]; then
       echo "tokens: 1234"
       exit 0
       ;;
+    tokens-used)
+      echo "tokens used 12345"
+      exit 0
+      ;;
+    tokens-crlf)
+      printf 'tokens used 99\\r\\n'
+      exit 0
+      ;;
+    tokens-malformed)
+      echo "tokens used"
+      exit 0
+      ;;
     fail)
       echo "plain failure" >&2
       exit 1
@@ -115,19 +138,22 @@ shift
 }
 
 async function readTokensJson(root: string): Promise<{
+  cumulativeTokens: number;
   elapsedSeconds: number;
   sprintTokens: Record<string, number>;
 }> {
   const raw = await readFile(path.join(root, '.vibe', 'agent', 'tokens.json'), 'utf8');
   const parsed = JSON.parse(raw) as {
+    cumulativeTokens?: unknown;
     elapsedSeconds?: unknown;
     sprintTokens?: unknown;
   };
+  assert.equal(typeof parsed.cumulativeTokens, 'number');
   assert.equal(typeof parsed.elapsedSeconds, 'number');
   assert.equal(typeof parsed.sprintTokens, 'object');
   assert.notEqual(parsed.sprintTokens, null);
   assert.equal(Array.isArray(parsed.sprintTokens), false);
-  return parsed as { elapsedSeconds: number; sprintTokens: Record<string, number> };
+  return parsed as { cumulativeTokens: number; elapsedSeconds: number; sprintTokens: Record<string, number> };
 }
 
 async function createCmdStubBin(mode: 'ok' | 'stdin'): Promise<string> {
@@ -164,6 +190,18 @@ function shellEnv(binDir: string, extra: NodeJS.ProcessEnv = {}): NodeJS.Process
     ...extraEnv,
     PATH: basePath ? `${binDir}${path.delimiter}${basePath}` : binDir,
   };
+}
+
+async function runShellStatusTickFixture(mode: ShellStubMode) {
+  const binDir = await createShellStubBin(mode);
+  const cwd = await makeTempDir(`run-codex-status-${mode}-`);
+  const child = spawnSync(bashCommand ?? 'bash', [bashScriptPath, 'prompt text'], {
+    cwd,
+    env: shellEnv(binDir, { CODEX_RETRY: '1', VIBE_SPRINT_ID: 'sprint-example' }),
+    input: '',
+    encoding: 'utf8',
+  });
+  return { child, cwd };
 }
 
 describe('run-codex.sh wrapper', { skip: bashCommand === null }, () => {
@@ -318,6 +356,36 @@ describe('run-codex.sh wrapper', { skip: bashCommand === null }, () => {
     const tokens = await readTokensJson(cwd);
     assert.equal(tokens.sprintTokens['sprint-example'], 1234);
     assert.ok(tokens.elapsedSeconds >= 0);
+  });
+
+  it('extracts tokens from the current "tokens used" codex output format', async () => {
+    const { child, cwd } = await runShellStatusTickFixture('tokens-used');
+
+    assert.equal(child.status, 0);
+    assert.match(child.stderr, /status-tick: ticked tokens=12345 sprint=sprint-example/);
+    const tokens = await readTokensJson(cwd);
+    assert.equal(tokens.cumulativeTokens, 12345);
+    assert.equal(tokens.sprintTokens['sprint-example'], 12345);
+  });
+
+  it('extracts tokens from CRLF codex output', async () => {
+    const { child, cwd } = await runShellStatusTickFixture('tokens-crlf');
+
+    assert.equal(child.status, 0);
+    assert.match(child.stderr, /status-tick: ticked tokens=99 sprint=sprint-example/);
+    const tokens = await readTokensJson(cwd);
+    assert.equal(tokens.cumulativeTokens, 99);
+    assert.equal(tokens.sprintTokens['sprint-example'], 99);
+  });
+
+  it('skips status-tick when codex token output omits the number', async () => {
+    const { child, cwd } = await runShellStatusTickFixture('tokens-malformed');
+
+    assert.equal(child.status, 0);
+    assert.match(child.stderr, /status-tick: skipped reason=no-tokens/);
+    await assert.rejects(readFile(path.join(cwd, '.vibe', 'agent', 'tokens.json'), 'utf8'), {
+      code: 'ENOENT',
+    });
   });
 
   it('skips status-tick when sprint status handoff is idle', async () => {
