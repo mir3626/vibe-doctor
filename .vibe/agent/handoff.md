@@ -1,4 +1,4 @@
-# Orchestrator Handoff — iter-6 closure (v1.4.3, local-only)
+# Orchestrator Handoff — fresh template state
 
 > 이 파일은 Orchestrator 재인스턴스화의 **연료**다. 압축/세션 전환 후 새 Orchestrator 는
 > `CLAUDE.md → MEMORY → sprint-status.json → session-log.md → 이 파일` 순으로 읽어 직전
@@ -6,62 +6,40 @@
 
 ## 1. Identity
 
-- **repo**: `C:\Users\Tony\Workspace\vibe-doctor`
+- **repo**: (프로젝트 경로)
 - **branch**: `main`
-- **last release**: `v1.4.3` (iter-6 closure) — **local-only, not pushed**. 사용자가 직접 push.
-- **current iteration**: IDLE (iter-6 completed 2026-04-19T13:00:00Z)
+- **last release**: (없음 — fresh template)
+- **current iteration**: IDLE (진행 중인 iteration 없음)
 - **harnessVersion**: `1.4.3`
-- **language/tone**: 한국어 반말
+- **language/tone**: (프로젝트별)
 
-## 2. Status: IDLE — iter-6 완료
+## 2. Status: IDLE — fresh template
 
-iter-6 2 Sprint 전부 passed. review-14 실 regression 2건 해소.
+`/vibe-init` 실행 필요. Phase 1 (환경 점검) → Phase 2 (provider 선택) → Phase 3 (네이티브 소크라테스식 인터뷰) → Phase 4 (Sprint 로드맵 작성 + Phase 0 seal) 진행 후 첫 Sprint 진입.
 
-| Sprint | commit | 핵심 |
-|--------|--------|------|
-| M2 | `95b45fc` | review.ts `collectDeleteConfirmedSlugs()` helper + parseRestorationSections post-decision section skip → pending restoration 4건 false-positive 제거. `parseRoadmapSprintIds` lookahead 확장 + inline id bullet fallback → iter-1 M* heading warning 0. Evaluator 첫 iter-6 소환 verdict=pass blocking=0. |
-| M3 | `e808ac9` | run-codex.sh `extract_token_count` regex `tokens used N` 신 포맷 인식 (iter-3 N2 도입 후 Codex CLI 포맷 drift). `tr -d '\r'` 추가. regression fixture 3종 (tokens-used / tokens-crlf / tokens-malformed). |
+## 3. 핵심 가치 (절대 보존)
 
-**테스트**: 249 → 254 (+5 pass / 0 fail / 1 skip).
-**preflight WARN 0** 지속.
-**Evaluator**: M2 후 audit-clear 완료 (iter-6 첫 소환).
-
-## 3. 다음 iteration 후보 (iter-7 seed)
-
-- **Growth budget**: 기본 +150 LOC / 0 new scripts 유지.
-- **Soft freeze posture**: 변경 경로 = `/vibe-review` findings 또는 user directive.
-- **Defer 된 review-14 findings** (dogfood10 선정 후 재평가):
-  - `auto-opt-in` (bundle.enabled/browserSmoke.enabled) — web 프로젝트 선정 시 활성화
-  - `sprite-assets` — product scope, upstream 무관
-- **Deferred exposure 정리 backlog** (Evaluator F1 non-blocking):
-  - roadmap current-pointer 가 iter-1 M1~M10 sprint id 를 `Pending` 으로 노출. M2 parser fix 로 silent mismatch 가 드러난 것.
-
-## 4. 핵심 가치 (절대 보존)
-
-- `scripts/vibe-interview.mjs` core synthesizer/parser
+- `scripts/vibe-interview.mjs` + `.claude/skills/vibe-init` / `vibe-interview` (socratic core)
 - sprint-planner agent + `vibe-sprint-complete` / `vibe-sprint-commit`
-- `run-codex.{sh,cmd}` wrapper (M3 에서 token extraction regex 확장만, 계약 불변)
+- `run-codex.{sh,cmd}` wrapper (Windows/UTF-8 + EPERM skip + token extraction)
 - Codex Generator 위임 원칙
 - Sub-agent context isolation
 
-## 5. pendingRisks (open)
+## 4. 다음 행동 (세션 시작 직후)
 
-- `lightweight-audit-sprint-M-process-discipline` (INFO, iter-2 carryover)
-- `lightweight-audit-sprint-O2-script-wrapper-triage` (INFO, iter-4 carryover)
-- `lightweight-audit-sprint-O3-planner-contract-polish` (INFO, iter-4 carryover)
-- `lightweight-audit-sprint-M2-parser-false-positive` / `M3-status-tick-windows-regression` (INFO, iter-6 신규)
+```
+/vibe-init
+```
 
-## 6. 다음 행동 (세션 재시작 직후)
+→ Phase 1~4 자동 진행 → `docs/context/product.md` + `architecture.md` + `conventions.md` 생성 → `docs/plans/sprint-roadmap.md` 에 Sprint 분할 저장 → 첫 Sprint Planner 소환 대기.
 
-IDLE. 사용자 지시 대기:
+## 5. pendingRisks
 
-- **push**: 사용자가 직접 `git push origin main v1.4.3` (tag annotated, local-only 상태).
-- **dogfood10 준비**: `.vibe/audit/iter-6/dogfood10-handoff-prompt.md` 작성 여부 결정.
-- **`/vibe-iterate`**: iter-7 kickoff (dogfood10 결과 + review-15 기준).
+없음.
 
-## 7. 링크
+## 6. 링크
 
-- iter-6 roadmap: `docs/plans/sprint-roadmap.md` (line 569+, `# Iteration 6`)
-- iter-6 history: `.vibe/agent/iteration-history.json.iterations[0]`
-- iter-6 release note: `docs/release/v1.4.3.md`
-- iter-4 closure ref: commit `e4f45d5` + tag `v1.4.2` (pushed)
+- 하네스 버전: `.vibe/config.json.harnessVersion`
+- 릴리스 노트: `docs/release/v1.4.3.md` 및 이전 버전
+- Charter: `CLAUDE.md` line 1-40 (BEGIN:CHARTER ~ END:CHARTER)
+- Extensions: `docs/context/*.md`
