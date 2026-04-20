@@ -1,9 +1,9 @@
 # Sprint Roadmap
 
 <!-- BEGIN:VIBE:CURRENT-SPRINT -->
-> **Current**: sprint-M1-codex-unavailable-signal (not started, started 2026-04-21)
-> **Completed**: —
-> **Pending**: sprint-M2-generator-scope-discipline, sprint-M3-review-adapter-blind-spot
+> **Current**: sprint-M2-generator-scope-discipline (not started, started 2026-04-20)
+> **Completed**: sprint-M1-codex-unavailable-signal
+> **Pending**: sprint-M3-review-adapter-blind-spot
 <!-- END:VIBE:CURRENT-SPRINT -->
 
 ## 배경
@@ -84,3 +84,4 @@ dogfood10 (첫 다운스트림 프로젝트, Next.js 15 AI 개인 대시보드) 
 4. `node scripts/vibe-sprint-complete.mjs <sprintId> passed` → state + handoff + session-log 갱신.
 5. `node scripts/vibe-sprint-commit.mjs <sprintId> passed --scope <scope-glob>` — 단일 커밋 생성. harnessVersion bump 시 auto-tag.
 6. iteration 종료 시 `docs/handoff.md` 에 "iter-7 closure: addresses dogfood10 review-4 findings A+B+D" 한 줄 기록 + `sync-manifest.json` 업데이트 확인.
+

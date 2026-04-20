@@ -159,3 +159,12 @@ vibe-doctor를 베이스로 새 프로젝트를 만들 때:
   `./scripts/run-codex.sh` 를 default로 가리키도록 canonicalization.
   aspirational 병렬 러너 레퍼런스 제거 (Sprint E2에서 기반 코드/문서
   purge 완료).
+
+## Codex 403 Forbidden troubleshooting
+
+- 증상: `backend-api/codex/responses` 403 Forbidden 이 연속 반환된다. dogfood10 iter-1 hotfix 시점에 관측됐다.
+- 감지 메커니즘: `run-codex.sh` 가 3회 retry 소진 후 `.vibe/agent/codex-unavailable.flag` 를 touch 하고 stderr 에 `CODEX_UNAVAILABLE` 블록을 출력한다.
+- flag 내용: ISO8601 timestamp, `last_exit=<code>`, `reason_hint=<hint>` 를 기록한다. hint 는 `403-forbidden`, `401-unauthorized`, `429-rate-limit`, `5xx-server-error`, `unknown` 중 하나다.
+- Orchestrator 대응: (1) 시간차 재시도 — dogfood10 에서는 edge block 인 경우 수십 분 후 복구가 관찰됐다. (2) 사용자 승인 하에 Orchestrator 직접 편집 — session-log 에 `[decision][orchestrator-hotfix]` 기록 필수. (3) `.vibe/config.json.providers` 에 fallback provider 추가 후 재시도.
+- 자동 복구: 다음 성공 호출 시 `scripts/run-codex.sh` 가 flag 파일을 `rm -f` 로 제거한다. 이 flag 는 "현재 Codex 가 계속 unreachable 한가" 의 snapshot 이다.
+- 알려진 root causes: rate-limit, CF edge block, 계정 fingerprint 중 하나일 수 있으나 명확한 판별 방법은 없다. dogfood10 에서는 사용자 토큰이 98% 여유였음에도 403 이 반환됐다.

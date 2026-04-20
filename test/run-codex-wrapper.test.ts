@@ -58,6 +58,7 @@ type ShellStubMode =
   | 'timeout'
   | 'stdin'
   | 'fail'
+  | 'fail-403'
   | 'tokens'
   | 'tokens-used'
   | 'tokens-crlf'
@@ -111,6 +112,10 @@ if [[ "\${1:-}" == "exec" ]]; then
       ;;
     fail)
       echo "plain failure" >&2
+      exit 1
+      ;;
+    fail-403)
+      echo "403 Forbidden" >&2
       exit 1
       ;;
     *)
@@ -285,6 +290,18 @@ describe('run-codex.sh wrapper', { skip: bashCommand === null }, () => {
     assert.match(child.stderr, /attempt 1\/3 retrying reason=exit=1 delay=0s/);
     assert.match(child.stderr, /attempt 2\/3 retrying reason=exit=1 delay=0s/);
     assert.match(child.stderr, /giving up after 3 attempts/);
+  });
+
+  it('exhausts retries and emits CODEX_UNAVAILABLE signal + flag file', async () => {
+    const binDir = await createShellStubBin('fail-403');
+    const cwd = await makeTempDir('run-codex-unavailable-');
+    const child = spawnSync(bashCommand ?? 'bash', [bashScriptPath, 'prompt text'], { cwd, env: shellEnv(binDir, { CODEX_RETRY: '3', CODEX_RETRY_DELAY: '0' }), encoding: 'utf8' });
+
+    assert.equal(child.status, 1);
+    assert.match(child.stderr, /CODEX_UNAVAILABLE[\s\S]*403-forbidden/);
+
+    const flag = await readFile(path.join(cwd, '.vibe', 'agent', 'codex-unavailable.flag'), 'utf8');
+    assert.match(flag, /\d{4}-\d{2}-\d{2}T[\s\S]*last_exit=1[\s\S]*reason_hint=403-forbidden/);
   });
 
   it('preserves stdin passthrough and common rules injection', async () => {

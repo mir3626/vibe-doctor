@@ -463,6 +463,7 @@ while [[ $attempt -lt $retries ]]; do
     elapsed=$(( $(date +%s) - start_ts ))
     echo "[run-codex] total attempts=$attempt elapsed=${elapsed}s$(token_suffix)" >&2
     status_tick_after_success
+    rm -f .vibe/agent/codex-unavailable.flag
     exit 0
   fi
 
@@ -470,6 +471,23 @@ while [[ $attempt -lt $retries ]]; do
     emit_sandbox_only_summary
     elapsed=$(( $(date +%s) - start_ts ))
     echo "[run-codex] giving up after $attempt attempts elapsed=${elapsed}s last_exit=$rc" >&2
+    case "$(tail -n 20 "$attempt_stderr" 2>/dev/null | grep -Eio "403|401|429|5[0-9][0-9]" | head -n 1 || true)" in
+      403) reason_hint="403-forbidden" ;;
+      401) reason_hint="401-unauthorized" ;;
+      429) reason_hint="429-rate-limit" ;;
+      5*) reason_hint="5xx-server-error" ;;
+      *) reason_hint="unknown" ;;
+    esac
+    mkdir -p .vibe/agent
+    printf '%s\nlast_exit=%s\nreason_hint=%s\n' "$(date -u +"%Y-%m-%dT%H:%M:%SZ")" "$rc" "$reason_hint" > .vibe/agent/codex-unavailable.flag
+    cat >&2 <<EOF
+[run-codex] CODEX_UNAVAILABLE — 3 retries exhausted (last exit=$rc, $reason_hint).
+                  Orchestrator 는 아래 중 하나 선택:
+                  (1) 시간차 재시도 (quota 아닌 edge block 일 수 있음)
+                  (2) 사용자 승인 하에 Orchestrator 직접 편집
+                      → session-log 에 [decision][orchestrator-hotfix] 기록 필수
+                  (3) \`.vibe/config.json.providers\` 에 fallback provider 추가 후 재시도
+EOF
     exit $rc
   fi
 

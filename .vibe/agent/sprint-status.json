@@ -7,17 +7,30 @@
     "runtime": "node24",
     "framework": "claude-code-template"
   },
-  "sprints": [],
+  "sprints": [
+    {
+      "id": "sprint-M1-codex-unavailable-signal",
+      "name": "sprint-M1-codex-unavailable-signal",
+      "status": "passed",
+      "completedAt": "2026-04-20T16:27:10.624Z",
+      "actualLoc": {
+        "added": 360,
+        "deleted": 26,
+        "net": 334,
+        "filesChanged": 4
+      }
+    }
+  ],
   "handoff": {
     "currentSprintId": "idle",
     "contextWindow": "main (Orchestrator)",
     "pendingPrompt": null,
     "lastHandoffAt": "2026-04-20T00:00:00Z",
     "nextAction": "run /vibe-init to start a new project",
-    "lastActionSummary": "fresh template state",
+    "lastActionSummary": "Sprint sprint-M1-codex-unavailable-signal completed with passed",
     "orchestratorContextBudget": "medium",
     "preferencesActive": [],
-    "updatedAt": "2026-04-20T00:00:00Z"
+    "updatedAt": "2026-04-20T16:27:10.624Z"
   },
   "policies": {
     "scratchpadPath": ".vibe/agent/handoff.md",
@@ -25,10 +38,29 @@
     "verificationCommands": []
   },
   "pendingRisks": [],
-  "lastSprintScope": [],
-  "lastSprintScopeGlob": [],
-  "sprintsSinceLastAudit": 0,
-  "stateUpdatedAt": "2026-04-20T00:00:00Z",
+  "lastSprintScope": [
+    "scripts/run-codex.sh",
+    "test/run-codex-wrapper.test.ts",
+    ".gitignore",
+    "CLAUDE.md",
+    "docs/context/codex-execution.md",
+    ".vibe/agent/iteration-history.json",
+    "docs/plans/sprint-roadmap.md",
+    ".claude/scheduled_tasks.lock",
+    "docs/prompts/dashboard-col-side-padding.md",
+    "docs/prompts/dashboard-redesign.md",
+    "docs/prompts/sprint-commit-daily-scope-fix.md",
+    "docs/prompts/sprint-mode-tier-flag.md"
+  ],
+  "lastSprintScopeGlob": [
+    "scripts/run-codex.sh",
+    "test/run-codex-wrapper.test.ts",
+    ".gitignore",
+    "CLAUDE.md",
+    "docs/context/codex-execution.md"
+  ],
+  "sprintsSinceLastAudit": 1,
+  "stateUpdatedAt": "2026-04-20T16:27:10.624Z",
   "verifiedAt": null,
   "verificationCommands": []
 }

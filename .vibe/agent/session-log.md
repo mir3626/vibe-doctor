@@ -20,5 +20,7 @@
 
 ## Entries
 
-- 2026-04-21T00:00:00.000Z [decision][iter-7-kickoff] dogfood10 review-4 findings A+B+D upstream iter-7. iter-8 에 C 이월. target harnessVersion v1.5.0. sprint order M1(B) → M2(D) → M3(A). predicted net 122 LOC (buffered 148). handoff 상세: docs/plans/iter-7-upstream-handoff.md
-- 2026-04-21T00:00:01.000Z [decision][sprint-mode-tier] user=a (extended). node scripts/vibe-sprint-mode.mjs on --tier extended 실행 → 71 preset rules active (41 new). iter-7 3-sprint 자율 실행 목표 interruption 0. iter-7 종료 시 off 토글 재확인 예정.
+
+- 2026-04-21T00:00:01.000Z [decision] [sprint-mode-tier] user=a (extended). node scripts/vibe-sprint-mode.mjs on --tier extended 실행 → 71 preset rules active (41 new). iter-7 3-sprint 자율 실행 목표 interruption 0. iter-7 종료 시 off 토글 재확인 예정.
+- 2026-04-21T00:00:00.000Z [decision] [iter-7-kickoff] dogfood10 review-4 findings A+B+D upstream iter-7. iter-8 에 C 이월. target harnessVersion v1.5.0. sprint order M1(B) → M2(D) → M3(A). predicted net 122 LOC (buffered 148). handoff 상세: docs/plans/iter-7-upstream-handoff.md
+- 2026-04-20T16:27:10.624Z [sprint-complete] sprint-M1-codex-unavailable-signal -> passed. Sprint sprint-M1-codex-unavailable-signal completed with passed LOC +360/-26 (net +334)

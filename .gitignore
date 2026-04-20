@@ -22,3 +22,5 @@ scripts/tmp-*.mjs
 .vibe/agent/dashboard.pid
 .vibe/agent/daily/
 .vibe/agent/attention.jsonl
+# run-codex.sh unavailable signal (runtime artifact, auto-cleared on next success)
+.vibe/agent/codex-unavailable.flag
