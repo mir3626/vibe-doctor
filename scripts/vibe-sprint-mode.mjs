@@ -12,8 +12,26 @@ function readJson(filePath) {
   return JSON.parse(readFileSync(filePath, 'utf8').replace(/^\uFEFF/, ''));
 }
 
-function loadPreset(rootDir) {
-  const presetPath = path.resolve(rootDir, '.vibe', 'settings-presets', 'agent-delegation.json');
+const PRESET_FILES = {
+  core: 'agent-delegation.json',
+  extended: 'agent-delegation-extended.json',
+};
+
+function getPresetPath(rootDir, tier) {
+  return path.resolve(rootDir, '.vibe', 'settings-presets', PRESET_FILES[tier]);
+}
+
+function loadPreset(rootDir, tier = 'core', options = {}) {
+  const presetPath = getPresetPath(rootDir, tier);
+  if (!existsSync(presetPath) && tier === 'extended' && options.fallbackToCore === true) {
+    if (options.warnOnFallback === true) {
+      process.stderr.write(
+        '[vibe-sprint-mode] WARN -- extended preset missing; falling back to core\n',
+      );
+    }
+    return loadPreset(rootDir, 'core');
+  }
+
   if (!existsSync(presetPath)) {
     fail(`Missing preset file: ${presetPath}`);
   }
@@ -24,6 +42,22 @@ function loadPreset(rootDir) {
   }
 
   return preset.rules;
+}
+
+function loadAllPresetRules(rootDir) {
+  const rules = new Set();
+  for (const tier of ['core', 'extended']) {
+    const presetPath = getPresetPath(rootDir, tier);
+    if (!existsSync(presetPath)) {
+      continue;
+    }
+
+    for (const rule of loadPreset(rootDir, tier)) {
+      rules.add(rule);
+    }
+  }
+
+  return rules;
 }
 
 function loadSettings(rootDir, createIfMissing = false) {
@@ -86,8 +120,11 @@ function saveSettings(settingsPath, settings) {
   writeFileSync(settingsPath, `${JSON.stringify(settings, null, 2)}\n`, 'utf8');
 }
 
-function runOn(rootDir) {
-  const presetRules = loadPreset(rootDir);
+function runOn(rootDir, tier) {
+  const presetRules = loadPreset(rootDir, tier, {
+    fallbackToCore: true,
+    warnOnFallback: tier === 'extended',
+  });
   const { settingsPath, settings } = loadSettings(rootDir, true);
   const currentAllow = getAllowRules(settings);
   const nextAllow = [...new Set([...currentAllow, ...presetRules])];
@@ -100,8 +137,7 @@ function runOn(rootDir) {
 }
 
 function runOff(rootDir) {
-  const presetRules = loadPreset(rootDir);
-  const presetSet = new Set(presetRules);
+  const presetSet = loadAllPresetRules(rootDir);
   const { settingsPath, exists, settings } = loadSettings(rootDir, false);
 
   if (!exists || settings === null) {
@@ -120,23 +156,62 @@ function runOff(rootDir) {
 }
 
 function runStatus(rootDir) {
-  const presetRules = loadPreset(rootDir);
+  const hasExtendedPreset = existsSync(getPresetPath(rootDir, 'extended'));
+  const statusTier = hasExtendedPreset ? 'extended' : 'core';
+  const presetRules = loadPreset(rootDir, statusTier);
   const presetSet = new Set(presetRules);
+  const coreRules = hasExtendedPreset ? loadPreset(rootDir, 'core') : presetRules;
   const { settings } = loadSettings(rootDir, false);
   const currentAllow = settings === null ? [] : getAllowRules(settings);
-  const activeCount = currentAllow.filter((entry) => presetSet.has(entry)).length;
-  const mode = activeCount > 0 ? 'ON' : 'OFF';
+  const activeSet = new Set(currentAllow.filter((entry) => presetSet.has(entry)));
+  const activeCount = activeSet.size;
+  const hasAllCoreRules = coreRules.every((entry) => activeSet.has(entry));
+  const hasOnlyCoreRules = hasAllCoreRules && activeCount === coreRules.length;
+  const hasAllPresetRules = activeCount === presetRules.length;
+  const mode =
+    hasExtendedPreset && activeCount > 0 && !hasOnlyCoreRules && !hasAllPresetRules
+      ? 'PARTIAL'
+      : activeCount > 0
+        ? 'ON'
+        : 'OFF';
+  const tierLabel =
+    hasExtendedPreset && mode === 'ON'
+      ? hasAllPresetRules
+        ? ' (extended)'
+        : ' (core)'
+      : '';
 
   process.stdout.write(
-    `[vibe-sprint-mode] ${mode} -- ${activeCount}/${presetRules.length} preset rules active\n`,
+    `[vibe-sprint-mode] ${mode}${tierLabel} -- ${activeCount}/${presetRules.length} preset rules active\n`,
   );
 }
 
+function parseArgs(argv) {
+  const command = argv[0];
+  let tier = 'core';
+
+  for (let i = 1; i < argv.length; i++) {
+    const arg = argv[i];
+    if (arg !== '--tier') {
+      fail(`Unknown option: ${arg}`);
+    }
+
+    tier = argv[i + 1];
+    i++;
+  }
+
+  if (!['core', 'extended'].includes(tier)) {
+    fail(`Invalid --tier value: ${tier}. Expected core or extended.`);
+  }
+
+  return { command, tier };
+}
+
 function main() {
-  const command = process.argv[2];
+  const { command, tier } = parseArgs(process.argv.slice(2));
 
   if (command === 'on') {
-    runOn(process.cwd());
+    runOn(process.cwd(), tier);
     return;
   }
 
