@@ -57,7 +57,15 @@ git clone https://github.com/mir3626/vibe-doctor my-project
 cd my-project
 ```
 
-### 2. Claude Code 에서 초기화
+### 2. 의존성 설치
+
+```bash
+npm install
+```
+
+> 필수 1회 실행. 생략하면 Stop 훅(`vibe-stop-qa-gate`) 이 `[vibe-qa] skip: tsx not installed — run \`npm install\` first` 로 리포트하고, `npm run vibe:qa` / `vibe-validate-state` 등 tsx loader 를 쓰는 검증 커맨드가 모두 skip 된다. dev dependency (`tsx`, `typescript`, `@types/node`, `zod-to-json-schema`) 는 harness 스크립트가 런타임에 요구하므로 반드시 먼저 설치.
+
+### 3. Claude Code 에서 초기화
 
 ```bash
 claude                  # Claude Code 실행
@@ -76,7 +84,7 @@ Claude 가 대화형으로 아래 과정을 순차 자동 진행합니다:
 3. **Phase 3 네이티브 소크라테스식 인터뷰** — `scripts/vibe-interview.mjs` 기반. 도메인 전문가 수준 probing 으로 모호성 ≤ 0.2 까지 수렴. `product.md` / `architecture.md` / `conventions.md` 자동 생성.
 4. **Phase 4 Sprint 로드맵 작성 + Phase 0 seal** — Orchestrator 가 직접 분할한 Sprint 로드맵 저장 + `scripts/vibe-phase0-seal.mjs` 로 자동 커밋.
 
-### 3. Sprint 사이클
+### 4. Sprint 사이클
 
 각 Sprint 는 다음 5 단계:
 
@@ -86,7 +94,7 @@ Claude 가 대화형으로 아래 과정을 순차 자동 진행합니다:
 4. Orchestrator 샌드박스 밖 재검증 (`tsc --noEmit`, `npm test`, `npm run build` 등)
 5. `node scripts/vibe-sprint-commit.mjs <sprintId> passed` — state 파일 + 산출을 단일 커밋
 
-### 4. 자동 보고서 + 다음 Iteration
+### 5. 자동 보고서 + 다음 Iteration
 
 최초 로드맵의 마지막 Sprint 가 passed 로 마감되면:
 
