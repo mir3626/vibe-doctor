@@ -271,3 +271,14 @@ verified-callers:
 - M1 `archiveSprintPrompts` regex 버그 → M1~M12 아카이빙 전량 실패, 20개 orphan 누적 (v1.3.1 fix)
 
 본 §14 체크리스트는 위 5개 사례 모두 사전 차단한다. **Codex 출력물에 `## Wiring Integration` 섹션 없으면 Sprint 미완료.**
+
+## §15 Scope discipline (unit test 생성 금지 default)
+
+Planner prompt 가 명시적으로 unit test 파일 생성을 요구하지 **않는 한**, Generator 는
+`test/**/*.test.ts`, `src/**/*.test.ts`, `__tests__/` 디렉터리 등 unit test 파일을
+스스로 만들지 않는다. Test 가 필요하다고 판단되면 Final report `## Wiring Integration`
+섹션의 W12 에 "propose: test file X — blocked by §15" 로 기록만 남기고 stop.
+
+이 규칙은 프로토타입/MVP 가 명시적으로 smoke + type check 만으로 충분하다고 선언한
+conventions.md 의 테스트 섹션을 Generator 레벨로 hoist 한 것이다. 해제는 Planner 가
+"Tests to add: [...]" 섹션을 Sprint prompt 에 명시했을 때만.

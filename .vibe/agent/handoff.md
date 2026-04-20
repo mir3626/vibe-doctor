@@ -13,7 +13,7 @@
 - **harnessVersion**: `1.4.3`
 - **language/tone**: (프로젝트별)
 
-## 2. Status: IDLE - Sprint sprint-M1-codex-unavailable-signal passed
+## 2. Status: IDLE - Sprint sprint-M2-generator-scope-discipline passed
 
 `/vibe-init` 실행 필요. Phase 1 (환경 점검) → Phase 2 (provider 선택) → Phase 3 (네이티브 소크라테스식 인터뷰) → Phase 4 (Sprint 로드맵 작성 + Phase 0 seal) 진행 후 첫 Sprint 진입.
 

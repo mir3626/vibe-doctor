@@ -19,6 +19,18 @@
         "net": 334,
         "filesChanged": 4
       }
+    },
+    {
+      "id": "sprint-M2-generator-scope-discipline",
+      "name": "sprint-M2-generator-scope-discipline",
+      "status": "passed",
+      "completedAt": "2026-04-20T16:36:15.993Z",
+      "actualLoc": {
+        "added": 972,
+        "deleted": 14,
+        "net": 958,
+        "filesChanged": 16
+      }
     }
   ],
   "handoff": {
@@ -27,10 +39,10 @@
     "pendingPrompt": null,
     "lastHandoffAt": "2026-04-20T00:00:00Z",
     "nextAction": "run /vibe-init to start a new project",
-    "lastActionSummary": "Sprint sprint-M1-codex-unavailable-signal completed with passed",
+    "lastActionSummary": "Sprint sprint-M2-generator-scope-discipline completed with passed",
     "orchestratorContextBudget": "medium",
     "preferencesActive": [],
-    "updatedAt": "2026-04-20T16:27:10.624Z"
+    "updatedAt": "2026-04-20T16:36:15.993Z"
   },
   "policies": {
     "scratchpadPath": ".vibe/agent/handoff.md",
@@ -50,17 +62,21 @@
     "docs/prompts/dashboard-col-side-padding.md",
     "docs/prompts/dashboard-redesign.md",
     "docs/prompts/sprint-commit-daily-scope-fix.md",
-    "docs/prompts/sprint-mode-tier-flag.md"
+    "docs/prompts/sprint-mode-tier-flag.md",
+    ".vibe/agent/_common-rules.md",
+    "docs/context/harness-gaps.md"
   ],
   "lastSprintScopeGlob": [
     "scripts/run-codex.sh",
     "test/run-codex-wrapper.test.ts",
     ".gitignore",
     "CLAUDE.md",
-    "docs/context/codex-execution.md"
+    "docs/context/codex-execution.md",
+    ".vibe/agent/_common-rules.md",
+    "docs/context/harness-gaps.md"
   ],
-  "sprintsSinceLastAudit": 1,
-  "stateUpdatedAt": "2026-04-20T16:27:10.624Z",
+  "sprintsSinceLastAudit": 2,
+  "stateUpdatedAt": "2026-04-20T16:36:15.993Z",
   "verifiedAt": null,
   "verificationCommands": []
 }

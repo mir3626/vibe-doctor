@@ -319,6 +319,18 @@ describe('run-codex.sh wrapper', { skip: bashCommand === null }, () => {
     assert.match(child.stdout, new RegExp(firstRuleLine.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
   });
 
+  it('injects §15 scope discipline rule into Generator context', async () => {
+    const binDir = await createShellStubBin('stdin');
+    const child = spawnSync(bashCommand ?? 'bash', [bashScriptPath, '-'], {
+      env: shellEnv(binDir, { VIBE_SPRINT_ID: '' }),
+      input: 'hello',
+      encoding: 'utf8',
+    });
+
+    assert.equal(child.status, 0);
+    assert.match(child.stdout, /## §15 Scope discipline/);
+  });
+
   it('prepends the Windows sandbox limitation header on Windows hosts', async () => {
     const binDir = await createShellStubBin('stdin');
     await writeUnameStub(binDir, 'MINGW64_NT-10.0');
