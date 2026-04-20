@@ -1,5 +1,21 @@
 {
   "$schema": "./iteration-history.schema.json",
-  "currentIteration": null,
-  "iterations": []
+  "currentIteration": "iter-7",
+  "iterations": [
+    {
+      "id": "iter-7",
+      "label": "dogfood10-findings-A-B-D",
+      "startedAt": "2026-04-21T00:00:00Z",
+      "completedAt": null,
+      "goal": "Resolve 3 of 4 upstream findings from dogfood10 review-4: B (Codex 403 fallback signaling), D (Generator scope discipline - no unattended unit test generation), A (adapter-health smoke blind-spot rubric). Finding C (LOC threshold detection) deferred to iter-8.",
+      "plannedSprints": [
+        "sprint-M1-codex-unavailable-signal",
+        "sprint-M2-generator-scope-discipline",
+        "sprint-M3-review-adapter-blind-spot"
+      ],
+      "completedSprints": [],
+      "milestoneProgress": {},
+      "summary": ""
+    }
+  ]
 }
