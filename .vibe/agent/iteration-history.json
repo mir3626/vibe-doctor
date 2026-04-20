@@ -1,12 +1,12 @@
 {
   "$schema": "./iteration-history.schema.json",
-  "currentIteration": "iter-7",
+  "currentIteration": null,
   "iterations": [
     {
       "id": "iter-7",
       "label": "dogfood10-findings-A-B-D",
       "startedAt": "2026-04-21T00:00:00Z",
-      "completedAt": null,
+      "completedAt": "2026-04-21T01:55:00Z",
       "goal": "Resolve 3 of 4 upstream findings from dogfood10 review-4: B (Codex 403 fallback signaling), D (Generator scope discipline - no unattended unit test generation), A (adapter-health smoke blind-spot rubric). Finding C (LOC threshold detection) deferred to iter-8.",
       "plannedSprints": [
         "sprint-M1-codex-unavailable-signal",
@@ -19,7 +19,7 @@
         "sprint-M3-review-adapter-blind-spot"
       ],
       "milestoneProgress": {},
-      "summary": ""
+      "summary": "3-sprint cycle closing dogfood10 findings A+B+D. M1 adds CODEX_UNAVAILABLE signal (flag + stderr block) to run-codex.sh final-failure path. M2 adds _common-rules.md §15 blocking Generator self-initiated unit test creation. M3 extends collectReviewInputs with productFetcherPaths + adds /vibe-review adapter-health blind-spot rubric (🔴 Blocker auto-seed). harnessVersion bump 1.4.3 → 1.5.0. Code LOC +80 net (well under 150 cap). 255/255 tests pass. Finding C deferred to iter-8 per budget split."
     }
   ]
 }
