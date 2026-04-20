@@ -310,6 +310,40 @@ function runLightweightAudit(scriptDir, sprintId) {
   logStep('lightweight-audit', 'warn', `detail=${detail.trim()}`);
 }
 
+function emitSprintCompletedDailyEvent(sprintId, status, summary, actualLoc, scriptDir) {
+  const eventType =
+    status === 'passed' ? 'sprint-completed' : status === 'failed' ? 'sprint-failed' : null;
+  if (!eventType) {
+    return { stepStatus: 'skip', detail: 'detail=status-not-emitted' };
+  }
+
+  const payload = {
+    sprintId,
+    status,
+    summary,
+    ...(actualLoc ? { loc: actualLoc } : {}),
+  };
+  const root = process.cwd();
+  const scriptPath = path.join(scriptDir, 'vibe-daily-log.mjs');
+  const result = spawnSync(
+    process.execPath,
+    [scriptPath, eventType, '--payload', JSON.stringify(payload)],
+    {
+      cwd: root,
+      env: { ...process.env, VIBE_ROOT: root },
+      stdio: 'ignore',
+    },
+  );
+
+  if (result.status === 0) {
+    return { stepStatus: 'ok', detail: `type=${eventType}` };
+  }
+  if (result.error) {
+    return { stepStatus: 'warn', detail: `detail=${result.error.message}` };
+  }
+  return { stepStatus: 'warn', detail: `detail=exit-${result.status ?? 1}` };
+}
+
 export function computeCurrentPointerBlock(
   roadmapMd,
   sessionLogMd,
@@ -575,6 +609,19 @@ function runCli() {
     sprintStatus.stateUpdatedAt = nowIso;
     validateStateOrFail(scriptDir);
     writeFileSync(statusPath, `${JSON.stringify(sprintStatus, null, 2)}\n`, 'utf8');
+  }
+
+  if (alreadyClosed) {
+    logStep('daily-log', 'skip', 'detail=already-closed');
+  } else {
+    const result = emitSprintCompletedDailyEvent(
+      sprintId,
+      status,
+      finalSummary,
+      actualLoc,
+      scriptDir,
+    );
+    logStep('daily-log', result.stepStatus, result.detail);
   }
 
   if (!existsSync(handoffPath)) {

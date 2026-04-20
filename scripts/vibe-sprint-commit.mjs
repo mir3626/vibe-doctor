@@ -441,7 +441,10 @@ function main() {
 
   const changedFiles = detectChangedFiles();
   const detectedScope = changedFiles.filter(
-    (relativePath) => !STATE_FILES.has(relativePath) && !relativePath.startsWith('.vibe/archive/'),
+    (relativePath) =>
+      !STATE_FILES.has(relativePath) &&
+      !relativePath.startsWith('.vibe/archive/') &&
+      !relativePath.startsWith('.vibe/agent/daily/'),
   );
   const mergedScope = unique([...cliScope, ...detectedScope]);
   const mergedGlobs = unique(cliScope);
