@@ -296,4 +296,24 @@ describe('review inputs', () => {
 
     assert.deepEqual(issues, []);
   });
+
+  it('collectReviewInputs includes productFetcherPaths for Next.js app/api routes', async () => {
+    const root = await makeTempDir('review-fetcher-paths-');
+    await scaffoldRepo(root);
+    await writeText(path.join(root, 'app', 'api', 'foo', 'route.ts'), 'export const GET = null;\n');
+    await writeText(path.join(root, 'app', 'api', 'bar', 'baz', 'route.ts'), 'export const GET = null;\n');
+    await writeText(path.join(root, 'app', 'api', 'ignored', 'page.ts'), 'export default null;\n');
+    await writeText(path.join(root, 'app', 'components', 'other.ts'), 'export default null;\n');
+    await writeText(path.join(root, 'src', 'app', 'api', 'qux', 'route.ts'), 'export const GET = null;\n');
+    await writeText(path.join(root, '.next', 'cache', 'route.ts'), 'export const GET = null;\n');
+    await writeText(path.join(root, 'node_modules', 'whatever', 'route.ts'), 'export const GET = null;\n');
+
+    const result = await collectReviewInputs(root);
+
+    assert.deepEqual(result.productFetcherPaths, [
+      'app/api/bar/baz/route.ts',
+      'app/api/foo/route.ts',
+      'src/app/api/qux/route.ts',
+    ]);
+  });
 });

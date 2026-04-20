@@ -12,6 +12,8 @@ const DEFAULT_RECENT_ENTRIES = 50;
 const DEFAULT_GIT_COMMITS = 20;
 const PHASE3_UTILITY_OPT_IN_TAG = '[decision][phase3-utility-opt-in]';
 const WEB_PLATFORM_PATTERN = /\b(web|mobile|browser)\b/i;
+const PRODUCT_FETCHER_ROUTE_FILES = new Set(['route.ts', 'route.tsx', 'route.mjs', 'route.js']);
+const PRODUCT_FETCHER_SKIP_DIRS = new Set(['node_modules', '.next', 'dist', '.vibe']);
 
 export interface PendingRestoration {
   sourceFile: string;
@@ -37,6 +39,7 @@ export interface ReviewInputs {
   harnessGaps: string;
   openHarnessGapCount: number;
   pendingRestorations: PendingRestoration[];
+  productFetcherPaths: string[];
 }
 
 export interface ReviewConfigInput {
@@ -445,6 +448,31 @@ function sourceFilePath(root: string, absolutePath: string): string {
   return path.relative(root, absolutePath).replace(/\\/g, '/');
 }
 
+async function collectProductFetcherPathsInDir(root: string, directory: string, files: string[]): Promise<void> {
+  for (const entry of await readdir(directory, { withFileTypes: true })) {
+    if (entry.isDirectory()) {
+      if (!PRODUCT_FETCHER_SKIP_DIRS.has(entry.name)) {
+        await collectProductFetcherPathsInDir(root, path.join(directory, entry.name), files);
+      }
+      continue;
+    }
+
+    if (entry.isFile() && PRODUCT_FETCHER_ROUTE_FILES.has(entry.name)) {
+      files.push(path.relative(root, path.join(directory, entry.name)).replace(/\\/g, '/'));
+    }
+  }
+}
+
+async function collectProductFetcherPaths(root: string): Promise<string[]> {
+  const files: string[] = [];
+  for (const appRoot of ['app', 'src/app'].map((relativeRoot) => path.join(root, relativeRoot))) {
+    if (await fileExists(appRoot)) {
+      await collectProductFetcherPathsInDir(root, appRoot, files);
+    }
+  }
+  return files.sort((left, right) => left.localeCompare(right));
+}
+
 function auditIterationPriority(filePath: string): number {
   const match = filePath.replace(/\\/g, '/').match(/\.vibe\/audit\/iter-(\d+)\/rules-deleted\.md$/);
   return match?.[1] ? 1000 + Number.parseInt(match[1], 10) : 1000;
@@ -529,6 +557,7 @@ export async function collectReviewInputs(root?: string): Promise<ReviewInputs> 
     harnessGaps,
     latestReviewReportPath,
     pendingRestorations,
+    productFetcherPaths,
   ] = await Promise.all([
     readOptionalText(handoffPath(resolvedRoot)),
     readOptionalText(sessionLogPath(resolvedRoot)),
@@ -538,6 +567,7 @@ export async function collectReviewInputs(root?: string): Promise<ReviewInputs> 
     readOptionalText(harnessGapsPath(resolvedRoot)),
     findLatestReviewReport(resolvedRoot),
     collectPendingRestorationDecisions(resolvedRoot),
+    collectProductFetcherPaths(resolvedRoot),
   ]);
   const gitLogState = await readGitLog(resolvedRoot, latestReviewReportPath);
 
@@ -557,6 +587,7 @@ export async function collectReviewInputs(root?: string): Promise<ReviewInputs> 
     harnessGaps,
     openHarnessGapCount: countOpenHarnessGaps(harnessGaps),
     pendingRestorations,
+    productFetcherPaths,
   };
 }
 

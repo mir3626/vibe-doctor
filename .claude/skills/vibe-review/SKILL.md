@@ -76,6 +76,21 @@ Primary metric = **dogfood friction incident count per sprint** + **delivered pr
 - `docs/context/harness-gaps.md` 의 `status=open` 개수를 집계해 findings 에 반영한다.
   - open gap 이 0이 아니면 최소 1개 finding 에 ledger 상태를 근거로 연결한다.
 
+### Adapter-health blind-spot (🔴 Blocker)
+
+프로젝트에 `app/api/*/route.ts` 또는 동등한 데이터 fetcher 경로 (`productFetcherPaths`
+non-empty) 가 존재하고 `e2e/` / `playwright.config.*` 기반 smoke 가 있음에도, smoke
+파일이 **각 route 의 응답 (items 배열 / status code) 을 개별 assertion 하지 않으면**
+🔴 Blocker finding 1건을 auto-seed 한다.
+
+- 판정 로직: `productFetcherPaths` 의 각 경로 basename (예: `geeknews`, `dcinside`) 을
+  e2e smoke 파일 내용에서 **string 으로 1회 이상 등장** 하는지 grep. 매칭 없으면 해당
+  adapter 는 "probe 되지 않음" 으로 간주.
+- Finding 문구: "adapter <name> 이 소리 없이 0 items 반환해도 smoke 가 통과하는 상태는
+  production broken feature 를 의미함 — probe-based assertion 또는 contract test 필요."
+- 완화 (false-positive 회피): adapter 가 **의도적으로 mock-only** 이거나 platform 이
+  web 이 아니면 (`productText` platform grep) seed 하지 않는다.
+
 ## Report Shape
 
 출력 문서는 아래 섹션을 순서대로 포함한다.

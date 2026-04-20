@@ -31,6 +31,18 @@
         "net": 958,
         "filesChanged": 16
       }
+    },
+    {
+      "id": "sprint-M3-review-adapter-blind-spot",
+      "name": "sprint-M3-review-adapter-blind-spot",
+      "status": "passed",
+      "completedAt": "2026-04-20T16:47:56.928Z",
+      "actualLoc": {
+        "added": 333,
+        "deleted": 11,
+        "net": 322,
+        "filesChanged": 9
+      }
     }
   ],
   "handoff": {
@@ -39,10 +51,10 @@
     "pendingPrompt": null,
     "lastHandoffAt": "2026-04-20T00:00:00Z",
     "nextAction": "run /vibe-init to start a new project",
-    "lastActionSummary": "Sprint sprint-M2-generator-scope-discipline completed with passed",
+    "lastActionSummary": "Sprint sprint-M3-review-adapter-blind-spot completed with passed",
     "orchestratorContextBudget": "medium",
     "preferencesActive": [],
-    "updatedAt": "2026-04-20T16:36:15.993Z"
+    "updatedAt": "2026-04-20T16:47:56.928Z"
   },
   "policies": {
     "scratchpadPath": ".vibe/agent/handoff.md",
@@ -64,7 +76,12 @@
     "docs/prompts/sprint-commit-daily-scope-fix.md",
     "docs/prompts/sprint-mode-tier-flag.md",
     ".vibe/agent/_common-rules.md",
-    "docs/context/harness-gaps.md"
+    "docs/context/harness-gaps.md",
+    "src/lib/review.ts",
+    ".claude/skills/vibe-review/SKILL.md",
+    "test/vibe-review-inputs.test.ts",
+    "package.json",
+    "docs/reports/project-report.html"
   ],
   "lastSprintScopeGlob": [
     "scripts/run-codex.sh",
@@ -73,10 +90,14 @@
     "CLAUDE.md",
     "docs/context/codex-execution.md",
     ".vibe/agent/_common-rules.md",
-    "docs/context/harness-gaps.md"
+    "docs/context/harness-gaps.md",
+    "src/lib/review.ts",
+    ".claude/skills/vibe-review/SKILL.md",
+    "test/vibe-review-inputs.test.ts",
+    "package.json"
   ],
-  "sprintsSinceLastAudit": 2,
-  "stateUpdatedAt": "2026-04-20T16:36:15.993Z",
+  "sprintsSinceLastAudit": 3,
+  "stateUpdatedAt": "2026-04-20T16:47:56.928Z",
   "verifiedAt": null,
   "verificationCommands": []
 }

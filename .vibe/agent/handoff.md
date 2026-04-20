@@ -8,12 +8,12 @@
 
 - **repo**: (프로젝트 경로)
 - **branch**: `main`
-- **last release**: (없음 — fresh template)
-- **current iteration**: IDLE (진행 중인 iteration 없음)
-- **harnessVersion**: `1.4.3`
+- **last release**: v1.5.0 (iter-7 closure: addresses dogfood10 review-4 findings A+B+D)
+- **current iteration**: iter-7 (closing)
+- **harnessVersion**: `1.5.0`
 - **language/tone**: (프로젝트별)
 
-## 2. Status: IDLE - Sprint sprint-M2-generator-scope-discipline passed
+## 2. Status: IDLE - Sprint sprint-M3-review-adapter-blind-spot passed
 
 `/vibe-init` 실행 필요. Phase 1 (환경 점검) → Phase 2 (provider 선택) → Phase 3 (네이티브 소크라테스식 인터뷰) → Phase 4 (Sprint 로드맵 작성 + Phase 0 seal) 진행 후 첫 Sprint 진입.
 

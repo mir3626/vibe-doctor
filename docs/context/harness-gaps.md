@@ -33,6 +33,7 @@
 | gap-review-catch-wiring-drift | /vibe-review 가 "artifact created but not wired" 패턴을 구조적으로 감지 안 함. statusline/run-claude/vibe-iterate/project-report 같은 사례가 review cadence 로 잡히지 않았음 | `.claude/skills/vibe-review/SKILL.md` rubric 에 "wiring-drift" 체크 추가 필요: 각 scripts/`*.mjs` 가 package.json · CLAUDE.md · settings.json · skill 중 최소 1곳에서 참조되는지 자동 스캔. 아직 미구현 | open | pending | +3 sprints |
 | gap-harness-bloat-self-expansion | 하네스 rule 이 실제 incident signal 없이 preventive 목적만으로 누적되어 agent context 를 조용히 압박 | `scripts/vibe-rule-audit.mjs --scan-transcripts` + iter-3 rules-deleted ledger (iter-3 N1) | partial | partial | +3 sprints |
 | gap-generator-test-scope-creep | Generator 가 Planner prompt 비지정 상태에서 test/*.test.ts 를 자발 생성. dogfood10 M2/M3 에서 3회 발생. | _common-rules.md §15 (sprint-M2-generator-scope-discipline). 재발 시 run-codex.sh post-process diff grep 으로 enforcement 승격. | closed | covered | — |
+| gap-external-adapter-blind-spot | e2e smoke 가 개별 data-fetcher route 응답을 probe 하지 않아 adapter 가 0 items 반환해도 통과. dogfood10 iter-1 배포 후 사용자 발견. | `/vibe-review` rubric adapter-health blind-spot + `collectReviewInputs.productFetcherPaths` (sprint-M3-review-adapter-blind-spot) | closed | covered | +1 sprint (iter-7) |
 
 Update protocol:
 1. 새 gap 발견 시 id `gap-<slug>` 로 표 끝에 append 한다.
