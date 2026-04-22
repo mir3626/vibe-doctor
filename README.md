@@ -8,7 +8,13 @@
 
 ---
 
-## 최신 하이라이트 (v1.5.1)
+## 최신 하이라이트 (v1.5.2)
+
+### v1.5.2 (2026-04-22) - Markdown encoding hardening
+
+- Added workspace VS Code settings that force UTF-8 and disable encoding auto-guessing.
+- Added EditorConfig extension recommendation so `.editorconfig` encoding rules are applied consistently.
+- Added sync-manifest coverage so downstream projects receive the same Markdown-safe editor defaults.
 
 ### v1.5.1 (2026-04-22) - provider-neutral agent lifecycle
 
@@ -40,7 +46,7 @@
 
 - **Native socratic interview** (외부 MCP 제거), **stack/framework pattern shards**, **model tier abstraction**, **platform wrappers**, **single-commit automation**, **statusline**, **bundle-size / browser-smoke opt-in gate**, **periodic audit**.
 
-자세한 릴리스 내역은 `docs/release/v1.2.0.md` ~ `v1.5.1.md` 참조.
+자세한 릴리스 내역은 `docs/release/v1.2.0.md` ~ `v1.5.2.md` 참조.
 
 ---
 

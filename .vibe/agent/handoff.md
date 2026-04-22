@@ -8,16 +8,18 @@
 
 - **repo**: (프로젝트 경로)
 - **branch**: `main`
-- **last release**: v1.5.1 (provider-neutral lifecycle for Claude/Codex/other CLI agents)
+- **last release**: v1.5.2 (Markdown UTF-8 workspace encoding hardening)
 - **current iteration**: post-iter-7 maintenance
-- **harnessVersion**: `1.5.1`
+- **harnessVersion**: `1.5.2`
 - **language/tone**: (프로젝트별)
 
-## 2. Status: IDLE - v1.5.1 provider-neutral lifecycle patch prepared
+## 2. Status: IDLE - v1.5.2 Markdown encoding patch prepared
 
 `/vibe-init` 실행 필요. Phase 1 (환경 점검) → Phase 2 (provider 선택) → Phase 3 (네이티브 소크라테스식 인터뷰) → Phase 4 (Sprint 로드맵 작성 + Phase 0 seal) 진행 후 첫 Sprint 진입.
 
 Latest maintenance patch adds `scripts/vibe-agent-session-start.mjs`, wires Claude `SessionStart`, Codex `run-codex.sh`, and `vibe:run-agent` through it, and documents provider-neutral context persistence in `_common-rules.md` Section 16. Codex still has no true PreCompact hook; fallback is handoff/session-log update plus `node scripts/vibe-checkpoint.mjs`.
+
+Follow-up v1.5.2 patch adds `.vscode/settings.json` and `.vscode/extensions.json` so editors pin Markdown/text files to UTF-8 instead of occasionally auto-detecting BOMless UTF-8 as a Windows legacy code page. Strict UTF-8 validation for all Markdown files passed.
 
 ## 3. 핵심 가치 (절대 보존)
 
@@ -42,6 +44,6 @@ Latest maintenance patch adds `scripts/vibe-agent-session-start.mjs`, wires Clau
 ## 6. 링크
 
 - 하네스 버전: `.vibe/config.json.harnessVersion`
-- 릴리스 노트: `docs/release/v1.5.1.md` 및 이전 버전
+- 릴리스 노트: `docs/release/v1.5.2.md` 및 이전 버전
 - Charter: `CLAUDE.md` line 1-40 (BEGIN:CHARTER ~ END:CHARTER)
 - Extensions: `docs/context/*.md`
