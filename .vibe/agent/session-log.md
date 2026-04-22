@@ -20,6 +20,7 @@
 
 ## Entries
 
+- 2026-04-22T15:50:00.000Z [harness-review] v1.5.4 project-safe `.gitignore` sync patch: added `line-union` sync strategy, moved `.gitignore` from raw harness replacement to hybrid line merge, and added regression coverage so downstream project ignore entries are preserved on future syncs.
 - 2026-04-22T15:36:19.331Z [harness-review] v1.5.3 WSL Codex wrapper patch: fixed `run-codex.sh` stdin loss caused by WSL-visible `chcp.com` consuming prompt input, replaced fixed `en_US.UTF-8` with installed UTF-8 locale resolution, hardened wrapper tests with `chcp.com`/locale stubs, and verified Windows + WSL temp-copy typecheck/build/test.
 - 2026-04-22T13:20:00.000Z [harness-review] v1.5.2 Markdown encoding patch: added VS Code UTF-8 workspace settings, EditorConfig recommendation, sync-manifest coverage, encoding-settings regression tests, and strict UTF-8 validation for all Markdown files.
 - 2026-04-22T13:00:00.000Z [harness-review] v1.5.1 provider-neutral lifecycle patch: added `vibe-agent-session-start.mjs`, wired Claude/Codex/`vibe:run-agent` session-start checks, added `_common-rules.md` Section 16 for context persistence, and documented Codex PreCompact fallback.

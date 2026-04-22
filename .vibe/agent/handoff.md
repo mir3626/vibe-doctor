@@ -8,12 +8,12 @@
 
 - **repo**: (프로젝트 경로)
 - **branch**: `main`
-- **last release**: v1.5.3 (WSL-safe Codex wrapper stdin and locale handling)
+- **last release**: v1.5.4 (project-safe `.gitignore` sync)
 - **current iteration**: post-iter-7 maintenance
-- **harnessVersion**: `1.5.3`
+- **harnessVersion**: `1.5.4`
 - **language/tone**: (프로젝트별)
 
-## 2. Status: IDLE - v1.5.3 WSL Codex wrapper patch prepared
+## 2. Status: IDLE - v1.5.4 `.gitignore` merge patch prepared
 
 `/vibe-init` 실행 필요. Phase 1 (환경 점검) → Phase 2 (provider 선택) → Phase 3 (네이티브 소크라테스식 인터뷰) → Phase 4 (Sprint 로드맵 작성 + Phase 0 seal) 진행 후 첫 Sprint 진입.
 
@@ -22,6 +22,8 @@ Latest maintenance patch adds `scripts/vibe-agent-session-start.mjs`, wires Clau
 Follow-up v1.5.2 patch adds `.vscode/settings.json` and `.vscode/extensions.json` so editors pin Markdown/text files to UTF-8 instead of occasionally auto-detecting BOMless UTF-8 as a Windows legacy code page. Strict UTF-8 validation for all Markdown files passed.
 
 Follow-up v1.5.3 patch makes `scripts/run-codex.sh` safe under WSL by redirecting `chcp.com` stdin from `/dev/null` before prompt buffering and resolving an installed UTF-8 locale instead of hardcoding `en_US.UTF-8`. `test/run-codex-wrapper.test.ts` now stubs stdin-consuming `chcp.com` and deterministic locale output so downstream wrapper behavior is validated without a real authenticated Codex install. Verified Windows `npm run typecheck`, `npm run build`, `npm test`; verified WSL temp copy `npm test`, `npm run typecheck`, `npm run build`.
+
+Follow-up v1.5.4 patch adds a `line-union` sync strategy and moves `.gitignore` from full harness replacement to hybrid line merge. Future downstream syncs preserve project-specific ignore entries such as `runtime/` while appending new upstream harness ignore entries.
 
 ## 3. 핵심 가치 (절대 보존)
 
@@ -46,6 +48,6 @@ Follow-up v1.5.3 patch makes `scripts/run-codex.sh` safe under WSL by redirectin
 ## 6. 링크
 
 - 하네스 버전: `.vibe/config.json.harnessVersion`
-- 릴리스 노트: `docs/release/v1.5.3.md` 및 이전 버전
+- 릴리스 노트: `docs/release/v1.5.4.md` 및 이전 버전
 - Charter: `CLAUDE.md` line 1-40 (BEGIN:CHARTER ~ END:CHARTER)
 - Extensions: `docs/context/*.md`

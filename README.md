@@ -8,7 +8,12 @@
 
 ---
 
-## 최신 하이라이트 (v1.5.3)
+## 최신 하이라이트 (v1.5.4)
+
+### v1.5.4 (2026-04-23) - project-safe `.gitignore` sync
+
+- Added `line-union` sync for line-oriented files.
+- Moved `.gitignore` from full replacement to hybrid merge so downstream project entries are preserved.
 
 ### v1.5.3 (2026-04-23) - WSL-safe Codex wrapper stdin
 
@@ -52,7 +57,7 @@
 
 - **Native socratic interview** (외부 MCP 제거), **stack/framework pattern shards**, **model tier abstraction**, **platform wrappers**, **single-commit automation**, **statusline**, **bundle-size / browser-smoke opt-in gate**, **periodic audit**.
 
-자세한 릴리스 내역은 `docs/release/v1.2.0.md` ~ `v1.5.3.md` 참조.
+자세한 릴리스 내역은 `docs/release/v1.2.0.md` ~ `v1.5.4.md` 참조.
 
 ---
 
