@@ -4,16 +4,16 @@
 
 - **repo**: `vibe-doctor`
 - **branch**: `main`
-- **last release**: v1.5.5 (project-safe sync policy expansion)
+- **last release**: v1.5.6 (sync executable-mode correction)
 - **current iteration**: post-iter-7 maintenance
-- **harnessVersion**: `1.5.5`
+- **harnessVersion**: `1.5.6`
 - **language/tone**: Korean user-facing, concise engineering notes
 
 ## 2. Status
 
-IDLE after v1.5.5 harness sync hardening.
+IDLE after v1.5.6 harness sync hardening.
 
-v1.5.5 expands project-safe sync behavior beyond `.gitignore`:
+v1.5.5 expanded project-safe sync behavior beyond `.gitignore`:
 
 - Added `replace-if-unmodified` for `.env.example` and `.github/workflows/ci.yml`.
 - Added `json-array-union` for `.vscode/extensions.json`.
@@ -22,6 +22,12 @@ v1.5.5 expands project-safe sync behavior beyond `.gitignore`:
 - Converted `AGENTS.md` and `GEMINI.md` to marker-based `section-merge` with `PROJECT:custom-rules` preserved.
 - Added marker bootstrap behavior: unmodified legacy section files are replaced once to add markers; modified legacy files are skipped.
 - Made synced file copies preserve existing file mode or default new files to `0644`, preventing Windows-mounted templates from turning regular files executable under Linux/WSL.
+
+v1.5.6 corrects the executable-mode edge case from v1.5.5:
+
+- Synced `.sh` harness wrappers are explicitly written as `0755`.
+- Regular synced files still preserve existing mode or default to `0644`.
+- This keeps `scripts/run-codex.sh` runnable as `./scripts/run-codex.sh` on Linux/WSL without reintroducing executable-bit noise for Markdown, JSON, TypeScript, and config files.
 
 Windows verification:
 
@@ -44,7 +50,7 @@ WSL verification:
 
 ## 4. Next Action
 
-Sync downstream project `/home/tony/workspace/telegram-local-ingest` from this local template after v1.5.5 is committed/tagged/pushed:
+Sync downstream project `/home/tony/workspace/telegram-local-ingest` from this local template after v1.5.6 is committed/tagged/pushed:
 
 ```bash
 cd /home/tony/workspace/telegram-local-ingest

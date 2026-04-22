@@ -177,12 +177,20 @@ async function readFileMode(filePath: string): Promise<number | null> {
   }
 }
 
-async function copySyncedFile(source: string, target: string): Promise<void> {
+function desiredSyncedMode(relativePath: string, existingMode: number | null): number {
+  if (relativePath.endsWith('.sh')) {
+    return 0o755;
+  }
+
+  return existingMode ?? 0o644;
+}
+
+async function copySyncedFile(source: string, target: string, relativePath: string): Promise<void> {
   const existingMode = await readFileMode(target);
   await copyFile(source, target);
 
   try {
-    await chmod(target, existingMode ?? 0o644);
+    await chmod(target, desiredSyncedMode(relativePath, existingMode));
   } catch {
     // Some filesystems do not support POSIX mode changes. Content sync should still proceed.
   }
@@ -720,7 +728,7 @@ export async function applySyncPlan(
 
     if (action.type === 'replace' || action.type === 'new-file' || action.type === 'template-regen') {
       await mkdir(path.dirname(localPath), { recursive: true });
-      await copySyncedFile(upstreamPath, localPath);
+      await copySyncedFile(upstreamPath, localPath, action.path);
       hashTargets.add(action.path);
       continue;
     }

@@ -20,6 +20,7 @@
 
 ## Entries
 
+- 2026-04-22T16:28:00.000Z [harness-review] v1.5.6 sync mode patch: refined v1.5.5 mode-safe copy so synced `.sh` harness wrappers are executable (`0755`) while regular synced files remain non-executable, covering the WSL `./scripts/run-codex.sh` permission edge case.
 - 2026-04-22T16:17:38.375Z [harness-review] v1.5.5 sync hardening patch: added `replace-if-unmodified`, `json-array-union`, marker-based `AGENTS.md`/`GEMINI.md` section merge, `.vscode`/`.editorconfig`/`.gitattributes` hybrid ownership, mode-safe synced copies for WSL/Linux, and verified Windows plus clean WSL temp-copy typecheck/build/test.
 - 2026-04-22T15:50:00.000Z [harness-review] v1.5.4 project-safe `.gitignore` sync patch: added `line-union` sync strategy, moved `.gitignore` from raw harness replacement to hybrid line merge, and added regression coverage so downstream project ignore entries are preserved on future syncs.
 - 2026-04-22T15:36:19.331Z [harness-review] v1.5.3 WSL Codex wrapper patch: fixed `run-codex.sh` stdin loss caused by WSL-visible `chcp.com` consuming prompt input, replaced fixed `en_US.UTF-8` with installed UTF-8 locale resolution, hardened wrapper tests with `chcp.com`/locale stubs, and verified Windows + WSL temp-copy typecheck/build/test.

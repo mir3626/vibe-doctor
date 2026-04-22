@@ -491,6 +491,44 @@ describe('applySyncPlan', () => {
     assert.equal(await readFile(localPath, 'utf8'), 'new\n');
     assert.equal((await stat(localPath)).mode & 0o777, 0o644);
   });
+
+  it('keeps synced shell wrappers executable on POSIX filesystems', async () => {
+    if (process.platform === 'win32') {
+      return;
+    }
+
+    const localRoot = await makeTempDir('sync-local-shell-mode-');
+    const upstreamRoot = await makeTempDir('sync-upstream-shell-mode-');
+    const relativePath = 'scripts/run-codex.sh';
+    const localPath = path.join(localRoot, relativePath);
+    const upstreamPath = path.join(upstreamRoot, relativePath);
+
+    await mkdir(path.dirname(localPath), { recursive: true });
+    await mkdir(path.dirname(upstreamPath), { recursive: true });
+    await writeFile(localPath, '#!/usr/bin/env bash\necho old\n', 'utf8');
+    await writeFile(upstreamPath, '#!/usr/bin/env bash\necho new\n', 'utf8');
+    await chmod(localPath, 0o644);
+    await chmod(upstreamPath, 0o644);
+
+    await applySyncPlan(
+      localRoot,
+      upstreamRoot,
+      {
+        fromVersion: '1.0.0',
+        toVersion: '1.0.1',
+        migrations: [],
+        actions: [{ type: 'replace', path: relativePath, reason: 'test' }],
+      },
+      {
+        manifestVersion: '1.0.1',
+        files: { harness: [relativePath], hybrid: {}, project: [] },
+        migrations: {},
+      },
+    );
+
+    assert.equal(await readFile(localPath, 'utf8'), '#!/usr/bin/env bash\necho new\n');
+    assert.equal((await stat(localPath)).mode & 0o777, 0o755);
+  });
 });
 
 describe('sync manifest', () => {
@@ -510,6 +548,7 @@ describe('sync manifest', () => {
     assert.equal(manifest.files.harness.includes('src/commands/bundle-size.ts'), true);
     assert.equal(manifest.files.harness.includes('.claude/skills/vibe-init/templates/readme-skeleton.md'), true);
     assert.equal(manifest.files.harness.includes('docs/release/v1.5.5.md'), true);
+    assert.equal(manifest.files.harness.includes('docs/release/v1.5.6.md'), true);
     assert.equal(manifest.files.harness.includes('.gitignore'), false);
     assert.equal(manifest.files.harness.includes('.env.example'), false);
     assert.equal(manifest.files.harness.includes('.github/workflows/ci.yml'), false);
