@@ -20,6 +20,8 @@
 
 ## Entries
 
+- 2026-04-22T13:00:00.000Z [harness-review] v1.5.1 provider-neutral lifecycle patch: added `vibe-agent-session-start.mjs`, wired Claude/Codex/`vibe:run-agent` session-start checks, added `_common-rules.md` Section 16 for context persistence, and documented Codex PreCompact fallback.
+
 
 
 
