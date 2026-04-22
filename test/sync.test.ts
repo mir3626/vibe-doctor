@@ -549,6 +549,7 @@ describe('sync manifest', () => {
     assert.equal(manifest.files.harness.includes('.claude/skills/vibe-init/templates/readme-skeleton.md'), true);
     assert.equal(manifest.files.harness.includes('docs/release/v1.5.5.md'), true);
     assert.equal(manifest.files.harness.includes('docs/release/v1.5.6.md'), true);
+    assert.equal(manifest.files.harness.includes('docs/release/v1.5.7.md'), true);
     assert.equal(manifest.files.harness.includes('.gitignore'), false);
     assert.equal(manifest.files.harness.includes('.env.example'), false);
     assert.equal(manifest.files.harness.includes('.github/workflows/ci.yml'), false);
