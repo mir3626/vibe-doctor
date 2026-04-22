@@ -1,53 +1,65 @@
-# Orchestrator Handoff — fresh template state
-
-> 이 파일은 Orchestrator 재인스턴스화의 **연료**다. 압축/세션 전환 후 새 Orchestrator 는
-> `CLAUDE.md → MEMORY → sprint-status.json → session-log.md → 이 파일` 순으로 읽어 직전
-> 상태를 복원한다.
+# Orchestrator Handoff
 
 ## 1. Identity
 
-- **repo**: (프로젝트 경로)
+- **repo**: `vibe-doctor`
 - **branch**: `main`
-- **last release**: v1.5.4 (project-safe `.gitignore` sync)
+- **last release**: v1.5.5 (project-safe sync policy expansion)
 - **current iteration**: post-iter-7 maintenance
-- **harnessVersion**: `1.5.4`
-- **language/tone**: (프로젝트별)
+- **harnessVersion**: `1.5.5`
+- **language/tone**: Korean user-facing, concise engineering notes
 
-## 2. Status: IDLE - v1.5.4 `.gitignore` merge patch prepared
+## 2. Status
 
-`/vibe-init` 실행 필요. Phase 1 (환경 점검) → Phase 2 (provider 선택) → Phase 3 (네이티브 소크라테스식 인터뷰) → Phase 4 (Sprint 로드맵 작성 + Phase 0 seal) 진행 후 첫 Sprint 진입.
+IDLE after v1.5.5 harness sync hardening.
 
-Latest maintenance patch adds `scripts/vibe-agent-session-start.mjs`, wires Claude `SessionStart`, Codex `run-codex.sh`, and `vibe:run-agent` through it, and documents provider-neutral context persistence in `_common-rules.md` Section 16. Codex still has no true PreCompact hook; fallback is handoff/session-log update plus `node scripts/vibe-checkpoint.mjs`.
+v1.5.5 expands project-safe sync behavior beyond `.gitignore`:
 
-Follow-up v1.5.2 patch adds `.vscode/settings.json` and `.vscode/extensions.json` so editors pin Markdown/text files to UTF-8 instead of occasionally auto-detecting BOMless UTF-8 as a Windows legacy code page. Strict UTF-8 validation for all Markdown files passed.
+- Added `replace-if-unmodified` for `.env.example` and `.github/workflows/ci.yml`.
+- Added `json-array-union` for `.vscode/extensions.json`.
+- Moved `.vscode/settings.json` to `json-deep-merge`.
+- Moved `.editorconfig` and `.gitattributes` to `line-union`.
+- Converted `AGENTS.md` and `GEMINI.md` to marker-based `section-merge` with `PROJECT:custom-rules` preserved.
+- Added marker bootstrap behavior: unmodified legacy section files are replaced once to add markers; modified legacy files are skipped.
+- Made synced file copies preserve existing file mode or default new files to `0644`, preventing Windows-mounted templates from turning regular files executable under Linux/WSL.
 
-Follow-up v1.5.3 patch makes `scripts/run-codex.sh` safe under WSL by redirecting `chcp.com` stdin from `/dev/null` before prompt buffering and resolving an installed UTF-8 locale instead of hardcoding `en_US.UTF-8`. `test/run-codex-wrapper.test.ts` now stubs stdin-consuming `chcp.com` and deterministic locale output so downstream wrapper behavior is validated without a real authenticated Codex install. Verified Windows `npm run typecheck`, `npm run build`, `npm test`; verified WSL temp copy `npm test`, `npm run typecheck`, `npm run build`.
+Windows verification:
 
-Follow-up v1.5.4 patch adds a `line-union` sync strategy and moves `.gitignore` from full harness replacement to hybrid line merge. Future downstream syncs preserve project-specific ignore entries such as `runtime/` while appending new upstream harness ignore entries.
+- `npm run typecheck`
+- `npm run build`
+- `npm test`
 
-## 3. 핵심 가치 (절대 보존)
+WSL verification:
 
-- `scripts/vibe-interview.mjs` + `.claude/skills/vibe-init` / `vibe-interview` (socratic core)
-- sprint-planner agent + `vibe-sprint-complete` / `vibe-sprint-commit`
-- `run-codex.{sh,cmd}` wrapper (Windows/UTF-8 + EPERM skip + token extraction)
-- Codex Generator 위임 원칙
-- Sub-agent context isolation
+- Direct `/mnt/c/.../vibe-doctor` typecheck/build passed.
+- Direct `/mnt/c` WSL `npm test` failed because Windows-installed `node_modules` contains `@esbuild/win32-x64`; this is a native dependency platform mismatch, not a test/code failure.
+- Clean Linux temp copy excluding `node_modules`, followed by `npm ci`, passed `npm run typecheck`, `npm run build`, and `npm test`.
 
-## 4. 다음 행동 (세션 시작 직후)
+## 3. Preserved Value
 
+- Provider-neutral lifecycle hooks from v1.5.1 remain intact.
+- UTF-8 Markdown/editor hardening from v1.5.2 remains intact.
+- WSL-safe Codex wrapper behavior from v1.5.3 remains intact.
+- Project-safe `.gitignore` line merge from v1.5.4 remains intact.
+
+## 4. Next Action
+
+Sync downstream project `/home/tony/workspace/telegram-local-ingest` from this local template after v1.5.5 is committed/tagged/pushed:
+
+```bash
+cd /home/tony/workspace/telegram-local-ingest
+source "$HOME/.nvm/nvm.sh"
+npm run vibe:sync -- --from /mnt/c/Users/Tony/Workspace/vibe-doctor --dry-run
 ```
-/vibe-init
-```
 
-→ Phase 1~4 자동 진행 → `docs/context/product.md` + `architecture.md` + `conventions.md` 생성 → `docs/plans/sprint-roadmap.md` 에 Sprint 분할 저장 → 첫 Sprint Planner 소환 대기.
+Expected dry-run behavior:
 
-## 5. pendingRisks
+- `.env.example` should be skipped if customized by the project, not conflict.
+- `.gitignore`, `.editorconfig`, and `.gitattributes` should line-merge.
+- `.vscode/settings.json` should JSON deep-merge.
+- `.vscode/extensions.json` should JSON array-union.
+- `AGENTS.md` and `GEMINI.md` should bootstrap or section-merge markers depending on downstream state.
 
-없음.
+## 5. Pending Risks
 
-## 6. 링크
-
-- 하네스 버전: `.vibe/config.json.harnessVersion`
-- 릴리스 노트: `docs/release/v1.5.4.md` 및 이전 버전
-- Charter: `CLAUDE.md` line 1-40 (BEGIN:CHARTER ~ END:CHARTER)
-- Extensions: `docs/context/*.md`
+- Do not share one `node_modules` directory between Windows and WSL for packages with native binaries such as `esbuild`. Use per-platform installs or a clean Linux workspace.
