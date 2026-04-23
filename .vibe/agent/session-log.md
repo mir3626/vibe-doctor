@@ -21,8 +21,13 @@
 ## Entries
 
 
+
+
 - 2026-04-23T08:36:00.000Z [harness-review] v1.5.8 verification passed on Windows: `npm run typecheck`, `node --import tsx --test test/upstream-bootstrap.test.ts`, `npm run build`, and `npm test`.
 - 2026-04-23T08:30:00.000Z [harness-review] v1.5.8 upstream bootstrap patch: session-start/version-check and `/vibe-init` now infer missing upstream config from `git remote origin`, preserve existing upstream, quietly skip missing remotes, and guard template self-sync unless `--from` is supplied.
+- 2026-04-23T03:01:37.580Z [audit-clear] resolved=1 note=v1.5.9 Windows statusline hook compatibility verified with typecheck, build, full test, vibe:qa, rule-audit, and CMD statusline smoke
+- 2026-04-23T03:01:26.437Z [sprint-complete] sprint-windows-hook-portability -> passed. Sprint sprint-windows-hook-portability completed with passed LOC +395/-67 (net +328)
+- 2026-04-23T03:00:00.000Z [harness-review] v1.5.9 Windows hook compatibility patch: moved Claude statusline execution to cross-platform `.claude/statusline.mjs`, rewired `.claude/settings.json` away from POSIX inline env/redirection syntax, kept `.sh`/`.ps1` compatibility wrappers, and verified statusline/settings tests plus full typecheck/build/test/qa.
 - 2026-04-23T00:33:26.236Z [sprint-complete] sprint-upstream-bootstrap -> passed. Sprint sprint-upstream-bootstrap completed with passed LOC +28/-9 (net +19)
 - 2026-04-22T16:33:00.000Z [harness-review] v1.5.7 executable tracking patch: marked `scripts/run-codex.sh` and `.claude/statusline.sh` executable in Git so v1.5.6 mode handling does not leave downstream mode-only diffs for intended shell wrappers.
 - 2026-04-22T16:28:00.000Z [harness-review] v1.5.6 sync mode patch: refined v1.5.5 mode-safe copy so synced `.sh` harness wrappers are executable (`0755`) while regular synced files remain non-executable, covering the WSL `./scripts/run-codex.sh` permission edge case.

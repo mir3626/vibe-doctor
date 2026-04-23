@@ -55,6 +55,18 @@
         "net": 19,
         "filesChanged": 8
       }
+    },
+    {
+      "id": "sprint-windows-hook-portability",
+      "name": "sprint-windows-hook-portability",
+      "status": "passed",
+      "completedAt": "2026-04-23T03:01:26.437Z",
+      "actualLoc": {
+        "added": 395,
+        "deleted": 67,
+        "net": 328,
+        "filesChanged": 14
+      }
     }
   ],
   "handoff": {
@@ -63,17 +75,35 @@
     "pendingPrompt": null,
     "lastHandoffAt": "2026-04-20T00:00:00Z",
     "nextAction": "run /vibe-init to start a new project",
-    "lastActionSummary": "Sprint sprint-upstream-bootstrap completed with passed",
+    "lastActionSummary": "Sprint sprint-windows-hook-portability completed with passed",
     "orchestratorContextBudget": "medium",
     "preferencesActive": [],
-    "updatedAt": "2026-04-23T00:33:26.236Z"
+    "updatedAt": "2026-04-23T03:01:26.437Z"
   },
   "policies": {
     "scratchpadPath": ".vibe/agent/handoff.md",
     "sessionLogPath": ".vibe/agent/session-log.md",
     "verificationCommands": []
   },
-  "pendingRisks": [],
+  "pendingRisks": [
+    {
+      "id": "audit-after-sprint-windows-hook-portability",
+      "raisedBy": "vibe-sprint-complete",
+      "targetSprint": "*",
+      "text": "Evaluator audit due (sprintsSinceLastAudit=5, everyN=5).",
+      "status": "resolved",
+      "createdAt": "2026-04-23T03:01:26.437Z",
+      "resolvedAt": "2026-04-23T03:01:37.579Z"
+    },
+    {
+      "id": "lightweight-audit-sprint-windows-hook-portability",
+      "raisedBy": "vibe-audit-lightweight",
+      "targetSprint": "*",
+      "text": "src/commands/init.ts has no test/init.test.ts",
+      "status": "open",
+      "createdAt": "2026-04-23T03:01:27.429Z"
+    }
+  ],
   "lastSprintScope": [
     "scripts/run-codex.sh",
     "test/run-codex-wrapper.test.ts",
@@ -102,7 +132,14 @@
     "src/lib/config.ts",
     "test/sync.test.ts",
     "docs/release/v1.5.8.md",
-    "test/upstream-bootstrap.test.ts"
+    "test/upstream-bootstrap.test.ts",
+    ".claude/settings.json",
+    ".claude/statusline.ps1",
+    ".claude/statusline.sh",
+    "test/integration/meta-smoke.test.ts",
+    "test/statusline.test.ts",
+    ".claude/statusline.mjs",
+    "docs/release/v1.5.9.md"
   ],
   "lastSprintScopeGlob": [
     "scripts/run-codex.sh",
@@ -117,8 +154,8 @@
     "test/vibe-review-inputs.test.ts",
     "package.json"
   ],
-  "sprintsSinceLastAudit": 4,
-  "stateUpdatedAt": "2026-04-23T00:33:26.236Z",
+  "sprintsSinceLastAudit": 0,
+  "stateUpdatedAt": "2026-04-23T03:01:37.578Z",
   "verifiedAt": null,
   "verificationCommands": []
 }
