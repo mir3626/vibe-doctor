@@ -4,26 +4,27 @@
 
 - **repo**: `vibe-doctor`
 - **branch**: `main`
-- **last release**: v1.5.9 (Windows CMD/PowerShell statusline and hook compatibility)
+- **last release**: v1.5.10 (sync latest tag resolution for stale pinned refs)
 - **current iteration**: post-iter-7 maintenance
-- **harnessVersion**: `1.5.9`
+- **harnessVersion**: `1.5.10`
 - **language/tone**: Korean user-facing, concise engineering notes
 
 ## 2. Status
 
-IDLE after v1.5.9 Windows hook compatibility hardening.
+IDLE after v1.5.10 `/vibe-sync` ref-resolution hardening.
 
-v1.5.9 fixes Claude Code launch from Windows CMD/PowerShell:
+v1.5.10 fixes the dogfood10-style stale `upstream.ref` trap:
 
-- `.claude/statusline.mjs` is now the canonical cross-platform statusline implementation.
-- `.claude/settings.json` uses `node .claude/statusline.mjs`, so it no longer depends on POSIX inline env syntax.
-- `SessionStart` uses `node scripts/vibe-agent-session-start.mjs` without `2>/dev/null || true`.
-- `.claude/statusline.sh` and `.claude/statusline.ps1` remain as compatibility wrappers around the Node implementation.
-- `test/statusline.test.ts` now verifies settings command portability and direct Node statusline behavior.
-- `docs/context/harness-gaps.md` records `gap-windows-hook-command-portability` as covered.
+- `src/commands/sync.ts` now refreshes `.vibe/sync-cache.json` best-effort before resolving the upstream ref.
+- If cached `latestVersion` is newer than `harnessVersionInstalled`, default `/vibe-sync` uses that latest tag.
+- Existing semver refs such as `v1.4.3` no longer pin downstream projects to the installed version after version-check has found a newer tag.
+- Explicit `--ref` remains highest priority.
+- Non-version refs such as `main` or feature branches remain preserved.
+- Regression coverage is in `test/sync.test.ts` under `resolveUpstreamRef`.
 
 Earlier local releases remain preserved:
 
+- v1.5.9 fixes Windows CMD/PowerShell Claude statusline and hook command compatibility.
 - v1.5.8 infers missing upstream config from `git remote origin` during session-start and `/vibe-init`.
 - v1.5.7 tracks executable shell wrappers in Git.
 - v1.5.6 makes synced `.sh` harness wrappers executable on POSIX.
@@ -35,41 +36,32 @@ Earlier local releases remain preserved:
 
 ## 3. Verification
 
-Windows verification for v1.5.9:
+Windows verification for v1.5.10:
 
 - `npm run typecheck`
-- `node --import tsx --test test/statusline.test.ts`
+- `node --import tsx --test test/sync.test.ts`
 - `npm run build`
 - `npm test`
-- `node scripts/vibe-rule-audit.mjs`
-- `cmd /c "node .claude\statusline.mjs"`
-- `node scripts/vibe-version-check.mjs`
-- `npm run vibe:qa --silent`
 
 ## 4. Preserved Value
 
-- Provider-neutral lifecycle hooks from v1.5.1 remain intact.
-- UTF-8 Markdown/editor hardening from v1.5.2 remains intact.
-- WSL-safe Codex wrapper behavior from v1.5.3 remains intact.
-- Project-safe sync merge behavior from v1.5.4-v1.5.5 remains intact.
-- Executable wrapper handling from v1.5.6-v1.5.7 remains intact.
-- Upstream bootstrap from v1.5.8 remains intact.
+- Provider-neutral lifecycle hooks remain intact.
+- UTF-8 Markdown/editor hardening remains intact.
+- WSL-safe Codex wrapper behavior remains intact.
+- Project-safe sync merge behavior remains intact.
+- Executable wrapper handling remains intact.
+- Upstream bootstrap remains intact.
+- Windows CMD/PowerShell statusline and hook compatibility remains intact.
 
 ## 5. Next Action
 
-Commit/tag/push v1.5.9 from `C:\Users\Tony\Workspace\vibe-doctor`.
+Commit/tag/push v1.5.10 from `C:\Users\Tony\Workspace\vibe-doctor`.
 
-Do not touch downstream project `/home/tony/workspace/telegram-local-ingest` in this session; the user said another session is working there.
+Do not touch downstream project `/home/tony/workspace/telegram-local-ingest` unless explicitly requested.
 
-After v1.5.9 is pushed, downstream can dry-run sync later:
-
-```bash
-cd /home/tony/workspace/telegram-local-ingest
-source "$HOME/.nvm/nvm.sh"
-npm run vibe:sync -- --from /mnt/c/Users/Tony/Workspace/vibe-doctor --dry-run
-```
+After v1.5.10 is pushed, dogfood/downstream projects with `upstream.ref: v1.4.3` should be able to run normal `/vibe-sync` once their version-check cache has a newer `latestVersion`. The new sync command also refreshes that cache best-effort.
 
 ## 6. Pending Risks
 
-- The remaining `/dev/null` and `|| true` patterns found by search are inside POSIX shell scripts or historical documentation, not Claude settings command strings.
+- If a project intentionally uses a semver `upstream.ref` as a hard pin, default `/vibe-sync` will now advance when cached latest is newer. Use explicit `--ref <tag>` for a one-off pinned sync, or a non-version branch ref for branch-based workflows.
 - Do not share one `node_modules` directory between Windows and WSL for packages with native binaries such as `esbuild`. Use per-platform installs or a clean Linux workspace.

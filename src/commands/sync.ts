@@ -23,7 +23,12 @@ import {
 } from '../lib/sync.js';
 
 const SEMVER_REF_PATTERN = /^\d+\.\d+\.\d+$/;
+const SEMVER_TAG_PATTERN = /^v?\d+\.\d+\.\d+$/;
 const DEFAULT_UPSTREAM_URL = 'https://github.com/mir3626/vibe-doctor.git';
+
+export interface SyncCache {
+  latestVersion?: string | null;
+}
 
 function normalizeGitUrl(value: string | undefined): string {
   return String(value ?? '')
@@ -43,9 +48,69 @@ function isTemplateSelfCheckout(upstreamUrl: string | undefined): boolean {
   );
 }
 
-export function resolveUpstreamRef(config: VibeConfig, refOverride?: string): string {
+function normalizeVersion(value: string | undefined | null): string | undefined {
+  if (typeof value !== 'string') {
+    return undefined;
+  }
+
+  const normalized = value.trim().replace(/^v/i, '');
+  return SEMVER_REF_PATTERN.test(normalized) ? normalized : undefined;
+}
+
+function compareVersions(left: string, right: string): number {
+  const leftParts = left.split('.').map(Number);
+  const rightParts = right.split('.').map(Number);
+  const length = Math.max(leftParts.length, rightParts.length);
+
+  for (let index = 0; index < length; index += 1) {
+    const diff = (leftParts[index] ?? 0) - (rightParts[index] ?? 0);
+    if (diff !== 0) {
+      return diff;
+    }
+  }
+
+  return 0;
+}
+
+function isVersionTag(value: string | undefined): boolean {
+  return typeof value === 'string' && SEMVER_TAG_PATTERN.test(value.trim());
+}
+
+function resolveLatestCachedRef(config: VibeConfig, syncCache?: SyncCache): string | undefined {
+  const latest = normalizeVersion(syncCache?.latestVersion);
+  const installed = normalizeVersion(config.harnessVersionInstalled ?? config.harnessVersion);
+
+  if (!latest || !installed || compareVersions(latest, installed) <= 0) {
+    return undefined;
+  }
+
+  return `v${latest}`;
+}
+
+async function refreshSyncCache(): Promise<void> {
+  try {
+    await runCommand('node', ['scripts/vibe-version-check.mjs'], { cwd: paths.root });
+  } catch {
+    // Sync can still proceed with existing config/cache when the update check is unavailable.
+  }
+}
+
+async function readSyncCache(): Promise<SyncCache | undefined> {
+  try {
+    return await readJson<SyncCache>(paths.syncCache);
+  } catch {
+    return undefined;
+  }
+}
+
+export function resolveUpstreamRef(config: VibeConfig, refOverride?: string, syncCache?: SyncCache): string {
   if (refOverride) {
     return refOverride;
+  }
+
+  const latestCachedRef = resolveLatestCachedRef(config, syncCache);
+  if (latestCachedRef && (!config.upstream?.ref || isVersionTag(config.upstream.ref))) {
+    return latestCachedRef;
   }
 
   if (config.upstream?.ref) {
@@ -213,7 +278,8 @@ async function main(): Promise<void> {
       if (!config.upstream?.url) {
         throw new Error('Missing upstream configuration in .vibe/config.json');
       }
-      const ref = resolveUpstreamRef(config, refOverride);
+      await refreshSyncCache();
+      const ref = resolveUpstreamRef(config, refOverride, await readSyncCache());
       logger.info(`Cloning upstream ${config.upstream.url}#${ref}`);
       upstreamRoot = await cloneUpstream(config.upstream.url, ref);
       cleanupRequired = true;

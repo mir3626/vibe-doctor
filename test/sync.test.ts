@@ -14,6 +14,8 @@ import {
   type HybridFileConfig,
   type SyncManifest,
 } from '../src/lib/sync.js';
+import { resolveUpstreamRef } from '../src/commands/sync.js';
+import type { VibeConfig } from '../src/lib/config.js';
 
 const tempDirs: string[] = [];
 
@@ -36,6 +38,41 @@ async function writeJson(filePath: string, value: unknown): Promise<void> {
   await mkdir(path.dirname(filePath), { recursive: true });
   await writeFile(filePath, `${JSON.stringify(value, null, 2)}\n`, 'utf8');
 }
+
+function minimalConfig(overrides: Partial<VibeConfig> = {}): VibeConfig {
+  return {
+    orchestrator: 'x',
+    harnessVersion: '1.4.3',
+    harnessVersionInstalled: '1.4.3',
+    upstream: { type: 'git', url: 'https://github.com/mir3626/vibe-doctor.git', ref: 'v1.4.3' },
+    sprintRoles: { planner: 'a', generator: 'b', evaluator: 'c' },
+    sprint: { unit: 'feature', subAgentPerRole: true, freshContextPerSprint: true },
+    providers: {},
+    ...overrides,
+  };
+}
+
+describe('resolveUpstreamRef', () => {
+  it('uses cached latestVersion for default sync when the project is behind', () => {
+    assert.equal(resolveUpstreamRef(minimalConfig(), undefined, { latestVersion: 'v1.5.9' }), 'v1.5.9');
+  });
+
+  it('keeps explicit --ref override as the highest priority', () => {
+    assert.equal(resolveUpstreamRef(minimalConfig(), 'v1.4.3', { latestVersion: 'v1.5.9' }), 'v1.4.3');
+  });
+
+  it('preserves non-version upstream refs such as main or feature branches', () => {
+    const config = minimalConfig({
+      upstream: { type: 'git', url: 'https://github.com/mir3626/vibe-doctor.git', ref: 'main' },
+    });
+
+    assert.equal(resolveUpstreamRef(config, undefined, { latestVersion: 'v1.5.9' }), 'main');
+  });
+
+  it('ignores stale cached latestVersion values', () => {
+    assert.equal(resolveUpstreamRef(minimalConfig(), undefined, { latestVersion: 'v1.4.3' }), 'v1.4.3');
+  });
+});
 
 describe('sectionMerge', () => {
   const config: HybridFileConfig = {
@@ -552,6 +589,7 @@ describe('sync manifest', () => {
     assert.equal(manifest.files.harness.includes('docs/release/v1.5.7.md'), true);
     assert.equal(manifest.files.harness.includes('docs/release/v1.5.8.md'), true);
     assert.equal(manifest.files.harness.includes('docs/release/v1.5.9.md'), true);
+    assert.equal(manifest.files.harness.includes('docs/release/v1.5.10.md'), true);
     assert.equal(manifest.files.harness.includes('test/upstream-bootstrap.test.ts'), true);
     assert.equal(manifest.files.harness.includes('.claude/statusline.mjs'), true);
     assert.equal(manifest.files.harness.includes('.gitignore'), false);

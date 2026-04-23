@@ -23,8 +23,12 @@
 
 
 
+
 - 2026-04-23T08:36:00.000Z [harness-review] v1.5.8 verification passed on Windows: `npm run typecheck`, `node --import tsx --test test/upstream-bootstrap.test.ts`, `npm run build`, and `npm test`.
 - 2026-04-23T08:30:00.000Z [harness-review] v1.5.8 upstream bootstrap patch: session-start/version-check and `/vibe-init` now infer missing upstream config from `git remote origin`, preserve existing upstream, quietly skip missing remotes, and guard template self-sync unless `--from` is supplied.
+- 2026-04-23T03:22:00.000Z [harness-review] v1.5.10 verification passed on Windows: `npm run typecheck`, `node --import tsx --test test/sync.test.ts`, `npm run build`, and `npm test`.
+- 2026-04-23T03:20:00.000Z [harness-review] v1.5.10 sync ref-resolution patch: default `/vibe-sync` now refreshes version cache best-effort and uses cached `latestVersion` when newer than installed, so downstream projects with semver `upstream.ref` like `v1.4.3` are not trapped on the old tag; explicit `--ref` and non-version refs remain preserved.
+- 2026-04-23T03:14:41.740Z [sprint-complete] sprint-sync-latest-ref -> passed. Sprint sprint-sync-latest-ref completed with passed LOC +379/-337 (net +42)
 - 2026-04-23T03:01:37.580Z [audit-clear] resolved=1 note=v1.5.9 Windows statusline hook compatibility verified with typecheck, build, full test, vibe:qa, rule-audit, and CMD statusline smoke
 - 2026-04-23T03:01:26.437Z [sprint-complete] sprint-windows-hook-portability -> passed. Sprint sprint-windows-hook-portability completed with passed LOC +395/-67 (net +328)
 - 2026-04-23T03:00:00.000Z [harness-review] v1.5.9 Windows hook compatibility patch: moved Claude statusline execution to cross-platform `.claude/statusline.mjs`, rewired `.claude/settings.json` away from POSIX inline env/redirection syntax, kept `.sh`/`.ps1` compatibility wrappers, and verified statusline/settings tests plus full typecheck/build/test/qa.

@@ -1,7 +1,7 @@
 {
   "name": "vibe-base-claude-code-ts",
   "version": "0.1.0",
-  "harnessVersion": "1.5.9",
+  "harnessVersion": "1.5.10",
   "private": true,
   "type": "module",
   "description": "TypeScript-first base template for Claude Code vibe coding orchestration.",
