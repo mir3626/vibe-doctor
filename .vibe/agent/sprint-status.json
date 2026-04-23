@@ -91,6 +91,18 @@
         "net": 136,
         "filesChanged": 11
       }
+    },
+    {
+      "id": "sprint-pinned-upstream-ref",
+      "name": "sprint-pinned-upstream-ref",
+      "status": "passed",
+      "completedAt": "2026-04-23T03:44:29.698Z",
+      "actualLoc": {
+        "added": 142,
+        "deleted": 43,
+        "net": 99,
+        "filesChanged": 13
+      }
     }
   ],
   "handoff": {
@@ -99,10 +111,10 @@
     "pendingPrompt": null,
     "lastHandoffAt": "2026-04-20T00:00:00Z",
     "nextAction": "run /vibe-init to start a new project",
-    "lastActionSummary": "Sprint sprint-harness-typecheck-scope completed with passed",
+    "lastActionSummary": "Sprint sprint-pinned-upstream-ref completed with passed",
     "orchestratorContextBudget": "medium",
     "preferencesActive": [],
-    "updatedAt": "2026-04-23T03:26:41.208Z"
+    "updatedAt": "2026-04-23T03:44:29.698Z"
   },
   "policies": {
     "scratchpadPath": ".vibe/agent/handoff.md",
@@ -166,7 +178,10 @@
     "docs/release/v1.5.9.md",
     "docs/release/v1.5.10.md",
     "docs/release/v1.5.11.md",
-    "tsconfig.harness.json"
+    "tsconfig.harness.json",
+    "scripts/vibe-sync-bootstrap.mjs",
+    "docs/release/v1.5.12.md",
+    "test/vibe-sync-bootstrap.test.ts"
   ],
   "lastSprintScopeGlob": [
     "scripts/run-codex.sh",
@@ -181,8 +196,8 @@
     "test/vibe-review-inputs.test.ts",
     "package.json"
   ],
-  "sprintsSinceLastAudit": 2,
-  "stateUpdatedAt": "2026-04-23T03:26:41.208Z",
+  "sprintsSinceLastAudit": 3,
+  "stateUpdatedAt": "2026-04-23T03:44:29.698Z",
   "verifiedAt": null,
   "verificationCommands": []
 }

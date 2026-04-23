@@ -14,7 +14,7 @@ import {
   type HybridFileConfig,
   type SyncManifest,
 } from '../src/lib/sync.js';
-import { resolvePostSyncTypecheckArgs, resolveUpstreamRef } from '../src/commands/sync.js';
+import { resolvePinnedRefUpdateCandidate, resolvePostSyncTypecheckArgs, resolveUpstreamRef } from '../src/commands/sync.js';
 import type { VibeConfig } from '../src/lib/config.js';
 
 const tempDirs: string[] = [];
@@ -53,8 +53,20 @@ function minimalConfig(overrides: Partial<VibeConfig> = {}): VibeConfig {
 }
 
 describe('resolveUpstreamRef', () => {
-  it('uses cached latestVersion for default sync when the project is behind', () => {
-    assert.equal(resolveUpstreamRef(minimalConfig(), undefined, { latestVersion: 'v1.5.9' }), 'v1.5.9');
+  it('keeps a semver upstream ref pinned by default', () => {
+    assert.equal(resolveUpstreamRef(minimalConfig(), undefined, { latestVersion: 'v1.5.9' }), 'v1.4.3');
+  });
+
+  it('uses cached latestVersion for a pinned ref only after an explicit update decision', () => {
+    assert.equal(resolveUpstreamRef(minimalConfig(), undefined, { latestVersion: 'v1.5.9' }, 'update'), 'v1.5.9');
+  });
+
+  it('uses cached latestVersion for unpinned default sync when the project is behind', () => {
+    const config = minimalConfig({
+      upstream: { type: 'git', url: 'https://github.com/mir3626/vibe-doctor.git' },
+    });
+
+    assert.equal(resolveUpstreamRef(config, undefined, { latestVersion: 'v1.5.9' }), 'v1.5.9');
   });
 
   it('keeps explicit --ref override as the highest priority', () => {
@@ -71,6 +83,21 @@ describe('resolveUpstreamRef', () => {
 
   it('ignores stale cached latestVersion values', () => {
     assert.equal(resolveUpstreamRef(minimalConfig(), undefined, { latestVersion: 'v1.4.3' }), 'v1.4.3');
+  });
+
+  it('reports an update candidate only when a pinned semver ref is behind latestVersion', () => {
+    assert.deepEqual(resolvePinnedRefUpdateCandidate(minimalConfig(), { latestVersion: 'v1.5.9' }), {
+      pinnedRef: 'v1.4.3',
+      latestRef: 'v1.5.9',
+    });
+    assert.equal(resolvePinnedRefUpdateCandidate(minimalConfig(), { latestVersion: 'v1.4.3' }), undefined);
+    assert.equal(
+      resolvePinnedRefUpdateCandidate(
+        minimalConfig({ upstream: { type: 'git', url: 'https://github.com/mir3626/vibe-doctor.git', ref: 'main' } }),
+        { latestVersion: 'v1.5.9' },
+      ),
+      undefined,
+    );
   });
 });
 
@@ -606,7 +633,9 @@ describe('sync manifest', () => {
     assert.equal(manifest.files.harness.includes('docs/release/v1.5.9.md'), true);
     assert.equal(manifest.files.harness.includes('docs/release/v1.5.10.md'), true);
     assert.equal(manifest.files.harness.includes('docs/release/v1.5.11.md'), true);
+    assert.equal(manifest.files.harness.includes('docs/release/v1.5.12.md'), true);
     assert.equal(manifest.files.harness.includes('test/upstream-bootstrap.test.ts'), true);
+    assert.equal(manifest.files.harness.includes('test/vibe-sync-bootstrap.test.ts'), true);
     assert.equal(manifest.files.harness.includes('.claude/statusline.mjs'), true);
     assert.equal(manifest.files.harness.includes('tsconfig.harness.json'), true);
     assert.equal(Boolean(manifest.files.hybrid['tsconfig.json']), false);

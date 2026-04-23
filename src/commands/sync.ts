@@ -30,6 +30,13 @@ export interface SyncCache {
   latestVersion?: string | null;
 }
 
+export type PinnedRefDecision = 'keep' | 'update';
+
+export interface PinnedRefUpdateCandidate {
+  pinnedRef: string;
+  latestRef: string;
+}
+
 function normalizeGitUrl(value: string | undefined): string {
   return String(value ?? '')
     .trim()
@@ -87,6 +94,23 @@ function resolveLatestCachedRef(config: VibeConfig, syncCache?: SyncCache): stri
   return `v${latest}`;
 }
 
+export function resolvePinnedRefUpdateCandidate(
+  config: VibeConfig,
+  syncCache?: SyncCache,
+): PinnedRefUpdateCandidate | undefined {
+  const pinned = normalizeVersion(config.upstream?.ref);
+  const latest = normalizeVersion(syncCache?.latestVersion);
+
+  if (!pinned || !latest || compareVersions(latest, pinned) <= 0) {
+    return undefined;
+  }
+
+  return {
+    pinnedRef: `v${pinned}`,
+    latestRef: `v${latest}`,
+  };
+}
+
 async function refreshSyncCache(): Promise<void> {
   try {
     await runCommand('node', ['scripts/vibe-version-check.mjs'], { cwd: paths.root });
@@ -103,18 +127,27 @@ async function readSyncCache(): Promise<SyncCache | undefined> {
   }
 }
 
-export function resolveUpstreamRef(config: VibeConfig, refOverride?: string, syncCache?: SyncCache): string {
+export function resolveUpstreamRef(
+  config: VibeConfig,
+  refOverride?: string,
+  syncCache?: SyncCache,
+  pinnedRefDecision: PinnedRefDecision = 'keep',
+): string {
   if (refOverride) {
     return refOverride;
   }
 
-  const latestCachedRef = resolveLatestCachedRef(config, syncCache);
-  if (latestCachedRef && (!config.upstream?.ref || isVersionTag(config.upstream.ref))) {
-    return latestCachedRef;
+  if (config.upstream?.ref) {
+    const candidate = isVersionTag(config.upstream.ref) ? resolvePinnedRefUpdateCandidate(config, syncCache) : undefined;
+    if (candidate && pinnedRefDecision === 'update') {
+      return candidate.latestRef;
+    }
+    return config.upstream.ref;
   }
 
-  if (config.upstream?.ref) {
-    return config.upstream.ref;
+  const latestCachedRef = resolveLatestCachedRef(config, syncCache);
+  if (latestCachedRef) {
+    return latestCachedRef;
   }
 
   if (config.harnessVersion && SEMVER_REF_PATTERN.test(config.harnessVersion)) {
@@ -122,6 +155,48 @@ export function resolveUpstreamRef(config: VibeConfig, refOverride?: string, syn
   }
 
   return 'main';
+}
+
+async function choosePinnedRefDecision(candidate: PinnedRefUpdateCandidate, jsonMode: boolean): Promise<PinnedRefDecision> {
+  const message =
+    `Upstream is pinned to ${candidate.pinnedRef}, but ${candidate.latestRef} is available.\n` +
+    `Run with --ref ${candidate.latestRef} to bypass the pin non-interactively.`;
+
+  if (jsonMode) {
+    return 'keep';
+  }
+
+  if (!process.stdin.isTTY || !process.stdout.isTTY) {
+    logger.info(`${message} Keeping pinned ref.`);
+    return 'keep';
+  }
+
+  const rl = readline.createInterface({ input, output });
+  try {
+    process.stdout.write(
+      `\n${message}\n\n` +
+        'Choose:\n' +
+        `  [p] Keep pinned ref ${candidate.pinnedRef}\n` +
+        `  [u] Update once to ${candidate.latestRef}\n` +
+        '  [c] Cancel\n\n',
+    );
+
+    for (;;) {
+      const choice = (await rl.question('> ')).trim().toLowerCase();
+      if (choice === '' || choice === 'p' || choice === 'pin' || choice === 'keep') {
+        return 'keep';
+      }
+      if (choice === 'u' || choice === 'update') {
+        return 'update';
+      }
+      if (choice === 'c' || choice === 'cancel') {
+        throw new Error('Cancelled by user');
+      }
+      process.stdout.write('Choose p, u, or c.\n');
+    }
+  } finally {
+    rl.close();
+  }
 }
 
 async function fileExists(filePath: string): Promise<boolean> {
@@ -296,7 +371,10 @@ async function main(): Promise<void> {
         throw new Error('Missing upstream configuration in .vibe/config.json');
       }
       await refreshSyncCache();
-      const ref = resolveUpstreamRef(config, refOverride, await readSyncCache());
+      const syncCache = await readSyncCache();
+      const pinnedCandidate = refOverride ? undefined : resolvePinnedRefUpdateCandidate(config, syncCache);
+      const pinnedDecision = pinnedCandidate ? await choosePinnedRefDecision(pinnedCandidate, jsonMode) : 'keep';
+      const ref = resolveUpstreamRef(config, refOverride, syncCache, pinnedDecision);
       logger.info(`Cloning upstream ${config.upstream.url}#${ref}`);
       upstreamRoot = await cloneUpstream(config.upstream.url, ref);
       cleanupRequired = true;

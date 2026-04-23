@@ -24,9 +24,11 @@
 
 
 
-
 - 2026-04-23T08:36:00.000Z [harness-review] v1.5.8 verification passed on Windows: `npm run typecheck`, `node --import tsx --test test/upstream-bootstrap.test.ts`, `npm run build`, and `npm test`.
 - 2026-04-23T08:30:00.000Z [harness-review] v1.5.8 upstream bootstrap patch: session-start/version-check and `/vibe-init` now infer missing upstream config from `git remote origin`, preserve existing upstream, quietly skip missing remotes, and guard template self-sync unless `--from` is supplied.
+- 2026-04-23T03:44:29.698Z [sprint-complete] sprint-pinned-upstream-ref -> passed. Sprint sprint-pinned-upstream-ref completed with passed LOC +142/-43 (net +99)
+- 2026-04-23T03:44:06.469Z [harness-review] v1.5.12 verification passed on Windows: `npm run typecheck`, `node --import tsx --test test/sync.test.ts test/vibe-sync-bootstrap.test.ts`, `npm run build`, and `npm test`.
+- 2026-04-23T03:42:04.706Z [harness-review] v1.5.12 pinned upstream ref patch: restored semver `upstream.ref` as a real pin, added interactive `/vibe-sync` update-once choice when cached latestVersion is newer, kept non-interactive sync pinned unless `--ref` is supplied, and changed `vibe-sync-bootstrap` to preserve existing pins without auto-creating new ones.
 - 2026-04-23T03:42:00.000Z [harness-review] v1.5.11 post-sync verify scope patch: added `tsconfig.harness.json`, changed `/vibe-sync` post-verify to prefer `npx tsc -p tsconfig.harness.json --noEmit`, removed product `tsconfig.json` from harness hybrid ownership, and verified typecheck/build/full test.
 - 2026-04-23T03:26:41.208Z [sprint-complete] sprint-harness-typecheck-scope -> passed. Sprint sprint-harness-typecheck-scope completed with passed LOC +181/-45 (net +136)
 - 2026-04-23T03:22:00.000Z [harness-review] v1.5.10 verification passed on Windows: `npm run typecheck`, `node --import tsx --test test/sync.test.ts`, `npm run build`, and `npm test`.
