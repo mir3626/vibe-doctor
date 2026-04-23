@@ -9,7 +9,7 @@ import { getBooleanFlag, getStringFlag, parseArgs } from '../lib/args.js';
 import { runMain } from '../lib/cli.js';
 import type { VibeConfig } from '../lib/config.js';
 import { loadConfig } from '../lib/config.js';
-import { readJson, writeJson } from '../lib/fs.js';
+import { readJson, readText, writeJson } from '../lib/fs.js';
 import { logger } from '../lib/logger.js';
 import { paths } from '../lib/paths.js';
 import { runCommand } from '../lib/shell.js';
@@ -33,6 +33,16 @@ const DEFAULT_SYNC_CONFIG: VibeConfig = {
   sprint: { unit: 'feature', subAgentPerRole: false, freshContextPerSprint: true },
   providers: {},
 };
+
+export function renderSyncInitGuardMessage(): string {
+  return [
+    'vibe:sync requires an initialized vibe-doctor project.',
+    '',
+    'Run /vibe-init first, then retry /vibe-sync or npm run vibe:sync.',
+    'Sync is blocked before initialization so template sprint history and reports are not treated as project state.',
+    '',
+  ].join('\n');
+}
 
 export interface SyncCache {
   latestVersion?: string | null;
@@ -176,12 +186,44 @@ async function readSyncCache(): Promise<SyncCache | undefined> {
   }
 }
 
-async function loadConfigForSync(): Promise<VibeConfig> {
-  if (await fileExists(paths.sharedConfig)) {
-    return loadConfig();
+function hasTemplateProjectState(productMd: string, sprintStatus: unknown, rootBasename: string): boolean {
+  if (rootBasename.toLowerCase() === 'vibe-doctor') {
+    return false;
   }
 
-  return DEFAULT_SYNC_CONFIG;
+  const statusRecord =
+    typeof sprintStatus === 'object' && sprintStatus !== null && !Array.isArray(sprintStatus)
+      ? (sprintStatus as Record<string, unknown>)
+      : {};
+  const project =
+    typeof statusRecord.project === 'object' && statusRecord.project !== null && !Array.isArray(statusRecord.project)
+      ? (statusRecord.project as Record<string, unknown>)
+      : {};
+  const statusProjectName = typeof project.name === 'string' ? project.name : '';
+
+  return statusProjectName === 'vibe-doctor' || /\*\*vibe-doctor\*\*|^#\s+vibe-doctor\b/im.test(productMd);
+}
+
+export async function hasVibeInitArtifacts(root = paths.root): Promise<boolean> {
+  const productPath = path.join(root, 'docs', 'context', 'product.md');
+  const statusPath = path.join(root, '.vibe', 'agent', 'sprint-status.json');
+
+  if (!(await fileExists(productPath)) || !(await fileExists(statusPath))) {
+    return false;
+  }
+
+  try {
+    const [productMd, sprintStatus] = await Promise.all([
+      readText(productPath),
+      readJson<unknown>(statusPath),
+    ]);
+    if (productMd.trim().length === 0) {
+      return false;
+    }
+    return !hasTemplateProjectState(productMd, sprintStatus, path.basename(root));
+  } catch {
+    return false;
+  }
 }
 
 async function ensureSyncUpstreamConfig(config: VibeConfig): Promise<VibeConfig> {
@@ -425,7 +467,21 @@ async function main(): Promise<void> {
   const from = getStringFlag(args, 'from');
   const refOverride = getStringFlag(args, 'ref');
 
-  const config = await ensureSyncUpstreamConfig(await loadConfigForSync());
+  const initialConfig = (await fileExists(paths.sharedConfig)) ? await loadConfig() : undefined;
+  if (
+    !from &&
+    initialConfig &&
+    (initialConfig.upstream?.self || isTemplateSelfCheckout(initialConfig.upstream?.url))
+  ) {
+    logger.info('Skipping sync: this checkout is marked as the vibe-doctor template source. Use --from to override.');
+    return;
+  }
+
+  if (!(await hasVibeInitArtifacts(paths.root))) {
+    throw new Error(renderSyncInitGuardMessage());
+  }
+
+  const config = await ensureSyncUpstreamConfig(initialConfig ?? DEFAULT_SYNC_CONFIG);
   let upstreamRoot: string | null = null;
   let cleanupRequired = false;
 
@@ -434,9 +490,6 @@ async function main(): Promise<void> {
       upstreamRoot = path.resolve(from);
     } else if (config.upstream?.type === 'local') {
       upstreamRoot = path.resolve(config.upstream.url);
-    } else if (config.upstream?.self || isTemplateSelfCheckout(config.upstream?.url)) {
-      logger.info('Skipping sync: this checkout is marked as the vibe-doctor template source. Use --from to override.');
-      return;
     } else {
       if (!config.upstream?.url) {
         throw new Error('Missing upstream configuration in .vibe/config.json');

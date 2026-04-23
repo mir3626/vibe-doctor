@@ -213,4 +213,18 @@ describe('upstream bootstrap', { skip: !gitAvailable }, () => {
     assert.equal(result.status, 0, result.stderr);
     assert.match(result.stdout, /Skipping sync: this checkout is marked as the vibe-doctor template source/);
   });
+
+  it('/vibe-sync refuses to run before /vibe-init creates project state', async () => {
+    const root = await makeTempDir('vibe-sync-uninitialized-');
+
+    const result = spawnSync(process.execPath, ['--import', tsxLoader, syncPath, '--dry-run'], {
+      cwd: root,
+      env: { ...process.env, VIBE_ROOT: root },
+      encoding: 'utf8',
+    });
+
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /requires an initialized vibe-doctor project/);
+    assert.match(result.stderr, /Run \/vibe-init first/);
+  });
 });

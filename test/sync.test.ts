@@ -15,9 +15,11 @@ import {
   type SyncManifest,
 } from '../src/lib/sync.js';
 import {
+  hasVibeInitArtifacts,
   resolveMissingUpstream,
   resolvePinnedRefUpdateCandidate,
   resolvePostSyncTypecheckArgs,
+  renderSyncInitGuardMessage,
   resolveUpstreamRef,
 } from '../src/commands/sync.js';
 import type { VibeConfig } from '../src/lib/config.js';
@@ -147,6 +149,48 @@ describe('resolveMissingUpstream', () => {
       resolveMissingUpstream({}, 'https://github.com/mir3626/vibe-doctor.git', 'vibe-doctor'),
       { type: 'git', url: 'https://github.com/mir3626/vibe-doctor.git', self: true },
     );
+  });
+});
+
+describe('vibe init artifact guard', () => {
+  it('explains that sync requires /vibe-init first', () => {
+    assert.match(renderSyncInitGuardMessage(), /requires an initialized vibe-doctor project/);
+    assert.match(renderSyncInitGuardMessage(), /Run \/vibe-init first/);
+  });
+
+  it('rejects missing init artifacts', async () => {
+    const root = await makeTempDir('sync-uninitialized-');
+
+    assert.equal(await hasVibeInitArtifacts(root), false);
+  });
+
+  it('rejects template sprint state copied into a non-template project', async () => {
+    const root = await makeTempDir('sync-template-state-');
+    await mkdir(path.join(root, 'docs', 'context'), { recursive: true });
+    await writeFile(path.join(root, 'docs', 'context', 'product.md'), '# Product\n\nvibe-doctor template\n', 'utf8');
+    await writeJson(path.join(root, '.vibe', 'agent', 'sprint-status.json'), {
+      schemaVersion: '0.1',
+      project: { name: 'vibe-doctor', createdAt: '2026-04-01T00:00:00.000Z' },
+      sprints: [{ id: 'sprint-old', name: 'sprint-old', status: 'passed' }],
+      verificationCommands: [],
+    });
+
+    assert.equal(await hasVibeInitArtifacts(root), false);
+  });
+
+  it('accepts initialized project state with an empty sprint history', async () => {
+    const root = await makeTempDir('sync-initialized-');
+    await mkdir(path.join(root, 'docs', 'context'), { recursive: true });
+    await writeFile(path.join(root, 'docs', 'context', 'product.md'), '# Product\n\nDemo app\n', 'utf8');
+    await writeJson(path.join(root, '.vibe', 'agent', 'sprint-status.json'), {
+      schemaVersion: '0.1',
+      project: { name: 'demo', createdAt: '2026-04-01T00:00:00.000Z' },
+      sprints: [],
+      verificationCommands: [],
+      sprintsSinceLastAudit: 0,
+    });
+
+    assert.equal(await hasVibeInitArtifacts(root), true);
   });
 });
 
@@ -671,6 +715,7 @@ describe('sync manifest', () => {
     assert.equal(manifest.files.harness.includes('docs/release/v1.5.13.md'), true);
     assert.equal(manifest.files.harness.includes('docs/release/v1.5.14.md'), true);
     assert.equal(manifest.files.harness.includes('docs/release/v1.5.15.md'), true);
+    assert.equal(manifest.files.harness.includes('docs/release/v1.5.16.md'), true);
     assert.equal(manifest.files.harness.includes('.codex/skills/**'), true);
     assert.equal(manifest.files.harness.includes('test/init-guard.test.ts'), true);
     assert.equal(manifest.files.harness.includes('test/codex-skills.test.ts'), true);
