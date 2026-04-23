@@ -21,13 +21,11 @@
 ## Entries
 
 
-
-
-
-
-
 - 2026-04-23T08:36:00.000Z [harness-review] v1.5.8 verification passed on Windows: `npm run typecheck`, `node --import tsx --test test/upstream-bootstrap.test.ts`, `npm run build`, and `npm test`.
 - 2026-04-23T08:30:00.000Z [harness-review] v1.5.8 upstream bootstrap patch: session-start/version-check and `/vibe-init` now infer missing upstream config from `git remote origin`, preserve existing upstream, quietly skip missing remotes, and guard template self-sync unless `--from` is supplied.
+- 2026-04-23T06:36:27.869Z [sprint-complete] sprint-agent-init-codex-skills -> passed. Sprint sprint-agent-init-codex-skills completed with passed LOC +252/-36 (net +216)
+- 2026-04-23T06:35:10.389Z [harness-review] v1.5.15 agent-gated init patch: direct `npm run vibe:init` now exits with guidance, agent skills use `--from-agent-skill`, Claude `/vibe-init` docs were updated, and `.codex/skills/*` wrappers now delegate to the shared `.claude/skills/*` runbooks.
+- 2026-04-23T06:34:30.000Z [harness-review] v1.5.15 verification passed on Windows: `npm run typecheck`, focused init/Codex/sync tests, `npm run build`, and full `npm test`.
 - 2026-04-23T06:09:42.800Z [audit-clear] resolved=1 note=v1.5.14 missing-upstream bootstrap verified with focused tests, typecheck, build, and full npm test
 - 2026-04-23T06:09:23.857Z [sprint-complete] sprint-missing-upstream-sync-bootstrap -> passed. Sprint sprint-missing-upstream-sync-bootstrap completed with passed LOC +168/-51 (net +117)
 - 2026-04-23T06:07:45.265Z [harness-review] v1.5.14 missing-upstream sync bootstrap patch: `/vibe-sync` now initializes missing upstream config before clone, treats product repo origins as default vibe-doctor upstream, preserves vibe-doctor fork origins for dogfood clones, marks template self-checkouts, and lets `vibe-sync-bootstrap` create `.vibe/config.json` for legacy projects.

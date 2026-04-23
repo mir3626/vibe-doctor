@@ -180,7 +180,7 @@ describe('upstream bootstrap', { skip: !gitAvailable }, () => {
     await mkdir(path.join(root, 'scripts'), { recursive: true });
     await copyFile(versionCheckPath, path.join(root, 'scripts', 'vibe-version-check.mjs'));
 
-    const result = spawnSync(process.execPath, ['--import', tsxLoader, initPath], {
+    const result = spawnSync(process.execPath, ['--import', tsxLoader, initPath, '--from-agent-skill'], {
       cwd: root,
       env: { ...process.env, VIBE_ROOT: root },
       input: '',

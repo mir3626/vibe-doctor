@@ -274,7 +274,7 @@ git clone https://github.com/mir3626/vibe-doctor my-project-v2
 ```bash
 # 환경
 npm run vibe:doctor             # 환경 점검 (node/git/CLI 설치)
-npm run vibe:init               # 기본 파일 생성 (.env, provider 설정)
+npm run vibe:init -- --from-agent-skill  # internal: /vibe-init agent skill bootstrap only
 
 # 인터뷰 / 개발
 npm run vibe:interview          # 네이티브 인터뷰 단독 실행

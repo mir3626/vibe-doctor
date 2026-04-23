@@ -127,6 +127,18 @@
         "net": 117,
         "filesChanged": 14
       }
+    },
+    {
+      "id": "sprint-agent-init-codex-skills",
+      "name": "sprint-agent-init-codex-skills",
+      "status": "passed",
+      "completedAt": "2026-04-23T06:36:27.869Z",
+      "actualLoc": {
+        "added": 252,
+        "deleted": 36,
+        "net": 216,
+        "filesChanged": 15
+      }
     }
   ],
   "handoff": {
@@ -135,10 +147,10 @@
     "pendingPrompt": null,
     "lastHandoffAt": "2026-04-20T00:00:00Z",
     "nextAction": "run /vibe-init to start a new project",
-    "lastActionSummary": "Sprint sprint-missing-upstream-sync-bootstrap completed with passed",
+    "lastActionSummary": "Sprint sprint-agent-init-codex-skills completed with passed",
     "orchestratorContextBudget": "medium",
     "preferencesActive": [],
-    "updatedAt": "2026-04-23T06:09:23.857Z"
+    "updatedAt": "2026-04-23T06:36:27.869Z"
   },
   "policies": {
     "scratchpadPath": ".vibe/agent/handoff.md",
@@ -220,7 +232,23 @@
     "test/dashboard-server.test.ts",
     "test/project-report.test.ts",
     "docs/release/v1.5.13.md",
-    "docs/release/v1.5.14.md"
+    "docs/release/v1.5.14.md",
+    ".claude/skills/vibe-init/SKILL.md",
+    "README.md",
+    "docs/context/secrets.md",
+    ".codex/skills/goal-to-plan/SKILL.md",
+    ".codex/skills/maintain-context/SKILL.md",
+    ".codex/skills/self-qa/SKILL.md",
+    ".codex/skills/vibe-init/SKILL.md",
+    ".codex/skills/vibe-interview/SKILL.md",
+    ".codex/skills/vibe-iterate/SKILL.md",
+    ".codex/skills/vibe-review/SKILL.md",
+    ".codex/skills/vibe-sprint-mode/SKILL.md",
+    ".codex/skills/vibe-sync/SKILL.md",
+    ".codex/skills/write-report/SKILL.md",
+    "docs/release/v1.5.15.md",
+    "test/codex-skills.test.ts",
+    "test/init-guard.test.ts"
   ],
   "lastSprintScopeGlob": [
     "scripts/run-codex.sh",
@@ -235,8 +263,8 @@
     "test/vibe-review-inputs.test.ts",
     "package.json"
   ],
-  "sprintsSinceLastAudit": 0,
-  "stateUpdatedAt": "2026-04-23T06:09:42.798Z",
+  "sprintsSinceLastAudit": 1,
+  "stateUpdatedAt": "2026-04-23T06:36:27.869Z",
   "verifiedAt": null,
   "verificationCommands": []
 }

@@ -27,6 +27,7 @@
       ".claude/skills/write-report/SKILL.md",
       ".claude/skills/maintain-context/SKILL.md",
       ".claude/skills/vibe-sync/SKILL.md",
+      ".codex/skills/**",
       ".claude/agents/sprint-planner.md",
       ".claude/agents/context-curator.md",
       ".claude/agents/qa-guardian.md",
@@ -106,6 +107,8 @@
       "migrations/1.1.0.mjs",
       "scripts/run-codex.cmd",
       "test/run-codex-wrapper.test.ts",
+      "test/init-guard.test.ts",
+      "test/codex-skills.test.ts",
       "test/agent-session-start.test.ts",
       "test/upstream-bootstrap.test.ts",
       "test/vibe-sync-bootstrap.test.ts",
@@ -194,7 +197,8 @@
       "docs/release/v1.5.11.md",
       "docs/release/v1.5.12.md",
       "docs/release/v1.5.13.md",
-      "docs/release/v1.5.14.md"
+      "docs/release/v1.5.14.md",
+      "docs/release/v1.5.15.md"
     ],
     "hybrid": {
       "CLAUDE.md": {

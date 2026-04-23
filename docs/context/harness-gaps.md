@@ -40,6 +40,9 @@
 | gap-generator-test-scope-creep | Generator 가 Planner prompt 비지정 상태에서 test/*.test.ts 를 자발 생성. dogfood10 M2/M3 에서 3회 발생. | _common-rules.md §15 (sprint-M2-generator-scope-discipline). 재발 시 run-codex.sh post-process diff grep 으로 enforcement 승격. | closed | covered | — |
 | gap-external-adapter-blind-spot | e2e smoke 가 개별 data-fetcher route 응답을 probe 하지 않아 adapter 가 0 items 반환해도 통과. dogfood10 iter-1 배포 후 사용자 발견. | `/vibe-review` rubric adapter-health blind-spot + `collectReviewInputs.productFetcherPaths` (sprint-M3-review-adapter-blind-spot) | closed | covered | +1 sprint (iter-7) |
 
+| gap-direct-vibe-init-shell-entrypoint | Users can run `npm run vibe:init` from bash/cmd/PowerShell, which creates files but cannot complete agent-required product context, roadmap, handoff, and session-log work. | `src/commands/init.ts` direct-shell guard + `.claude/skills/vibe-init/SKILL.md` guarded command + `test/init-guard.test.ts` (v1.5.15). Agent skills use `--from-agent-skill`; direct shells exit with guidance. | covered | covered | ??|
+| gap-codex-skill-parity | Claude-only `.claude/skills/*` made vibe-doctor workflows available to Claude Code but not to Codex skill discovery, causing provider drift. | `.codex/skills/*/SKILL.md` provider-neutral wrappers + `test/codex-skills.test.ts` + sync-manifest coverage (v1.5.15). Wrappers delegate to the shared Claude skill source. | covered | covered | ??|
+
 Update protocol:
 1. 새 gap 발견 시 id `gap-<slug>` 로 표 끝에 append 한다.
 2. 해결 Sprint 에서 `covered_by` 와 `status` 를 갱신한다.

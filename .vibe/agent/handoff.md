@@ -4,47 +4,40 @@
 
 - **repo**: `vibe-doctor`
 - **branch**: `main`
-- **last release**: v1.5.14 (legacy missing-upstream sync bootstrap)
+- **last release**: v1.5.15 (agent-gated init and Codex skill wrappers)
 - **current iteration**: post-iter-7 maintenance
-- **harnessVersion**: `1.5.14`
+- **harnessVersion**: `1.5.15`
 - **language/tone**: Korean user-facing, concise engineering notes
 
 ## 2. Status
 
-IDLE after v1.5.14 legacy missing-upstream sync bootstrap hardening.
+READY to commit/tag/push v1.5.15.
 
-v1.5.14 lets partially bootstrapped projects run `/vibe-sync` without an existing `upstream` entry:
+v1.5.15 changes the project initialization entrypoint so it is always mediated by an agent skill:
 
-- `/vibe-sync` initializes missing `.vibe/config.json.upstream` before cloning.
-- Dogfood clones whose origin is a vibe-doctor fork use that origin.
-- Product repository origins fall back to `https://github.com/mir3626/vibe-doctor.git`, avoiding accidental product-origin upstreams.
-- Template source checkouts are marked `self` and still skip self-sync.
-- `vibe-version-check` uses the same inference for SessionStart.
-- `vibe-sync-bootstrap` can create `.vibe/config.json` for config-less legacy projects.
-- Regression coverage is in `test/sync.test.ts`, `test/upstream-bootstrap.test.ts`, and `test/vibe-sync-bootstrap.test.ts`.
+- Direct `npm run vibe:init` from bash/cmd/PowerShell now exits with guidance instead of partially bootstrapping a project without agent follow-through.
+- Agent skills can still run the mechanical bootstrap with `npm run vibe:init -- --from-agent-skill`.
+- Claude `/vibe-init` instructions now use the guarded command.
+- Codex skill wrappers now exist under `.codex/skills/*/SKILL.md` and delegate to the shared `.claude/skills/*/SKILL.md` runbooks.
+- Sync manifest includes the Codex skill wrappers and new regression tests.
 
 Earlier local releases remain preserved:
 
+- v1.5.14 lets partially bootstrapped projects run `/vibe-sync` without an existing `upstream` entry.
 - v1.5.13 fixes WSL/Linux browser opener failures for dashboard/report.
 - v1.5.12 restores `upstream.ref` as a real pin and adds an explicit update path.
 - v1.5.11 scopes `/vibe-sync` post-verify typechecking to harness code.
-- v1.5.10 attempted stale semver `upstream.ref` auto-update behavior; v1.5.12 supersedes it with explicit pinned-ref prompts.
 - v1.5.9 fixes Windows CMD/PowerShell Claude statusline and hook command compatibility.
 - v1.5.8 infers missing upstream config from `git remote origin` during session-start and `/vibe-init`.
-- v1.5.7 tracks executable shell wrappers in Git.
-- v1.5.6 makes synced `.sh` harness wrappers executable on POSIX.
-- v1.5.5 expands project-safe sync behavior for env/CI/editor/agent-memory files.
-- v1.5.4 keeps `.gitignore` project entries through line-union merge.
-- v1.5.3 hardens WSL Codex wrapper stdin/locale behavior.
 - v1.5.2 hardens UTF-8 Markdown/editor defaults.
 - v1.5.1 adds provider-neutral lifecycle hooks.
 
 ## 3. Verification
 
-Windows verification for v1.5.14:
+Windows verification for v1.5.15:
 
 - `npm run typecheck`
-- `node --import tsx --test test/sync.test.ts test/upstream-bootstrap.test.ts test/vibe-sync-bootstrap.test.ts`
+- `node --import tsx --test test/init-guard.test.ts test/codex-skills.test.ts test/upstream-bootstrap.test.ts test/sync.test.ts`
 - `npm run build`
 - `npm test`
 
@@ -54,18 +47,16 @@ Windows verification for v1.5.14:
 - UTF-8 Markdown/editor hardening remains intact.
 - WSL-safe Codex wrapper behavior remains intact.
 - Project-safe sync merge behavior remains intact.
-- Executable wrapper handling remains intact.
 - Upstream bootstrap remains intact.
 - Windows CMD/PowerShell statusline and hook compatibility remains intact.
 - Pinned `upstream.ref` semantics and explicit update prompts remain intact.
-- WSL/Linux browser opener failures no longer crash dashboard/report processes.
 - Legacy missing-upstream projects can bootstrap sync config without `/vibe-init`.
 
 ## 5. Next Action
 
-Commit/tag/push v1.5.14 from `C:\Users\Tony\Workspace\vibe-doctor`.
+Commit/tag/push v1.5.15 from `C:\Users\Tony\Workspace\vibe-doctor`.
 
-After v1.5.14 is pushed, downstream projects with `.vibe/config.json` missing `upstream` should be able to run `npm run vibe:sync -- --ref v1.5.14` directly.
+After v1.5.15 is pushed, downstream projects should sync it when they need guarded init behavior or Codex skill parity.
 
 ## 6. Pending Risks
 
