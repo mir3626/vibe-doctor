@@ -12,6 +12,8 @@ const nodeScriptPath = path.resolve('.claude', 'statusline.mjs');
 const bashScriptPath = path.resolve('.claude', 'statusline.sh');
 const powershellScriptPath = path.resolve('.claude', 'statusline.ps1');
 const settingsPath = path.resolve('.claude', 'settings.json');
+const emojiTarget = '\u{1F3AF}';
+const emojiWarning = '\u26A0\uFE0F';
 
 function detectWorkingBash(): string | null {
   try {
@@ -137,6 +139,28 @@ describe('statusline.mjs', () => {
 
     assert.equal(stderr, '');
     assert.equal(stdout, '🎯 sprint-M9-statusline-permissions (2/3) | ⚠️ 2');
+  });
+
+  it('hides copied template sprint state before vibe-init', async () => {
+    const root = await makeTempDir('statusline-template-state-');
+    await writeJson(root, path.join('.vibe', 'agent', 'sprint-status.json'), {
+      project: {
+        name: 'vibe-doctor',
+      },
+      handoff: {
+        currentSprintId: 'idle',
+      },
+      sprints: [
+        { id: 'sprint-template-a', status: 'passed' },
+        { id: 'sprint-template-b', status: 'passed' },
+      ],
+      pendingRisks: [{ id: 'risk-template-a', status: 'open' }],
+    });
+
+    const { stdout, stderr } = runNodeStatusline(root);
+
+    assert.equal(stderr, '');
+    assert.equal(stdout, `${emojiTarget} idle (0/0) | ${emojiWarning} 0`);
   });
 
   it('reads Claude usage from redirected stdin by default', async () => {

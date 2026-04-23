@@ -26,6 +26,31 @@ function getString(value) {
   return typeof value === 'string' && value.trim().length > 0 ? value.trim() : undefined;
 }
 
+function isTemplateProjectStatus(root, status) {
+  const projectName = getString(status?.project?.name);
+  if (projectName !== 'vibe-doctor') {
+    return false;
+  }
+
+  return path.basename(root).toLowerCase() !== 'vibe-doctor';
+}
+
+function normalizeStatusForDisplay(root, status) {
+  if (!isTemplateProjectStatus(root, status)) {
+    return status;
+  }
+
+  return {
+    ...status,
+    handoff: {
+      ...(status && typeof status === 'object' && !Array.isArray(status) ? status.handoff : undefined),
+      currentSprintId: 'idle',
+    },
+    sprints: [],
+    pendingRisks: [],
+  };
+}
+
 function parseStatuslineInput(raw) {
   const trimmed = raw.trim();
   if (trimmed.length === 0) {
@@ -166,7 +191,7 @@ async function main() {
     process.exit(0);
   }
 
-  const status = readJson(statusPath);
+  const status = normalizeStatusForDisplay(root, readJson(statusPath));
   const statuslineInput = await readStatuslineInput();
   const claudeTokens = getClaudeTokens(statuslineInput);
   const sprints = Array.isArray(status.sprints) ? status.sprints : [];
