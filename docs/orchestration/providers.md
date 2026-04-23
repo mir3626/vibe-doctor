@@ -129,3 +129,4 @@ claude mcp list
 `.codex/agents/`에 정의된 에이전트 (병렬 실행 등 CLI 직접 호출 시 사용):
 - `coder` — 코드 작성, workspace-write 샌드박스
 - `explorer` — 코드 탐색/조사, read-only 샌드박스
+- `developer_instructions` 에 정규식/역슬래시가 들어가면 TOML `""" ... """` 대신 literal multiline string(`''' ... '''`)을 사용한다.
