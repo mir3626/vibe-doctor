@@ -4,55 +4,58 @@
 
 - **repo**: `vibe-doctor`
 - **branch**: `main`
-- **last release**: v1.5.7 (tracked executable shell wrappers)
+- **last release**: v1.5.8 (provider-neutral upstream bootstrap)
 - **current iteration**: post-iter-7 maintenance
-- **harnessVersion**: `1.5.7`
+- **harnessVersion**: `1.5.8`
 - **language/tone**: Korean user-facing, concise engineering notes
 
 ## 2. Status
 
-IDLE after v1.5.7 harness sync hardening.
+IDLE after v1.5.8 harness sync/update hardening.
 
-v1.5.5 expanded project-safe sync behavior beyond `.gitignore`:
+v1.5.8 closes the dogfood clone upstream gap:
 
-- Added `replace-if-unmodified` for `.env.example` and `.github/workflows/ci.yml`.
-- Added `json-array-union` for `.vscode/extensions.json`.
-- Moved `.vscode/settings.json` to `json-deep-merge`.
-- Moved `.editorconfig` and `.gitattributes` to `line-union`.
-- Converted `AGENTS.md` and `GEMINI.md` to marker-based `section-merge` with `PROJECT:custom-rules` preserved.
-- Added marker bootstrap behavior: unmodified legacy section files are replaced once to add markers; modified legacy files are skipped.
-- Made synced file copies preserve existing file mode or default new files to `0644`, preventing Windows-mounted templates from turning regular files executable under Linux/WSL.
+- `scripts/vibe-version-check.mjs` now best-effort infers `.vibe/config.json.upstream.url` from `git remote get-url origin` before version-check no-op decisions.
+- `src/commands/init.ts` invokes the same upstream bootstrap path during `/vibe-init`.
+- Existing upstream settings are preserved unchanged.
+- Missing or unreadable `origin` remotes skip quietly and do not fail init/session-start.
+- `src/commands/sync.ts` skips template self-sync when a `vibe-doctor` source checkout points at the default harness upstream, unless `--from` is supplied.
+- Regression coverage lives in `test/upstream-bootstrap.test.ts`.
 
-v1.5.6 corrects the executable-mode edge case from v1.5.5:
+Earlier local releases remain preserved:
 
-- Synced `.sh` harness wrappers are explicitly written as `0755`.
-- Regular synced files still preserve existing mode or default to `0644`.
-- This keeps `scripts/run-codex.sh` runnable as `./scripts/run-codex.sh` on Linux/WSL without reintroducing executable-bit noise for Markdown, JSON, TypeScript, and config files.
+- v1.5.7 tracks executable shell wrappers in Git.
+- v1.5.6 makes synced `.sh` harness wrappers executable on POSIX.
+- v1.5.5 expands project-safe sync behavior for env/CI/editor/agent-memory files.
+- v1.5.4 keeps `.gitignore` project entries through line-union merge.
+- v1.5.3 hardens WSL Codex wrapper stdin/locale behavior.
+- v1.5.2 hardens UTF-8 Markdown/editor defaults.
+- v1.5.1 adds provider-neutral lifecycle hooks.
 
-v1.5.7 records the same intent in Git by marking `scripts/run-codex.sh` and `.claude/statusline.sh` executable in the template index.
+## 3. Verification
 
-Windows verification:
+Windows verification for v1.5.8:
 
 - `npm run typecheck`
+- `node --import tsx --test test/upstream-bootstrap.test.ts`
 - `npm run build`
 - `npm test`
 
-WSL verification:
-
-- Direct `/mnt/c/.../vibe-doctor` typecheck/build passed.
-- Direct `/mnt/c` WSL `npm test` failed because Windows-installed `node_modules` contains `@esbuild/win32-x64`; this is a native dependency platform mismatch, not a test/code failure.
-- Clean Linux temp copy excluding `node_modules`, followed by `npm ci`, passed `npm run typecheck`, `npm run build`, and `npm test`.
-
-## 3. Preserved Value
+## 4. Preserved Value
 
 - Provider-neutral lifecycle hooks from v1.5.1 remain intact.
 - UTF-8 Markdown/editor hardening from v1.5.2 remains intact.
 - WSL-safe Codex wrapper behavior from v1.5.3 remains intact.
-- Project-safe `.gitignore` line merge from v1.5.4 remains intact.
+- Project-safe sync merge behavior from v1.5.4-v1.5.5 remains intact.
+- Executable wrapper handling from v1.5.6-v1.5.7 remains intact.
 
-## 4. Next Action
+## 5. Next Action
 
-Sync downstream project `/home/tony/workspace/telegram-local-ingest` from this local template after v1.5.7 is committed/tagged/pushed:
+Commit/tag/push v1.5.8 from `C:\Users\Tony\Workspace\vibe-doctor`.
+
+Do not touch downstream project `/home/tony/workspace/telegram-local-ingest` in this session; the user said another session is working there.
+
+After v1.5.8 is pushed, downstream can dry-run sync later:
 
 ```bash
 cd /home/tony/workspace/telegram-local-ingest
@@ -60,14 +63,7 @@ source "$HOME/.nvm/nvm.sh"
 npm run vibe:sync -- --from /mnt/c/Users/Tony/Workspace/vibe-doctor --dry-run
 ```
 
-Expected dry-run behavior:
+## 6. Pending Risks
 
-- `.env.example` should be skipped if customized by the project, not conflict.
-- `.gitignore`, `.editorconfig`, and `.gitattributes` should line-merge.
-- `.vscode/settings.json` should JSON deep-merge.
-- `.vscode/extensions.json` should JSON array-union.
-- `AGENTS.md` and `GEMINI.md` should bootstrap or section-merge markers depending on downstream state.
-
-## 5. Pending Risks
-
+- Template self-detection intentionally uses a conservative runtime heuristic: folder basename `vibe-doctor` plus the default upstream URL. Dogfood clones named `dogfoodX` or product-specific names still bootstrap upstream from origin.
 - Do not share one `node_modules` directory between Windows and WSL for packages with native binaries such as `esbuild`. Use per-platform installs or a clean Linux workspace.

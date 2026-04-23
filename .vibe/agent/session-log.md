@@ -20,6 +20,10 @@
 
 ## Entries
 
+
+- 2026-04-23T08:36:00.000Z [harness-review] v1.5.8 verification passed on Windows: `npm run typecheck`, `node --import tsx --test test/upstream-bootstrap.test.ts`, `npm run build`, and `npm test`.
+- 2026-04-23T08:30:00.000Z [harness-review] v1.5.8 upstream bootstrap patch: session-start/version-check and `/vibe-init` now infer missing upstream config from `git remote origin`, preserve existing upstream, quietly skip missing remotes, and guard template self-sync unless `--from` is supplied.
+- 2026-04-23T00:33:26.236Z [sprint-complete] sprint-upstream-bootstrap -> passed. Sprint sprint-upstream-bootstrap completed with passed LOC +28/-9 (net +19)
 - 2026-04-22T16:33:00.000Z [harness-review] v1.5.7 executable tracking patch: marked `scripts/run-codex.sh` and `.claude/statusline.sh` executable in Git so v1.5.6 mode handling does not leave downstream mode-only diffs for intended shell wrappers.
 - 2026-04-22T16:28:00.000Z [harness-review] v1.5.6 sync mode patch: refined v1.5.5 mode-safe copy so synced `.sh` harness wrappers are executable (`0755`) while regular synced files remain non-executable, covering the WSL `./scripts/run-codex.sh` permission edge case.
 - 2026-04-22T16:17:38.375Z [harness-review] v1.5.5 sync hardening patch: added `replace-if-unmodified`, `json-array-union`, marker-based `AGENTS.md`/`GEMINI.md` section merge, `.vscode`/`.editorconfig`/`.gitattributes` hybrid ownership, mode-safe synced copies for WSL/Linux, and verified Windows plus clean WSL temp-copy typecheck/build/test.
@@ -27,10 +31,6 @@
 - 2026-04-22T15:36:19.331Z [harness-review] v1.5.3 WSL Codex wrapper patch: fixed `run-codex.sh` stdin loss caused by WSL-visible `chcp.com` consuming prompt input, replaced fixed `en_US.UTF-8` with installed UTF-8 locale resolution, hardened wrapper tests with `chcp.com`/locale stubs, and verified Windows + WSL temp-copy typecheck/build/test.
 - 2026-04-22T13:20:00.000Z [harness-review] v1.5.2 Markdown encoding patch: added VS Code UTF-8 workspace settings, EditorConfig recommendation, sync-manifest coverage, encoding-settings regression tests, and strict UTF-8 validation for all Markdown files.
 - 2026-04-22T13:00:00.000Z [harness-review] v1.5.1 provider-neutral lifecycle patch: added `vibe-agent-session-start.mjs`, wired Claude/Codex/`vibe:run-agent` session-start checks, added `_common-rules.md` Section 16 for context persistence, and documented Codex PreCompact fallback.
-
-
-
-
 - 2026-04-21T00:00:01.000Z [decision] [sprint-mode-tier] user=a (extended). node scripts/vibe-sprint-mode.mjs on --tier extended 실행 → 71 preset rules active (41 new). iter-7 3-sprint 자율 실행 목표 interruption 0. iter-7 종료 시 off 토글 재확인 예정.
 - 2026-04-21T00:00:00.000Z [decision] [iter-7-kickoff] dogfood10 review-4 findings A+B+D upstream iter-7. iter-8 에 C 이월. target harnessVersion v1.5.0. sprint order M1(B) → M2(D) → M3(A). predicted net 122 LOC (buffered 148). handoff 상세: docs/plans/iter-7-upstream-handoff.md
 - 2026-04-20T16:47:56.928Z [sprint-complete] sprint-M3-review-adapter-blind-spot -> passed. Sprint sprint-M3-review-adapter-blind-spot completed with passed LOC +333/-11 (net +322)

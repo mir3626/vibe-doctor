@@ -550,6 +550,8 @@ describe('sync manifest', () => {
     assert.equal(manifest.files.harness.includes('docs/release/v1.5.5.md'), true);
     assert.equal(manifest.files.harness.includes('docs/release/v1.5.6.md'), true);
     assert.equal(manifest.files.harness.includes('docs/release/v1.5.7.md'), true);
+    assert.equal(manifest.files.harness.includes('docs/release/v1.5.8.md'), true);
+    assert.equal(manifest.files.harness.includes('test/upstream-bootstrap.test.ts'), true);
     assert.equal(manifest.files.harness.includes('.gitignore'), false);
     assert.equal(manifest.files.harness.includes('.env.example'), false);
     assert.equal(manifest.files.harness.includes('.github/workflows/ci.yml'), false);

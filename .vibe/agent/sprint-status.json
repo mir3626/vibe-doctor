@@ -43,6 +43,18 @@
         "net": 322,
         "filesChanged": 9
       }
+    },
+    {
+      "id": "sprint-upstream-bootstrap",
+      "name": "sprint-upstream-bootstrap",
+      "status": "passed",
+      "completedAt": "2026-04-23T00:33:26.236Z",
+      "actualLoc": {
+        "added": 28,
+        "deleted": 9,
+        "net": 19,
+        "filesChanged": 8
+      }
     }
   ],
   "handoff": {
@@ -51,10 +63,10 @@
     "pendingPrompt": null,
     "lastHandoffAt": "2026-04-20T00:00:00Z",
     "nextAction": "run /vibe-init to start a new project",
-    "lastActionSummary": "Sprint sprint-M3-review-adapter-blind-spot completed with passed",
+    "lastActionSummary": "Sprint sprint-upstream-bootstrap completed with passed",
     "orchestratorContextBudget": "medium",
     "preferencesActive": [],
-    "updatedAt": "2026-04-20T16:47:56.928Z"
+    "updatedAt": "2026-04-23T00:33:26.236Z"
   },
   "policies": {
     "scratchpadPath": ".vibe/agent/handoff.md",
@@ -81,7 +93,16 @@
     ".claude/skills/vibe-review/SKILL.md",
     "test/vibe-review-inputs.test.ts",
     "package.json",
-    "docs/reports/project-report.html"
+    "docs/reports/project-report.html",
+    ".vibe/config.json",
+    ".vibe/sync-manifest.json",
+    "scripts/vibe-version-check.mjs",
+    "src/commands/init.ts",
+    "src/commands/sync.ts",
+    "src/lib/config.ts",
+    "test/sync.test.ts",
+    "docs/release/v1.5.8.md",
+    "test/upstream-bootstrap.test.ts"
   ],
   "lastSprintScopeGlob": [
     "scripts/run-codex.sh",
@@ -96,8 +117,8 @@
     "test/vibe-review-inputs.test.ts",
     "package.json"
   ],
-  "sprintsSinceLastAudit": 3,
-  "stateUpdatedAt": "2026-04-20T16:47:56.928Z",
+  "sprintsSinceLastAudit": 4,
+  "stateUpdatedAt": "2026-04-23T00:33:26.236Z",
   "verifiedAt": null,
   "verificationCommands": []
 }

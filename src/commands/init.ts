@@ -1,5 +1,6 @@
 import process from 'node:process';
 import path from 'node:path';
+import { spawnSync } from 'node:child_process';
 import { copyFile } from 'node:fs/promises';
 import readline from 'node:readline/promises';
 import { stdin as input, stdout as output } from 'node:process';
@@ -71,6 +72,19 @@ async function ensureEnvFile(): Promise<void> {
   }
   await copyFile(paths.envExample, paths.envFile);
   logger.info('created .env from .env.example — fill in any API keys you need');
+}
+
+async function ensureUpstreamConfig(): Promise<void> {
+  const scriptPath = path.join(paths.root, 'scripts', 'vibe-version-check.mjs');
+  if (!(await fileExists(scriptPath))) {
+    return;
+  }
+
+  spawnSync(process.execPath, [scriptPath, '--ensure-upstream-only'], {
+    cwd: paths.root,
+    env: { ...process.env, VIBE_ROOT: paths.root },
+    stdio: 'ignore',
+  });
 }
 
 // ─── project customization ────────────────────────────────────────
@@ -201,6 +215,7 @@ ${extra.length > 0 ? '\n## 추가 규칙\n' + extra.map(e => `- ${e}`).join('\n'
 // ─── main ──────────────────────────────────────────────────────────
 
 async function main(): Promise<void> {
+  await ensureUpstreamConfig();
   await ensureEnvFile();
 
   const base = await readJson<VibeConfig>(paths.localConfigExample);

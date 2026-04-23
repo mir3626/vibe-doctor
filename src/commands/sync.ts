@@ -23,6 +23,25 @@ import {
 } from '../lib/sync.js';
 
 const SEMVER_REF_PATTERN = /^\d+\.\d+\.\d+$/;
+const DEFAULT_UPSTREAM_URL = 'https://github.com/mir3626/vibe-doctor.git';
+
+function normalizeGitUrl(value: string | undefined): string {
+  return String(value ?? '')
+    .trim()
+    .replace(/^git@([^:]+):/, 'https://$1/')
+    .replace(/^ssh:\/\/git@/i, 'https://')
+    .replace(/^https?:\/\//i, '')
+    .replace(/\.git$/i, '')
+    .replace(/\/+$/g, '')
+    .toLowerCase();
+}
+
+function isTemplateSelfCheckout(upstreamUrl: string | undefined): boolean {
+  return (
+    path.basename(paths.root).toLowerCase() === 'vibe-doctor' &&
+    normalizeGitUrl(upstreamUrl) === normalizeGitUrl(DEFAULT_UPSTREAM_URL)
+  );
+}
 
 export function resolveUpstreamRef(config: VibeConfig, refOverride?: string): string {
   if (refOverride) {
@@ -187,6 +206,9 @@ async function main(): Promise<void> {
       upstreamRoot = path.resolve(from);
     } else if (config.upstream?.type === 'local') {
       upstreamRoot = path.resolve(config.upstream.url);
+    } else if (config.upstream?.self || isTemplateSelfCheckout(config.upstream?.url)) {
+      logger.info('Skipping sync: this checkout is marked as the vibe-doctor template source. Use --from to override.');
+      return;
     } else {
       if (!config.upstream?.url) {
         throw new Error('Missing upstream configuration in .vibe/config.json');
