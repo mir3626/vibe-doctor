@@ -115,6 +115,18 @@
         "net": 236,
         "filesChanged": 13
       }
+    },
+    {
+      "id": "sprint-missing-upstream-sync-bootstrap",
+      "name": "sprint-missing-upstream-sync-bootstrap",
+      "status": "passed",
+      "completedAt": "2026-04-23T06:09:23.857Z",
+      "actualLoc": {
+        "added": 168,
+        "deleted": 51,
+        "net": 117,
+        "filesChanged": 14
+      }
     }
   ],
   "handoff": {
@@ -123,10 +135,10 @@
     "pendingPrompt": null,
     "lastHandoffAt": "2026-04-20T00:00:00Z",
     "nextAction": "run /vibe-init to start a new project",
-    "lastActionSummary": "Sprint sprint-wsl-dashboard-open-error completed with passed",
+    "lastActionSummary": "Sprint sprint-missing-upstream-sync-bootstrap completed with passed",
     "orchestratorContextBudget": "medium",
     "preferencesActive": [],
-    "updatedAt": "2026-04-23T05:58:59.815Z"
+    "updatedAt": "2026-04-23T06:09:23.857Z"
   },
   "policies": {
     "scratchpadPath": ".vibe/agent/handoff.md",
@@ -150,6 +162,15 @@
       "text": "src/commands/init.ts has no test/init.test.ts",
       "status": "open",
       "createdAt": "2026-04-23T03:01:27.429Z"
+    },
+    {
+      "id": "audit-after-sprint-missing-upstream-sync-bootstrap",
+      "raisedBy": "vibe-sprint-complete",
+      "targetSprint": "*",
+      "text": "Evaluator audit due (sprintsSinceLastAudit=5, everyN=5).",
+      "status": "resolved",
+      "createdAt": "2026-04-23T06:09:23.857Z",
+      "resolvedAt": "2026-04-23T06:09:42.799Z"
     }
   ],
   "lastSprintScope": [
@@ -198,7 +219,8 @@
     "scripts/vibe-project-report.mjs",
     "test/dashboard-server.test.ts",
     "test/project-report.test.ts",
-    "docs/release/v1.5.13.md"
+    "docs/release/v1.5.13.md",
+    "docs/release/v1.5.14.md"
   ],
   "lastSprintScopeGlob": [
     "scripts/run-codex.sh",
@@ -213,8 +235,8 @@
     "test/vibe-review-inputs.test.ts",
     "package.json"
   ],
-  "sprintsSinceLastAudit": 4,
-  "stateUpdatedAt": "2026-04-23T05:58:59.815Z",
+  "sprintsSinceLastAudit": 0,
+  "stateUpdatedAt": "2026-04-23T06:09:42.798Z",
   "verifiedAt": null,
   "verificationCommands": []
 }

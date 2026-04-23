@@ -26,6 +26,14 @@ const SEMVER_REF_PATTERN = /^\d+\.\d+\.\d+$/;
 const SEMVER_TAG_PATTERN = /^v?\d+\.\d+\.\d+$/;
 const DEFAULT_UPSTREAM_URL = 'https://github.com/mir3626/vibe-doctor.git';
 
+const DEFAULT_SYNC_CONFIG: VibeConfig = {
+  orchestrator: 'codex',
+  harnessVersionInstalled: '0.0.0',
+  sprintRoles: { planner: 'codex', generator: 'codex', evaluator: 'codex' },
+  sprint: { unit: 'feature', subAgentPerRole: false, freshContextPerSprint: true },
+  providers: {},
+};
+
 export interface SyncCache {
   latestVersion?: string | null;
 }
@@ -53,6 +61,47 @@ function isTemplateSelfCheckout(upstreamUrl: string | undefined): boolean {
     path.basename(paths.root).toLowerCase() === 'vibe-doctor' &&
     normalizeGitUrl(upstreamUrl) === normalizeGitUrl(DEFAULT_UPSTREAM_URL)
   );
+}
+
+function isVibeDoctorRemote(upstreamUrl: string | undefined): boolean {
+  const normalized = normalizeGitUrl(upstreamUrl);
+  return normalized === normalizeGitUrl(DEFAULT_UPSTREAM_URL) || normalized.endsWith('/vibe-doctor');
+}
+
+function getOriginUrl(root = paths.root): string | undefined {
+  try {
+    const output = execSync('git remote get-url origin', {
+      cwd: root,
+      stdio: ['ignore', 'pipe', 'ignore'],
+      encoding: 'utf8',
+    }).trim();
+    return output || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+export function resolveMissingUpstream(
+  config: Pick<VibeConfig, 'upstream'>,
+  originUrl: string | undefined,
+  rootBasename: string,
+): NonNullable<VibeConfig['upstream']> | undefined {
+  if (config.upstream?.url || config.upstream?.self) {
+    return config.upstream;
+  }
+
+  if (originUrl && isVibeDoctorRemote(originUrl)) {
+    if (rootBasename.toLowerCase() === 'vibe-doctor' && normalizeGitUrl(originUrl) === normalizeGitUrl(DEFAULT_UPSTREAM_URL)) {
+      return { type: 'git', url: originUrl, self: true };
+    }
+    return { type: 'git', url: originUrl };
+  }
+
+  if (rootBasename.toLowerCase() === 'vibe-doctor') {
+    return { type: 'git', url: DEFAULT_UPSTREAM_URL, self: true };
+  }
+
+  return { type: 'git', url: DEFAULT_UPSTREAM_URL };
 }
 
 function normalizeVersion(value: string | undefined | null): string | undefined {
@@ -125,6 +174,28 @@ async function readSyncCache(): Promise<SyncCache | undefined> {
   } catch {
     return undefined;
   }
+}
+
+async function loadConfigForSync(): Promise<VibeConfig> {
+  if (await fileExists(paths.sharedConfig)) {
+    return loadConfig();
+  }
+
+  return DEFAULT_SYNC_CONFIG;
+}
+
+async function ensureSyncUpstreamConfig(config: VibeConfig): Promise<VibeConfig> {
+  const upstream = resolveMissingUpstream(config, getOriginUrl(paths.root), path.basename(paths.root));
+  if (!upstream || upstream === config.upstream) {
+    return config;
+  }
+
+  const sharedConfig = (await fileExists(paths.sharedConfig))
+    ? await readJson<VibeConfig>(paths.sharedConfig)
+    : config;
+  await writeJson(paths.sharedConfig, { ...sharedConfig, upstream });
+  logger.info(`Initialized .vibe/config.json upstream as ${upstream.url}${upstream.self ? ' (self)' : ''}`);
+  return { ...config, upstream };
 }
 
 export function resolveUpstreamRef(
@@ -354,7 +425,7 @@ async function main(): Promise<void> {
   const from = getStringFlag(args, 'from');
   const refOverride = getStringFlag(args, 'ref');
 
-  const config = await loadConfig();
+  const config = await ensureSyncUpstreamConfig(await loadConfigForSync());
   let upstreamRoot: string | null = null;
   let cleanupRequired = false;
 

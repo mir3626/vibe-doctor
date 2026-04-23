@@ -87,4 +87,25 @@ describe('vibe-sync-bootstrap', () => {
     assert.equal(config.harnessVersionInstalled, '1.5.12');
     assert.equal(config.upstream?.ref, undefined);
   });
+
+  it('creates .vibe/config.json for legacy projects without shared config', async () => {
+    const localRoot = await makeTempDir('vibe-bootstrap-local-missing-config-');
+    const upstreamRoot = await makeTempDir('vibe-bootstrap-upstream-missing-config-');
+    await writeBootstrapFixture(upstreamRoot, { harnessVersion: '1.5.12' });
+
+    const result = spawnSync(process.execPath, [scriptPath, upstreamRoot], {
+      cwd: localRoot,
+      encoding: 'utf8',
+    });
+
+    assert.equal(result.status, 0, result.stderr);
+    const config = await readJson<{ upstream?: { type?: string; url?: string }; harnessVersionInstalled?: string }>(
+      path.join(localRoot, '.vibe', 'config.json'),
+    );
+    assert.equal(config.harnessVersionInstalled, '1.5.12');
+    assert.deepEqual(config.upstream, {
+      type: 'local',
+      url: upstreamRoot,
+    });
+  });
 });

@@ -74,9 +74,6 @@ function mergePackageJson(localJson, upstreamJson) {
 function main() {
   const root = process.cwd();
   const configPath = resolve(root, '.vibe/config.json');
-  if (!existsSync(configPath)) {
-    throw new Error('Current directory is not a vibe-doctor project (.vibe/config.json missing)');
-  }
 
   const arg = process.argv[2];
   const sourcePath = arg && existsSync(resolve(arg)) ? resolve(arg) : null;

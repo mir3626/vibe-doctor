@@ -104,7 +104,7 @@ describe('upstream bootstrap', { skip: !gitAvailable }, () => {
     assert.deepEqual(config.upstream, existing);
   });
 
-  it('silently skips upstream bootstrap when origin is unavailable', async () => {
+  it('falls back to the default harness upstream when origin is unavailable', async () => {
     const root = await makeTempDir('vibe-upstream-no-origin-');
     await writeMinimalConfig(root);
 
@@ -117,7 +117,30 @@ describe('upstream bootstrap', { skip: !gitAvailable }, () => {
     assert.equal(result.status, 0, result.stderr);
 
     const config = await readJson<{ upstream?: unknown }>(path.join(root, '.vibe', 'config.json'));
-    assert.equal(config.upstream, undefined);
+    assert.deepEqual(config.upstream, {
+      type: 'git',
+      url: DEFAULT_UPSTREAM_URL,
+    });
+  });
+
+  it('uses the default harness upstream instead of a product repository origin', async () => {
+    const root = await makeTempDir('vibe-upstream-product-origin-');
+    await initRepoWithOrigin(root, 'https://github.com/mir3626/telegram-local-ingest.git');
+    await writeMinimalConfig(root);
+
+    const result = spawnSync(process.execPath, [versionCheckPath, '--ensure-upstream-only'], {
+      cwd: root,
+      env: { ...process.env, VIBE_ROOT: root },
+      encoding: 'utf8',
+    });
+
+    assert.equal(result.status, 0, result.stderr);
+
+    const config = await readJson<{ upstream?: unknown }>(path.join(root, '.vibe', 'config.json'));
+    assert.deepEqual(config.upstream, {
+      type: 'git',
+      url: DEFAULT_UPSTREAM_URL,
+    });
   });
 
   it('does not auto-bootstrap the template source checkout as its own upstream', async () => {
@@ -136,7 +159,11 @@ describe('upstream bootstrap', { skip: !gitAvailable }, () => {
     assert.equal(result.status, 0, result.stderr);
 
     const config = await readJson<{ upstream?: unknown }>(path.join(root, '.vibe', 'config.json'));
-    assert.equal(config.upstream, undefined);
+    assert.deepEqual(config.upstream, {
+      type: 'git',
+      url: DEFAULT_UPSTREAM_URL,
+      self: true,
+    });
   });
 
   it('/vibe-init runs the same upstream bootstrap best-effort', async () => {

@@ -25,8 +25,12 @@
 
 
 
+
 - 2026-04-23T08:36:00.000Z [harness-review] v1.5.8 verification passed on Windows: `npm run typecheck`, `node --import tsx --test test/upstream-bootstrap.test.ts`, `npm run build`, and `npm test`.
 - 2026-04-23T08:30:00.000Z [harness-review] v1.5.8 upstream bootstrap patch: session-start/version-check and `/vibe-init` now infer missing upstream config from `git remote origin`, preserve existing upstream, quietly skip missing remotes, and guard template self-sync unless `--from` is supplied.
+- 2026-04-23T06:09:42.800Z [audit-clear] resolved=1 note=v1.5.14 missing-upstream bootstrap verified with focused tests, typecheck, build, and full npm test
+- 2026-04-23T06:09:23.857Z [sprint-complete] sprint-missing-upstream-sync-bootstrap -> passed. Sprint sprint-missing-upstream-sync-bootstrap completed with passed LOC +168/-51 (net +117)
+- 2026-04-23T06:07:45.265Z [harness-review] v1.5.14 missing-upstream sync bootstrap patch: `/vibe-sync` now initializes missing upstream config before clone, treats product repo origins as default vibe-doctor upstream, preserves vibe-doctor fork origins for dogfood clones, marks template self-checkouts, and lets `vibe-sync-bootstrap` create `.vibe/config.json` for legacy projects.
 - 2026-04-23T05:58:59.815Z [sprint-complete] sprint-wsl-dashboard-open-error -> passed. Sprint sprint-wsl-dashboard-open-error completed with passed LOC +278/-42 (net +236)
 - 2026-04-23T05:57:46.134Z [harness-review] v1.5.13 WSL browser opener patch: `vibe:dashboard` and `vibe:report` now catch async child process `error` events from `xdg-open`/browser launchers, leaving the server/report usable and warning instead of crashing on EACCES.
 - 2026-04-23T03:44:29.698Z [sprint-complete] sprint-pinned-upstream-ref -> passed. Sprint sprint-pinned-upstream-ref completed with passed LOC +142/-43 (net +99)

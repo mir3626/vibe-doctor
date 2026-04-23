@@ -14,7 +14,12 @@ import {
   type HybridFileConfig,
   type SyncManifest,
 } from '../src/lib/sync.js';
-import { resolvePinnedRefUpdateCandidate, resolvePostSyncTypecheckArgs, resolveUpstreamRef } from '../src/commands/sync.js';
+import {
+  resolveMissingUpstream,
+  resolvePinnedRefUpdateCandidate,
+  resolvePostSyncTypecheckArgs,
+  resolveUpstreamRef,
+} from '../src/commands/sync.js';
 import type { VibeConfig } from '../src/lib/config.js';
 
 const tempDirs: string[] = [];
@@ -113,6 +118,35 @@ describe('resolvePostSyncTypecheckArgs', () => {
     const root = await makeTempDir('sync-typecheck-root-');
 
     assert.deepEqual(await resolvePostSyncTypecheckArgs(root), ['tsc', '--noEmit']);
+  });
+});
+
+describe('resolveMissingUpstream', () => {
+  it('preserves existing upstream config', () => {
+    const upstream = { type: 'git' as const, url: 'https://example.com/custom.git', ref: 'main' };
+
+    assert.deepEqual(resolveMissingUpstream({ upstream }, 'https://github.com/mir3626/vibe-doctor.git', 'app'), upstream);
+  });
+
+  it('uses vibe-doctor origin for template-derived dogfood clones', () => {
+    assert.deepEqual(
+      resolveMissingUpstream({}, 'https://github.com/acme/vibe-doctor.git', 'dogfood10'),
+      { type: 'git', url: 'https://github.com/acme/vibe-doctor.git' },
+    );
+  });
+
+  it('falls back to the default harness upstream for product repositories', () => {
+    assert.deepEqual(
+      resolveMissingUpstream({}, 'https://github.com/mir3626/telegram-local-ingest.git', 'telegram-local-ingest'),
+      { type: 'git', url: 'https://github.com/mir3626/vibe-doctor.git' },
+    );
+  });
+
+  it('marks the template source checkout as self instead of self-syncing', () => {
+    assert.deepEqual(
+      resolveMissingUpstream({}, 'https://github.com/mir3626/vibe-doctor.git', 'vibe-doctor'),
+      { type: 'git', url: 'https://github.com/mir3626/vibe-doctor.git', self: true },
+    );
   });
 });
 
@@ -635,6 +669,7 @@ describe('sync manifest', () => {
     assert.equal(manifest.files.harness.includes('docs/release/v1.5.11.md'), true);
     assert.equal(manifest.files.harness.includes('docs/release/v1.5.12.md'), true);
     assert.equal(manifest.files.harness.includes('docs/release/v1.5.13.md'), true);
+    assert.equal(manifest.files.harness.includes('docs/release/v1.5.14.md'), true);
     assert.equal(manifest.files.harness.includes('test/upstream-bootstrap.test.ts'), true);
     assert.equal(manifest.files.harness.includes('test/vibe-sync-bootstrap.test.ts'), true);
     assert.equal(manifest.files.harness.includes('.claude/statusline.mjs'), true);

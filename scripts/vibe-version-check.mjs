@@ -50,22 +50,31 @@ function isTemplateSelfCheckout(root, upstreamUrl) {
   );
 }
 
+function isVibeDoctorRemote(upstreamUrl) {
+  const normalized = normalizeGitUrl(upstreamUrl);
+  return normalized === normalizeGitUrl(DEFAULT_UPSTREAM_URL) || normalized.endsWith('/vibe-doctor');
+}
+
 function ensureUpstreamConfig(root, configPath, config) {
   if (config.upstream?.url || config.upstream?.self) {
     return config;
   }
 
   const originUrl = getOriginUrl(root);
-  if (!originUrl || isTemplateSelfCheckout(root, originUrl)) {
-    return config;
+  let upstream;
+  if (originUrl && isVibeDoctorRemote(originUrl)) {
+    upstream = isTemplateSelfCheckout(root, originUrl)
+      ? { type: 'git', url: originUrl, self: true }
+      : { type: 'git', url: originUrl };
+  } else if (path.basename(root).toLowerCase() === 'vibe-doctor') {
+    upstream = { type: 'git', url: DEFAULT_UPSTREAM_URL, self: true };
+  } else {
+    upstream = { type: 'git', url: DEFAULT_UPSTREAM_URL };
   }
 
   const nextConfig = {
     ...config,
-    upstream: {
-      type: 'git',
-      url: originUrl,
-    },
+    upstream,
   };
   writeJson(configPath, nextConfig);
   return nextConfig;

@@ -4,23 +4,28 @@
 
 - **repo**: `vibe-doctor`
 - **branch**: `main`
-- **last release**: v1.5.13 (WSL browser opener error handling)
+- **last release**: v1.5.14 (legacy missing-upstream sync bootstrap)
 - **current iteration**: post-iter-7 maintenance
-- **harnessVersion**: `1.5.13`
+- **harnessVersion**: `1.5.14`
 - **language/tone**: Korean user-facing, concise engineering notes
 
 ## 2. Status
 
-IDLE after v1.5.13 dashboard/report browser opener hardening.
+IDLE after v1.5.14 legacy missing-upstream sync bootstrap hardening.
 
-v1.5.13 fixes WSL/Linux browser opener failures:
+v1.5.14 lets partially bootstrapped projects run `/vibe-sync` without an existing `upstream` entry:
 
-- `npm run vibe:dashboard` now catches async child process `error` events from `xdg-open`/browser launchers and logs a warning instead of crashing the server.
-- `npm run vibe:report` uses the same handling for report auto-open.
-- Regression coverage is in `test/dashboard-server.test.ts` and `test/project-report.test.ts`.
+- `/vibe-sync` initializes missing `.vibe/config.json.upstream` before cloning.
+- Dogfood clones whose origin is a vibe-doctor fork use that origin.
+- Product repository origins fall back to `https://github.com/mir3626/vibe-doctor.git`, avoiding accidental product-origin upstreams.
+- Template source checkouts are marked `self` and still skip self-sync.
+- `vibe-version-check` uses the same inference for SessionStart.
+- `vibe-sync-bootstrap` can create `.vibe/config.json` for config-less legacy projects.
+- Regression coverage is in `test/sync.test.ts`, `test/upstream-bootstrap.test.ts`, and `test/vibe-sync-bootstrap.test.ts`.
 
 Earlier local releases remain preserved:
 
+- v1.5.13 fixes WSL/Linux browser opener failures for dashboard/report.
 - v1.5.12 restores `upstream.ref` as a real pin and adds an explicit update path.
 - v1.5.11 scopes `/vibe-sync` post-verify typechecking to harness code.
 - v1.5.10 attempted stale semver `upstream.ref` auto-update behavior; v1.5.12 supersedes it with explicit pinned-ref prompts.
@@ -36,10 +41,10 @@ Earlier local releases remain preserved:
 
 ## 3. Verification
 
-Windows verification for v1.5.13:
+Windows verification for v1.5.14:
 
 - `npm run typecheck`
-- `node --import tsx --test test/dashboard-server.test.ts test/project-report.test.ts`
+- `node --import tsx --test test/sync.test.ts test/upstream-bootstrap.test.ts test/vibe-sync-bootstrap.test.ts`
 - `npm run build`
 - `npm test`
 
@@ -54,12 +59,13 @@ Windows verification for v1.5.13:
 - Windows CMD/PowerShell statusline and hook compatibility remains intact.
 - Pinned `upstream.ref` semantics and explicit update prompts remain intact.
 - WSL/Linux browser opener failures no longer crash dashboard/report processes.
+- Legacy missing-upstream projects can bootstrap sync config without `/vibe-init`.
 
 ## 5. Next Action
 
-Commit/tag/push v1.5.13 from `C:\Users\Tony\Workspace\vibe-doctor`.
+Commit/tag/push v1.5.14 from `C:\Users\Tony\Workspace\vibe-doctor`.
 
-After v1.5.13 is pushed, downstream projects should sync and rerun `npm run vibe:dashboard`. If `xdg-open` is blocked, the dashboard URL should still print and the server should keep running.
+After v1.5.14 is pushed, downstream projects with `.vibe/config.json` missing `upstream` should be able to run `npm run vibe:sync -- --ref v1.5.14` directly.
 
 ## 6. Pending Risks
 
