@@ -634,6 +634,7 @@ describe('sync manifest', () => {
     assert.equal(manifest.files.harness.includes('docs/release/v1.5.10.md'), true);
     assert.equal(manifest.files.harness.includes('docs/release/v1.5.11.md'), true);
     assert.equal(manifest.files.harness.includes('docs/release/v1.5.12.md'), true);
+    assert.equal(manifest.files.harness.includes('docs/release/v1.5.13.md'), true);
     assert.equal(manifest.files.harness.includes('test/upstream-bootstrap.test.ts'), true);
     assert.equal(manifest.files.harness.includes('test/vibe-sync-bootstrap.test.ts'), true);
     assert.equal(manifest.files.harness.includes('.claude/statusline.mjs'), true);

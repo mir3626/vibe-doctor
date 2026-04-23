@@ -4,26 +4,24 @@
 
 - **repo**: `vibe-doctor`
 - **branch**: `main`
-- **last release**: v1.5.12 (pinned upstream ref prompt semantics)
+- **last release**: v1.5.13 (WSL browser opener error handling)
 - **current iteration**: post-iter-7 maintenance
-- **harnessVersion**: `1.5.12`
+- **harnessVersion**: `1.5.13`
 - **language/tone**: Korean user-facing, concise engineering notes
 
 ## 2. Status
 
-IDLE after v1.5.12 `/vibe-sync` pinned-ref semantics hardening.
+IDLE after v1.5.13 dashboard/report browser opener hardening.
 
-v1.5.12 restores `upstream.ref` as a real pin and adds an explicit update path:
+v1.5.13 fixes WSL/Linux browser opener failures:
 
-- Semver `upstream.ref` is preserved by default during `/vibe-sync`.
-- If cached `latestVersion` is newer and no `--ref` was supplied, interactive sync asks whether to keep the pin, update once, or cancel.
-- Non-interactive sync keeps the pin and tells the user to use `--ref <tag>` to bypass it.
-- Unpinned projects still track cached latest tags.
-- `scripts/vibe-sync-bootstrap.mjs` preserves existing pins but no longer auto-creates a semver `upstream.ref` for unpinned projects.
-- Regression coverage is in `test/sync.test.ts` and `test/vibe-sync-bootstrap.test.ts`.
+- `npm run vibe:dashboard` now catches async child process `error` events from `xdg-open`/browser launchers and logs a warning instead of crashing the server.
+- `npm run vibe:report` uses the same handling for report auto-open.
+- Regression coverage is in `test/dashboard-server.test.ts` and `test/project-report.test.ts`.
 
 Earlier local releases remain preserved:
 
+- v1.5.12 restores `upstream.ref` as a real pin and adds an explicit update path.
 - v1.5.11 scopes `/vibe-sync` post-verify typechecking to harness code.
 - v1.5.10 attempted stale semver `upstream.ref` auto-update behavior; v1.5.12 supersedes it with explicit pinned-ref prompts.
 - v1.5.9 fixes Windows CMD/PowerShell Claude statusline and hook command compatibility.
@@ -38,10 +36,10 @@ Earlier local releases remain preserved:
 
 ## 3. Verification
 
-Windows verification for v1.5.12:
+Windows verification for v1.5.13:
 
 - `npm run typecheck`
-- `node --import tsx --test test/sync.test.ts test/vibe-sync-bootstrap.test.ts`
+- `node --import tsx --test test/dashboard-server.test.ts test/project-report.test.ts`
 - `npm run build`
 - `npm test`
 
@@ -55,12 +53,13 @@ Windows verification for v1.5.12:
 - Upstream bootstrap remains intact.
 - Windows CMD/PowerShell statusline and hook compatibility remains intact.
 - Pinned `upstream.ref` semantics and explicit update prompts remain intact.
+- WSL/Linux browser opener failures no longer crash dashboard/report processes.
 
 ## 5. Next Action
 
-Commit/tag/push v1.5.12 from `C:\Users\Tony\Workspace\vibe-doctor`.
+Commit/tag/push v1.5.13 from `C:\Users\Tony\Workspace\vibe-doctor`.
 
-After v1.5.12 is pushed, downstream projects with pinned `upstream.ref` values should see an update choice during interactive `/vibe-sync`; non-interactive jobs should keep the pin unless they pass `--ref`.
+After v1.5.13 is pushed, downstream projects should sync and rerun `npm run vibe:dashboard`. If `xdg-open` is blocked, the dashboard URL should still print and the server should keep running.
 
 ## 6. Pending Risks
 

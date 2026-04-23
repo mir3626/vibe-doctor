@@ -24,8 +24,11 @@
 
 
 
+
 - 2026-04-23T08:36:00.000Z [harness-review] v1.5.8 verification passed on Windows: `npm run typecheck`, `node --import tsx --test test/upstream-bootstrap.test.ts`, `npm run build`, and `npm test`.
 - 2026-04-23T08:30:00.000Z [harness-review] v1.5.8 upstream bootstrap patch: session-start/version-check and `/vibe-init` now infer missing upstream config from `git remote origin`, preserve existing upstream, quietly skip missing remotes, and guard template self-sync unless `--from` is supplied.
+- 2026-04-23T05:58:59.815Z [sprint-complete] sprint-wsl-dashboard-open-error -> passed. Sprint sprint-wsl-dashboard-open-error completed with passed LOC +278/-42 (net +236)
+- 2026-04-23T05:57:46.134Z [harness-review] v1.5.13 WSL browser opener patch: `vibe:dashboard` and `vibe:report` now catch async child process `error` events from `xdg-open`/browser launchers, leaving the server/report usable and warning instead of crashing on EACCES.
 - 2026-04-23T03:44:29.698Z [sprint-complete] sprint-pinned-upstream-ref -> passed. Sprint sprint-pinned-upstream-ref completed with passed LOC +142/-43 (net +99)
 - 2026-04-23T03:44:06.469Z [harness-review] v1.5.12 verification passed on Windows: `npm run typecheck`, `node --import tsx --test test/sync.test.ts test/vibe-sync-bootstrap.test.ts`, `npm run build`, and `npm test`.
 - 2026-04-23T03:42:04.706Z [harness-review] v1.5.12 pinned upstream ref patch: restored semver `upstream.ref` as a real pin, added interactive `/vibe-sync` update-once choice when cached latestVersion is newer, kept non-interactive sync pinned unless `--ref` is supplied, and changed `vibe-sync-bootstrap` to preserve existing pins without auto-creating new ones.

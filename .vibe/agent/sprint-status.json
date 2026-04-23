@@ -103,6 +103,18 @@
         "net": 99,
         "filesChanged": 13
       }
+    },
+    {
+      "id": "sprint-wsl-dashboard-open-error",
+      "name": "sprint-wsl-dashboard-open-error",
+      "status": "passed",
+      "completedAt": "2026-04-23T05:58:59.815Z",
+      "actualLoc": {
+        "added": 278,
+        "deleted": 42,
+        "net": 236,
+        "filesChanged": 13
+      }
     }
   ],
   "handoff": {
@@ -111,10 +123,10 @@
     "pendingPrompt": null,
     "lastHandoffAt": "2026-04-20T00:00:00Z",
     "nextAction": "run /vibe-init to start a new project",
-    "lastActionSummary": "Sprint sprint-pinned-upstream-ref completed with passed",
+    "lastActionSummary": "Sprint sprint-wsl-dashboard-open-error completed with passed",
     "orchestratorContextBudget": "medium",
     "preferencesActive": [],
-    "updatedAt": "2026-04-23T03:44:29.698Z"
+    "updatedAt": "2026-04-23T05:58:59.815Z"
   },
   "policies": {
     "scratchpadPath": ".vibe/agent/handoff.md",
@@ -181,7 +193,12 @@
     "tsconfig.harness.json",
     "scripts/vibe-sync-bootstrap.mjs",
     "docs/release/v1.5.12.md",
-    "test/vibe-sync-bootstrap.test.ts"
+    "test/vibe-sync-bootstrap.test.ts",
+    "scripts/vibe-dashboard.mjs",
+    "scripts/vibe-project-report.mjs",
+    "test/dashboard-server.test.ts",
+    "test/project-report.test.ts",
+    "docs/release/v1.5.13.md"
   ],
   "lastSprintScopeGlob": [
     "scripts/run-codex.sh",
@@ -196,8 +213,8 @@
     "test/vibe-review-inputs.test.ts",
     "package.json"
   ],
-  "sprintsSinceLastAudit": 3,
-  "stateUpdatedAt": "2026-04-23T03:44:29.698Z",
+  "sprintsSinceLastAudit": 4,
+  "stateUpdatedAt": "2026-04-23T05:58:59.815Z",
   "verifiedAt": null,
   "verificationCommands": []
 }
