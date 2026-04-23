@@ -14,7 +14,7 @@ import {
   type HybridFileConfig,
   type SyncManifest,
 } from '../src/lib/sync.js';
-import { resolveUpstreamRef } from '../src/commands/sync.js';
+import { resolvePostSyncTypecheckArgs, resolveUpstreamRef } from '../src/commands/sync.js';
 import type { VibeConfig } from '../src/lib/config.js';
 
 const tempDirs: string[] = [];
@@ -71,6 +71,21 @@ describe('resolveUpstreamRef', () => {
 
   it('ignores stale cached latestVersion values', () => {
     assert.equal(resolveUpstreamRef(minimalConfig(), undefined, { latestVersion: 'v1.4.3' }), 'v1.4.3');
+  });
+});
+
+describe('resolvePostSyncTypecheckArgs', () => {
+  it('uses the harness tsconfig when present', async () => {
+    const root = await makeTempDir('sync-typecheck-harness-');
+    await writeFile(path.join(root, 'tsconfig.harness.json'), '{}\n', 'utf8');
+
+    assert.deepEqual(await resolvePostSyncTypecheckArgs(root), ['tsc', '-p', 'tsconfig.harness.json', '--noEmit']);
+  });
+
+  it('falls back to the legacy root tsconfig command when harness tsconfig is absent', async () => {
+    const root = await makeTempDir('sync-typecheck-root-');
+
+    assert.deepEqual(await resolvePostSyncTypecheckArgs(root), ['tsc', '--noEmit']);
   });
 });
 
@@ -590,8 +605,11 @@ describe('sync manifest', () => {
     assert.equal(manifest.files.harness.includes('docs/release/v1.5.8.md'), true);
     assert.equal(manifest.files.harness.includes('docs/release/v1.5.9.md'), true);
     assert.equal(manifest.files.harness.includes('docs/release/v1.5.10.md'), true);
+    assert.equal(manifest.files.harness.includes('docs/release/v1.5.11.md'), true);
     assert.equal(manifest.files.harness.includes('test/upstream-bootstrap.test.ts'), true);
     assert.equal(manifest.files.harness.includes('.claude/statusline.mjs'), true);
+    assert.equal(manifest.files.harness.includes('tsconfig.harness.json'), true);
+    assert.equal(Boolean(manifest.files.hybrid['tsconfig.json']), false);
     assert.equal(manifest.files.harness.includes('.gitignore'), false);
     assert.equal(manifest.files.harness.includes('.env.example'), false);
     assert.equal(manifest.files.harness.includes('.github/workflows/ci.yml'), false);

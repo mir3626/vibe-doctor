@@ -33,6 +33,7 @@
       "docs/context/codex-execution.md",
       "docs/context/orchestration.md",
       "docs/orchestration/providers.md",
+      "tsconfig.harness.json",
       "src/commands/audit-config.ts",
       "src/commands/bundle-size.ts",
       "src/commands/doctor.ts",
@@ -188,7 +189,8 @@
       "docs/release/v1.5.7.md",
       "docs/release/v1.5.8.md",
       "docs/release/v1.5.9.md",
-      "docs/release/v1.5.10.md"
+      "docs/release/v1.5.10.md",
+      "docs/release/v1.5.11.md"
     ],
     "hybrid": {
       "CLAUDE.md": {
@@ -261,18 +263,6 @@
         "strategy": "json-deep-merge",
         "harnessKeys": ["scripts.vibe:*", "engines"],
         "projectKeys": ["name", "version", "description", "dependencies", "devDependencies"]
-      },
-      "tsconfig.json": {
-        "strategy": "json-deep-merge",
-        "harnessKeys": [
-          "compilerOptions.strict",
-          "compilerOptions.noUncheckedIndexedAccess",
-          "compilerOptions.exactOptionalPropertyTypes",
-          "compilerOptions.module",
-          "compilerOptions.moduleResolution",
-          "compilerOptions.target"
-        ],
-        "projectKeys": ["compilerOptions.paths", "compilerOptions.baseUrl", "include", "exclude"]
       },
       ".vibe/config.json": {
         "strategy": "json-deep-merge",

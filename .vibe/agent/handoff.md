@@ -4,26 +4,26 @@
 
 - **repo**: `vibe-doctor`
 - **branch**: `main`
-- **last release**: v1.5.10 (sync latest tag resolution for stale pinned refs)
+- **last release**: v1.5.11 (post-sync harness-only typecheck scope)
 - **current iteration**: post-iter-7 maintenance
-- **harnessVersion**: `1.5.10`
+- **harnessVersion**: `1.5.11`
 - **language/tone**: Korean user-facing, concise engineering notes
 
 ## 2. Status
 
-IDLE after v1.5.10 `/vibe-sync` ref-resolution hardening.
+IDLE after v1.5.11 `/vibe-sync` post-verify scope hardening.
 
-v1.5.10 fixes the dogfood10-style stale `upstream.ref` trap:
+v1.5.11 fixes downstream product typecheck leakage during harness sync:
 
-- `src/commands/sync.ts` now refreshes `.vibe/sync-cache.json` best-effort before resolving the upstream ref.
-- If cached `latestVersion` is newer than `harnessVersionInstalled`, default `/vibe-sync` uses that latest tag.
-- Existing semver refs such as `v1.4.3` no longer pin downstream projects to the installed version after version-check has found a newer tag.
-- Explicit `--ref` remains highest priority.
-- Non-version refs such as `main` or feature branches remain preserved.
-- Regression coverage is in `test/sync.test.ts` under `resolveUpstreamRef`.
+- Added `tsconfig.harness.json` as the syncable harness-only TypeScript project.
+- `src/commands/sync.ts` post-verify now runs `npx tsc -p tsconfig.harness.json --noEmit` when that file exists.
+- `tsconfig.json` is no longer a hybrid harness merge target, so product app tsconfig remains project-owned.
+- The template `typecheck` script now uses the harness tsconfig.
+- Regression coverage is in `test/sync.test.ts` under `resolvePostSyncTypecheckArgs`.
 
 Earlier local releases remain preserved:
 
+- v1.5.10 fixes stale semver `upstream.ref` pinning during `/vibe-sync`.
 - v1.5.9 fixes Windows CMD/PowerShell Claude statusline and hook command compatibility.
 - v1.5.8 infers missing upstream config from `git remote origin` during session-start and `/vibe-init`.
 - v1.5.7 tracks executable shell wrappers in Git.
@@ -36,7 +36,7 @@ Earlier local releases remain preserved:
 
 ## 3. Verification
 
-Windows verification for v1.5.10:
+Windows verification for v1.5.11:
 
 - `npm run typecheck`
 - `node --import tsx --test test/sync.test.ts`
@@ -52,16 +52,15 @@ Windows verification for v1.5.10:
 - Executable wrapper handling remains intact.
 - Upstream bootstrap remains intact.
 - Windows CMD/PowerShell statusline and hook compatibility remains intact.
+- Latest tag ref resolution remains intact.
 
 ## 5. Next Action
 
-Commit/tag/push v1.5.10 from `C:\Users\Tony\Workspace\vibe-doctor`.
+Commit/tag/push v1.5.11 from `C:\Users\Tony\Workspace\vibe-doctor`.
 
-Do not touch downstream project `/home/tony/workspace/telegram-local-ingest` unless explicitly requested.
-
-After v1.5.10 is pushed, dogfood/downstream projects with `upstream.ref: v1.4.3` should be able to run normal `/vibe-sync` once their version-check cache has a newer `latestVersion`. The new sync command also refreshes that cache best-effort.
+After v1.5.11 is pushed, downstream `/vibe-sync` post-verify should no longer fail just because product app `tsconfig.json` does not typecheck. Product QA remains a separate project concern.
 
 ## 6. Pending Risks
 
-- If a project intentionally uses a semver `upstream.ref` as a hard pin, default `/vibe-sync` will now advance when cached latest is newer. Use explicit `--ref <tag>` for a one-off pinned sync, or a non-version branch ref for branch-based workflows.
+- Existing downstream projects may already have a product `tsconfig.json` that was previously touched by harness sync. v1.5.11 stops future harness ownership but does not automatically rewrite product tsconfig choices.
 - Do not share one `node_modules` directory between Windows and WSL for packages with native binaries such as `esbuild`. Use per-platform installs or a clean Linux workspace.

@@ -239,6 +239,7 @@ describe('meta smoke', () => {
       '.claude/statusline.sh',
       'scripts/vibe-status-tick.mjs',
       'scripts/vibe-sprint-mode.mjs',
+      'tsconfig.harness.json',
     ];
 
     for (const entry of requiredEntries) {

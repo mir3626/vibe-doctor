@@ -1,5 +1,5 @@
 import { execSync } from 'node:child_process';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { access, mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import readline from 'node:readline/promises';
@@ -124,6 +124,23 @@ export function resolveUpstreamRef(config: VibeConfig, refOverride?: string, syn
   return 'main';
 }
 
+async function fileExists(filePath: string): Promise<boolean> {
+  try {
+    await access(filePath);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function resolvePostSyncTypecheckArgs(root = paths.root): Promise<string[]> {
+  if (await fileExists(path.join(root, 'tsconfig.harness.json'))) {
+    return ['tsc', '-p', 'tsconfig.harness.json', '--noEmit'];
+  }
+
+  return ['tsc', '--noEmit'];
+}
+
 async function cloneUpstream(url: string, ref: string): Promise<string> {
   const dir = await mkdtemp(path.join(tmpdir(), 'vibe-sync-'));
   execSync(`git clone --depth 1 --branch ${JSON.stringify(ref)} ${JSON.stringify(url)} ${JSON.stringify(dir)}`, {
@@ -246,7 +263,7 @@ async function approveAndResolve(actions: SyncAction[], force: boolean): Promise
 }
 
 async function verifyPostSync(): Promise<void> {
-  await runCommand('npx', ['tsc', '--noEmit'], { cwd: paths.root });
+  await runCommand('npx', await resolvePostSyncTypecheckArgs(paths.root), { cwd: paths.root });
   await runCommand('node', ['scripts/vibe-preflight.mjs', '--bootstrap'], {
     cwd: paths.root,
   });
