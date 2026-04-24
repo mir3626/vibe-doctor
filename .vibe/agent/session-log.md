@@ -20,6 +20,7 @@
 
 ## Entries
 
+- 2026-04-24T05:39:04.765Z [sprint-complete] sprint-wiring-drift-detector -> passed. v1.6.8 adds `/vibe-review` wiring drift findings for `scripts/vibe-*.mjs` runtime references and sync-manifest coverage.
 - 2026-04-24T05:33:29.436Z [sprint-complete] sprint-rule-disposition-gate -> passed. v1.6.7 adds rule dispositions and `--fail-on-undisposed` to `vibe-rule-audit`.
 - 2026-04-24T05:30:00.000Z [decision][iter-9-kickoff] User requested proceeding through v1.6.8: Sprint 1 rule disposition gate, Sprint 2 wiring drift detector.
 - 2026-04-24T05:12:14.677Z [sprint-complete] sprint-iter8-app-loc-threshold -> passed. v1.6.6 adds app-code LOC threshold detection to lightweight audit and invalidates prototype Evaluator exceptions on `LOC_THRESHOLD_BREACH`.

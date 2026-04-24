@@ -42,20 +42,21 @@
       "id": "iter-9",
       "label": "rule-gates-and-wiring-drift",
       "startedAt": "2026-04-24T05:30:00.000Z",
-      "completedAt": null,
+      "completedAt": "2026-04-24T05:39:04.765Z",
       "goal": "Promote rule-audit from scanner-only toward explicit disposition gates, then add review-time wiring drift detection for created-but-unwired harness artifacts.",
       "plannedSprints": [
         "sprint-rule-disposition-gate",
         "sprint-wiring-drift-detector"
       ],
       "completedSprints": [
-        "sprint-rule-disposition-gate"
+        "sprint-rule-disposition-gate",
+        "sprint-wiring-drift-detector"
       ],
       "milestoneProgress": {
         "rule-disposition-gate": 1,
-        "wiring-drift-detector": 0
+        "wiring-drift-detector": 1
       },
-      "summary": "Sprint 1 (v1.6.7) adds rule dispositions and --fail-on-undisposed to vibe-rule-audit. Sprint 2 will add wiring drift detection to /vibe-review."
+      "summary": "Sprint 1 (v1.6.7) adds rule dispositions and --fail-on-undisposed to vibe-rule-audit. Sprint 2 (v1.6.8) adds collectReviewInputs().wiringDriftFindings and /vibe-review auto-seeding for created-but-unwired harness scripts."
     }
   ]
 }

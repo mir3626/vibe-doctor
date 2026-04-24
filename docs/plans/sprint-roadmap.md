@@ -2,7 +2,7 @@
 
 <!-- BEGIN:VIBE:CURRENT-SPRINT -->
 > **Current**: idle (not started, started 2026-04-23)
-> **Completed**: sprint-rule-disposition-gate, sprint-iter8-app-loc-threshold, sprint-agent-init-codex-skills, sprint-missing-upstream-sync-bootstrap, sprint-wsl-dashboard-open-error, sprint-pinned-upstream-ref, sprint-harness-typecheck-scope, sprint-sync-latest-ref, sprint-windows-hook-portability, sprint-upstream-bootstrap, sprint-M3-review-adapter-blind-spot, sprint-M2-generator-scope-discipline, sprint-M1-codex-unavailable-signal
+> **Completed**: sprint-wiring-drift-detector, sprint-rule-disposition-gate, sprint-iter8-app-loc-threshold, sprint-agent-init-codex-skills, sprint-missing-upstream-sync-bootstrap, sprint-wsl-dashboard-open-error, sprint-pinned-upstream-ref, sprint-harness-typecheck-scope, sprint-sync-latest-ref, sprint-windows-hook-portability, sprint-upstream-bootstrap, sprint-M3-review-adapter-blind-spot, sprint-M2-generator-scope-discipline, sprint-M1-codex-unavailable-signal
 > **Pending**: —
 <!-- END:VIBE:CURRENT-SPRINT -->
 
@@ -121,8 +121,7 @@ v1.6.5에서 `vibe-rule-audit`가 scanner일 뿐 전체 imperative rule enforcem
 
 - **id**: `sprint-wiring-drift-detector`
 - **목표**: `/vibe-review` 입력 수집이 harness artifact 생성 후 package/CLAUDE/settings/skill/manifest wiring 누락을 자동 seed할 수 있게 한다.
-- **상태**: pending, target harnessVersion `v1.6.8`
-
+- **결과**: passed, target harnessVersion `v1.6.8`
 
 
 
