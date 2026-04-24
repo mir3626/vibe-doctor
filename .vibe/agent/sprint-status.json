@@ -151,20 +151,32 @@
         "net": 302,
         "filesChanged": 20
       }
+    },
+    {
+      "id": "sprint-rule-disposition-gate",
+      "name": "sprint-rule-disposition-gate",
+      "status": "passed",
+      "completedAt": "2026-04-24T05:33:29.436Z",
+      "actualLoc": {
+        "added": 260,
+        "deleted": 79,
+        "net": 181,
+        "filesChanged": 14
+      }
     }
   ],
   "handoff": {
     "currentSprintId": "idle",
     "contextWindow": "main (Orchestrator)",
     "pendingPrompt": null,
-    "lastHandoffAt": "2026-04-24T05:12:14.677Z",
-    "nextAction": "continue with the next user-requested harness review or downstream dogfood issue",
-    "lastActionSummary": "v1.6.6 app-code LOC threshold detection implemented, verified, and ready to release",
+    "lastHandoffAt": "2026-04-24T05:33:29.436Z",
+    "nextAction": "continue to sprint-wiring-drift-detector for v1.6.8",
+    "lastActionSummary": "v1.6.7 rule disposition audit gate implemented and verified",
     "orchestratorContextBudget": "medium",
     "preferencesActive": [
       "After verified harness changes, proceed directly with commit/tag/push when that is the natural next step; do not ask for separate push confirmation."
     ],
-    "updatedAt": "2026-04-24T05:12:14.677Z"
+    "updatedAt": "2026-04-24T05:33:29.436Z"
   },
   "policies": {
     "scratchpadPath": ".vibe/agent/handoff.md",
@@ -277,8 +289,8 @@
     "test/vibe-review-inputs.test.ts",
     "package.json"
   ],
-  "sprintsSinceLastAudit": 1,
-  "stateUpdatedAt": "2026-04-24T05:12:14.677Z",
+  "sprintsSinceLastAudit": 2,
+  "stateUpdatedAt": "2026-04-24T05:33:29.436Z",
   "verifiedAt": null,
   "verificationCommands": []
 }

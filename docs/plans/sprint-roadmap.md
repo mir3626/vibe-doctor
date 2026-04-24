@@ -2,7 +2,7 @@
 
 <!-- BEGIN:VIBE:CURRENT-SPRINT -->
 > **Current**: idle (not started, started 2026-04-23)
-> **Completed**: sprint-iter8-app-loc-threshold, sprint-agent-init-codex-skills, sprint-missing-upstream-sync-bootstrap, sprint-wsl-dashboard-open-error, sprint-pinned-upstream-ref, sprint-harness-typecheck-scope, sprint-sync-latest-ref, sprint-windows-hook-portability, sprint-upstream-bootstrap, sprint-M3-review-adapter-blind-spot, sprint-M2-generator-scope-discipline, sprint-M1-codex-unavailable-signal
+> **Completed**: sprint-rule-disposition-gate, sprint-iter8-app-loc-threshold, sprint-agent-init-codex-skills, sprint-missing-upstream-sync-bootstrap, sprint-wsl-dashboard-open-error, sprint-pinned-upstream-ref, sprint-harness-typecheck-scope, sprint-sync-latest-ref, sprint-windows-hook-portability, sprint-upstream-bootstrap, sprint-M3-review-adapter-blind-spot, sprint-M2-generator-scope-discipline, sprint-M1-codex-unavailable-signal
 > **Pending**: —
 <!-- END:VIBE:CURRENT-SPRINT -->
 
@@ -103,6 +103,25 @@ dogfood10 review finding C 는 프로토타입 Evaluator 면제 조건의 `LOC <
   - regression test: threshold 초과 시 risk annotation 검증
 - **결과**: passed, target harnessVersion `v1.6.6`
 
+---
+
+# Iteration 9 — rule-gates-and-wiring-drift (2026-04-24)
+
+## 배경
+
+v1.6.5에서 `vibe-rule-audit`가 scanner일 뿐 전체 imperative rule enforcement가 아님을 명시했다. 이번 iteration은 즉시 전부 hard gate로 승격하지 않고, 먼저 규칙 처분을 명시화한 뒤 반복 사고였던 wiring drift 감지를 review 입력으로 승격한다.
+
+## Sprint 1 — rule disposition gate
+
+- **id**: `sprint-rule-disposition-gate`
+- **목표**: `vibe-rule-audit`가 각 rule의 처분(`covered`, `pending`, `manual-review`, `delete-candidate`, `undisposed`)을 보고하고, 필요 시 `--fail-on-undisposed`로 hard gate가 되게 한다.
+- **결과**: passed, target harnessVersion `v1.6.7`
+
+## Sprint 2 — wiring drift detector
+
+- **id**: `sprint-wiring-drift-detector`
+- **목표**: `/vibe-review` 입력 수집이 harness artifact 생성 후 package/CLAUDE/settings/skill/manifest wiring 누락을 자동 seed할 수 있게 한다.
+- **상태**: pending, target harnessVersion `v1.6.8`
 
 
 
