@@ -9,7 +9,7 @@
 - **Append only**. 기존 항목 수정·삭제 금지 (단, Sprint 종료 시 Orchestrator가 handoff에
   요약 흡수 후 `## Archived (<sprintId>)` 섹션으로 이동 → 물리 truncate).
 - 각 항목은 한두 줄. 길어지면 파일/경로/링크만 남기고 본문은 해당 파일로.
-- 형식: `- YYYY-MM-DDTHH:mm:ss.sssZ [tag] 내용`. full ISO8601 timestamp 권장 (`scripts/vibe-session-log-sync.mjs` 가 정규화).
+- 형식: `- YYYY-MM-DDTHH:mm:ss.sssZ [tag] 내용`. full ISO8601 timestamp 권장 (`.vibe/harness/scripts/vibe-session-log-sync.mjs` 가 정규화).
 - tag 예: `decision`, `failure`, `discovery`, `user-directive`, `drift-observed`, `sprint-complete`, `phase3-po-proxy`, `audit-clear`, `harness-review`.
 - **언제 append하나**:
   - 사용자가 비자명한 선호·제약을 드러냈지만 memory로 승격하기엔 범위가 좁을 때
@@ -20,6 +20,7 @@
 
 ## Entries
 
+- 2026-04-24T09:20:00.000Z [harness-review] v1.7.0 candidate separates canonical harness code under `.vibe/harness/**`, keeps a root `scripts/vibe-sync-bootstrap.mjs` legacy bridge, clarifies `/vibe-review` as template/harness review, and verifies typecheck/test/build/ui/config-audit/sync-dry-run locally.
 - 2026-04-24T08:13:22.847Z [harness-review] v1.6.12 candidate hardens downstream init/review/playwright surfaces: provider PATH lookup, Codex init boundary, explicit review-signals platform detection, and Playwright test wrapper all verified locally.
 - 2026-04-24T06:46:59.619Z [sprint-complete] sprint-linux-ci-run-codex-wrapper -> passed. v1.6.11 fixes the GitHub Actions npm test failure introduced at v1.6.1 by making run-codex wrapper tests deterministic on Linux CI.
 - 2026-04-24T06:32:15.136Z [sprint-complete] sprint-playwright-dashboard-report-smoke -> passed. v1.6.10 adds Playwright browser smoke tests for dashboard attention and project-report controls while keeping downstream harness typecheck independent from Playwright installation.

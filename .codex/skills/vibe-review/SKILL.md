@@ -1,9 +1,11 @@
 ---
 name: vibe-review
-description: Codex-compatible wrapper for the shared vibe-doctor review workflow.
+description: Codex-compatible wrapper for the shared vibe-doctor template/harness review workflow.
 ---
 
 # vibe-review for Codex
+
+`vibe-review` is a template/harness review. For ordinary downstream product code review, use Codex's normal code-review stance unless the user explicitly asks for `/vibe-review` or a harness/template/process review.
 
 This repository keeps provider-neutral skill runbooks under `.claude/skills`.
 

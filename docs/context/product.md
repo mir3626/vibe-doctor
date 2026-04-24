@@ -18,7 +18,7 @@
 - **Cross-platform** — 동일한 명령이 Windows / macOS / Linux에서 같은 결과를 낸다. CI(Ubuntu)는 `typecheck` → `build` → `test` → `vibe:config-audit` 4단계를 모두 통과해야 한다. `.gitattributes` 가 줄 끝을 강제해 CRLF 드리프트를 차단한다.
 - **Provider-agnostic** — `claude-opus`, `codex`를 기본으로 하되 `.vibe/config*.json` 의 `providers` 맵을 통해 Gemini, DeepSeek, Grok 등 임의의 CLI를 Sprint 역할(Planner/Generator/Evaluator)에 연결할 수 있다. 하드코딩된 provider 이름이 코드에 없다.
 - **얇은 루트 컨텍스트** — `CLAUDE.md` 는 200줄 이내로 유지. 상세 규칙은 `docs/context/*` shard에서 필요할 때만 읽는다. 컨텍스트 폭주를 방지하기 위해 Sprint 마다 fresh sub-agent를 생성/소멸한다.
-- **자기-적용성** — `src/commands/*` 의 8개 `vibe:*` 스크립트는 (1) 템플릿 자체의 QA/보고/감사 도구인 동시에 (2) Sprint 프로세스의 실사용 예시 역할을 한다. 템플릿이 자기 자신을 검증한다.
+- **자기-적용성** — `.vibe/harness/src/commands/*` 의 8개 `vibe:*` 스크립트는 (1) 템플릿 자체의 QA/보고/감사 도구인 동시에 (2) Sprint 프로세스의 실사용 예시 역할을 한다. 템플릿이 자기 자신을 검증한다.
 
 ## 플랫폼 / 런타임
 
@@ -34,7 +34,7 @@
 - Orchestrator(Opus)가 직접 코딩하지 않고 Generator CLI에 위임하는 구조를 수용한다 — 비용 방어와 컨텍스트 보호 목적.
 - 다운스트림 프로젝트는 clone 직후 `/vibe-init` 을 실행해 이 context 파일들을 자신의 것으로 교체한다.
 - 민감 정보는 `.env` / `secrets/` 에만 두고 git에 커밋하지 않는다 (`vibe:config-audit` 이 매 커밋 전 hook + 매 CI에서 감시).
-- Windows 한국어 환경에서도 mojibake 없이 UTF-8 round-trip이 안전해야 한다 (`scripts/run-codex.sh` 의 `chcp.com` 처리가 이것을 강제).
+- Windows 한국어 환경에서도 mojibake 없이 UTF-8 round-trip이 안전해야 한다 (`.vibe/harness/scripts/run-codex.sh` 의 `chcp.com` 처리가 이것을 강제).
 
 ## 비-goal (의도적 배제)
 

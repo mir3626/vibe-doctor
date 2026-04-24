@@ -99,7 +99,7 @@ Step 1-0 에서 사용자가 `agent` 를 선택하면 다음을 순차 수행:
 2. **AI Agent CLI 확인** — `claude`, `codex` CLI 등 존재 여부를 확인합니다.
    - Codex는 **CLI** (`codex exec`)로 직접 호출합니다. 플러그인(`codex:rescue`)은 Windows 불안정·속도 저하로 보류.
 
-3. **Native interview 확인** — 별도 설치는 필요 없습니다. `scripts/vibe-interview.mjs`는 Node 24+만으로 동작합니다.
+3. **Native interview 확인** — 별도 설치는 필요 없습니다. `.vibe/harness/scripts/vibe-interview.mjs`는 Node 24+만으로 동작합니다.
 
    결과를 사용자에게 보여줍니다. 예:
      ```
@@ -238,7 +238,7 @@ CRITICAL 블록도 업데이트:
 ##### OS 경계 + provider command 표준 (CRITICAL — Windows / WSL 지원)
 
 `config.local.json`을 작성할 때 Codex provider는 기본적으로 모든 OS에서
-`./scripts/run-codex.sh`를 유지합니다. 이 wrapper가 UTF-8 locale, common rules,
+`./.vibe/harness/scripts/run-codex.sh`를 유지합니다. 이 wrapper가 UTF-8 locale, common rules,
 retry, session-start를 담당하므로 Windows에서도 raw `codex.cmd exec`를 표준 경로로
 기입하지 않습니다.
 
@@ -247,7 +247,7 @@ retry, session-start를 담당하므로 Windows에서도 raw `codex.cmd exec`를
 1. Codex provider command:
    ```json
    "codex": {
-     "command": "./scripts/run-codex.sh",
+     "command": "./.vibe/harness/scripts/run-codex.sh",
      "args": ["{prompt}"],
      "env": {}
    }
@@ -258,8 +258,8 @@ retry, session-start를 담당하므로 Windows에서도 raw `codex.cmd exec`를
      반환하면 WSL launcher입니다. Windows Codex wrapper 실행 경로로 사용하지 않습니다.
    - Git Bash 기본 경로는 `C:\Program Files\Git\bin\bash.exe`입니다.
    - 특수 설치 경로는 `VIBE_GIT_BASH` 환경변수로 지정할 수 있습니다.
-3. `scripts/run-codex.cmd`는 Windows-native health/debug wrapper입니다.
-   `node scripts/vibe-preflight.mjs`는 Windows에서 이 `.cmd` wrapper의 `--health`를
+3. `.vibe/harness/scripts/run-codex.cmd`는 Windows-native health/debug wrapper입니다.
+   `node .vibe/harness/scripts/vibe-preflight.mjs`는 Windows에서 이 `.cmd` wrapper의 `--health`를
    우선 사용합니다. Generator 실행 표준은 여전히 `run-codex.sh`입니다.
 4. WSL에서 Codex를 실행하려면 WSL 내부에 Linux용 `node`와 `codex`를 별도로 설치합니다.
    `/mnt/c/.../npm/codex` 같은 Windows npm shim은 WSL 실행 경로로 사용하지 않습니다.
@@ -277,7 +277,7 @@ retry, session-start를 담당하므로 Windows에서도 raw `codex.cmd exec`를
     "env": {}
   },
   "codex": {
-    "command": "./scripts/run-codex.sh",
+    "command": "./.vibe/harness/scripts/run-codex.sh",
     "args": ["{prompt}"],
     "env": {}
   }
@@ -293,7 +293,7 @@ retry, session-start를 담당하므로 Windows에서도 raw `codex.cmd exec`를
     "env": {}
   },
   "codex": {
-    "command": "./scripts/run-codex.sh",
+    "command": "./.vibe/harness/scripts/run-codex.sh",
     "args": ["{prompt}"],
     "env": {}
   }
@@ -329,7 +329,7 @@ retry, session-start를 담당하므로 Windows에서도 raw `codex.cmd exec`를
       "env": {}
     },
     "codex": {
-      "command": "./scripts/run-codex.sh",
+      "command": "./.vibe/harness/scripts/run-codex.sh",
       "args": ["{prompt}"],
       "env": {}
     },
@@ -366,7 +366,7 @@ Generator로 선택된 provider에 맞게 파일 내용을 수정합니다.
 
 ## Phase 3 — 프로젝트 맞춤 설정 (native socratic interview: vibe-interview)
 
-Phase 3 인터뷰는 `scripts/vibe-interview.mjs`만 사용합니다.
+Phase 3 인터뷰는 `.vibe/harness/scripts/vibe-interview.mjs`만 사용합니다.
 상세 실행 규약은 `.claude/skills/vibe-interview/SKILL.md`를 authoritative runbook으로 따릅니다.
 
 > **CRITICAL — Phase 3는 스킵 금지**: 사용자가 "자율 진행 / 위임 / 알아서 해"라고 말해도 Phase 3 인터뷰 자체는 반드시 완주합니다. 사용자가 직접 답하지 않으면 Orchestrator가 PO-proxy로 답변하고 rationale을 남깁니다.
@@ -378,7 +378,7 @@ Phase 3 인터뷰는 `scripts/vibe-interview.mjs`만 사용합니다.
 실행 순서:
 
 1. 사용자에게 프로젝트 한 줄 설명을 요청합니다.
-2. `node scripts/vibe-interview.mjs --init --prompt "<one-liner>" [--lang ko|en] [--max-rounds 30] [--output .vibe/interview-log/<session-id>.json]`
+2. `node .vibe/harness/scripts/vibe-interview.mjs --init --prompt "<one-liner>" [--lang ko|en] [--max-rounds 30] [--output .vibe/interview-log/<session-id>.json]`
 3. stdout의 `{ phase: "domain-inference", inferencePrompt }`를 Orchestrator가 읽습니다.
 4. 적절한 domain string을 판단해 기록합니다.
 5. 이후 호출은 `.claude/skills/vibe-interview/SKILL.md`의 invocation protocol을 따릅니다.
@@ -587,7 +587,7 @@ Sprint Generator가 **Codex CLI**(또는 trust-based sandbox를 쓰는 다른 pr
 Immediately after Step 4-0 finishes, run:
 
 ```bash
-node scripts/vibe-phase0-seal.mjs
+node .vibe/harness/scripts/vibe-phase0-seal.mjs
 ```
 
 Expected outcomes:
@@ -606,7 +606,7 @@ Orchestrator asks:
 > (npm install/build/test/git 등 scope 제한된 명령만 자동 허용)
 > [Y/n]
 
-- User answers Y (or PO-proxy auto-yes): run `node scripts/vibe-sprint-mode.mjs on`.
+- User answers Y (or PO-proxy auto-yes): run `node .vibe/harness/scripts/vibe-sprint-mode.mjs on`.
 - User answers N: skip. Print "프리셋 미적용. 나중에 `/vibe-sprint-mode on`으로 활성화할 수 있습니다."
 - If the script exits non-zero, print warning and continue.
 

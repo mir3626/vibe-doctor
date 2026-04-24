@@ -4,47 +4,49 @@
 
 - **repo**: `vibe-doctor`
 - **branch**: `main`
-- **last pushed release**: `v1.6.11`
-- **working target**: `v1.6.12`
-- **current iteration**: downstream hardening patch complete locally, push pending
-- **harnessVersion**: `1.6.12`
+- **last pushed release**: `v1.6.12`
+- **working target**: `v1.7.0`
+- **current iteration**: harness source boundary refactor complete locally, push pending
+- **harnessVersion**: `1.7.0`
 - **language/tone**: Korean user-facing, concise engineering notes
 
 ## 2. Status
 
-User asked to proceed with all reviewed upstream harness fixes and to avoid section-exclusion parsing for Non-Goals/capture-channel prose.
+User approved the structural separation plan and asked to preserve legacy one-stop bootstrap sync behavior. v1.7.0 candidate implements:
 
-v1.6.12 candidate implements:
-
-- provider command lookup now honors `cwd` and provider `env.PATH` during `commandExists()`;
-- Codex downstream initialization boundary in `AGENTS.md`, `_common-rules.md`, and Codex `vibe-init` skill guidance;
-- `/vibe-review` frontend opt-in detection now uses explicit `platform`, `PROJECT/HARNESS:review-signals`, or explicit `Platform:` lines instead of arbitrary product prose scanning;
-- `/vibe-init` guidance now writes explicit `PROJECT:review-signals` and no longer treats `mobile` alone as a browser/frontend signal;
-- `npm run test:ui` now uses `scripts/vibe-playwright-test.mjs`, with actionable install guidance when `@playwright/test` is absent and normal Playwright delegation when present.
+- canonical harness runtime, source, tests, migrations, Playwright config, and TypeScript configs under `.vibe/harness/**`;
+- downstream root `src/**`, `scripts/**`, `test/**`, `app/**`, `components/**`, and `lib/**` treated as project-owned by default;
+- package scripts split so `vibe:*` runs harness tasks while ordinary `build`, `typecheck`, `test`, and `test:ui` remain project-facing aliases for compatibility;
+- `/vibe-review` guidance clarified as template/harness review, separate from normal product code review;
+- legacy root `scripts/vibe-sync-bootstrap.mjs` retained as a compatibility bridge that delegates to `.vibe/harness/scripts/vibe-sync-bootstrap.mjs` or fetches the canonical upstream bootstrap;
+- v1.7.0 migration removes old root harness files only when `.vibe/sync-hashes.json` proves they are unmodified synced harness copies, and reports retained ambiguous files instead of deleting them.
 
 ## 3. Verification
 
 Completed on Windows:
 
 - `npm run typecheck`
-- `node --import tsx --test test/shell.test.ts test/vibe-review-inputs.test.ts test/codex-skills.test.ts test/playwright-wrapper.test.ts test/sync.test.ts`
 - `npm test`
 - `npm run build`
-- `npm run test:ui -- --version`
-- `npm run test:ui`
+- `npm run vibe:test-ui -- --version`
+- `npm run vibe:test-ui`
 - `npm run vibe:config-audit --silent`
+- `npm run vibe:sync -- --dry-run --from .`
+
+The self-checkout dry-run exits 0 but shows expected conflicts for moved `.vibe/harness/**` files because this source checkout has no `.vibe/sync-hashes.json` baseline for those new paths.
 
 ## 4. Preserved Value
 
-- Product-owned `devDependencies` remain project-owned; Playwright local UX is handled by a harness wrapper instead of forcing package.json dependency sync.
-- Product prose can mention Telegram mobile capture or a public web dashboard non-goal without seeding browser/bundle findings unless explicit platform markers say it is a frontend.
-- Downstream clones that still contain copied template state are instructed to run `/vibe-init` before Codex Generator or maintenance work.
+- Legacy projects can still bootstrap through the documented root raw URL.
+- Downstream product files at root-level source/test/script paths are no longer overwritten by harness sync.
+- Existing exact old `test:ui` harness aliases are redirected to `npm run vibe:test-ui`; project-owned custom scripts remain untouched.
+- Ambiguous old root harness files are retained with a report rather than silently removed.
 
 ## 5. Next Action
 
-Commit/tag `v1.6.12`, push `main` and the tag, then downstream can sync from `v1.6.12`.
+Commit/tag `v1.7.0`, push `main` and the tag, then use `/vibe-sync` from downstream projects to receive the boundary split.
 
 ## 6. Pending Risks
 
-- `telegram-local-ingest` product issues remain separate: `pdftotext` readiness, PDF output policy, DOCX XML sanitizing.
-- Existing audit cadence state is unrelated to this patch.
+- Historical docs and session logs still contain old root paths as history; live guidance has been updated.
+- The first downstream sync from legacy versions should inspect `.vibe/harness-migration-1.7.0.md` if the migration retains ambiguous root files.
