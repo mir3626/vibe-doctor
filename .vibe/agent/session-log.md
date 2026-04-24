@@ -20,6 +20,9 @@
 
 ## Entries
 
+- 2026-04-24T04:42:23.019Z [user-directive] User preference: after verified harness changes, do not ask separately before pushing; proceed directly with commit/tag/push when that is the natural next step.
+- 2026-04-24T04:34:00.000Z [checkpoint] v1.6.5 local patch clarifies Codex role modes, aligns `/vibe-sync` docs with harness-only typecheck + caret/exact ref semantics, downgrades `gap-rule-only-in-md` to pending enforcement, and passes typecheck/focused tests/diff-check/full test/build before checkpoint.
+
 - 2026-04-24T04:11:15.098Z [checkpoint] v1.6.4 local patch implements Codex Orchestrator maintain-context workflow: Generator token-threshold automation explicitly deferred, maintain-context now updates handoff/session-log then runs `npm run vibe:checkpoint`, common rules/docs distinguish Codex Orchestrator from run-codex Generator invocations, and initial checkpoint failure exposed stale handoff now refreshed.
 
 - 2026-04-23T08:36:00.000Z [harness-review] v1.5.8 verification passed on Windows: `npm run typecheck`, `node --import tsx --test test/upstream-bootstrap.test.ts`, `npm run build`, and `npm test`.

@@ -309,7 +309,7 @@ This harness can be driven by Claude, Codex, Gemini, or another CLI provider. Pr
 
 - At session start, use `node scripts/vibe-agent-session-start.mjs` when available. It performs session-start logging, harness version checks, and model registry checks without relying on Claude-only hooks.
 - Sprint Generator agents normally do not need token-threshold checkpoint automation because they are invoked per Sprint and return state through a completion report.
-- Codex used as the main Orchestrator has no native PreCompact or context-threshold hook. For that mode, run the `maintain-context` workflow after meaningful decisions, releases, pushes, long reviews, or before final handoff.
+- Codex used as the main Orchestrator runs in Orchestrator maintenance mode and has no native PreCompact or context-threshold hook. For that mode, run the `maintain-context` workflow after meaningful decisions, releases, pushes, long reviews, or before final handoff.
 - Before context compaction, handoff, or final response after meaningful Orchestrator work, update `handoff.md` and append a concise `session-log.md` entry. Then run `npm run vibe:checkpoint` when available, or `node scripts/vibe-checkpoint.mjs`.
 - If the provider has no PreCompact hook, this rule is mandatory process discipline. Do not assume chat history survives; preserve restart instructions in the files above.
 - If a compact/checkpoint cannot be completed, state the reason in the final report and leave the repo in a state that can be resumed by reading `handoff.md` and `session-log.md`.

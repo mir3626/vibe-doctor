@@ -182,7 +182,7 @@ Codex does not expose the same `SessionStart` and `PreCompact` hooks as Claude C
 - `scripts/run-codex.sh` calls `node scripts/vibe-agent-session-start.mjs` before non-health Codex runs.
 - `npm run vibe:run-agent -- --provider codex ...` also calls the same session-start entrypoint before executing the provider command.
 - Sprint Generator invocations are short-lived and normally do not need context-threshold checkpoint automation; they hand state back through the completion report and Orchestrator-owned sprint scripts.
-- Codex used as the main Orchestrator is the risky path because it can accumulate decisions outside the `run-codex.sh` wrapper. Use the `maintain-context` skill at work boundaries: after meaningful decisions, reviews, releases, tags, pushes, syncs, or before final handoff.
+- Codex used as the main Orchestrator runs in Orchestrator maintenance mode, not Sprint Generator mode. It is the risky path because it can accumulate decisions outside the `run-codex.sh` wrapper. Use the `maintain-context` skill at work boundaries: after meaningful decisions, reviews, releases, tags, pushes, syncs, or before final handoff.
 - The portable checkpoint sequence is: update `.vibe/agent/handoff.md`, append a concise `.vibe/agent/session-log.md` entry, then run `npm run vibe:checkpoint` or `node scripts/vibe-checkpoint.mjs`.
 
 This is not a true Codex `PreCompact` hook and it cannot fire at a real 80% context threshold. It is the portable fallback that works for Codex and other CLI providers without Claude-specific hook support.

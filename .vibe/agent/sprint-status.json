@@ -145,12 +145,14 @@
     "currentSprintId": "idle",
     "contextWindow": "main (Orchestrator)",
     "pendingPrompt": null,
-    "lastHandoffAt": "2026-04-24T04:11:15.098Z",
-    "nextAction": "commit/tag/push v1.6.4 if user asks to release",
-    "lastActionSummary": "v1.6.4 Codex Orchestrator maintain-context checkpoint workflow implemented and verified",
+    "lastHandoffAt": "2026-04-24T04:42:23.019Z",
+    "nextAction": "continue with next user-requested harness review or downstream dogfood issue",
+    "lastActionSummary": "v1.6.5 Codex role-mode split, vibe-sync doc alignment, and rule-audit ledger correction implemented, verified, and released",
     "orchestratorContextBudget": "medium",
-    "preferencesActive": [],
-    "updatedAt": "2026-04-24T04:11:15.098Z"
+    "preferencesActive": [
+      "After verified harness changes, proceed directly with commit/tag/push when that is the natural next step; do not ask for separate push confirmation."
+    ],
+    "updatedAt": "2026-04-24T04:42:23.019Z"
   },
   "policies": {
     "scratchpadPath": ".vibe/agent/handoff.md",
