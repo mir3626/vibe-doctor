@@ -61,6 +61,7 @@
       "src/lib/review.ts",
       "src/providers/runner.ts",
       "src/providers/types.ts",
+      "test/checkpoint.test.ts",
       "test/args.test.ts",
       "test/browser-smoke-contract.test.ts",
       "test/bundle-size.test.ts",
@@ -208,6 +209,7 @@
       "docs/release/v1.6.1.md",
       "docs/release/v1.6.2.md",
       "docs/release/v1.6.3.md",
+      "docs/release/v1.6.4.md",
       "migrations/1.6.2.mjs"
     ],
     "hybrid": {

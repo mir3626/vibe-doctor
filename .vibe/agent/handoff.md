@@ -4,62 +4,79 @@
 
 - **repo**: `vibe-doctor`
 - **branch**: `main`
-- **last release**: v1.5.15 (agent-gated init and Codex skill wrappers)
+- **last pushed release**: `v1.6.3`
+- **working target**: `v1.6.4` local patch, not committed/tagged yet
 - **current iteration**: post-iter-7 maintenance
-- **harnessVersion**: `1.5.15`
+- **harnessVersion**: `1.6.4`
 - **language/tone**: Korean user-facing, concise engineering notes
 
 ## 2. Status
 
-READY to commit/tag/push v1.5.15.
+v1.6.4 implements the Codex Orchestrator context-persistence adjustment requested after confirming Codex has no native `PreCompact` or context-threshold hook.
 
-v1.5.15 changes the project initialization entrypoint so it is always mediated by an agent skill:
+Key decision:
 
-- Direct `npm run vibe:init` from bash/cmd/PowerShell now exits with guidance instead of partially bootstrapping a project without agent follow-through.
-- Agent skills can still run the mechanical bootstrap with `npm run vibe:init -- --from-agent-skill`.
-- Claude `/vibe-init` instructions now use the guarded command.
-- Codex skill wrappers now exist under `.codex/skills/*/SKILL.md` and delegate to the shared `.claude/skills/*/SKILL.md` runbooks.
-- Sync manifest includes the Codex skill wrappers and new regression tests.
+- Do not over-invest in Generator-side token-threshold automation. Generator Codex runs are short-lived per Sprint and return state through completion reports.
+- Treat Codex used as the main Orchestrator as the risky path.
+- Use an explicit `maintain-context` workflow at work boundaries: update `handoff.md`, append `session-log.md`, then run `npm run vibe:checkpoint`.
+- Keep `vibe-checkpoint` as a verifier, not an updater.
 
-Earlier local releases remain preserved:
+Changed surfaces:
 
-- v1.5.14 lets partially bootstrapped projects run `/vibe-sync` without an existing `upstream` entry.
-- v1.5.13 fixes WSL/Linux browser opener failures for dashboard/report.
-- v1.5.12 restores `upstream.ref` as a real pin and adds an explicit update path.
-- v1.5.11 scopes `/vibe-sync` post-verify typechecking to harness code.
-- v1.5.9 fixes Windows CMD/PowerShell Claude statusline and hook command compatibility.
-- v1.5.8 infers missing upstream config from `git remote origin` during session-start and `/vibe-init`.
-- v1.5.2 hardens UTF-8 Markdown/editor defaults.
-- v1.5.1 adds provider-neutral lifecycle hooks.
+- `.claude/skills/maintain-context/SKILL.md`
+- `.codex/skills/maintain-context/SKILL.md`
+- `.vibe/agent/_common-rules.md`
+- `docs/context/codex-execution.md`
+- `scripts/vibe-checkpoint.mjs`
+- `test/checkpoint.test.ts`
+- `test/codex-skills.test.ts`
+- `test/sync.test.ts`
+- `.vibe/sync-manifest.json`
+- `docs/context/harness-gaps.md`
+- `docs/release/v1.6.4.md`
+- `package.json`
+- `.vibe/config.json`
 
 ## 3. Verification
 
-Windows verification for v1.5.15:
+Windows verification for v1.6.4:
 
+- `node --import tsx --test test/checkpoint.test.ts test/codex-skills.test.ts test/sync.test.ts`
 - `npm run typecheck`
-- `node --import tsx --test test/init-guard.test.ts test/codex-skills.test.ts test/upstream-bootstrap.test.ts test/sync.test.ts`
 - `npm run build`
 - `npm test`
+- `npm run vibe:qa`
+- `npm run vibe:sync -- --dry-run --from .`
+- `node scripts/vibe-preflight.mjs --bootstrap`
+- `npm run vibe:rule-audit` (exit 0, existing uncovered rule list remains)
+- `git diff --check`
+
+Checkpoint status:
+
+- First explicit `npm run vibe:checkpoint -- --json` correctly failed because this handoff was stale.
+- This file, `session-log.md`, and `sprint-status.json` were then updated for the v1.6.4 local patch.
+- `npm run vibe:checkpoint -- --json` now passes with all checks OK.
 
 ## 4. Preserved Value
 
-- Provider-neutral lifecycle hooks remain intact.
+- v1.6.3 exact-vs-caret `upstream.ref` semantics remain intact.
+- Provider-neutral lifecycle scripts remain intact.
 - UTF-8 Markdown/editor hardening remains intact.
 - WSL-safe Codex wrapper behavior remains intact.
 - Project-safe sync merge behavior remains intact.
 - Upstream bootstrap remains intact.
-- Windows CMD/PowerShell statusline and hook compatibility remains intact.
-- Pinned `upstream.ref` semantics and explicit update prompts remain intact.
-- Legacy missing-upstream projects can bootstrap sync config without `/vibe-init`.
 
 ## 5. Next Action
 
-Commit/tag/push v1.5.15 from `C:\Users\Tony\Workspace\vibe-doctor`.
+If the user asks to release, commit/tag/push:
 
-After v1.5.15 is pushed, downstream projects should sync it when they need guarded init behavior or Codex skill parity.
+1. Rerun `npm run vibe:checkpoint -- --json`.
+2. Commit as `fix(context): document Codex orchestrator checkpoint workflow`.
+3. Create annotated tag `v1.6.4`.
+4. Push `main` and `v1.6.4`.
 
 ## 6. Pending Risks
 
-- Existing downstream projects may already have a product `tsconfig.json` that was previously touched by harness sync. v1.5.11 stops future harness ownership but does not automatically rewrite product tsconfig choices.
-- Projects cloned from an older template may already contain `upstream.ref` as an accidental pin. v1.5.12 preserves it by default and exposes the update choice, but does not remove the pin automatically.
-- Do not share one `node_modules` directory between Windows and WSL for packages with native binaries such as `esbuild`. Use per-platform installs or a clean Linux workspace.
+- Codex still cannot fire a real context-window threshold hook. The harness now documents the best portable approximation, but execution depends on Orchestrator process discipline.
+- Existing downstream projects must sync v1.6.4 before their Codex `maintain-context` skill description and runbook improve.
+- Existing open lightweight audit risk remains unrelated: `src/commands/init.ts has no test/init.test.ts`.

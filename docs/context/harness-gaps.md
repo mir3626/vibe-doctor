@@ -44,6 +44,7 @@
 
 | gap-direct-vibe-init-shell-entrypoint | Users can run `npm run vibe:init` from bash/cmd/PowerShell, which creates files but cannot complete agent-required product context, roadmap, handoff, and session-log work. | `src/commands/init.ts` direct-shell guard + `.claude/skills/vibe-init/SKILL.md` guarded command + `test/init-guard.test.ts` (v1.5.15). Agent skills use `--from-agent-skill`; direct shells exit with guidance. | covered | covered | ??|
 | gap-codex-skill-parity | Claude-only `.claude/skills/*` made vibe-doctor workflows available to Claude Code but not to Codex skill discovery, causing provider drift. | `.codex/skills/*/SKILL.md` provider-neutral wrappers + `test/codex-skills.test.ts` + sync-manifest coverage (v1.5.15). Wrappers delegate to the shared Claude skill source. | covered | covered | ??|
+| gap-codex-orchestrator-checkpoint | Codex used as the main Orchestrator has no native PreCompact or context-threshold hook, so long sessions can accumulate decisions outside durable state even though Sprint Generator runs are short-lived. | `.claude/skills/maintain-context/SKILL.md` Codex Orchestrator workflow + `.codex/skills/maintain-context/SKILL.md` trigger text + `_common-rules.md` provider-neutral checkpoint discipline + `docs/context/codex-execution.md` distinction between Generator and Orchestrator paths + `test/codex-skills.test.ts` and `test/checkpoint.test.ts` (v1.6.4). | covered | covered | ??|
 
 Update protocol:
 1. 새 gap 발견 시 id `gap-<slug>` 로 표 끝에 append 한다.

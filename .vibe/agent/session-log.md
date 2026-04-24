@@ -20,6 +20,7 @@
 
 ## Entries
 
+- 2026-04-24T04:11:15.098Z [checkpoint] v1.6.4 local patch implements Codex Orchestrator maintain-context workflow: Generator token-threshold automation explicitly deferred, maintain-context now updates handoff/session-log then runs `npm run vibe:checkpoint`, common rules/docs distinguish Codex Orchestrator from run-codex Generator invocations, and initial checkpoint failure exposed stale handoff now refreshed.
 
 - 2026-04-23T08:36:00.000Z [harness-review] v1.5.8 verification passed on Windows: `npm run typecheck`, `node --import tsx --test test/upstream-bootstrap.test.ts`, `npm run build`, and `npm test`.
 - 2026-04-23T08:30:00.000Z [harness-review] v1.5.8 upstream bootstrap patch: session-start/version-check and `/vibe-init` now infer missing upstream config from `git remote origin`, preserve existing upstream, quietly skip missing remotes, and guard template self-sync unless `--from` is supplied.

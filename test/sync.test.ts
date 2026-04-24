@@ -782,7 +782,9 @@ describe('sync manifest', () => {
     assert.equal(manifest.files.harness.includes('docs/release/v1.5.15.md'), true);
     assert.equal(manifest.files.harness.includes('docs/release/v1.5.16.md'), true);
     assert.equal(manifest.files.harness.includes('docs/release/v1.6.3.md'), true);
+    assert.equal(manifest.files.harness.includes('docs/release/v1.6.4.md'), true);
     assert.equal(manifest.files.harness.includes('.codex/skills/**'), true);
+    assert.equal(manifest.files.harness.includes('test/checkpoint.test.ts'), true);
     assert.equal(manifest.files.harness.includes('test/init-guard.test.ts'), true);
     assert.equal(manifest.files.harness.includes('test/codex-skills.test.ts'), true);
     assert.equal(manifest.files.harness.includes('test/upstream-bootstrap.test.ts'), true);
