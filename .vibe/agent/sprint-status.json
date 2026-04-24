@@ -175,20 +175,32 @@
         "net": 201,
         "filesChanged": 15
       }
+    },
+    {
+      "id": "sprint-dashboard-attention-wiring",
+      "name": "sprint-dashboard-attention-wiring",
+      "status": "passed",
+      "completedAt": "2026-04-24T06:13:41.477Z",
+      "actualLoc": {
+        "added": 309,
+        "deleted": 75,
+        "net": 234,
+        "filesChanged": 20
+      }
     }
   ],
   "handoff": {
     "currentSprintId": "idle",
     "contextWindow": "main (Orchestrator)",
     "pendingPrompt": null,
-    "lastHandoffAt": "2026-04-24T05:39:04.765Z",
-    "nextAction": "continue with the next user-requested harness review or downstream dogfood issue",
-    "lastActionSummary": "v1.6.7 rule disposition gate and v1.6.8 wiring drift detector implemented and verified",
+    "lastHandoffAt": "2026-04-24T06:13:41.477Z",
+    "nextAction": "push v1.6.9 after full harness verification",
+    "lastActionSummary": "v1.6.9 dashboard attention wiring implemented locally; full verification and push pending",
     "orchestratorContextBudget": "medium",
     "preferencesActive": [
       "After verified harness changes, proceed directly with commit/tag/push when that is the natural next step; do not ask for separate push confirmation."
     ],
-    "updatedAt": "2026-04-24T05:39:04.765Z"
+    "updatedAt": "2026-04-24T06:13:41.477Z"
   },
   "policies": {
     "scratchpadPath": ".vibe/agent/handoff.md",
@@ -301,8 +313,8 @@
     "test/vibe-review-inputs.test.ts",
     "package.json"
   ],
-  "sprintsSinceLastAudit": 3,
-  "stateUpdatedAt": "2026-04-24T05:39:04.765Z",
+  "sprintsSinceLastAudit": 4,
+  "stateUpdatedAt": "2026-04-24T06:13:41.477Z",
   "verifiedAt": null,
   "verificationCommands": []
 }

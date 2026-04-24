@@ -8,7 +8,17 @@
 
 ---
 
-## 최신 하이라이트 (v1.6.8)
+## Latest highlights (v1.6.9)
+
+### v1.6.9 (2026-04-24) - dashboard attention wiring
+
+- Claude Code `Notification` hooks now write permission, idle, and elicitation events into `.vibe/agent/attention.jsonl` for dashboard/browser notifications.
+- Codex `run-codex.{sh,cmd}` now emits dashboard attention events when wrapper runs complete or fail.
+- `vibe-attention-notify.mjs` now reuses the shared `vibe-attention.mjs` writer, so the attention scripts are no longer created-but-unwired artifacts.
+
+---
+
+## Previous highlights (v1.6.8)
 
 ### v1.6.8 (2026-04-24) - review wiring drift detector
 

@@ -57,6 +57,23 @@
         "wiring-drift-detector": 1
       },
       "summary": "Sprint 1 (v1.6.7) adds rule dispositions and --fail-on-undisposed to vibe-rule-audit. Sprint 2 (v1.6.8) adds collectReviewInputs().wiringDriftFindings and /vibe-review auto-seeding for created-but-unwired harness scripts."
+    },
+    {
+      "id": "iter-10",
+      "label": "dashboard-attention-wiring",
+      "startedAt": "2026-04-24T06:00:00.000Z",
+      "completedAt": "2026-04-24T06:13:41.477Z",
+      "goal": "Wire the dashboard attention scripts discovered by v1.6.8 so Claude and Codex agent attention events reach the dashboard instead of remaining dead artifacts.",
+      "plannedSprints": [
+        "sprint-dashboard-attention-wiring"
+      ],
+      "completedSprints": [
+        "sprint-dashboard-attention-wiring"
+      ],
+      "milestoneProgress": {
+        "dashboard-attention-wiring": 1
+      },
+      "summary": "v1.6.9 connects Claude Notification hooks to vibe-attention-notify, routes both Claude and Codex events through the shared vibe-attention writer, and verifies the current repo has zero wiring drift findings."
     }
   ]
 }

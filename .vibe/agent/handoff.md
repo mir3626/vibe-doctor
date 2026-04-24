@@ -5,57 +5,39 @@
 - **repo**: `vibe-doctor`
 - **branch**: `main`
 - **last pushed release**: `v1.6.8`
-- **working target**: none
-- **current iteration**: iter-9 complete
-- **harnessVersion**: `1.6.8`
+- **working target**: `v1.6.9`
+- **current iteration**: iter-10 complete locally, push pending
+- **harnessVersion**: `1.6.9`
 - **language/tone**: Korean user-facing, concise engineering notes
 
 ## 2. Status
 
-User requested continuing the rule-gate plan through v1.6.8. Both sprints are complete locally:
+User identified that the v1.6.8 wiring drift candidates were dashboard attention scripts from an earlier dashboard sprint. v1.6.9 wires them instead of deleting them:
 
-- `v1.6.7` / `sprint-rule-disposition-gate`: `vibe-rule-audit` now reports rule dispositions and supports `--fail-on-undisposed`.
-- `v1.6.8` / `sprint-wiring-drift-detector`: `/vibe-review` input collection now returns `wiringDriftFindings` for `scripts/vibe-*.mjs` artifacts missing runtime references or sync-manifest coverage.
-
-Current repo wiring detector output intentionally surfaces two remaining candidates:
-
-- `scripts/vibe-attention.mjs`
-- `scripts/vibe-attention-notify.mjs`
-
-These are now visible to `/vibe-review` instead of hidden as dead-code risk.
+- Claude Code `Notification` hooks now call `scripts/vibe-attention-notify.mjs` for permission, idle, and elicitation notifications.
+- `scripts/vibe-attention-notify.mjs` now reuses `appendAttentionEvent()` from `scripts/vibe-attention.mjs`.
+- Codex `run-codex.sh` and `run-codex.cmd` now append dashboard attention events on wrapper success/failure.
+- `collectReviewInputs().wiringDriftFindings` now returns `[]` for the current repo.
 
 ## 3. Verification
 
-v1.6.7 verification:
+Focused verification completed:
 
-- `node --import tsx --test test/rule-audit.test.ts test/sync.test.ts`
-- `npm run typecheck`
-- `git diff --check`
-- `node scripts/vibe-rule-audit.mjs --format=json`
-- `node scripts/vibe-rule-audit.mjs --fail-on-undisposed` returns exit 1 while current undisposed rules remain
+- `node --import tsx --test test/attention-notify.test.ts test/run-codex-wrapper.test.ts test/statusline.test.ts test/vibe-review-inputs.test.ts`
+- `node --import tsx -e "import { collectReviewInputs } from './src/lib/review.ts'; const inputs = await collectReviewInputs(); console.log(JSON.stringify(inputs.wiringDriftFindings, null, 2));"` -> `[]`
 
-v1.6.8 verification:
-
-- `node --import tsx --test test/vibe-review-inputs.test.ts test/sync.test.ts`
-- `npm run typecheck`
-- `npm run build`
-- `git diff --check`
-
-- full `npm test`
-- `node scripts/vibe-preflight.mjs --bootstrap`
-- `npm run vibe:checkpoint -- --json`
+Full harness verification and push are the next actions.
 
 ## 4. Preserved Value
 
-- Default `vibe-rule-audit` remains report-only until a project opts into `--fail-on-undisposed`.
-- Wiring drift detection is review input, not a build breaker.
-- v1.6.6 app LOC threshold behavior remains intact.
+- Claude gets native notification-hook support.
+- Codex stays honest: there is still no Claude-style native Codex permission hook, so support is wrapper-level completion/failure signaling.
+- Dashboard notification UX remains opt-in through the browser's Notification permission.
 
 ## 5. Next Action
 
-No immediate follow-up required after `v1.6.8` is pushed. Continue with the next user-requested harness review or downstream dogfood issue.
+Run full harness verification, commit/tag `v1.6.9`, then push `main` and the tag.
 
 ## 6. Pending Risks
 
-- Current CLAUDE.md still has 26 undisposed imperative rules; v1.6.7 surfaces this for triage.
 - Existing open lightweight audit risk remains unrelated: `src/commands/init.ts has no test/init.test.ts`.

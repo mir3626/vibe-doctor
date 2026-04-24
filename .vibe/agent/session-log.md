@@ -20,6 +20,7 @@
 
 ## Entries
 
+- 2026-04-24T06:13:41.477Z [sprint-complete] sprint-dashboard-attention-wiring -> passed. v1.6.9 wires dashboard attention events through Claude Notification hooks and Codex wrapper completion/failure events; wiring drift output is now empty.
 - 2026-04-24T05:39:04.765Z [sprint-complete] sprint-wiring-drift-detector -> passed. v1.6.8 adds `/vibe-review` wiring drift findings for `scripts/vibe-*.mjs` runtime references and sync-manifest coverage.
 - 2026-04-24T05:33:29.436Z [sprint-complete] sprint-rule-disposition-gate -> passed. v1.6.7 adds rule dispositions and `--fail-on-undisposed` to `vibe-rule-audit`.
 - 2026-04-24T05:30:00.000Z [decision][iter-9-kickoff] User requested proceeding through v1.6.8: Sprint 1 rule disposition gate, Sprint 2 wiring drift detector.

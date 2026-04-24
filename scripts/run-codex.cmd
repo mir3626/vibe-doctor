@@ -51,10 +51,12 @@ if "%VIBE_SPRINT_ID%"=="" (
   if errorlevel 1 >&2 echo [run-codex] status-tick: skipped reason=cli-failed
   if not errorlevel 1 >&2 echo [run-codex] status-tick: ticked tokens=0 sprint=%VIBE_SPRINT_ID%
 )
+call :attention_event info "Codex run completed" "Codex exec completed after !_attempt! attempt(s)." codex-wrapper
 endlocal & exit /b 0
 
 :done_fail
 >&2 echo [run-codex] giving up after !_attempt! attempts last_exit=!_rc!
+call :attention_event urgent "Codex run failed" "Codex exec failed after !_attempt! attempt(s), exit=!_rc!." codex-wrapper
 endlocal & exit /b !_rc!
 
 :health
@@ -94,3 +96,11 @@ echo   run-codex.cmd --health^|--version^|--help
 echo   type prompt.txt ^| run-codex.cmd -
 echo   run-codex.cmd "prompt text"
 endlocal & exit /b 0
+
+:attention_event
+if "%VIBE_DISABLE_ATTENTION%"=="1" exit /b 0
+if not exist "%SCRIPT_DIR%vibe-attention.mjs" exit /b 0
+where node >nul 2>&1
+if errorlevel 1 exit /b 0
+node "%SCRIPT_DIR%vibe-attention.mjs" --severity "%~1" --title "%~2" --detail "%~3" --source "%~4" --provider codex >nul 2>nul
+exit /b 0

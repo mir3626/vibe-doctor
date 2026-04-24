@@ -47,6 +47,8 @@
 | gap-codex-skill-parity | Claude-only `.claude/skills/*` made vibe-doctor workflows available to Claude Code but not to Codex skill discovery, causing provider drift. | `.codex/skills/*/SKILL.md` provider-neutral wrappers + `test/codex-skills.test.ts` + sync-manifest coverage (v1.5.15). Wrappers delegate to the shared Claude skill source. | covered | covered | ??|
 | gap-codex-orchestrator-checkpoint | Codex used as the main Orchestrator has no native PreCompact or context-threshold hook, so long sessions can accumulate decisions outside durable state even though Sprint Generator runs are short-lived. | `.claude/skills/maintain-context/SKILL.md` Codex Orchestrator workflow + `.codex/skills/maintain-context/SKILL.md` trigger text + `_common-rules.md` provider-neutral checkpoint discipline + `docs/context/codex-execution.md` distinction between Generator and Orchestrator paths + `test/codex-skills.test.ts` and `test/checkpoint.test.ts` (v1.6.4). | covered | covered | ??|
 
+| gap-dashboard-attention-wiring | Dashboard attention scripts existed but were not connected to Claude notification hooks or Codex wrapper completion paths, so permission prompts and completed agent turns could still be missed. | `.claude/settings.json` `Notification` hooks -> `scripts/vibe-attention-notify.mjs`; `run-codex.{sh,cmd}` completion/failure -> `scripts/vibe-attention.mjs`; tests in `test/attention-notify.test.ts`, `test/run-codex-wrapper.test.ts`, and `test/statusline.test.ts` (v1.6.9). | covered | covered | — |
+
 Update protocol:
 1. 새 gap 발견 시 id `gap-<slug>` 로 표 끝에 append 한다.
 2. 해결 Sprint 에서 `covered_by` 와 `status` 를 갱신한다.

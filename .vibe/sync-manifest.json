@@ -214,6 +214,7 @@
       "docs/release/v1.6.6.md",
       "docs/release/v1.6.7.md",
       "docs/release/v1.6.8.md",
+      "docs/release/v1.6.9.md",
       "migrations/1.6.2.mjs"
     ],
     "hybrid": {

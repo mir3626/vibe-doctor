@@ -119,7 +119,10 @@ describe('statusline wiring', () => {
   it('uses a cross-platform node command in Claude settings', async () => {
     const settings = JSON.parse(await import('node:fs/promises').then(({ readFile }) => readFile(settingsPath, 'utf8'))) as {
       statusLine?: { command?: string };
-      hooks?: { SessionStart?: Array<{ hooks?: Array<{ command?: string }> }> };
+      hooks?: {
+        SessionStart?: Array<{ hooks?: Array<{ command?: string }> }>;
+        Notification?: Array<{ matcher?: string; hooks?: Array<{ command?: string }> }>;
+      };
     };
 
     assert.equal(settings.statusLine?.command, 'node .claude/statusline.mjs');
@@ -127,6 +130,14 @@ describe('statusline wiring', () => {
     assert.doesNotMatch(settings.statusLine?.command ?? '', /\/dev\/null|\|\| true/);
     assert.equal(settings.hooks?.SessionStart?.[0]?.hooks?.[0]?.command, 'node scripts/vibe-agent-session-start.mjs');
     assert.doesNotMatch(settings.hooks?.SessionStart?.[0]?.hooks?.[0]?.command ?? '', /\/dev\/null|\|\| true/);
+    assert.deepEqual(
+      settings.hooks?.Notification?.map((entry) => entry.matcher).sort(),
+      ['elicitation_dialog', 'idle_prompt', 'permission_prompt'],
+    );
+    for (const entry of settings.hooks?.Notification ?? []) {
+      assert.equal(entry.hooks?.[0]?.command, 'node scripts/vibe-attention-notify.mjs');
+      assert.doesNotMatch(entry.hooks?.[0]?.command ?? '', /\/dev\/null|\|\| true/);
+    }
   });
 });
 

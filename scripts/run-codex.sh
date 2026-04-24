@@ -296,6 +296,30 @@ agent_session_start() {
   node "$script_path" >&2 || true
 }
 
+attention_event() {
+  if [[ "${VIBE_DISABLE_ATTENTION:-}" == "1" ]]; then
+    return 0
+  fi
+
+  local severity title detail script_dir script_path
+  severity="$1"
+  title="$2"
+  detail="$3"
+  script_dir="$(cd "$(dirname "$0")" && pwd)"
+  script_path="$script_dir/vibe-attention.mjs"
+
+  if [[ ! -f "$script_path" ]] || ! command -v node >/dev/null 2>&1; then
+    return 0
+  fi
+
+  node "$script_path" \
+    --severity "$severity" \
+    --title "$title" \
+    --detail "$detail" \
+    --source "codex-wrapper" \
+    --provider "codex" >/dev/null 2>&1 || true
+}
+
 resolve_utf8_locale() {
   local available candidate
 
@@ -535,6 +559,7 @@ while [[ $attempt -lt $retries ]]; do
     elapsed=$(( $(date +%s) - start_ts ))
     echo "[run-codex] total attempts=$attempt elapsed=${elapsed}s$(token_suffix)" >&2
     status_tick_after_success
+    attention_event "info" "Codex run completed" "Codex exec completed after ${attempt} attempt(s), elapsed ${elapsed}s."
     rm -f .vibe/agent/codex-unavailable.flag
     exit 0
   fi
@@ -552,6 +577,7 @@ while [[ $attempt -lt $retries ]]; do
     esac
     mkdir -p .vibe/agent
     printf '%s\nlast_exit=%s\nreason_hint=%s\n' "$(date -u +"%Y-%m-%dT%H:%M:%SZ")" "$rc" "$reason_hint" > .vibe/agent/codex-unavailable.flag
+    attention_event "urgent" "Codex run failed" "Codex exec failed after ${attempt} attempt(s), elapsed ${elapsed}s, reason=${reason_hint}."
     cat >&2 <<EOF
 [run-codex] CODEX_UNAVAILABLE — 3 retries exhausted (last exit=$rc, $reason_hint).
                   Orchestrator 는 아래 중 하나 선택:

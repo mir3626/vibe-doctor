@@ -227,6 +227,7 @@ function shellEnv(binDir: string, extra: NodeJS.ProcessEnv = {}): NodeJS.Process
     LANGUAGE: '',
     ...extraEnv,
     VIBE_SKIP_AGENT_SESSION_START: extra.VIBE_SKIP_AGENT_SESSION_START ?? '1',
+    VIBE_DISABLE_ATTENTION: extra.VIBE_DISABLE_ATTENTION ?? '1',
     PATH: basePath ? `${binDir}${path.delimiter}${basePath}` : binDir,
   };
 }
@@ -400,6 +401,27 @@ describe('run-codex.sh wrapper', { skip: bashCommand === null }, () => {
 
     assert.equal(child.status, 0);
     assert.match(child.stdout, /## §15 Scope discipline/);
+  });
+
+  it('emits a dashboard attention event after successful Codex execution when enabled', async () => {
+    const binDir = await createShellStubBin('ok');
+    const cwd = await makeTempDir('run-codex-attention-');
+    const child = spawnSync(bashCommand ?? 'bash', [bashScriptPath, 'prompt text'], {
+      cwd,
+      env: shellEnv(binDir, { CODEX_RETRY: '1', VIBE_DISABLE_ATTENTION: '0' }),
+      input: '',
+      encoding: 'utf8',
+    });
+
+    assert.equal(child.status, 0, child.stderr);
+
+    const raw = await readFile(path.join(cwd, '.vibe', 'agent', 'attention.jsonl'), 'utf8');
+    const event = JSON.parse(raw.trim().split(/\r?\n/)[0] ?? '{}') as Record<string, unknown>;
+    assert.equal(event.type, 'attention-needed');
+    assert.equal(event.severity, 'info');
+    assert.equal(event.source, 'codex-wrapper');
+    assert.equal(event.provider, 'codex');
+    assert.equal(event.title, 'Codex run completed');
   });
 
   it('prepends the Windows sandbox limitation header on Windows hosts', async () => {

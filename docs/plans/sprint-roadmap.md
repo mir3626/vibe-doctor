@@ -2,7 +2,7 @@
 
 <!-- BEGIN:VIBE:CURRENT-SPRINT -->
 > **Current**: idle (not started, started 2026-04-23)
-> **Completed**: sprint-wiring-drift-detector, sprint-rule-disposition-gate, sprint-iter8-app-loc-threshold, sprint-agent-init-codex-skills, sprint-missing-upstream-sync-bootstrap, sprint-wsl-dashboard-open-error, sprint-pinned-upstream-ref, sprint-harness-typecheck-scope, sprint-sync-latest-ref, sprint-windows-hook-portability, sprint-upstream-bootstrap, sprint-M3-review-adapter-blind-spot, sprint-M2-generator-scope-discipline, sprint-M1-codex-unavailable-signal
+> **Completed**: sprint-dashboard-attention-wiring, sprint-wiring-drift-detector, sprint-rule-disposition-gate, sprint-iter8-app-loc-threshold, sprint-agent-init-codex-skills, sprint-missing-upstream-sync-bootstrap, sprint-wsl-dashboard-open-error, sprint-pinned-upstream-ref, sprint-harness-typecheck-scope, sprint-sync-latest-ref, sprint-windows-hook-portability, sprint-upstream-bootstrap, sprint-M3-review-adapter-blind-spot, sprint-M2-generator-scope-discipline, sprint-M1-codex-unavailable-signal
 > **Pending**: —
 <!-- END:VIBE:CURRENT-SPRINT -->
 
@@ -127,5 +127,21 @@ v1.6.5에서 `vibe-rule-audit`가 scanner일 뿐 전체 imperative rule enforcem
 
 
 
+---
 
+# Iteration 10 - dashboard-attention-wiring (2026-04-24)
 
+## Background
+
+v1.6.8 correctly flagged `scripts/vibe-attention.mjs` and `scripts/vibe-attention-notify.mjs` as created-but-unwired harness artifacts. Review showed they were intentionally introduced during dashboard work to notify users when agents need attention, but the hook and wrapper connections were left for a later sprint.
+
+## Sprint - dashboard attention wiring
+
+- **id**: `sprint-dashboard-attention-wiring`
+- **goal**: Wire Claude and Codex attention events into the dashboard notification pipeline without adding provider-specific dead code.
+- **deliverables**:
+  - Claude `Notification` hooks for permission, idle, and elicitation events.
+  - Shared `vibe-attention.mjs` writer reused by `vibe-attention-notify.mjs`.
+  - Codex `run-codex.sh` and `run-codex.cmd` completion/failure attention events.
+  - Regression tests for hook wiring, notification payload parsing, wrapper events, and zero current wiring drift.
+- **result**: passed, target harnessVersion `v1.6.9`
