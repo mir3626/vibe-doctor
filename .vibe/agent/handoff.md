@@ -4,54 +4,47 @@
 
 - **repo**: `vibe-doctor`
 - **branch**: `main`
-- **last pushed release**: `v1.6.10`
-- **working target**: `v1.6.11`
-- **current iteration**: iter-12 complete locally, push pending
-- **harnessVersion**: `1.6.11`
+- **last pushed release**: `v1.6.11`
+- **working target**: `v1.6.12`
+- **current iteration**: downstream hardening patch complete locally, push pending
+- **harnessVersion**: `1.6.12`
 - **language/tone**: Korean user-facing, concise engineering notes
 
 ## 2. Status
 
-User reported GitHub Actions has failed since `195a91be51f3cefe4907f04759001e353a125c7b` (`v1.6.1`). Public Actions metadata shows the failing step is `Run npm test`. A clean WSL/Linux clone reproduced the failure in `test/run-codex-wrapper.test.ts`:
+User asked to proceed with all reviewed upstream harness fixes and to avoid section-exclusion parsing for Non-Goals/capture-channel prose.
 
-- `returns rc=1 when codex is missing`: test narrowed `PATH` so Linux could no longer resolve `bash`, producing `status=null`.
-- `rejects Windows npm shim paths when running under WSL`: generic Ubuntu runners do not have a `/mnt/c/...` checkout path, so the synthetic WSL env did not actually exercise the Windows shim path.
+v1.6.12 candidate implements:
 
-v1.6.11 candidate fixes this by:
-
-- resolving POSIX `bash` to an absolute path in the test harness,
-- adding `CODEX_BIN` support to `scripts/run-codex.sh`,
-- using `CODEX_BIN=/mnt/c/.../codex` in the WSL shim regression test.
+- provider command lookup now honors `cwd` and provider `env.PATH` during `commandExists()`;
+- Codex downstream initialization boundary in `AGENTS.md`, `_common-rules.md`, and Codex `vibe-init` skill guidance;
+- `/vibe-review` frontend opt-in detection now uses explicit `platform`, `PROJECT/HARNESS:review-signals`, or explicit `Platform:` lines instead of arbitrary product prose scanning;
+- `/vibe-init` guidance now writes explicit `PROJECT:review-signals` and no longer treats `mobile` alone as a browser/frontend signal;
+- `npm run test:ui` now uses `scripts/vibe-playwright-test.mjs`, with actionable install guidance when `@playwright/test` is absent and normal Playwright delegation when present.
 
 ## 3. Verification
 
-Completed:
-
-- `node --import tsx --test test/run-codex-wrapper.test.ts test/shell.test.ts` on Windows
-- WSL `npm ci` then `node --import tsx --test test/run-codex-wrapper.test.ts test/shell.test.ts`
-- Windows `npm ci` restored platform-local `node_modules`
-
-Pending final release verification:
+Completed on Windows:
 
 - `npm run typecheck`
-- `npm run build`
+- `node --import tsx --test test/shell.test.ts test/vibe-review-inputs.test.ts test/codex-skills.test.ts test/playwright-wrapper.test.ts test/sync.test.ts`
 - `npm test`
+- `npm run build`
+- `npm run test:ui -- --version`
 - `npm run test:ui`
-- `git diff --check`
-- `node scripts/vibe-preflight.mjs --bootstrap`
-- `npm run vibe:checkpoint -- --json`
+- `npm run vibe:config-audit --silent`
 
 ## 4. Preserved Value
 
-- Actual WSL protection against Windows npm shims remains intact.
-- Linux CI no longer depends on Windows-specific checkout path shape.
-- `CODEX_BIN` gives advanced users and tests an explicit Codex binary override without changing default PATH behavior.
+- Product-owned `devDependencies` remain project-owned; Playwright local UX is handled by a harness wrapper instead of forcing package.json dependency sync.
+- Product prose can mention Telegram mobile capture or a public web dashboard non-goal without seeding browser/bundle findings unless explicit platform markers say it is a frontend.
+- Downstream clones that still contain copied template state are instructed to run `/vibe-init` before Codex Generator or maintenance work.
 
 ## 5. Next Action
 
-Run final verification, commit/tag `v1.6.11`, then push `main` and the tag.
+Commit/tag `v1.6.12`, push `main` and the tag, then downstream can sync from `v1.6.12`.
 
 ## 6. Pending Risks
 
-- Existing open lightweight audit risk remains unrelated: `src/commands/init.ts has no test/init.test.ts`.
-- Audit cadence risks are open because `sprintsSinceLastAudit >= 5`.
+- `telegram-local-ingest` product issues remain separate: `pdftotext` readiness, PDF output policy, DOCX XML sanitizing.
+- Existing audit cadence state is unrelated to this patch.

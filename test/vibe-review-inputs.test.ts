@@ -298,6 +298,62 @@ describe('review inputs', () => {
     assert.deepEqual(issues, []);
   });
 
+  it('detectOptInGaps trusts review-signals marker blocks over product prose', () => {
+    const issues = detectOptInGaps(
+      {
+        bundle: { enabled: false },
+        browserSmoke: { enabled: false },
+      },
+      {
+        productText: [
+          '# Product',
+          '',
+          '<!-- BEGIN:PROJECT:review-signals -->',
+          'frontend = false',
+          'platforms = ["telegram-worker", "local-cli"]',
+          '<!-- END:PROJECT:review-signals -->',
+          '',
+          'Telegram mobile capture worker.',
+          'Non-goal: public web dashboard.',
+        ].join('\n'),
+        sessionLogRecent: [],
+      },
+    );
+
+    assert.deepEqual(issues, []);
+  });
+
+  it('detectOptInGaps does not infer frontend from unstructured product prose', () => {
+    const issues = detectOptInGaps(
+      {
+        bundle: { enabled: false },
+        browserSmoke: { enabled: false },
+      },
+      {
+        productText: 'Telegram mobile capture worker. Non-goal: public web dashboard.',
+        sessionLogRecent: [],
+      },
+    );
+
+    assert.deepEqual(issues, []);
+  });
+
+  it('detectOptInGaps accepts explicit platform seed values without scanning prose', () => {
+    const issues = detectOptInGaps(
+      {
+        bundle: { enabled: false },
+        browserSmoke: { enabled: false },
+      },
+      {
+        platform: 'browser app',
+        productText: 'Backend worker notes only.',
+        sessionLogRecent: [],
+      },
+    );
+
+    assert.equal(issues.length, 2);
+  });
+
   it('collectReviewInputs includes productFetcherPaths for Next.js app/api routes', async () => {
     const root = await makeTempDir('review-fetcher-paths-');
     await scaffoldRepo(root);

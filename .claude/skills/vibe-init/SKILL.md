@@ -423,6 +423,17 @@ Phase 3 인터뷰는 `scripts/vibe-interview.mjs`만 사용합니다.
 
 작성 완료 후 Orchestrator는 `seedForProductMd`를 `docs/context/product.md`의 `## Phase 3 답변 기록 (native interview)` 섹션에 append합니다.
 
+Also write an explicit review signal block in `docs/context/product.md` so `/vibe-review` does not infer frontend status from arbitrary prose:
+
+```md
+<!-- BEGIN:PROJECT:review-signals -->
+platforms = ["<normalized platform>"]
+frontend = true|false
+<!-- END:PROJECT:review-signals -->
+```
+
+Use `frontend = true` only when the product is a browser/web frontend that should be considered for bundle and browser-smoke opt-in review seeds. Use `frontend = false` for workers, CLIs, data pipelines, capture/import tools, and non-browser apps.
+
 기존 세션의 legacy interview 디렉터리가 남아 있어도 vibe-doctor는 사용하지 않습니다. 사용자가 직접 제거할 수 있습니다.
 
 ### Step 3-3: conventions.md test and lint shard links
@@ -458,8 +469,8 @@ After Step 3-3, inspect `inferred_domain`, `dimensions.platform`, and `tech_stac
 
 Treat the project as a web/frontend candidate when either condition matches:
 
-- `normalized_slugs[]` includes a `ts-` stack slug related to web, browser, or mobile work such as `ts-react`, `ts-vue`, `ts-svelte`, `ts-vite`, or `ts-next`
-- `platform` contains `web`, `mobile`, or `browser`
+- `normalized_slugs[]` includes a `ts-` stack slug related to browser/frontend work such as `ts-react`, `ts-vue`, `ts-svelte`, `ts-vite`, or `ts-next`
+- `platform` explicitly names a browser/web/frontend surface. Do not treat `mobile` alone as a browser/frontend signal unless it is `mobile web`.
 
 Decision flow:
 

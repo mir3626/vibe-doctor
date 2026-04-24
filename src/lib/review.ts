@@ -11,7 +11,9 @@ const execFile = promisify(execFileCallback);
 const DEFAULT_RECENT_ENTRIES = 50;
 const DEFAULT_GIT_COMMITS = 20;
 const PHASE3_UTILITY_OPT_IN_TAG = '[decision][phase3-utility-opt-in]';
-const WEB_PLATFORM_PATTERN = /\b(web|mobile|browser)\b/i;
+const FRONTEND_PLATFORM_PATTERN = /\b(web|browser|frontend|next(?:\.js)?|react|vue|svelte)\b/i;
+const REVIEW_SIGNALS_BLOCK_PATTERN =
+  /<!--\s*BEGIN:(?:HARNESS|PROJECT):review-signals\s*-->([\s\S]*?)<!--\s*END:(?:HARNESS|PROJECT):review-signals\s*-->/gi;
 const PRODUCT_FETCHER_ROUTE_FILES = new Set(['route.ts', 'route.tsx', 'route.mjs', 'route.js']);
 const PRODUCT_FETCHER_SKIP_DIRS = new Set(['node_modules', '.next', 'dist', '.vibe']);
 const WIRING_REFERENCE_FILES = [
@@ -70,6 +72,11 @@ export interface ReviewSeedInput {
   productText?: string;
   platform?: string | string[];
   sessionLogRecent?: string[];
+}
+
+interface ReviewSignals {
+  frontend?: boolean;
+  platforms: string[];
 }
 
 export interface ReviewIssueSeed {
@@ -621,24 +628,109 @@ export async function collectPendingRestorationDecisions(
   return [...bySlug.values()];
 }
 
-function normalizePlatformSignals(seed: ReviewSeedInput): string[] {
-  const signals: string[] = [];
+function parseBoolean(value: string): boolean | undefined {
+  const normalized = value.trim().replace(/^['"]|['"]$/g, '').toLowerCase();
+  if (normalized === 'true' || normalized === 'yes' || normalized === '1') {
+    return true;
+  }
+  if (normalized === 'false' || normalized === 'no' || normalized === '0') {
+    return false;
+  }
+  return undefined;
+}
+
+function parseStringList(value: string): string[] {
+  const trimmed = value.trim();
+  const arrayMatch = trimmed.match(/^\[(.*)]$/);
+  const rawItems = arrayMatch ? (arrayMatch[1]?.trim() ? arrayMatch[1].split(',') : []) : [trimmed];
+
+  return rawItems
+    .map((item) => item.trim().replace(/^['"]|['"]$/g, ''))
+    .filter((item) => item.length > 0);
+}
+
+function parseReviewSignalsBlock(productText: string): ReviewSignals | null {
+  const signals: ReviewSignals = { platforms: [] };
+  REVIEW_SIGNALS_BLOCK_PATTERN.lastIndex = 0;
+  let found = false;
+  let match = REVIEW_SIGNALS_BLOCK_PATTERN.exec(productText);
+
+  while (match) {
+    found = true;
+    const body = match[1] ?? '';
+    for (const rawLine of body.split(/\r?\n/)) {
+      const line = rawLine.trim();
+      if (line.length === 0 || line.startsWith('#')) {
+        continue;
+      }
+
+      const keyValue = line.match(/^([A-Za-z][\w-]*)\s*[:=]\s*(.+)$/);
+      if (!keyValue?.[1] || !keyValue[2]) {
+        continue;
+      }
+
+      const key = keyValue[1].toLowerCase();
+      const value = keyValue[2];
+      if (key === 'frontend') {
+        const parsed = parseBoolean(value);
+        if (typeof parsed === 'boolean') {
+          signals.frontend = parsed;
+        }
+      } else if (key === 'platform' || key === 'platforms') {
+        signals.platforms.push(...parseStringList(value));
+      }
+    }
+
+    match = REVIEW_SIGNALS_BLOCK_PATTERN.exec(productText);
+  }
+
+  return found ? signals : null;
+}
+
+function extractExplicitProductPlatforms(productText: string): string[] {
+  const platforms: string[] = [];
+
+  for (const rawLine of productText.split(/\r?\n/)) {
+    const match = rawLine.match(/^\s*(?:[-*]\s*)?(?:\*\*)?platforms?(?:\*\*)?\s*[:=]\s*(.+)$/i);
+    if (match?.[1]) {
+      platforms.push(...parseStringList(match[1]));
+    }
+  }
+
+  return platforms;
+}
+
+function normalizePlatformSignals(seed: ReviewSeedInput): ReviewSignals {
+  const signals: ReviewSignals = { platforms: [] };
 
   if (Array.isArray(seed.platform)) {
-    signals.push(...seed.platform);
+    signals.platforms.push(...seed.platform);
   } else if (typeof seed.platform === 'string') {
-    signals.push(seed.platform);
+    signals.platforms.push(seed.platform);
+  }
+
+  if (signals.platforms.length > 0) {
+    return signals;
   }
 
   if (typeof seed.productText === 'string') {
-    signals.push(seed.productText);
+    const blockSignals = parseReviewSignalsBlock(seed.productText);
+    if (blockSignals) {
+      return blockSignals;
+    }
+    signals.platforms.push(...extractExplicitProductPlatforms(seed.productText));
   }
 
   return signals;
 }
 
 function isWebPlatformSeed(seed: ReviewSeedInput): boolean {
-  return normalizePlatformSignals(seed).some((signal) => WEB_PLATFORM_PATTERN.test(signal));
+  const signals = normalizePlatformSignals(seed);
+  if (typeof signals.frontend === 'boolean') {
+    return signals.frontend;
+  }
+
+  return signals.platforms.some((signal) => FRONTEND_PLATFORM_PATTERN.test(signal));
 }
 
 function hasUtilityOptInDecision(seed: ReviewSeedInput): boolean {

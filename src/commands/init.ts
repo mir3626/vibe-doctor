@@ -215,6 +215,19 @@ async function ensureInitialAgentState(): Promise<void> {
 
 // ─── project customization ────────────────────────────────────────
 
+function formatReviewSignals(platform: string): string {
+  const platforms = platform
+    .split(',')
+    .map((entry) => entry.trim())
+    .filter((entry) => entry.length > 0);
+
+  return [
+    '<!-- BEGIN:PROJECT:review-signals -->',
+    `platforms = ${JSON.stringify(platforms)}`,
+    '<!-- END:PROJECT:review-signals -->',
+  ].join('\n');
+}
+
 async function customizeProduct(rl: readline.Interface): Promise<void> {
   hr();
   console.log('\n📋 Step 1/3 — 프로젝트 기본 정보\n');
@@ -239,6 +252,8 @@ ${goals.length > 0 ? goals.map(g => `- ${g}`).join('\n') : '- (아직 정의되�
 
 ## 플랫폼
 ${platform ? platform.split(',').map(p => `- ${p.trim()}`).join('\n') : '- (아직 정의되지 않음)'}
+
+${formatReviewSignals(platform)}
 `;
 
   await writeText(path.join(paths.root, 'docs', 'context', 'product.md'), content);

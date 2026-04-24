@@ -1,5 +1,15 @@
 # Sprint 공용 규칙 (프롬프트 조각)
 
+## 0. Initialization boundary (CRITICAL)
+
+Before any Sprint Generator or Codex Orchestrator maintenance work in a downstream clone, the project must be initialized by `/vibe-init`.
+
+Required project-owned state:
+- `docs/context/product.md` exists, is non-empty, and describes the current project rather than the `vibe-doctor` template.
+- `.vibe/agent/sprint-status.json` exists and `project.name` is not `vibe-doctor`.
+
+If either artifact is missing, malformed, empty, or template-owned, stop all non-init work and run the `vibe-init` workflow first. Codex skill execution must use `npm run vibe:init -- --from-agent-skill`; direct agent shell use of plain `npm run vibe:init` is not the init path.
+
 > **사용법**: Planner는 Sprint 프롬프트를 생성할 때 이 파일의 내용을 "Rules" 섹션 앞에
 > 그대로 붙이거나, 프롬프트 상단에 `(공용 규칙은 `.vibe/agent/_common-rules.md` 준수)`
 > 한 줄 포함 후 Sprint 고유 규칙만 추가한다. 중복을 피해 토큰 예산을 절약한다.

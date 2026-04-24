@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { chmod, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { chmod, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, it } from 'node:test';
@@ -48,5 +48,36 @@ describe('shell command runner', () => {
 
     assert.equal(result.exitCode, 0);
     assert.equal(result.stdout.trim(), 'arg=hello world');
+  });
+
+  it('checks provider commands with the supplied cwd and PATH env', async () => {
+    const root = await makeTempDir('vibe-shell-provider-path-');
+    const binDir = path.join(root, 'bin');
+    await mkdir(binDir, { recursive: true });
+
+    const commandName = 'vibe-provider-probe';
+    const commandPath =
+      process.platform === 'win32'
+        ? path.join(binDir, `${commandName}.cmd`)
+        : path.join(binDir, commandName);
+    const body =
+      process.platform === 'win32'
+        ? '@echo off\r\necho provider-ok\r\n'
+        : '#!/usr/bin/env sh\necho provider-ok\n';
+    await writeFile(commandPath, body, 'utf8');
+    if (process.platform !== 'win32') {
+      await chmod(commandPath, 0o755);
+    }
+
+    const env = {
+      PATH: `${binDir}${path.delimiter}${process.env.PATH ?? ''}`,
+    };
+
+    assert.equal(await commandExists(commandName, { cwd: root, env }), true);
+
+    const result = await runCommand(commandName, [], { cwd: root, env });
+
+    assert.equal(result.exitCode, 0);
+    assert.equal(result.stdout.trim(), 'provider-ok');
   });
 });

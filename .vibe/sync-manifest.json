@@ -13,6 +13,7 @@
       "scripts/vibe-stop-qa-gate.mjs",
       "scripts/vibe-phase0-seal.mjs",
       "scripts/vibe-browser-smoke.mjs",
+      "scripts/vibe-playwright-test.mjs",
       "playwright.config.ts",
       "test/playwright/**",
       "scripts/vibe-audit-clear.mjs",
@@ -112,6 +113,7 @@
       "scripts/run-codex.cmd",
       "test/run-codex-wrapper.test.ts",
       "test/shell.test.ts",
+      "test/playwright-wrapper.test.ts",
       "test/init-guard.test.ts",
       "test/codex-agents.test.ts",
       "test/codex-skills.test.ts",
@@ -219,6 +221,7 @@
       "docs/release/v1.6.9.md",
       "docs/release/v1.6.10.md",
       "docs/release/v1.6.11.md",
+      "docs/release/v1.6.12.md",
       "migrations/1.6.2.mjs"
     ],
     "hybrid": {

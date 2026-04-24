@@ -386,7 +386,7 @@ describe('jsonDeepMerge', () => {
       },
       {
         scripts: {
-          'test:ui': 'playwright test',
+          'test:ui': 'node scripts/vibe-playwright-test.mjs',
         },
       },
       {
@@ -398,7 +398,7 @@ describe('jsonDeepMerge', () => {
     assert.deepEqual(merged, {
       scripts: {
         test: 'vitest',
-        'test:ui': 'playwright test',
+        'test:ui': 'node scripts/vibe-playwright-test.mjs',
       },
     });
   });
@@ -794,6 +794,7 @@ describe('sync manifest', () => {
     assert.equal(manifest.files.harness.includes('.claude/skills/lint-patterns/**'), true);
     assert.equal(manifest.files.harness.includes('scripts/vibe-phase0-seal.mjs'), true);
     assert.equal(manifest.files.harness.includes('scripts/vibe-browser-smoke.mjs'), true);
+    assert.equal(manifest.files.harness.includes('scripts/vibe-playwright-test.mjs'), true);
     assert.equal(manifest.files.harness.includes('playwright.config.ts'), true);
     assert.equal(manifest.files.harness.includes('test/playwright/**'), true);
     assert.equal(manifest.files.harness.includes('src/commands/bundle-size.ts'), true);
@@ -845,9 +846,11 @@ describe('sync manifest', () => {
     assert.equal(manifest.files.harness.includes('docs/release/v1.6.9.md'), true);
     assert.equal(manifest.files.harness.includes('docs/release/v1.6.10.md'), true);
     assert.equal(manifest.files.harness.includes('docs/release/v1.6.11.md'), true);
+    assert.equal(manifest.files.harness.includes('docs/release/v1.6.12.md'), true);
     assert.equal(manifest.files.hybrid['package.json']?.harnessKeys?.includes('scripts.test:ui'), true);
     assert.equal(manifest.files.harness.includes('test/phase0-seal.test.ts'), true);
     assert.equal(manifest.files.harness.includes('test/browser-smoke-contract.test.ts'), true);
+    assert.equal(manifest.files.harness.includes('test/playwright-wrapper.test.ts'), true);
     assert.equal(manifest.files.project.includes('.vibe/agent/project-map.json'), true);
     assert.equal(manifest.files.project.includes('.vibe/agent/sprint-api-contracts.json'), true);
     assert.equal(manifest.files.project.includes('.vibe/agent/project-decisions.jsonl'), true);

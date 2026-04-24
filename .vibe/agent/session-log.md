@@ -20,6 +20,7 @@
 
 ## Entries
 
+- 2026-04-24T08:13:22.847Z [harness-review] v1.6.12 candidate hardens downstream init/review/playwright surfaces: provider PATH lookup, Codex init boundary, explicit review-signals platform detection, and Playwright test wrapper all verified locally.
 - 2026-04-24T06:46:59.619Z [sprint-complete] sprint-linux-ci-run-codex-wrapper -> passed. v1.6.11 fixes the GitHub Actions npm test failure introduced at v1.6.1 by making run-codex wrapper tests deterministic on Linux CI.
 - 2026-04-24T06:32:15.136Z [sprint-complete] sprint-playwright-dashboard-report-smoke -> passed. v1.6.10 adds Playwright browser smoke tests for dashboard attention and project-report controls while keeping downstream harness typecheck independent from Playwright installation.
 - 2026-04-24T06:13:41.477Z [sprint-complete] sprint-dashboard-attention-wiring -> passed. v1.6.9 wires dashboard attention events through Claude Notification hooks and Codex wrapper completion/failure events; wiring drift output is now empty.

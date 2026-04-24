@@ -112,7 +112,16 @@ export async function commandExists(
   }
 
   const checker = process.platform === 'win32' ? 'where' : 'which';
-  const result = await runCommand(checker, [command], { allowFailure: true });
+  const checkOptions: { cwd?: string; env?: NodeJS.ProcessEnv; allowFailure: true } = {
+    allowFailure: true,
+  };
+  if (options?.cwd !== undefined) {
+    checkOptions.cwd = options.cwd;
+  }
+  if (options?.env !== undefined) {
+    checkOptions.env = options.env;
+  }
+  const result = await runCommand(checker, [command], checkOptions);
   return result.exitCode === 0;
 }
 
@@ -121,7 +130,7 @@ export async function runCommand(
   args: string[],
   options?: {
     cwd?: string;
-    env?: Record<string, string>;
+    env?: NodeJS.ProcessEnv;
     allowFailure?: boolean;
   },
 ): Promise<CommandResult> {

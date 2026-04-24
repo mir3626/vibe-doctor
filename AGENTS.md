@@ -11,6 +11,16 @@ Codex는 두 가지 모드로 사용된다. 현재 세션이 어떤 모드인지
 
 아래 Generator 원칙은 **Sprint Generator mode**에 적용된다.
 
+## Initialization boundary (required)
+
+Before doing Sprint Generator work or Codex Orchestrator maintenance work in a downstream clone, verify that the project has been initialized by `/vibe-init`.
+
+Required project-owned state:
+- `docs/context/product.md` exists, is non-empty, and describes the current project rather than the `vibe-doctor` template.
+- `.vibe/agent/sprint-status.json` exists and `project.name` is not `vibe-doctor`.
+
+If either file is missing, empty, malformed, or template-owned, stop all non-init work. Run the `vibe-init` workflow first. In Codex skill execution, use `npm run vibe:init -- --from-agent-skill`; do not use plain `npm run vibe:init` from an agent session.
+
 원칙:
 - Planner의 스펙과 체크리스트 범위를 벗어나지 않는다.
 - 구현 방법(HOW)은 너의 재량이다 — 기술 스택, 디자인 패턴, 파일 구조를 자유롭게 선택한다.

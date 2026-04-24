@@ -13,6 +13,7 @@ When this skill is invoked in Codex, open and follow:
 
 Codex notes:
 
+- If `docs/context/product.md` or `.vibe/agent/sprint-status.json` is missing, empty, malformed, or still describes the `vibe-doctor` template, treat this skill as the only allowed workflow before any product or harness maintenance work.
 - Treat Claude-specific UI references as references to the active agent session unless the source explicitly describes Claude-only behavior.
 - When the source skill tells the agent to run `npm run vibe:init`, run `npm run vibe:init -- --from-agent-skill`.
 - Keep `.vibe/agent/handoff.md` and `.vibe/agent/session-log.md` current when the source skill requires context persistence.

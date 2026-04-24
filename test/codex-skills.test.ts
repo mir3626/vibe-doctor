@@ -43,6 +43,17 @@ describe('Codex skill parity', () => {
     const wrapper = await readFile(path.join(process.cwd(), '.codex', 'skills', 'vibe-init', 'SKILL.md'), 'utf8');
 
     assert.match(wrapper, /npm run vibe:init -- --from-agent-skill/);
+    assert.match(wrapper, /docs\/context\/product\.md/);
+    assert.match(wrapper, /\.vibe\/agent\/sprint-status\.json/);
+    assert.match(wrapper, /only allowed workflow/);
+  });
+
+  it('documents explicit review signal markers in shared vibe-init guidance', async () => {
+    const shared = await readFile(path.join(process.cwd(), '.claude', 'skills', 'vibe-init', 'SKILL.md'), 'utf8');
+
+    assert.match(shared, /BEGIN:PROJECT:review-signals/);
+    assert.match(shared, /frontend = true\|false/);
+    assert.match(shared, /bundle and browser-smoke opt-in review seeds/);
   });
 
   it('documents the Codex Orchestrator checkpoint workflow in maintain-context', async () => {
@@ -53,5 +64,17 @@ describe('Codex skill parity', () => {
     assert.match(shared, /npm run vibe:checkpoint/);
     assert.match(shared, /Generator agents normally do not need this workflow/);
     assert.match(wrapper, /Codex main Orchestrator sessions/);
+  });
+
+  it('documents the downstream initialization boundary in Codex agent memory', async () => {
+    const agents = await readFile(path.join(process.cwd(), 'AGENTS.md'), 'utf8');
+    const commonRules = await readFile(path.join(process.cwd(), '.vibe', 'agent', '_common-rules.md'), 'utf8');
+
+    for (const content of [agents, commonRules]) {
+      assert.match(content, /Initialization boundary/);
+      assert.match(content, /docs\/context\/product\.md/);
+      assert.match(content, /\.vibe\/agent\/sprint-status\.json/);
+      assert.match(content, /npm run vibe:init -- --from-agent-skill/);
+    }
   });
 });

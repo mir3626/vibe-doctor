@@ -19,5 +19,5 @@ jobs:
       - run: npm test
       - run: npm install --no-save --no-package-lock @playwright/test
       - run: npx playwright install --with-deps chromium
-      - run: npx playwright test
+      - run: npm run test:ui
       - run: npm run vibe:config-audit --silent
