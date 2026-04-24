@@ -17,7 +17,7 @@ import {
 import {
   hasVibeInitArtifacts,
   resolveMissingUpstream,
-  resolvePinnedRefUpdateCandidate,
+  resolveFloatingRefUpdateCandidate,
   resolvePostSyncTypecheckArgs,
   renderSyncInitGuardMessage,
   resolveUpstreamRef,
@@ -60,12 +60,19 @@ function minimalConfig(overrides: Partial<VibeConfig> = {}): VibeConfig {
 }
 
 describe('resolveUpstreamRef', () => {
-  it('keeps a semver upstream ref pinned by default', () => {
+  it('preserves exact semver upstream refs as hard pins', () => {
     assert.equal(resolveUpstreamRef(minimalConfig(), undefined, { latestVersion: 'v1.5.9' }), 'v1.4.3');
   });
 
-  it('uses cached latestVersion for a pinned ref only after an explicit update decision', () => {
-    assert.equal(resolveUpstreamRef(minimalConfig(), undefined, { latestVersion: 'v1.5.9' }, 'update'), 'v1.5.9');
+  it('floats caret upstream refs to the latest compatible cached version', () => {
+    const config = minimalConfig({
+      upstream: { type: 'git', url: 'https://github.com/mir3626/vibe-doctor.git', ref: '^v1.4.3' },
+    });
+
+    assert.equal(
+      resolveUpstreamRef(config, undefined, { latestVersion: 'v2.0.0', versions: ['1.4.3', '1.5.9', '2.0.0'] }),
+      'v1.5.9',
+    );
   });
 
   it('uses cached latestVersion for unpinned default sync when the project is behind', () => {
@@ -92,18 +99,76 @@ describe('resolveUpstreamRef', () => {
     assert.equal(resolveUpstreamRef(minimalConfig(), undefined, { latestVersion: 'v1.4.3' }), 'v1.4.3');
   });
 
-  it('reports an update candidate only when a pinned semver ref is behind latestVersion', () => {
-    assert.deepEqual(resolvePinnedRefUpdateCandidate(minimalConfig(), { latestVersion: 'v1.5.9' }), {
-      pinnedRef: 'v1.4.3',
-      latestRef: 'v1.5.9',
-    });
-    assert.equal(resolvePinnedRefUpdateCandidate(minimalConfig(), { latestVersion: 'v1.4.3' }), undefined);
+  it('reports an update candidate only when a caret range has a compatible newer version', () => {
+    assert.deepEqual(
+      resolveFloatingRefUpdateCandidate(
+        minimalConfig({ upstream: { type: 'git', url: 'https://github.com/mir3626/vibe-doctor.git', ref: '^v1.4.3' } }),
+        { latestVersion: 'v2.0.0', versions: ['1.4.3', '1.5.9', '2.0.0'] },
+      ),
+      {
+        rangeRef: '^v1.4.3',
+        baseRef: 'v1.4.3',
+        latestRef: 'v1.5.9',
+      },
+    );
+    assert.equal(resolveFloatingRefUpdateCandidate(minimalConfig(), { latestVersion: 'v1.5.9' }), undefined);
     assert.equal(
-      resolvePinnedRefUpdateCandidate(
+      resolveFloatingRefUpdateCandidate(
+        minimalConfig({ upstream: { type: 'git', url: 'https://github.com/mir3626/vibe-doctor.git', ref: '^v1.4.3' } }),
+        { latestVersion: 'v2.0.0', versions: ['2.0.0'] },
+      ),
+      undefined,
+    );
+    assert.deepEqual(
+      resolveFloatingRefUpdateCandidate(
+        minimalConfig({ upstream: { type: 'git', url: 'https://github.com/mir3626/vibe-doctor.git', ref: '^1.4.3' } }),
+        { latestVersion: 'v1.5.9' },
+      ),
+      {
+        rangeRef: '^1.4.3',
+        baseRef: 'v1.4.3',
+        latestRef: 'v1.5.9',
+      },
+    );
+    assert.equal(
+      resolveFloatingRefUpdateCandidate(
         minimalConfig({ upstream: { type: 'git', url: 'https://github.com/mir3626/vibe-doctor.git', ref: 'main' } }),
         { latestVersion: 'v1.5.9' },
       ),
       undefined,
+    );
+  });
+
+  it('does not let zero-major caret ranges cross their semver boundary', () => {
+    assert.equal(
+      resolveUpstreamRef(
+        minimalConfig({ upstream: { type: 'git', url: 'https://github.com/mir3626/vibe-doctor.git', ref: '^v0.5.0' } }),
+        undefined,
+        { latestVersion: 'v0.6.0', versions: ['0.5.0', '0.5.4', '0.6.0'] },
+      ),
+      'v0.5.4',
+    );
+    assert.equal(
+      resolveUpstreamRef(
+        minimalConfig({ upstream: { type: 'git', url: 'https://github.com/mir3626/vibe-doctor.git', ref: '^v0.0.3' } }),
+        undefined,
+        { latestVersion: 'v0.0.4', versions: ['0.0.3', '0.0.4'] },
+      ),
+      'v0.0.3',
+    );
+  });
+
+  it('tracks latestVersion for caret ranges when the cache has no version list yet', () => {
+    assert.deepEqual(
+      resolveFloatingRefUpdateCandidate(
+        minimalConfig({ upstream: { type: 'git', url: 'https://github.com/mir3626/vibe-doctor.git', ref: '^v1.4.3' } }),
+        { latestVersion: 'v1.5.9' },
+      ),
+      {
+        rangeRef: '^v1.4.3',
+        baseRef: 'v1.4.3',
+        latestRef: 'v1.5.9',
+      },
     );
   });
 });
@@ -716,6 +781,7 @@ describe('sync manifest', () => {
     assert.equal(manifest.files.harness.includes('docs/release/v1.5.14.md'), true);
     assert.equal(manifest.files.harness.includes('docs/release/v1.5.15.md'), true);
     assert.equal(manifest.files.harness.includes('docs/release/v1.5.16.md'), true);
+    assert.equal(manifest.files.harness.includes('docs/release/v1.6.3.md'), true);
     assert.equal(manifest.files.harness.includes('.codex/skills/**'), true);
     assert.equal(manifest.files.harness.includes('test/init-guard.test.ts'), true);
     assert.equal(manifest.files.harness.includes('test/codex-skills.test.ts'), true);

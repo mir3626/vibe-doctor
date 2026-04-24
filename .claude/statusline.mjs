@@ -165,6 +165,10 @@ function compareVersions(left, right) {
   return 0;
 }
 
+function isExactVersionRef(value) {
+  return typeof value === 'string' && /^v?\d+\.\d+\.\d+$/.test(value.trim());
+}
+
 function getVersionSuffix(root) {
   const config = readJsonOptional(path.join(root, '.vibe', 'config.json'));
   const installedRaw = getString(config?.harnessVersionInstalled) ?? getString(config?.harnessVersion);
@@ -178,6 +182,9 @@ function getVersionSuffix(root) {
   const latestRaw = getString(syncCache?.latestVersion);
   const latestParts = latestRaw ? toVersionParts(latestRaw) : undefined;
   if (latestRaw && latestParts && compareVersions(installedParts, latestParts) < 0) {
+    if (isExactVersionRef(config?.upstream?.ref)) {
+      return `v${installedVersion} pinned`;
+    }
     return `v${installedVersion} \u26A0 v${normalizeVersion(latestRaw)} (/vibe-sync)`;
   }
 

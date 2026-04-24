@@ -177,6 +177,23 @@ describe('statusline.mjs', () => {
 
     assert.equal(stdout, '🎯 sprint-M9-statusline-permissions (2/3) | 💭 Claude 2K | ⚠️ 2');
   });
+
+  it('does not show update nags for exact upstream pins', async () => {
+    const root = await makeTempDir('statusline-node-exact-pin-');
+    await writeStatus(root);
+    await writeJson(root, path.join('.vibe', 'config.json'), {
+      harnessVersionInstalled: '1.3.1',
+      upstream: { type: 'git', url: 'https://github.com/mir3626/vibe-doctor.git', ref: 'v1.3.1' },
+    });
+    await writeJson(root, path.join('.vibe', 'sync-cache.json'), {
+      latestVersion: '1.4.0',
+    });
+
+    const { stdout } = runNodeStatusline(root);
+
+    assert.match(stdout, /v1\.3\.1 pinned$/);
+    assert.doesNotMatch(stdout, /\/vibe-sync/);
+  });
 });
 
 describe('statusline.sh', { skip: bashCommand === null }, () => {
@@ -296,6 +313,23 @@ describe('statusline.sh', { skip: bashCommand === null }, () => {
     const { stdout } = await runBashStatusline(root);
 
     assert.equal(stdout, '🎯 sprint-M9-statusline-permissions (2/3) | ⚠️ 2 | 🏷️ v1.3.1 \u26A0 v1.4.0 (/vibe-sync)');
+  });
+
+  it('bash statusline does not show update nags for exact upstream pins', async () => {
+    const root = await makeTempDir('statusline-exact-pin-');
+    await writeStatus(root);
+    await writeJson(root, path.join('.vibe', 'config.json'), {
+      harnessVersionInstalled: '1.3.1',
+      upstream: { type: 'git', url: 'https://github.com/mir3626/vibe-doctor.git', ref: 'v1.3.1' },
+    });
+    await writeJson(root, path.join('.vibe', 'sync-cache.json'), {
+      latestVersion: '1.4.0',
+    });
+
+    const { stdout } = await runBashStatusline(root);
+
+    assert.match(stdout, /v1\.3\.1 pinned$/);
+    assert.doesNotMatch(stdout, /\/vibe-sync/);
   });
 
   it('bash statusline omits suffix when config missing', async () => {

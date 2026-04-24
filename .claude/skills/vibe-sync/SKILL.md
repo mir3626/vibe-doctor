@@ -75,17 +75,21 @@ curl -sL https://raw.githubusercontent.com/mir3626/vibe-doctor/main/scripts/vibe
 업스트림은 릴리스마다 `v{major}.{minor}.{patch}` 형식으로 태그를 찍습니다(예: `v1.0.0`,
 `v1.0.1`). 다운스트림은 아래 우선순위로 참조를 결정합니다:
 
-1. `--ref <x>` CLI 플래그 (최고 우선)
+1. `--ref <x>` CLI 플래그 (최고 우선, 이번 실행에서만 override)
 2. `.vibe/config.json`의 `upstream.ref` 필드
-3. `harnessVersion`이 `x.y.z` 패턴이면 `v{harnessVersion}`을 태그로 시도
-4. 그래도 안 되면 `main`으로 fallback
+   - exact `vX.Y.Z` 또는 `X.Y.Z`: hard pin. plain sync는 해당 태그에 머뭅니다.
+   - caret `^vX.Y.Z` 또는 `^X.Y.Z`: floating compatible range. plain sync는 캐시된 최신 호환 태그로 이동합니다.
+   - `main` 같은 브랜치 이름: 그대로 사용합니다.
+3. `upstream.ref`가 없으면 캐시된 `latestVersion`이 설치 버전보다 최신일 때 그 태그 사용
+4. 캐시 업데이트가 없으면 `harnessVersion`의 `v{harnessVersion}` 태그 시도
+5. 그래도 안 되면 `main`으로 fallback
 
-이 동작 때문에 **업스트림이 태그를 안 찍어두면** 다운스트림이 `upstream.ref`를 명시하지
-않았을 때 fallback에 의존하게 됩니다. `vibe-sync-bootstrap.mjs`는 bootstrap 시점에
-`upstream.ref: "v${harnessVersion}"`을 자동으로 기입하므로, 새로 부트스트랩하는 프로젝트는
-이 부분을 신경 쓸 필요가 없습니다.
+기본 템플릿은 caret ref를 사용합니다. 따라서 일반 사용자는 `/vibe-sync`만 실행해도 호환되는
+최신 하네스로 이동합니다. exact ref는 의도적인 pin이 필요할 때만 사용합니다. 기존 프로젝트가
+`"ref": "v1.5.15"`처럼 exact ref에 머물러 있다면, 계속 pin하려는 의도가 아니면
+`"ref": "^v1.5.15"`로 바꾸거나 `npm run vibe:sync -- --ref vX.Y.Z`로 한 번 업데이트합니다.
 
 ### 기존 legacy 프로젝트가 이미 ref 없이 부트스트랩된 경우
 
-- 일회성 우회: `npm run vibe:sync -- --ref main` (또는 `--ref v1.0.0`)
-- 영구 수정: `.vibe/config.json`의 `upstream` 블록에 `"ref": "v1.0.0"`을 추가
+- 일회성 우회: `npm run vibe:sync -- --ref main` 또는 `npm run vibe:sync -- --ref vX.Y.Z`
+- 영구 floating 설정: `.vibe/config.json`의 `upstream` 블록에 `"ref": "^vX.Y.Z"`를 추가
