@@ -107,6 +107,7 @@
       "migrations/1.1.0.mjs",
       "scripts/run-codex.cmd",
       "test/run-codex-wrapper.test.ts",
+      "test/shell.test.ts",
       "test/init-guard.test.ts",
       "test/codex-skills.test.ts",
       "test/agent-session-start.test.ts",
@@ -201,7 +202,8 @@
       "docs/release/v1.5.15.md",
       "docs/release/v1.5.16.md",
       "docs/release/v1.5.17.md",
-      "docs/release/v1.6.0.md"
+      "docs/release/v1.6.0.md",
+      "docs/release/v1.6.1.md"
     ],
     "hybrid": {
       "CLAUDE.md": {

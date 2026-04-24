@@ -28,6 +28,9 @@
 
 - `child_process.spawn` 사용 시 `shell: process.platform === 'win32'` 옵션을 추가한다.
   - Windows에서 `npm` 등은 실제로 `.cmd` 파일이므로 shell 없이 spawn하면 ENOENT 발생.
+- Windows에서 `.sh` provider wrapper를 실행해야 할 때는 bare `bash` 대신 Git Bash의 절대 경로를 사용한다.
+  - `C:\Users\<user>\AppData\Local\Microsoft\WindowsApps\bash.exe` 는 WSL launcher이므로 Windows-native wrapper 실행 경로로 사용하지 않는다.
+  - WSL에서는 Linux용 `node`/`codex`를 별도 설치한다. `/mnt/c/.../npm/codex` 같은 Windows npm shim을 Linux 도구로 간주하지 않는다.
 - Claude Code hook 명령어는 플랫폼별 래퍼 없이 `npm run ...` 형태로만 작성한다.
   - Claude Code가 OS에 맞는 셸로 알아서 실행하므로 `cmd /c` 접두사는 Unix에서 깨지고 Windows에서는 이중 셸을 유발한다.
 - 셸 스크립트(`.sh`)는 반드시 LF 줄 끝으로 커밋한다 (`.gitattributes`가 강제).

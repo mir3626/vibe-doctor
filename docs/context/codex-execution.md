@@ -55,6 +55,13 @@ cat docs/prompts/task.md | ./scripts/run-codex.sh -
 가리키므로, `vibe:run-agent --provider codex` 호출도 자동으로
 wrapper를 경유한다.
 
+Windows에서 `vibe:run-agent`가 이 POSIX wrapper를 실행할 때는 bare `bash`를
+사용하지 않고 Git Bash 실행 파일을 직접 탐색한다. `where bash` 결과가
+`WindowsApps\bash.exe`이면 WSL launcher이므로 Windows Codex wrapper 실행에
+사용하지 않는다. WSL에서 Codex를 실행하려면 Linux용 `node`와 `codex`를 WSL
+내부에 별도로 설치한다. Windows npm shim(`/mnt/c/.../npm/codex`)은 WSL Codex
+실행 경로로 지원하지 않는다.
+
 wrapper가 자동 설정하는 항목:
 
 | 항목 | 값 | 이유 |

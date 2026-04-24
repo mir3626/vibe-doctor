@@ -12,6 +12,7 @@
 |---|---|---|---|---|---|
 | gap-mcp-frozen-pid | legacy MCP stale PID 로 Phase 3 인터뷰 기동 실패 (Windows) | `scripts/vibe-interview.mjs` native fallback (M5) | covered | covered | — |
 | gap-windows-cli-path | Windows 에서 `./scripts/run-codex.sh` 가 provider health check 에서 cmd.exe fallback 으로 실패 | `.claude/skills/vibe-init/SKILL.md` Step 2-3 OS 감지 + `run-codex.cmd` (M2) | covered | covered | — |
+| gap-windows-wsl-bash-collision | Windows PATH에서 bare bash가 Git Bash가 아니라 WindowsApps\bash.exe WSL launcher로 resolve되어 Codex wrapper가 WSL로 새거나 CODEX_*/VIBE_* env가 누락됨. | src/lib/shell.ts Git Bash resolver + explicit .sh provider execution; scripts/run-codex.sh WSL Windows-shim guard; tests in test/shell.test.ts and test/run-codex-wrapper.test.ts. | covered | covered | — |
 | gap-loc-accounting | 커밋 범위 기반 LOC 집계 누락 -> sprint 크기 왜곡 | `vibe-sprint-complete.mjs` `actualLoc` 기록 + lastSprintScope (M1/M3) | covered | covered | — |
 | gap-cmd-wrapper-health | Codex wrapper 가 retry·버전·health subcommand 없어 진단 어려움 | `run-codex.sh --health` / `--version` (M2) | covered | covered | — |
 | gap-session-log-ordering | session-log 엔트리 타임스탬프 역순·중복·race 로 손상 | `vibe-session-log-sync.mjs` (M3) | covered | covered | — |

@@ -47,11 +47,41 @@ Usage:
 EOF
 }
 
+is_wsl_host() {
+  if [[ -n "${WSL_DISTRO_NAME:-}" || -n "${WSL_INTEROP:-}" ]]; then
+    return 0
+  fi
+
+  grep -qiE '(microsoft|wsl)' /proc/version 2>/dev/null
+}
+
+reject_windows_codex_shim_in_wsl() {
+  local codex_path="$1"
+
+  if ! is_wsl_host; then
+    return 0
+  fi
+
+  case "$codex_path" in
+    /mnt/[a-zA-Z]/*|/c/*)
+      echo "run-codex: WSL resolved codex to a Windows npm shim: $codex_path" >&2
+      echo "run-codex: install node/codex inside WSL, or run the Windows wrapper scripts\\run-codex.cmd from PowerShell/cmd." >&2
+      return 1
+      ;;
+  esac
+
+  return 0
+}
+
 run_health_check() {
-  if ! command -v codex >/dev/null 2>&1; then
+  local codex_path
+
+  codex_path="$(command -v codex 2>/dev/null || true)"
+  if [[ -z "$codex_path" ]]; then
     echo "run-codex: codex CLI not found in PATH" >&2
     return 1
   fi
+  reject_windows_codex_shim_in_wsl "$codex_path" || return 1
 
   local tmp_stdout tmp_stderr rc pid watchdog v stderr_tail
 
@@ -422,6 +452,13 @@ if command -v chcp.com >/dev/null 2>&1; then
 fi
 
 # ---------- 3. Build codex argv ----------
+codex_path="$(command -v codex 2>/dev/null || true)"
+if [[ -z "$codex_path" ]]; then
+  echo "run-codex: codex CLI not found in PATH" >&2
+  exit 1
+fi
+reject_windows_codex_shim_in_wsl "$codex_path" || exit 1
+
 sandbox="${CODEX_SANDBOX:-workspace-write}"
 
 codex_args=(

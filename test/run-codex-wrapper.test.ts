@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { promisify } from 'node:util';
 import { afterEach, describe, it } from 'node:test';
+import { resolveGitBashPath } from '../src/lib/shell.js';
 
 const execFile = promisify(execFileCallback);
 const tempDirs: string[] = [];
@@ -24,13 +25,20 @@ afterEach(async () => {
 
 function detectWorkingBash(): string | null {
   try {
-    execFileSync('bash', ['--version'], { stdio: 'ignore' });
     if (process.platform === 'win32') {
-      const uname = execFileSync('bash', ['-lc', 'uname -s'], { encoding: 'utf8' }).trim();
+      const gitBash = resolveGitBashPath();
+      if (!gitBash) {
+        return null;
+      }
+      execFileSync(gitBash, ['--version'], { stdio: 'ignore' });
+      const uname = execFileSync(gitBash, ['-lc', 'uname -s'], { encoding: 'utf8' }).trim();
       if (!/^(MINGW|MSYS|CYGWIN)/.test(uname)) {
         return null;
       }
+      return gitBash;
     }
+
+    execFileSync('bash', ['--version'], { stdio: 'ignore' });
     return 'bash';
   } catch {
     return null;
@@ -248,6 +256,7 @@ describe('run-codex.sh wrapper', { skip: bashCommand === null }, () => {
   it('returns rc=1 when codex is missing', async () => {
     const binDir = await makeTempDir('run-codex-empty-bin-');
     const bashExecutable =
+      bashCommand ??
       execFileSync(process.platform === 'win32' ? 'where.exe' : 'which', ['bash'], {
         encoding: 'utf8',
       })
@@ -269,6 +278,19 @@ describe('run-codex.sh wrapper', { skip: bashCommand === null }, () => {
 
     assert.equal(child.status, 1);
     assert.match(child.stderr, /not found/i);
+  });
+
+  it('rejects Windows npm shim paths when running under WSL', async () => {
+    const binDir = await mkdtemp(path.join(process.cwd(), '.tmp-run-codex-wsl-'));
+    tempDirs.push(binDir);
+    await writeExecutable(path.join(binDir, 'codex'), '#!/usr/bin/env bash\necho should-not-run\n');
+    const child = spawnSync(bashCommand ?? 'bash', [bashScriptPath, '--health'], {
+      env: shellEnv(binDir, { OS: '', WSL_DISTRO_NAME: 'Ubuntu' }),
+      encoding: 'utf8',
+    });
+
+    assert.equal(child.status, 1);
+    assert.match(child.stderr, /Windows npm shim/);
   });
 
   it('returns rc=2 when auth is missing', async () => {
@@ -401,7 +423,7 @@ describe('run-codex.sh wrapper', { skip: bashCommand === null }, () => {
     assert.ok(promptIndex > commonRulesIndex);
   });
 
-  it('does not prepend the Windows sandbox limitation header on non-Windows hosts', async () => {
+  it('does not prepend the Windows sandbox limitation header on non-Windows hosts', { skip: process.platform === 'win32' }, async () => {
     const binDir = await createShellStubBin('stdin');
     await writeUnameStub(binDir, 'Linux');
     const child = spawnSync(bashCommand ?? 'bash', [bashScriptPath, '-'], {
@@ -504,8 +526,7 @@ describe('run-codex.sh wrapper', { skip: bashCommand === null }, () => {
 });
 
 describe('run-codex.cmd wrapper', { skip: process.platform !== 'win32' }, () => {
-  // TODO(M10): cmd health output empty - investigate where/set /p behavior on Git Bash-spawned cmd.exe
-  it.skip('returns normalized version output for healthy codex', async () => {
+  it('returns normalized version output for healthy codex', async () => {
     const binDir = await createCmdStubBin('ok');
     const { stdout } = await execFile(shellPath, ['/d', '/c', cmdScriptPath, '--health'], {
       env: shellEnv(binDir),
