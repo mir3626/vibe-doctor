@@ -13,6 +13,8 @@
       "scripts/vibe-stop-qa-gate.mjs",
       "scripts/vibe-phase0-seal.mjs",
       "scripts/vibe-browser-smoke.mjs",
+      "playwright.config.ts",
+      "test/playwright/**",
       "scripts/vibe-audit-clear.mjs",
       ".vibe/agent/_common-rules.md",
       ".vibe/agent/re-incarnation.md",
@@ -215,6 +217,7 @@
       "docs/release/v1.6.7.md",
       "docs/release/v1.6.8.md",
       "docs/release/v1.6.9.md",
+      "docs/release/v1.6.10.md",
       "migrations/1.6.2.mjs"
     ],
     "hybrid": {
@@ -286,7 +289,7 @@
       },
       "package.json": {
         "strategy": "json-deep-merge",
-        "harnessKeys": ["scripts.vibe:*", "engines"],
+        "harnessKeys": ["scripts.vibe:*", "scripts.test:ui", "engines"],
         "projectKeys": ["name", "version", "description", "dependencies", "devDependencies"]
       },
       ".vibe/config.json": {

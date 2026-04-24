@@ -375,6 +375,33 @@ describe('jsonDeepMerge', () => {
       },
     });
   });
+
+  it('supports exact package script ownership without replacing project scripts', () => {
+    const merged = jsonDeepMerge(
+      {
+        scripts: {
+          test: 'vitest',
+          'test:ui': 'old-ui',
+        },
+      },
+      {
+        scripts: {
+          'test:ui': 'playwright test',
+        },
+      },
+      {
+        strategy: 'json-deep-merge',
+        harnessKeys: ['scripts.test:ui'],
+      },
+    );
+
+    assert.deepEqual(merged, {
+      scripts: {
+        test: 'vitest',
+        'test:ui': 'playwright test',
+      },
+    });
+  });
 });
 
 describe('jsonArrayUnionMerge', () => {
@@ -767,6 +794,8 @@ describe('sync manifest', () => {
     assert.equal(manifest.files.harness.includes('.claude/skills/lint-patterns/**'), true);
     assert.equal(manifest.files.harness.includes('scripts/vibe-phase0-seal.mjs'), true);
     assert.equal(manifest.files.harness.includes('scripts/vibe-browser-smoke.mjs'), true);
+    assert.equal(manifest.files.harness.includes('playwright.config.ts'), true);
+    assert.equal(manifest.files.harness.includes('test/playwright/**'), true);
     assert.equal(manifest.files.harness.includes('src/commands/bundle-size.ts'), true);
     assert.equal(manifest.files.harness.includes('.claude/skills/vibe-init/templates/readme-skeleton.md'), true);
     assert.equal(manifest.files.harness.includes('docs/release/v1.5.5.md'), true);
@@ -813,6 +842,9 @@ describe('sync manifest', () => {
     assert.equal(manifest.files.harness.includes('docs/release/v1.6.6.md'), true);
     assert.equal(manifest.files.harness.includes('docs/release/v1.6.7.md'), true);
     assert.equal(manifest.files.harness.includes('docs/release/v1.6.8.md'), true);
+    assert.equal(manifest.files.harness.includes('docs/release/v1.6.9.md'), true);
+    assert.equal(manifest.files.harness.includes('docs/release/v1.6.10.md'), true);
+    assert.equal(manifest.files.hybrid['package.json']?.harnessKeys?.includes('scripts.test:ui'), true);
     assert.equal(manifest.files.harness.includes('test/phase0-seal.test.ts'), true);
     assert.equal(manifest.files.harness.includes('test/browser-smoke-contract.test.ts'), true);
     assert.equal(manifest.files.project.includes('.vibe/agent/project-map.json'), true);

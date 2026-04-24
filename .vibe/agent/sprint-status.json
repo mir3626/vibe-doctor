@@ -187,20 +187,32 @@
         "net": 234,
         "filesChanged": 20
       }
+    },
+    {
+      "id": "sprint-playwright-dashboard-report-smoke",
+      "name": "sprint-playwright-dashboard-report-smoke",
+      "status": "passed",
+      "completedAt": "2026-04-24T06:32:15.136Z",
+      "actualLoc": {
+        "added": 541,
+        "deleted": 37,
+        "net": 504,
+        "filesChanged": 18
+      }
     }
   ],
   "handoff": {
     "currentSprintId": "idle",
     "contextWindow": "main (Orchestrator)",
     "pendingPrompt": null,
-    "lastHandoffAt": "2026-04-24T06:13:41.477Z",
-    "nextAction": "push v1.6.9 after full harness verification",
-    "lastActionSummary": "v1.6.9 dashboard attention wiring implemented locally; full verification and push pending",
+    "lastHandoffAt": "2026-04-24T06:32:15.136Z",
+    "nextAction": "commit/tag/push v1.6.10 after final diff checks",
+    "lastActionSummary": "v1.6.10 Playwright dashboard/report smoke coverage implemented locally; full verification passed through typecheck/build/unit/ui tests",
     "orchestratorContextBudget": "medium",
     "preferencesActive": [
       "After verified harness changes, proceed directly with commit/tag/push when that is the natural next step; do not ask for separate push confirmation."
     ],
-    "updatedAt": "2026-04-24T06:13:41.477Z"
+    "updatedAt": "2026-04-24T06:32:15.136Z"
   },
   "policies": {
     "scratchpadPath": ".vibe/agent/handoff.md",
@@ -233,6 +245,14 @@
       "status": "resolved",
       "createdAt": "2026-04-23T06:09:23.857Z",
       "resolvedAt": "2026-04-23T06:09:42.799Z"
+    },
+    {
+      "id": "audit-after-sprint-playwright-dashboard-report-smoke",
+      "raisedBy": "vibe-sprint-complete",
+      "targetSprint": "*",
+      "text": "Evaluator audit due (sprintsSinceLastAudit=5, everyN=5).",
+      "status": "open",
+      "createdAt": "2026-04-24T06:32:15.136Z"
     }
   ],
   "lastSprintScope": [
@@ -298,7 +318,21 @@
     ".codex/skills/write-report/SKILL.md",
     "docs/release/v1.5.15.md",
     "test/codex-skills.test.ts",
-    "test/init-guard.test.ts"
+    "test/init-guard.test.ts",
+    ".github/workflows/ci.yml",
+    ".gitignore",
+    ".vibe/config.json",
+    ".vibe/sync-manifest.json",
+    "README.md",
+    "docs/plans/sprint-roadmap.md",
+    "docs/release/v1.6.10.md",
+    "package.json",
+    "package-lock.json",
+    "playwright.config.ts",
+    "test/playwright/dashboard-report.spec.ts",
+    "test/sync.test.ts",
+    "tsconfig.json",
+    "tsconfig.harness.json"
   ],
   "lastSprintScopeGlob": [
     "scripts/run-codex.sh",
@@ -311,10 +345,23 @@
     "src/lib/review.ts",
     ".claude/skills/vibe-review/SKILL.md",
     "test/vibe-review-inputs.test.ts",
-    "package.json"
+    "package.json",
+    ".github/workflows/ci.yml",
+    ".gitignore",
+    ".vibe/config.json",
+    ".vibe/sync-manifest.json",
+    "README.md",
+    "docs/plans/sprint-roadmap.md",
+    "docs/release/v1.6.10.md",
+    "package-lock.json",
+    "playwright.config.ts",
+    "test/playwright/**",
+    "test/sync.test.ts",
+    "tsconfig.json",
+    "tsconfig.harness.json"
   ],
-  "sprintsSinceLastAudit": 4,
-  "stateUpdatedAt": "2026-04-24T06:13:41.477Z",
+  "sprintsSinceLastAudit": 5,
+  "stateUpdatedAt": "2026-04-24T06:32:15.136Z",
   "verifiedAt": null,
   "verificationCommands": []
 }

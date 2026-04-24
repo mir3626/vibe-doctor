@@ -145,3 +145,22 @@ v1.6.8 correctly flagged `scripts/vibe-attention.mjs` and `scripts/vibe-attentio
   - Codex `run-codex.sh` and `run-codex.cmd` completion/failure attention events.
   - Regression tests for hook wiring, notification payload parsing, wrapper events, and zero current wiring drift.
 - **result**: passed, target harnessVersion `v1.6.9`
+
+---
+
+# Iteration 11 - playwright-dashboard-report-smoke (2026-04-24)
+
+## Background
+
+Dashboard and project-report both include browser-facing UI that Node-only unit tests can miss: DOM visibility, live attention updates, filters, and expand/collapse controls. This sprint adds a dedicated Playwright surface while keeping regular harness typecheck safe for synced downstream projects.
+
+## Sprint - Playwright dashboard/report smoke tests
+
+- **id**: `sprint-playwright-dashboard-report-smoke`
+- **goal**: Add real-browser coverage for dashboard and project-report UI behavior.
+- **deliverables**:
+  - Playwright dependency, config, and `npm run test:ui`.
+  - Dashboard smoke for sprint state, risk count, and attention toast/list updates.
+  - Project-report smoke for sprint cards, decision filtering, and expand/collapse controls.
+  - CI browser-test step and sync-manifest coverage with TypeScript excludes for downstream safety.
+- **result**: passed, target harnessVersion `v1.6.10`

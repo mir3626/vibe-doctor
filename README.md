@@ -8,17 +8,23 @@
 
 ---
 
-## Latest highlights (v1.6.9)
+## Latest highlights (v1.6.10)
+
+### v1.6.10 (2026-04-24) - Playwright dashboard/report smoke tests
+
+- Added Playwright browser tests for dashboard state rendering, attention toasts, and project-report interaction controls.
+- CI now runs a real-browser `npx playwright test` pass after the existing typecheck/build/unit harness checks.
+- Playwright tests are excluded from regular TypeScript typecheck so synced downstream projects are not forced to install Playwright just to pass harness typecheck.
+
+---
+
+## Previous highlights (v1.6.9)
 
 ### v1.6.9 (2026-04-24) - dashboard attention wiring
 
 - Claude Code `Notification` hooks now write permission, idle, and elicitation events into `.vibe/agent/attention.jsonl` for dashboard/browser notifications.
 - Codex `run-codex.{sh,cmd}` now emits dashboard attention events when wrapper runs complete or fail.
 - `vibe-attention-notify.mjs` now reuses the shared `vibe-attention.mjs` writer, so the attention scripts are no longer created-but-unwired artifacts.
-
----
-
-## Previous highlights (v1.6.8)
 
 ### v1.6.8 (2026-04-24) - review wiring drift detector
 

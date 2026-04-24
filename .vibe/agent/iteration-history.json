@@ -74,6 +74,23 @@
         "dashboard-attention-wiring": 1
       },
       "summary": "v1.6.9 connects Claude Notification hooks to vibe-attention-notify, routes both Claude and Codex events through the shared vibe-attention writer, and verifies the current repo has zero wiring drift findings."
+    },
+    {
+      "id": "iter-11",
+      "label": "playwright-dashboard-report-smoke",
+      "startedAt": "2026-04-24T06:20:00.000Z",
+      "completedAt": "2026-04-24T06:32:15.136Z",
+      "goal": "Add Playwright browser-level smoke coverage for dashboard and project-report UI behavior without making downstream harness typecheck depend on Playwright installation.",
+      "plannedSprints": [
+        "sprint-playwright-dashboard-report-smoke"
+      ],
+      "completedSprints": [
+        "sprint-playwright-dashboard-report-smoke"
+      ],
+      "milestoneProgress": {
+        "playwright-dashboard-report-smoke": 1
+      },
+      "summary": "v1.6.10 adds Playwright, a dedicated test:ui command, browser smoke tests for dashboard attention and project-report controls, CI coverage, and sync/typecheck boundaries for downstream safety."
     }
   ]
 }
