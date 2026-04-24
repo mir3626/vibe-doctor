@@ -200,7 +200,8 @@
       "docs/release/v1.5.14.md",
       "docs/release/v1.5.15.md",
       "docs/release/v1.5.16.md",
-      "docs/release/v1.5.17.md"
+      "docs/release/v1.5.17.md",
+      "docs/release/v1.6.0.md"
     ],
     "hybrid": {
       "CLAUDE.md": {

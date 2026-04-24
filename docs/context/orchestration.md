@@ -108,6 +108,10 @@ Orchestrator 단독 작성. 각 entry 필드:
 - **완료 판정 거시 기준**: 이 Sprint가 끝나면 무엇이 동작해야 하는가
 ```
 
+로드맵은 기술 레이어별 수평 분할보다 **사용자가 실행·사용·체감할 수 있는 수직 slice** 를 우선한다.
+예상 LOC 는 harness 변경 budget 판단에만 쓰고, product/downstream Sprint 의 구현량 상한으로 박지 않는다.
+각 Sprint는 가능한 한 "이 Sprint 후 사용자가 새로 할 수 있는 일"을 남겨야 하며, 내부 모듈만 완성되는 slot은 다음 Sprint와 합치거나 더 작은 end-to-end slice로 재분할한다.
+
 파일 경로는 `docs/plans/sprint-roadmap.md`. 매 Sprint 시작 시 Planner에게 해당 slot만 전달.
 
 ## 5. 매 Sprint 반복 상세
@@ -124,7 +128,7 @@ Orchestrator 단독 작성. 각 entry 필드:
 
 요구 산출:
 1. 기술 사양 — 이 Sprint가 건드리는 타입/함수 시그니처/파일 목록
-2. 완료 체크리스트 — 기계적 검증 가능한 항목만 (npx tsc --noEmit 통과 등)
+2. 완료 체크리스트 — 기계 검증 항목과 inspection/demo 항목을 분리. 기계 검증은 `tsc`, test, grep 등으로 확인하고, 제품 정체성·사용감·시각/상호작용 품질처럼 자동화하기 어려운 항목은 Evaluator 또는 사용자 inspection 대상으로 명시
 3. Sprint 프롬프트 본문 — Generator에 바로 투입 가능한 자기완결 형식
    - 공용 규칙은 `.vibe/agent/_common-rules.md` 준수 선언
    - Files Generator may touch 목록 (체크리스트 항목 완전 커버리지 고려)

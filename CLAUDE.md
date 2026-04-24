@@ -42,9 +42,10 @@ Planner 호출은 반드시 `Agent({ subagent_type: 'sprint-planner', model: 'op
 <!-- BEGIN:FREEZE-POSTURE -->
 ## Soft freeze (iter-3 closure posture)
 
-iter-3 종료 이후 harness 변경은 분기 1회(≤ 3개월)로 제한한다.
-각 iteration은 net +150 LOC cap + 0 new scripts 원칙을 따른다.
-Delete는 제한하지 않지만 growth는 실제 dogfood friction-per-sprint 증거가 있을 때만 정당화한다.
+iter-3 종료 이후 **harness** 변경은 분기 1회(≤ 3개월)로 제한한다.
+각 iteration의 **harness** 변경은 net +150 LOC cap + 0 new scripts 원칙을 따른다.
+Product / downstream 코드에는 이 cap을 적용하지 않는다. Planner는 LOC, 파일 수, 번들 크기 같은 수량 상한을 product 구현 제약으로 임의 삽입하지 말고, 실제 사용자 가치와 검증 가능한 품질 기준으로 Sprint 범위를 자른다.
+Delete는 제한하지 않지만 harness growth는 실제 dogfood friction-per-sprint 증거가 있을 때만 정당화한다.
 변경 제안 진입 경로는 `/vibe-review` findings 또는 user directive 로만 허용한다.
 새 하네스 기능은 shipped product value를 직접 높이지 못하면 다음 iteration backlog로 넘긴다.
 Soft freeze는 문서 선언이 아니라 Sprint scope gate다.
@@ -224,7 +225,7 @@ Sprint 프롬프트 **본문은 Planner가 작성**한다 (매 Sprint 소환 시
   - ❌ 구체적 hex 코드(`#2C3E50`), 함수 시그니처, 내부 변수명
 - **타입 정의와 API 시그니처는 Planner의 fresh context에서 도출한다.** Orchestrator가 이전
   프로젝트 경험에서 가져온 구현 세부사항을 주입하면 재현성이 깨진다.
-- **체크리스트 항목은 검증 가능(testable)해야 한다.** "잘 동작해야 함" 대신 "npx tsc --noEmit 통과" 같은 기계적 기준을 사용한다.
+- **체크리스트 항목은 검증 가능해야 한다.** 기계 검증 가능한 항목은 "npx tsc --noEmit 통과"처럼 명시하고, 제품 정체성·사용감·시각/상호작용 품질처럼 자동화하기 어려운 항목은 inspection/demo AC 로 분리해 Evaluator 또는 사용자 확인 대상으로 둔다. 자동화가 어렵다는 이유로 중요한 품질 기준을 버리지 않는다.
 
 ## Agent 오케스트레이션 레이어 (`.vibe/agent/`)
 
