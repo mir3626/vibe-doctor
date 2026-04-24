@@ -164,3 +164,21 @@ Dashboard and project-report both include browser-facing UI that Node-only unit 
   - Project-report smoke for sprint cards, decision filtering, and expand/collapse controls.
   - CI browser-test step and sync-manifest coverage with TypeScript excludes for downstream safety.
 - **result**: passed, target harnessVersion `v1.6.10`
+
+---
+
+# Iteration 12 - linux-ci-run-codex-wrapper (2026-04-24)
+
+## Background
+
+GitHub Actions has failed at `npm test` since `195a91be51f3cefe4907f04759001e353a125c7b` (`v1.6.1`). The failure reproduces on a clean Linux/WSL install in `test/run-codex-wrapper.test.ts`: the missing-Codex test narrows `PATH` so `bash` itself is no longer discoverable, and the WSL Windows-shim test relies on a Windows checkout path that generic Ubuntu runners do not have.
+
+## Sprint - Linux CI run-codex wrapper test fix
+
+- **id**: `sprint-linux-ci-run-codex-wrapper`
+- **goal**: Make the run-codex wrapper tests deterministic on Linux CI while preserving the Windows/WSL guard behavior.
+- **deliverables**:
+  - Resolve POSIX `bash` to an absolute path in the test harness.
+  - Add `CODEX_BIN` support to `run-codex.sh`.
+  - Use `CODEX_BIN=/mnt/c/.../codex` to test WSL Windows npm-shim rejection on Linux CI.
+- **result**: passed, target harnessVersion `v1.6.11`

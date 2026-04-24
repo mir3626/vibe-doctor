@@ -4,24 +4,34 @@
 
 - **repo**: `vibe-doctor`
 - **branch**: `main`
-- **last pushed release**: `v1.6.9`
-- **working target**: `v1.6.10`
-- **current iteration**: iter-11 complete locally, push pending
-- **harnessVersion**: `1.6.10`
+- **last pushed release**: `v1.6.10`
+- **working target**: `v1.6.11`
+- **current iteration**: iter-12 complete locally, push pending
+- **harnessVersion**: `1.6.11`
 - **language/tone**: Korean user-facing, concise engineering notes
 
 ## 2. Status
 
-User requested adding Playwright and using it for dashboard/project-report feature tests. v1.6.10 candidate adds real-browser coverage while keeping downstream harness typecheck independent from Playwright installation:
+User reported GitHub Actions has failed since `195a91be51f3cefe4907f04759001e353a125c7b` (`v1.6.1`). Public Actions metadata shows the failing step is `Run npm test`. A clean WSL/Linux clone reproduced the failure in `test/run-codex-wrapper.test.ts`:
 
-- `@playwright/test`, `playwright.config.ts`, and `npm run test:ui`.
-- `test/playwright/dashboard-report.spec.ts` covers dashboard state rendering, attention toasts, project-report cards, decision filtering, and expand/collapse behavior.
-- CI installs Playwright no-save before running `npx playwright test`, so synced CI can run even when downstream package `devDependencies` remain project-owned.
-- `test/playwright` is excluded from regular `tsconfig.json` and `tsconfig.harness.json`.
+- `returns rc=1 when codex is missing`: test narrowed `PATH` so Linux could no longer resolve `bash`, producing `status=null`.
+- `rejects Windows npm shim paths when running under WSL`: generic Ubuntu runners do not have a `/mnt/c/...` checkout path, so the synthetic WSL env did not actually exercise the Windows shim path.
+
+v1.6.11 candidate fixes this by:
+
+- resolving POSIX `bash` to an absolute path in the test harness,
+- adding `CODEX_BIN` support to `scripts/run-codex.sh`,
+- using `CODEX_BIN=/mnt/c/.../codex` in the WSL shim regression test.
 
 ## 3. Verification
 
-Full harness verification completed:
+Completed:
+
+- `node --import tsx --test test/run-codex-wrapper.test.ts test/shell.test.ts` on Windows
+- WSL `npm ci` then `node --import tsx --test test/run-codex-wrapper.test.ts test/shell.test.ts`
+- Windows `npm ci` restored platform-local `node_modules`
+
+Pending final release verification:
 
 - `npm run typecheck`
 - `npm run build`
@@ -33,15 +43,15 @@ Full harness verification completed:
 
 ## 4. Preserved Value
 
-- Dashboard/report regressions now have browser-level coverage.
-- Existing Node harness tests remain fast and provider-neutral.
-- Downstream sync keeps project-owned dependencies untouched.
+- Actual WSL protection against Windows npm shims remains intact.
+- Linux CI no longer depends on Windows-specific checkout path shape.
+- `CODEX_BIN` gives advanced users and tests an explicit Codex binary override without changing default PATH behavior.
 
 ## 5. Next Action
 
-Commit/tag `v1.6.10`, then push `main` and the tag.
+Run final verification, commit/tag `v1.6.11`, then push `main` and the tag.
 
 ## 6. Pending Risks
 
 - Existing open lightweight audit risk remains unrelated: `src/commands/init.ts has no test/init.test.ts`.
-- New audit cadence risk opened because `sprintsSinceLastAudit=5`: `audit-after-sprint-playwright-dashboard-report-smoke`.
+- Audit cadence risks are open because `sprintsSinceLastAudit >= 5`.

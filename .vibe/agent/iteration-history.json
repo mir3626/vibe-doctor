@@ -91,6 +91,23 @@
         "playwright-dashboard-report-smoke": 1
       },
       "summary": "v1.6.10 adds Playwright, a dedicated test:ui command, browser smoke tests for dashboard attention and project-report controls, CI coverage, and sync/typecheck boundaries for downstream safety."
+    },
+    {
+      "id": "iter-12",
+      "label": "linux-ci-run-codex-wrapper",
+      "startedAt": "2026-04-24T06:40:00.000Z",
+      "completedAt": "2026-04-24T06:46:59.619Z",
+      "goal": "Fix the GitHub Actions npm test failure introduced at v1.6.1 by making run-codex wrapper tests deterministic on Linux CI.",
+      "plannedSprints": [
+        "sprint-linux-ci-run-codex-wrapper"
+      ],
+      "completedSprints": [
+        "sprint-linux-ci-run-codex-wrapper"
+      ],
+      "milestoneProgress": {
+        "linux-ci-run-codex-wrapper": 1
+      },
+      "summary": "v1.6.11 resolves the Linux CI failures in test/run-codex-wrapper.test.ts by using an absolute POSIX bash path under narrowed PATH, adding CODEX_BIN support to run-codex.sh, and testing the WSL Windows npm-shim rejection path with an explicit /mnt/c path."
     }
   ]
 }

@@ -199,20 +199,32 @@
         "net": 504,
         "filesChanged": 18
       }
+    },
+    {
+      "id": "sprint-linux-ci-run-codex-wrapper",
+      "name": "sprint-linux-ci-run-codex-wrapper",
+      "status": "passed",
+      "completedAt": "2026-04-24T06:46:59.619Z",
+      "actualLoc": {
+        "added": 148,
+        "deleted": 43,
+        "net": 105,
+        "filesChanged": 13
+      }
     }
   ],
   "handoff": {
     "currentSprintId": "idle",
     "contextWindow": "main (Orchestrator)",
     "pendingPrompt": null,
-    "lastHandoffAt": "2026-04-24T06:32:15.136Z",
-    "nextAction": "commit/tag/push v1.6.10 after final diff checks",
-    "lastActionSummary": "v1.6.10 Playwright dashboard/report smoke coverage implemented locally; full verification passed through typecheck/build/unit/ui tests",
+    "lastHandoffAt": "2026-04-24T06:46:59.619Z",
+    "nextAction": "commit/tag/push v1.6.11 after final verification",
+    "lastActionSummary": "v1.6.11 Linux CI run-codex wrapper test fix implemented locally; focused Windows and WSL tests passed",
     "orchestratorContextBudget": "medium",
     "preferencesActive": [
       "After verified harness changes, proceed directly with commit/tag/push when that is the natural next step; do not ask for separate push confirmation."
     ],
-    "updatedAt": "2026-04-24T06:32:15.136Z"
+    "updatedAt": "2026-04-24T06:46:59.619Z"
   },
   "policies": {
     "scratchpadPath": ".vibe/agent/handoff.md",
@@ -253,6 +265,14 @@
       "text": "Evaluator audit due (sprintsSinceLastAudit=5, everyN=5).",
       "status": "open",
       "createdAt": "2026-04-24T06:32:15.136Z"
+    },
+    {
+      "id": "audit-after-sprint-linux-ci-run-codex-wrapper",
+      "raisedBy": "vibe-sprint-complete",
+      "targetSprint": "*",
+      "text": "Evaluator audit due (sprintsSinceLastAudit=6, everyN=5).",
+      "status": "open",
+      "createdAt": "2026-04-24T06:46:59.619Z"
     }
   ],
   "lastSprintScope": [
@@ -332,7 +352,10 @@
     "test/playwright/dashboard-report.spec.ts",
     "test/sync.test.ts",
     "tsconfig.json",
-    "tsconfig.harness.json"
+    "tsconfig.harness.json",
+    "scripts/run-codex.sh",
+    "test/run-codex-wrapper.test.ts",
+    "docs/release/v1.6.11.md"
   ],
   "lastSprintScopeGlob": [
     "scripts/run-codex.sh",
@@ -358,10 +381,13 @@
     "test/playwright/**",
     "test/sync.test.ts",
     "tsconfig.json",
-    "tsconfig.harness.json"
+    "tsconfig.harness.json",
+    "scripts/run-codex.sh",
+    "test/run-codex-wrapper.test.ts",
+    "docs/release/v1.6.11.md"
   ],
-  "sprintsSinceLastAudit": 5,
-  "stateUpdatedAt": "2026-04-24T06:32:15.136Z",
+  "sprintsSinceLastAudit": 6,
+  "stateUpdatedAt": "2026-04-24T06:46:59.619Z",
   "verifiedAt": null,
   "verificationCommands": []
 }

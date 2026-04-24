@@ -844,6 +844,7 @@ describe('sync manifest', () => {
     assert.equal(manifest.files.harness.includes('docs/release/v1.6.8.md'), true);
     assert.equal(manifest.files.harness.includes('docs/release/v1.6.9.md'), true);
     assert.equal(manifest.files.harness.includes('docs/release/v1.6.10.md'), true);
+    assert.equal(manifest.files.harness.includes('docs/release/v1.6.11.md'), true);
     assert.equal(manifest.files.hybrid['package.json']?.harnessKeys?.includes('scripts.test:ui'), true);
     assert.equal(manifest.files.harness.includes('test/phase0-seal.test.ts'), true);
     assert.equal(manifest.files.harness.includes('test/browser-smoke-contract.test.ts'), true);

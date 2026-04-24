@@ -26,6 +26,7 @@
 # ENV OVERRIDES
 # -------------
 #   CODEX_MODEL=gpt-5-codex        -> pass `-m <name>` to codex
+#   CODEX_BIN=/path/to/codex       -> explicit codex executable path
 #   CODEX_RETRY=3                  -> max retry attempts (default 3)
 #   CODEX_SANDBOX=workspace-write  -> sandbox mode
 #   CODEX_EXTRA_CONFIG="-c k=v"    -> extra `-c` overrides
@@ -73,10 +74,19 @@ reject_windows_codex_shim_in_wsl() {
   return 0
 }
 
+resolve_codex_path() {
+  if [[ -n "${CODEX_BIN:-}" ]]; then
+    printf '%s' "$CODEX_BIN"
+    return 0
+  fi
+
+  command -v codex 2>/dev/null || true
+}
+
 run_health_check() {
   local codex_path
 
-  codex_path="$(command -v codex 2>/dev/null || true)"
+  codex_path="$(resolve_codex_path)"
   if [[ -z "$codex_path" ]]; then
     echo "run-codex: codex CLI not found in PATH" >&2
     return 1
@@ -91,11 +101,11 @@ run_health_check() {
 
   if command -v timeout >/dev/null 2>&1; then
     set +e
-    timeout 5 codex --version >"$tmp_stdout" 2>"$tmp_stderr"
+    timeout 5 "$codex_path" --version >"$tmp_stdout" 2>"$tmp_stderr"
     rc=$?
     set -e
   else
-    codex --version >"$tmp_stdout" 2>"$tmp_stderr" &
+    "$codex_path" --version >"$tmp_stdout" 2>"$tmp_stderr" &
     pid=$!
     (
       sleep 5
@@ -476,7 +486,7 @@ if command -v chcp.com >/dev/null 2>&1; then
 fi
 
 # ---------- 3. Build codex argv ----------
-codex_path="$(command -v codex 2>/dev/null || true)"
+codex_path="$(resolve_codex_path)"
 if [[ -z "$codex_path" ]]; then
   echo "run-codex: codex CLI not found in PATH" >&2
   exit 1
@@ -543,9 +553,9 @@ while [[ $attempt -lt $retries ]]; do
 
   set +e
   if [[ -n "$stdin_buf" ]]; then
-    printf '%s' "$stdin_buf" | codex "${codex_args[@]}" "$@" 2>"$attempt_stderr" | tee "$attempt_output"
+    printf '%s' "$stdin_buf" | "$codex_path" "${codex_args[@]}" "$@" 2>"$attempt_stderr" | tee "$attempt_output"
   else
-    codex "${codex_args[@]}" "$@" 2>"$attempt_stderr" | tee "$attempt_output"
+    "$codex_path" "${codex_args[@]}" "$@" 2>"$attempt_stderr" | tee "$attempt_output"
   fi
   rc=$?
   set -e

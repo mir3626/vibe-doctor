@@ -8,17 +8,23 @@
 
 ---
 
-## Latest highlights (v1.6.10)
+## Latest highlights (v1.6.11)
+
+### v1.6.11 (2026-04-24) - Linux CI run-codex wrapper tests
+
+- Fixed the GitHub Actions `npm test` failure that started at `v1.6.1`.
+- `run-codex.sh` now supports `CODEX_BIN` for explicit Codex binary resolution.
+- Linux CI can now exercise the WSL Windows npm-shim rejection path without depending on the checkout path shape.
+
+---
+
+## Previous highlights (v1.6.10)
 
 ### v1.6.10 (2026-04-24) - Playwright dashboard/report smoke tests
 
 - Added Playwright browser tests for dashboard state rendering, attention toasts, and project-report interaction controls.
 - CI now runs a real-browser `npx playwright test` pass after the existing typecheck/build/unit harness checks.
 - Playwright tests are excluded from regular TypeScript typecheck so synced downstream projects are not forced to install Playwright just to pass harness typecheck.
-
----
-
-## Previous highlights (v1.6.9)
 
 ### v1.6.9 (2026-04-24) - dashboard attention wiring
 

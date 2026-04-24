@@ -39,7 +39,7 @@ function detectWorkingBash(): string | null {
     }
 
     execFileSync('bash', ['--version'], { stdio: 'ignore' });
-    return 'bash';
+    return execFileSync('which', ['bash'], { encoding: 'utf8' }).trim();
   } catch {
     return null;
   }
@@ -282,11 +282,13 @@ describe('run-codex.sh wrapper', { skip: bashCommand === null }, () => {
   });
 
   it('rejects Windows npm shim paths when running under WSL', async () => {
-    const binDir = await mkdtemp(path.join(process.cwd(), '.tmp-run-codex-wsl-'));
-    tempDirs.push(binDir);
-    await writeExecutable(path.join(binDir, 'codex'), '#!/usr/bin/env bash\necho should-not-run\n');
+    const binDir = await makeTempDir('run-codex-wsl-shim-');
     const child = spawnSync(bashCommand ?? 'bash', [bashScriptPath, '--health'], {
-      env: shellEnv(binDir, { OS: '', WSL_DISTRO_NAME: 'Ubuntu' }),
+      env: shellEnv(binDir, {
+        CODEX_BIN: '/mnt/c/Users/Tony/AppData/Roaming/npm/codex',
+        OS: '',
+        WSL_DISTRO_NAME: 'Ubuntu',
+      }),
       encoding: 'utf8',
     });
 
