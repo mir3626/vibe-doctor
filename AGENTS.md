@@ -20,7 +20,7 @@
 ## 인코딩 무결성 (필수 — Korean Windows)
 - 비-ASCII string literal(한국어 등)을 절대 round-trip으로 손상시키지 않는다. 작업 종료 전 다음을 검증:
   - `file <touched files>` → `UTF-8 Unicode text`
-  - `LC_ALL=C grep -lE '"\?[^"]*"' <touched files>` → 빈 결과 (mojibake 0건)
+  - `LC_ALL=C grep -lE '"[?][^"]*"' <touched files>` → 빈 결과 (mojibake 0건)
   - `.cs` 파일은 BOM 포함(`efbbbf`로 시작) — `.editorconfig`가 강제하는 값
 - 배경과 복구 절차는 `docs/context/codex-execution.md`를 참조한다.
 

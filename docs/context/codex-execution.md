@@ -125,7 +125,7 @@ gate에 다음을 **필수 추가**:
 ```markdown
 - [ ] **Encoding integrity (REQUIRED)**:
   - `file <touched files>`가 모두 `UTF-8 Unicode text`로 분류
-  - `LC_ALL=C grep -lE '"\?[^"]*"' <touched files>` 결과 빈 줄
+  - `LC_ALL=C grep -lE '"[?][^"]*"' <touched files>` 결과 빈 줄
   - `git diff`의 비-ASCII string literal 변화가 의도된 것만 (mojibake 0건)
   - 변경된 .cs 파일에 BOM (`xxd | head -1`이 `efbbbf...`로 시작)
 ```
@@ -134,7 +134,7 @@ gate에 다음을 **필수 추가**:
 
 ```bash
 # 1) 손상 파일 식별
-LC_ALL=C grep -lE '"\?[^"]*[\xc0-\xff]' path/to/**/*.cs
+LC_ALL=C grep -lE '"[?][^"]*[\xc0-\xff]' path/to/**/*.cs
 
 # 2) git에서 가장 가까운 정상 버전으로 복구
 git checkout HEAD -- <file>
@@ -144,7 +144,7 @@ git checkout HEAD -- <file>
 
 # 4) 검증
 file <file>                           # "UTF-8 Unicode text"
-LC_ALL=C grep -nE '"\?[^"]*"' <file>  # 빈 결과
+LC_ALL=C grep -nE '"[?][^"]*"' <file>  # 빈 결과
 ```
 
 ## 7. 파생 프로젝트 체크리스트
