@@ -2,7 +2,7 @@
 
 <!-- BEGIN:VIBE:CURRENT-SPRINT -->
 > **Current**: idle (not started, started 2026-04-23)
-> **Completed**: sprint-agent-init-codex-skills, sprint-missing-upstream-sync-bootstrap, sprint-wsl-dashboard-open-error, sprint-pinned-upstream-ref, sprint-harness-typecheck-scope, sprint-sync-latest-ref, sprint-windows-hook-portability, sprint-upstream-bootstrap, sprint-M3-review-adapter-blind-spot, sprint-M2-generator-scope-discipline, sprint-M1-codex-unavailable-signal
+> **Completed**: sprint-iter8-app-loc-threshold, sprint-agent-init-codex-skills, sprint-missing-upstream-sync-bootstrap, sprint-wsl-dashboard-open-error, sprint-pinned-upstream-ref, sprint-harness-typecheck-scope, sprint-sync-latest-ref, sprint-windows-hook-portability, sprint-upstream-bootstrap, sprint-M3-review-adapter-blind-spot, sprint-M2-generator-scope-discipline, sprint-M1-codex-unavailable-signal
 > **Pending**: —
 <!-- END:VIBE:CURRENT-SPRINT -->
 
@@ -70,11 +70,9 @@ dogfood10 (첫 다운스트림 프로젝트, Next.js 15 AI 개인 대시보드) 
 - **의존**: M1, M2 (budget 소진 여부 확인 후 진입 — 초과 조짐 시 iter-8 로 이월 가능)
 - **scope glob**: `src/lib/review.ts`, `.claude/skills/vibe-review/SKILL.md`, `test/vibe-review-inputs.test.ts`, `docs/context/harness-gaps.md`
 
-## 다음 Iteration (iter-8)
+## 이월 완료
 
-- Finding C (app-LOC threshold breach detection) — `scripts/vibe-audit-lightweight.mjs` 확장 + `.vibe/config.json.audit.projectRoots` / `prototypeLocThreshold` 신규 옵션 필드
-- 예상 LOC: 55
-- target harnessVersion: v1.5.1
+- Finding C (app-LOC threshold breach detection) — Iteration 8 / `sprint-iter8-app-loc-threshold` 에서 v1.6.6으로 완료.
 
 ## 사용법
 
@@ -85,7 +83,25 @@ dogfood10 (첫 다운스트림 프로젝트, Next.js 15 AI 개인 대시보드) 
 5. `node scripts/vibe-sprint-commit.mjs <sprintId> passed --scope <scope-glob>` — 단일 커밋 생성. harnessVersion bump 시 auto-tag.
 6. iteration 종료 시 `docs/handoff.md` 에 "iter-7 closure: addresses dogfood10 review-4 findings A+B+D" 한 줄 기록 + `sync-manifest.json` 업데이트 확인.
 
+---
 
+# Iteration 8 — dogfood10-finding-C (2026-04-24)
+
+## 배경
+
+dogfood10 review finding C 는 프로토타입 Evaluator 면제 조건의 `LOC < 2000` 규칙이 실제 audit trigger 와 연결되지 않아 app-code LOC 초과를 놓친 사례다. iter-7 예산상 이월됐고, 이번 Sprint 에서 기존 lightweight audit 스크립트를 확장해 닫는다.
+
+## Sprint — app LOC threshold breach detection
+
+- **id**: `sprint-iter8-app-loc-threshold`
+- **목표**: `scripts/vibe-audit-lightweight.mjs` 가 app-code LOC 를 계산하고 `audit.prototypeLocThreshold` 초과 시 `LOC_THRESHOLD_BREACH` pendingRisk 를 주입한다.
+- **핵심 산출**:
+  - `audit.projectRoots` optional config, default `["src"]`
+  - `audit.prototypeLocThreshold` optional config, default `2000`
+  - pendingRisk `level/code/message` schema 확장
+  - Evaluator trigger matrix 문서 업데이트
+  - regression test: threshold 초과 시 risk annotation 검증
+- **결과**: passed, target harnessVersion `v1.6.6`
 
 
 

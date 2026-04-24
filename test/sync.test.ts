@@ -808,7 +808,9 @@ describe('sync manifest', () => {
     assert.equal(manifest.files.hybrid['.gitattributes']?.strategy, 'line-union');
     assert.equal(manifest.files.hybrid['AGENTS.md']?.strategy, 'section-merge');
     assert.equal(manifest.files.hybrid['GEMINI.md']?.strategy, 'section-merge');
+    assert.equal(manifest.files.hybrid['.vibe/config.json']?.projectKeys?.includes('audit'), true);
     assert.equal(manifest.files.harness.includes('test/bundle-size.test.ts'), true);
+    assert.equal(manifest.files.harness.includes('docs/release/v1.6.6.md'), true);
     assert.equal(manifest.files.harness.includes('test/phase0-seal.test.ts'), true);
     assert.equal(manifest.files.harness.includes('test/browser-smoke-contract.test.ts'), true);
     assert.equal(manifest.files.project.includes('.vibe/agent/project-map.json'), true);

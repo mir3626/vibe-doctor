@@ -20,6 +20,23 @@
       ],
       "milestoneProgress": {},
       "summary": "3-sprint cycle closing dogfood10 findings A+B+D. M1 adds CODEX_UNAVAILABLE signal (flag + stderr block) to run-codex.sh final-failure path. M2 adds _common-rules.md §15 blocking Generator self-initiated unit test creation. M3 extends collectReviewInputs with productFetcherPaths + adds /vibe-review adapter-health blind-spot rubric (🔴 Blocker auto-seed). harnessVersion bump 1.4.3 → 1.5.0. Code LOC +80 net (well under 150 cap). 255/255 tests pass. Finding C deferred to iter-8 per budget split."
+    },
+    {
+      "id": "iter-8",
+      "label": "dogfood10-finding-C-app-loc-threshold",
+      "startedAt": "2026-04-24T05:00:00.000Z",
+      "completedAt": "2026-04-24T05:12:14.677Z",
+      "goal": "Close dogfood10 review finding C by enforcing the prototype LOC exemption precondition through lightweight audit app-code LOC threshold detection.",
+      "plannedSprints": [
+        "sprint-iter8-app-loc-threshold"
+      ],
+      "completedSprints": [
+        "sprint-iter8-app-loc-threshold"
+      ],
+      "milestoneProgress": {
+        "app-loc-threshold-audit": 1
+      },
+      "summary": "v1.6.6 adds app-code LOC scanning to scripts/vibe-audit-lightweight.mjs with audit.projectRoots and audit.prototypeLocThreshold config, injects LOC_THRESHOLD_BREACH pendingRisk metadata, extends pendingRisk schema, and updates Evaluator trigger docs so prototype exceptions are invalid when the breach is open."
     }
   ]
 }

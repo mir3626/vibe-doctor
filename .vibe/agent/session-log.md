@@ -20,6 +20,8 @@
 
 ## Entries
 
+- 2026-04-24T05:12:14.677Z [sprint-complete] sprint-iter8-app-loc-threshold -> passed. v1.6.6 adds app-code LOC threshold detection to lightweight audit and invalidates prototype Evaluator exceptions on `LOC_THRESHOLD_BREACH`.
+- 2026-04-24T05:00:00.000Z [decision][iter-8-kickoff] Next sprint selected from deferred dogfood10 Finding C: app LOC threshold breach detection. Direct Codex Orchestrator fallback used; no sub-agent spawned.
 - 2026-04-24T04:42:23.019Z [user-directive] User preference: after verified harness changes, do not ask separately before pushing; proceed directly with commit/tag/push when that is the natural next step.
 - 2026-04-24T04:34:00.000Z [checkpoint] v1.6.5 local patch clarifies Codex role modes, aligns `/vibe-sync` docs with harness-only typecheck + caret/exact ref semantics, downgrades `gap-rule-only-in-md` to pending enforcement, and passes typecheck/focused tests/diff-check/full test/build before checkpoint.
 
