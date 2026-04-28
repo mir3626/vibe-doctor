@@ -808,6 +808,7 @@ describe('sync manifest', () => {
     assert.equal(manifest.files.harness.includes('.vibe/harness/playwright.config.ts'), true);
     assert.equal(manifest.files.harness.includes('scripts/vibe-sync-bootstrap.mjs'), true);
     assert.equal(manifest.files.harness.includes('.claude/skills/**'), true);
+    assert.equal(manifest.files.harness.includes('.claude/templates/**'), true);
     assert.equal(manifest.files.harness.includes('docs/release/**'), true);
     assert.equal(manifest.files.harness.includes('.codex/skills/**'), true);
     assert.equal(manifest.files.harness.includes('.claude/statusline.mjs'), true);

@@ -20,6 +20,7 @@
 
 ## Entries
 
+- 2026-04-28T16:29:05.291Z [harness-review] Prepared `v1.7.2` patch for Codex `/vibe-init --mode=agent` prompt rendering drift: canonical template body extraction, one-liner normalization, real-template regressions, checked-in `/vibe-review` helper, sync-manifest template shipping, full test/build/diff/encoding verification.
 - 2026-04-28T16:01:23.555Z [release] Prepared `v1.7.1` patch release for Codex `/vibe-init` agent-mode guard: bumped harnessVersion metadata, added release notes, updated README highlights, and verified typecheck/focused tests/build.
 - 2026-04-28T15:57:49.071Z [checkpoint] Pushed Codex `/vibe-init` partial-init patch to `origin/main` at `da0556f`; follow-up checkpoint records pushed state for downstream sync/retest.
 - 2026-04-28T15:51:54.800Z [harness-review] Codex `/vibe-init` partial-init patch: explicit `--mode=human|agent` gate added, `mode=agent` now delegation-only with Codex-aware prompt rendering, config.local Codex wrapper path fixed, partial-init `/vibe-review` exception documented, and verification passed (`typecheck`, focused tests, full `npm test`, `build`, encoding checks).

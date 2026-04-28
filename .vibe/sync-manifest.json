@@ -24,6 +24,7 @@
       ".vibe/sync-manifest.json",
       ".claude/agents/**",
       ".claude/skills/**",
+      ".claude/templates/**",
       ".claude/statusline.mjs",
       ".claude/statusline.sh",
       ".claude/statusline.ps1",

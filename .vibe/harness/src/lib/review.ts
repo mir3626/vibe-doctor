@@ -5,7 +5,7 @@ import path from 'node:path';
 import { readDecisions, type ProjectDecision } from './decisions.js';
 import { fileExists, readJson, readText } from './fs.js';
 import { paths } from './paths.js';
-import { loadSprintStatus, type PendingRisk } from './sprint-status.js';
+import { loadSprintStatus, withDefaults, type PendingRisk, type SprintStatus } from './sprint-status.js';
 
 const execFile = promisify(execFileCallback);
 const DEFAULT_RECENT_ENTRIES = 50;
@@ -460,6 +460,22 @@ async function readGitLog(
   }
 }
 
+async function loadReviewSprintStatus(root: string): Promise<SprintStatus> {
+  try {
+    return await loadSprintStatus(root);
+  } catch {
+    return withDefaults({
+      schemaVersion: '0.1',
+      project: {
+        name: path.basename(root),
+        createdAt: '1970-01-01T00:00:00.000Z',
+      },
+      sprints: [],
+      verificationCommands: [],
+    });
+  }
+}
+
 function countOpenHarnessGaps(markdown: string): number {
   return markdown
     .split(/\r?\n/)
@@ -791,7 +807,7 @@ export async function collectReviewInputs(root?: string): Promise<ReviewInputs> 
   ] = await Promise.all([
     readOptionalText(handoffPath(resolvedRoot)),
     readOptionalText(sessionLogPath(resolvedRoot)),
-    loadSprintStatus(resolvedRoot),
+    loadReviewSprintStatus(resolvedRoot),
     readDecisions(resolvedRoot),
     readOptionalText(productPath(resolvedRoot)),
     readOptionalText(harnessGapsPath(resolvedRoot)),

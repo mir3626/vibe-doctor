@@ -8,7 +8,18 @@
 
 ---
 
-## Latest highlights (v1.7.1)
+## Latest highlights (v1.7.2)
+
+### v1.7.2 (2026-04-29) - Agent prompt template hardening
+
+- `/vibe-init --mode=agent` now extracts only the real delegation prompt body, so footer prose in the canonical template cannot be counted as a live placeholder.
+- Long wrapped Korean/Unicode one-liners are normalized before prompt rendering.
+- The real `.claude/templates/agent-delegation-prompt.md` is covered for both Codex and Claude runtimes.
+- `/vibe-review` now uses a checked-in helper script with deterministic dependency handling for partial init failure reviews.
+
+---
+
+## Previous highlights (v1.7.1)
 
 ### v1.7.1 (2026-04-29) - Codex init agent-mode guard
 
@@ -18,7 +29,7 @@
 
 ---
 
-## Previous highlights (v1.7.0)
+## Older highlights (v1.7.0)
 
 ### v1.7.0 (2026-04-24) - Harness source boundary
 
@@ -142,7 +153,7 @@
 - **v1.3.x** — HTML 프로젝트 보고서, `/vibe-iterate`, `/vibe-review`, `/vibe-sprint-mode`, web dashboard.
 - **v1.2.x** — native socratic interview, stack/framework pattern shards, model tier abstraction, platform wrappers, single-commit automation, statusline.
 
-자세한 릴리스 내역은 `docs/release/v1.2.0.md` ~ `v1.6.8.md` 참조.
+자세한 릴리스 내역은 `docs/release/v1.2.0.md` ~ `v1.7.2.md` 참조.
 
 ---
 
@@ -562,6 +573,9 @@ Orchestrator 가 주로 호출합니다. 사용자가 직접 쓸 일은 드뭅�
 - `v1.6.6` — app-code LOC threshold audit + `LOC_THRESHOLD_BREACH` pendingRisk
 - `v1.6.7` — rule disposition audit + `--fail-on-undisposed` gate
 - `v1.6.8` — `/vibe-review` wiring drift detector 🆕
+- `v1.7.0` — harness source boundary
+- `v1.7.1` — Codex init agent-mode guard
+- `v1.7.2` — agent prompt template hardening + review helper script
 
 ---
 

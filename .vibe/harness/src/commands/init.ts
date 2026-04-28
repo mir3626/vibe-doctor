@@ -15,6 +15,7 @@ export const AGENT_INIT_FLAG = '--from-agent-skill';
 export const INIT_MODE_FLAG = '--mode';
 const AGENT_INIT_ENV = 'VIBE_INIT_AGENT';
 const AGENT_DELEGATION_MARKER = '## (이 아래부터가 실제 agent 에게 전달되는 prompt 본문이다)';
+const AGENT_DELEGATION_END_MARKER = '## (Template 끝)';
 const ONE_LINER_PLACEHOLDER = '<ONE_LINER>';
 const RUNTIME_LABEL_PLACEHOLDER = '<AGENT_RUNTIME_LABEL>';
 const RUNTIME_MEMORY_PLACEHOLDER = '<RUNTIME_MEMORY_STEPS>';
@@ -101,7 +102,13 @@ function extractDelegationPromptBody(template: string): string {
   }
 
   const bodyStart = template.indexOf('\n', markerIndex);
-  return (bodyStart === -1 ? '' : template.slice(bodyStart + 1)).trim();
+  const bodyWithFooter = bodyStart === -1 ? '' : template.slice(bodyStart + 1);
+  const endMarkerIndex = bodyWithFooter.indexOf(AGENT_DELEGATION_END_MARKER);
+  return (endMarkerIndex === -1 ? bodyWithFooter : bodyWithFooter.slice(0, endMarkerIndex)).trim();
+}
+
+export function normalizeAgentOneLiner(value: string): string {
+  return value.trim().replace(/\s+/gu, ' ');
 }
 
 function runtimeMemorySteps(runtime: AgentRuntime): string {
@@ -154,7 +161,7 @@ export function renderAgentDelegationPromptBody(
   }
 
   return body
-    .replace(ONE_LINER_PLACEHOLDER, oneLiner)
+    .replace(ONE_LINER_PLACEHOLDER, normalizeAgentOneLiner(oneLiner))
     .replaceAll(RUNTIME_LABEL_PLACEHOLDER, runtime === 'codex' ? 'Codex Orchestrator' : 'Claude Code')
     .replaceAll(RUNTIME_MEMORY_PLACEHOLDER, runtimeMemorySteps(runtime))
     .replaceAll(RUNTIME_NOTES_PLACEHOLDER, runtimeDelegationNotes(runtime));
@@ -391,8 +398,8 @@ async function promptInitMode(interactive: boolean): Promise<InitMode | null> {
 }
 
 async function resolveOneLiner(value: string | undefined, interactive: boolean): Promise<string | null> {
-  if (value && value.trim()) {
-    return value.trim();
+  if (value && normalizeAgentOneLiner(value)) {
+    return normalizeAgentOneLiner(value);
   }
 
   if (!interactive) {
@@ -403,9 +410,9 @@ async function resolveOneLiner(value: string | undefined, interactive: boolean):
 
   const rl = readline.createInterface({ input, output });
   try {
-    const answer = (
+    const answer = normalizeAgentOneLiner(
       await rl.question('Project one-liner for the delegated agent session: ')
-    ).trim();
+    );
     if (!answer) {
       process.stderr.write('Project one-liner is required for --mode=agent.\n');
       process.exitCode = 1;

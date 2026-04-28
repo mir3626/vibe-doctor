@@ -85,6 +85,6 @@ describe('Codex skill parity', () => {
     const shared = await readFile(path.join(process.cwd(), '.claude', 'skills', 'vibe-review', 'SKILL.md'), 'utf8');
 
     assert.match(wrapper, /partial or uninitialized checkout/);
-    assert.match(shared, /npm exec --yes --package=tsx -- tsx/);
+    assert.match(shared, /\.vibe\/harness\/scripts\/vibe-review-inputs\.mjs --install/);
   });
 });

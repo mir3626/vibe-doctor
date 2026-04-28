@@ -246,6 +246,30 @@ describe('review inputs', () => {
     assert.deepEqual(restorations, []);
   });
 
+  it('collectReviewInputs tolerates missing sprint status for bootstrap-failure reviews', async () => {
+    const root = await makeTempDir('review-partial-init-');
+    await writeJson(path.join(root, '.vibe', 'config.json'), {});
+    await writeText(path.join(root, 'docs', 'context', 'product.md'), '# Product\n\nvibe-doctor template\n');
+
+    const inputs = await collectReviewInputs(root);
+
+    assert.equal(inputs.passedSprintCount, 0);
+    assert.deepEqual(inputs.openPendingRisks, []);
+    assert.match(inputs.productText, /vibe-doctor template/);
+  });
+
+  it('checked-in review helper emits reproducible input JSON from the current checkout', async () => {
+    const { stdout } = await execFile(
+      process.execPath,
+      [path.join(process.cwd(), '.vibe', 'harness', 'scripts', 'vibe-review-inputs.mjs')],
+      { cwd: process.cwd(), maxBuffer: 1024 * 1024 * 10 },
+    );
+    const parsed = JSON.parse(stdout) as { inputs?: { passedSprintCount?: number }; issues?: unknown[] };
+
+    assert.equal(typeof parsed.inputs?.passedSprintCount, 'number');
+    assert.equal(Array.isArray(parsed.issues), true);
+  });
+
   it('detectOptInGaps returns bundle and browser smoke friction entries for web projects without a recent opt-in decision', () => {
     const issues = detectOptInGaps(
       {

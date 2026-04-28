@@ -1,7 +1,7 @@
 # Agent Delegation Prompt (vibe-doctor template)
 
 이 파일은 `/vibe-init` Step 1-0 에서 사용자가 **mode=agent** 를 선택할 때
-`<ONE_LINER>` 자리에 한 줄 프로젝트 정의가 주입된 뒤 터미널에 출력되는 prompt template 이다.
+one-liner placeholder 자리에 한 줄 프로젝트 정의가 주입된 뒤 터미널에 출력되는 prompt template 이다.
 사용자는 출력된 최종 prompt 를 copy-paste 하여 **새 agent runtime 세션**에 주입한다.
 주입 받은 agent 는 이 prompt 전체를 first-class instruction 으로 수행한다.
 
@@ -90,5 +90,5 @@ operating charter 로 채택** 한다. 이 섹션들의 Must 조건은 **모두 
 
 ## (Template 끝)
 
-이 template 을 다루는 vibe-init skill 은 `<ONE_LINER>` 와 runtime placeholder를 치환한 뒤
+이 template 을 다루는 vibe-init skill 은 one-liner placeholder 와 runtime placeholder를 치환한 뒤
 위 본문 전체를 코드 블록으로 터미널에 출력한다.
