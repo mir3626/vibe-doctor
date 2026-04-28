@@ -6,13 +6,13 @@
 - **branch**: `main`
 - **last pushed release**: `v1.6.12`
 - **working target**: `v1.7.0`
-- **current iteration**: harness source boundary refactor complete locally, push pending
+- **current iteration**: Codex `/vibe-init` partial-init patch pushed
 - **harnessVersion**: `1.7.0`
 - **language/tone**: Korean user-facing, concise engineering notes
 
 ## 2. Status
 
-Codex Orchestrator maintenance patch for downstream `tvd-extension` partial `/vibe-init` failure is implemented locally.
+Codex Orchestrator maintenance patch for downstream `tvd-extension` partial `/vibe-init` failure was committed and pushed to `origin/main`.
 
 - `/vibe-init` now requires an explicit `--mode=human|agent` after Step 1-0 in non-interactive agent-skill execution.
 - `--mode=agent` is delegation-only: it records `.vibe/config.json.mode = "agent"`, renders the runtime-specific delegation prompt, and exits before `.env`, `.vibe/config.local.json`, `.vibe/agent/*`, or interview artifacts are touched.
@@ -41,7 +41,7 @@ Completed on Windows for this patch:
 
 ## 5. Next Action
 
-Run `npm run vibe:checkpoint`, then commit this harness patch. After sync into `tvd-extension`, rerun Codex `$vibe-init` and verify `agent` mode prints the Codex-specific delegation prompt without creating `.vibe/agent/*` or `.vibe/config.local.json`.
+After sync into `tvd-extension`, rerun Codex `$vibe-init` and verify `agent` mode prints the Codex-specific delegation prompt without creating `.vibe/agent/*` or `.vibe/config.local.json`.
 
 ## 6. Pending Risks
 
