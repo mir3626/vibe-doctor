@@ -8,7 +8,7 @@
 
 ## 환경변수 관리
 
-`/vibe-init` agent skill이 `npm run vibe:init -- --from-agent-skill`을 실행하면 `.env.example`을 복사해 `.env`를 자동 생성한다.
+`/vibe-init` agent skill이 Step 1-0에서 `human`을 선택한 뒤 `npm run vibe:init -- --from-agent-skill --mode=human`을 실행하면 `.env.example`을 복사해 `.env`를 자동 생성한다. `mode=agent` delegation-only 경로는 `.env`를 만들지 않는다.
 
 | 파일 | git 커밋 | 용도 |
 |------|----------|------|

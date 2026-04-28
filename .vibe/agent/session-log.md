@@ -20,6 +20,7 @@
 
 ## Entries
 
+- 2026-04-28T15:51:54.800Z [harness-review] Codex `/vibe-init` partial-init patch: explicit `--mode=human|agent` gate added, `mode=agent` now delegation-only with Codex-aware prompt rendering, config.local Codex wrapper path fixed, partial-init `/vibe-review` exception documented, and verification passed (`typecheck`, focused tests, full `npm test`, `build`, encoding checks).
 - 2026-04-24T09:20:00.000Z [harness-review] v1.7.0 candidate separates canonical harness code under `.vibe/harness/**`, keeps a root `scripts/vibe-sync-bootstrap.mjs` legacy bridge, clarifies `/vibe-review` as template/harness review, and verifies typecheck/test/build/ui/config-audit/sync-dry-run locally.
 - 2026-04-24T08:13:22.847Z [harness-review] v1.6.12 candidate hardens downstream init/review/playwright surfaces: provider PATH lookup, Codex init boundary, explicit review-signals platform detection, and Playwright test wrapper all verified locally.
 - 2026-04-24T06:46:59.619Z [sprint-complete] sprint-linux-ci-run-codex-wrapper -> passed. v1.6.11 fixes the GitHub Actions npm test failure introduced at v1.6.1 by making run-codex wrapper tests deterministic on Linux CI.

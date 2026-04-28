@@ -4,14 +4,24 @@ import { spawnSync } from 'node:child_process';
 import { copyFile } from 'node:fs/promises';
 import readline from 'node:readline/promises';
 import { stdin as input, stdout as output } from 'node:process';
+import { parseArgs, getStringFlag } from '../lib/args.js';
 import { runMain } from '../lib/cli.js';
-import { fileExists, readJson, writeJson, writeText } from '../lib/fs.js';
+import { fileExists, readJson, readText, writeJson, writeText } from '../lib/fs.js';
 import { logger } from '../lib/logger.js';
 import { paths } from '../lib/paths.js';
 import type { SprintRoleDefinition, VibeConfig } from '../lib/config.js';
 
 export const AGENT_INIT_FLAG = '--from-agent-skill';
+export const INIT_MODE_FLAG = '--mode';
 const AGENT_INIT_ENV = 'VIBE_INIT_AGENT';
+const AGENT_DELEGATION_MARKER = '## (이 아래부터가 실제 agent 에게 전달되는 prompt 본문이다)';
+const ONE_LINER_PLACEHOLDER = '<ONE_LINER>';
+const RUNTIME_LABEL_PLACEHOLDER = '<AGENT_RUNTIME_LABEL>';
+const RUNTIME_MEMORY_PLACEHOLDER = '<RUNTIME_MEMORY_STEPS>';
+const RUNTIME_NOTES_PLACEHOLDER = '<RUNTIME_DELEGATION_NOTES>';
+
+type InitMode = 'human' | 'agent';
+type AgentRuntime = 'claude' | 'codex';
 
 // ─── helpers ───────────────────────────────────────────────────────
 
@@ -36,9 +46,136 @@ export function renderDirectInitGuardMessage(): string {
     '  Codex: ask Codex to run the vibe-init workflow using .codex/skills/vibe-init/SKILL.md',
     '',
     'Agent skills may run the mechanical bootstrap command as:',
-    `  npm run vibe:init -- ${AGENT_INIT_FLAG}`,
+    `  npm run vibe:init -- ${AGENT_INIT_FLAG} ${INIT_MODE_FLAG}=human`,
     '',
     'Direct shell execution stops here so the agent can complete product context, roadmap, handoff, and session-log setup.',
+    '',
+  ].join('\n');
+}
+
+export function renderMissingModeMessage(): string {
+  return [
+    'vibe:init requires an explicit session mode before bootstrap work can run.',
+    '',
+    'Agent skills must perform Step 1-0 first, then call one of:',
+    `  npm run vibe:init -- ${AGENT_INIT_FLAG} ${INIT_MODE_FLAG}=human`,
+    `  npm run vibe:init -- ${AGENT_INIT_FLAG} ${INIT_MODE_FLAG}=agent --runtime=codex --one-liner "<project one-liner>"`,
+    '',
+    'The agent path records .vibe/config.json.mode, prints the delegation prompt, and exits before Phase 1-1.',
+    '',
+  ].join('\n');
+}
+
+function parseInitMode(value: string | undefined): InitMode | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  if (value === 'human' || value === 'agent') {
+    return value;
+  }
+
+  throw new Error(`Invalid init mode: ${value}. Expected "human" or "agent".`);
+}
+
+function parseAgentRuntime(value: string | undefined): AgentRuntime {
+  if (value === undefined || value === 'claude') {
+    return 'claude';
+  }
+
+  if (value === 'codex') {
+    return 'codex';
+  }
+
+  throw new Error(`Invalid agent runtime: ${value}. Expected "claude" or "codex".`);
+}
+
+function countOccurrences(value: string, needle: string): number {
+  return value.split(needle).length - 1;
+}
+
+function extractDelegationPromptBody(template: string): string {
+  const markerIndex = template.indexOf(AGENT_DELEGATION_MARKER);
+  if (markerIndex === -1) {
+    throw new Error(`Agent delegation template is missing marker: ${AGENT_DELEGATION_MARKER}`);
+  }
+
+  const bodyStart = template.indexOf('\n', markerIndex);
+  return (bodyStart === -1 ? '' : template.slice(bodyStart + 1)).trim();
+}
+
+function runtimeMemorySteps(runtime: AgentRuntime): string {
+  if (runtime === 'codex') {
+    return [
+      '1. `AGENTS.md` 의 `<!-- BEGIN:HARNESS:agent-memory --> ... <!-- END:HARNESS:agent-memory -->` 블록.',
+      '   Codex role mode, initialization boundary, BLOCKED rule, and encoding integrity rule are authoritative.',
+      '2. `docs/context/orchestration.md` 의 provider-neutral 역할/Phase 매트릭스.',
+      '3. `docs/context/codex-execution.md` 의 provider-neutral lifecycle and Codex Windows execution rules.',
+      '4. `CLAUDE.md` 의 `<!-- BEGIN:CHARTER -->` 와 `<!-- BEGIN:FREEZE-POSTURE -->` 블록은 shared nominal charter로 읽되,',
+      '   Claude Code 전용 Agent/PreCompact mechanics는 Codex에서 그대로 가정하지 않는다.',
+      '5. `.claude/skills/vibe-init/SKILL.md` 의 Phase 1~4 흐름 개요 (Step 1-0 은 이미 완료된 것으로 간주).',
+    ].join('\n');
+  }
+
+  return [
+    '1. `CLAUDE.md` 의 `<!-- BEGIN:CHARTER --> ... <!-- END:CHARTER -->` 블록 전체.',
+    '2. `CLAUDE.md` 의 `<!-- BEGIN:FREEZE-POSTURE -->` 블록.',
+    '3. `.claude/skills/vibe-init/SKILL.md` 의 Phase 1~4 흐름 개요 (Step 1-0 은 이미 완료된 것으로 간주).',
+  ].join('\n');
+}
+
+function runtimeDelegationNotes(runtime: AgentRuntime): string {
+  if (runtime === 'codex') {
+    return [
+      '- Codex로 실행 중이면 `AGENTS.md`의 Codex Orchestrator maintenance mode가 우선한다.',
+      '- Claude Code의 native Agent/PreCompact 기능을 전제로 하지 말고, 사용 가능한 Codex 도구 또는 provider-neutral fallback으로 대체한다.',
+      '- Sprint prompt가 Codex Generator로 투입되는 순간에는 다시 Generator 계약과 Files Generator may touch 경계를 따른다.',
+    ].join('\n');
+  }
+
+  return [
+    '- Claude Code로 실행 중이면 `CLAUDE.md`의 nominal Orchestrator 계약과 Agent 호출 메커니즘을 따른다.',
+    '- Codex는 Sprint Generator로만 위임하고, Generator 호출은 `./.vibe/harness/scripts/run-codex.sh`를 경유한다.',
+  ].join('\n');
+}
+
+export function renderAgentDelegationPromptBody(
+  template: string,
+  oneLiner: string,
+  runtime: AgentRuntime,
+): string {
+  const body = extractDelegationPromptBody(template);
+  const oneLinerCount = countOccurrences(body, ONE_LINER_PLACEHOLDER);
+
+  if (oneLinerCount !== 1) {
+    throw new Error(
+      `Agent delegation prompt body must contain ${ONE_LINER_PLACEHOLDER} exactly once; found ${oneLinerCount}.`,
+    );
+  }
+
+  return body
+    .replace(ONE_LINER_PLACEHOLDER, oneLiner)
+    .replaceAll(RUNTIME_LABEL_PLACEHOLDER, runtime === 'codex' ? 'Codex Orchestrator' : 'Claude Code')
+    .replaceAll(RUNTIME_MEMORY_PLACEHOLDER, runtimeMemorySteps(runtime))
+    .replaceAll(RUNTIME_NOTES_PLACEHOLDER, runtimeDelegationNotes(runtime));
+}
+
+function formatAgentDelegationPrompt(renderedBody: string, runtime: AgentRuntime): string {
+  const runtimeLabel = runtime === 'codex' ? 'Codex' : 'Claude Code';
+
+  return [
+    '─'.repeat(60),
+    `Agent Delegation Prompt (copy into a new ${runtimeLabel} session)`,
+    '─'.repeat(60),
+    '',
+    '```md',
+    renderedBody,
+    '```',
+    '',
+    '─'.repeat(60),
+    '',
+    `Copy the prompt above into a fresh ${runtimeLabel} session.`,
+    'This /vibe-init session stops here.',
     '',
   ].join('\n');
 }
@@ -112,8 +249,20 @@ async function ensureEnvFile(): Promise<void> {
 }
 
 async function ensureUpstreamConfig(): Promise<void> {
-  const scriptPath = path.join(paths.root, 'scripts', 'vibe-version-check.mjs');
-  if (!(await fileExists(scriptPath))) {
+  const candidates = [
+    path.join(paths.root, '.vibe', 'harness', 'scripts', 'vibe-version-check.mjs'),
+    path.join(paths.root, 'scripts', 'vibe-version-check.mjs'),
+  ];
+  let scriptPath: string | undefined;
+
+  for (const candidate of candidates) {
+    if (await fileExists(candidate)) {
+      scriptPath = candidate;
+      break;
+    }
+  }
+
+  if (!scriptPath) {
     return;
   }
 
@@ -211,6 +360,81 @@ async function ensureInitialAgentState(): Promise<void> {
     ].join('\n'),
   );
   logger.info('initialized .vibe/agent state with empty sprint history');
+}
+
+async function recordSharedConfigMode(mode: InitMode): Promise<void> {
+  if (!(await fileExists(paths.sharedConfig))) {
+    throw new Error(`Missing ${path.relative(paths.root, paths.sharedConfig)}; cannot record init mode.`);
+  }
+
+  const config = await readJson<Record<string, unknown>>(paths.sharedConfig);
+  config.mode = mode;
+  await writeJson(paths.sharedConfig, config);
+}
+
+async function promptInitMode(interactive: boolean): Promise<InitMode | null> {
+  if (!interactive) {
+    process.stderr.write(renderMissingModeMessage());
+    process.exitCode = 1;
+    return null;
+  }
+
+  const rl = readline.createInterface({ input, output });
+  try {
+    const answer = (
+      await rl.question('vibe-init mode? [human] (choices: human, agent): ')
+    ).trim().toLowerCase();
+    return parseInitMode(answer || 'human') ?? 'human';
+  } finally {
+    rl.close();
+  }
+}
+
+async function resolveOneLiner(value: string | undefined, interactive: boolean): Promise<string | null> {
+  if (value && value.trim()) {
+    return value.trim();
+  }
+
+  if (!interactive) {
+    process.stderr.write('vibe:init --mode=agent requires --one-liner "<project one-liner>".\n');
+    process.exitCode = 1;
+    return null;
+  }
+
+  const rl = readline.createInterface({ input, output });
+  try {
+    const answer = (
+      await rl.question('Project one-liner for the delegated agent session: ')
+    ).trim();
+    if (!answer) {
+      process.stderr.write('Project one-liner is required for --mode=agent.\n');
+      process.exitCode = 1;
+      return null;
+    }
+    return answer;
+  } finally {
+    rl.close();
+  }
+}
+
+async function runAgentDelegationMode(
+  oneLinerValue: string | undefined,
+  runtimeValue: string | undefined,
+  interactive: boolean,
+): Promise<void> {
+  const oneLiner = await resolveOneLiner(oneLinerValue, interactive);
+  if (!oneLiner) {
+    return;
+  }
+
+  const runtime = parseAgentRuntime(runtimeValue);
+  const template = await readText(
+    path.join(paths.root, '.claude', 'templates', 'agent-delegation-prompt.md'),
+  );
+  const renderedBody = renderAgentDelegationPromptBody(template, oneLiner, runtime);
+
+  await recordSharedConfigMode('agent');
+  process.stdout.write(formatAgentDelegationPrompt(renderedBody, runtime));
 }
 
 // ─── project customization ────────────────────────────────────────
@@ -360,12 +584,29 @@ async function main(): Promise<void> {
     return;
   }
 
+  const args = parseArgs(process.argv.slice(2));
+  const interactive = Boolean(process.stdin.isTTY && process.stdout.isTTY);
+  const mode = parseInitMode(getStringFlag(args, 'mode')) ?? (await promptInitMode(interactive));
+
+  if (!mode) {
+    return;
+  }
+
+  if (mode === 'agent') {
+    await runAgentDelegationMode(
+      getStringFlag(args, 'one-liner'),
+      getStringFlag(args, 'runtime'),
+      interactive,
+    );
+    return;
+  }
+
+  await recordSharedConfigMode('human');
   await ensureUpstreamConfig();
   await ensureEnvFile();
   await ensureInitialAgentState();
 
   const base = await readJson<VibeConfig>(paths.localConfigExample);
-  const interactive = Boolean(process.stdin.isTTY && process.stdout.isTTY);
 
   // config.local.json 설정
   if (await fileExists(paths.localConfig)) {

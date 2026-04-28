@@ -19,7 +19,9 @@ Required project-owned state:
 - `docs/context/product.md` exists, is non-empty, and describes the current project rather than the `vibe-doctor` template.
 - `.vibe/agent/sprint-status.json` exists and `project.name` is not `vibe-doctor`.
 
-If either file is missing, empty, malformed, or template-owned, stop all non-init work. Run the `vibe-init` workflow first. In Codex skill execution, use `npm run vibe:init -- --from-agent-skill`; do not use plain `npm run vibe:init` from an agent session.
+If either file is missing, empty, malformed, or template-owned, stop all non-init work. Run the `vibe-init` workflow first. In Codex skill execution, use `npm run vibe:init -- --from-agent-skill --mode=human` only after Step 1-0 selects `human`; use the `--mode=agent --runtime=codex --one-liner "<...>"` delegation path when Step 1-0 selects `agent`. Do not use plain `npm run vibe:init` from an agent session.
+
+Narrow exception: if the user explicitly asks for `/vibe-review` or a harness/template/process review whose target is an init/bootstrap/harness process failure, Codex may perform that review read-only in a partial or uninitialized downstream checkout. This exception does not permit product implementation work.
 
 원칙:
 - Planner의 스펙과 체크리스트 범위를 벗어나지 않는다.

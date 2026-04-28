@@ -33,8 +33,12 @@ function runAgentSessionStart(cwd: string): void {
     return;
   }
 
-  const scriptPath = path.join(cwd, 'scripts', 'vibe-agent-session-start.mjs');
-  if (!existsSync(scriptPath)) {
+  const scriptPath = [
+    path.join(cwd, '.vibe', 'harness', 'scripts', 'vibe-agent-session-start.mjs'),
+    path.join(cwd, 'scripts', 'vibe-agent-session-start.mjs'),
+  ].find((candidate) => existsSync(candidate));
+
+  if (!scriptPath) {
     return;
   }
 

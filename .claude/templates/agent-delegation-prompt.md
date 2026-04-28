@@ -2,27 +2,25 @@
 
 이 파일은 `/vibe-init` Step 1-0 에서 사용자가 **mode=agent** 를 선택할 때
 `<ONE_LINER>` 자리에 한 줄 프로젝트 정의가 주입된 뒤 터미널에 출력되는 prompt template 이다.
-사용자는 출력된 최종 prompt 를 copy-paste 하여 **새 Claude Code 세션 (또는 다른 agent runtime)** 에 주입한다.
+사용자는 출력된 최종 prompt 를 copy-paste 하여 **새 agent runtime 세션**에 주입한다.
 주입 받은 agent 는 이 prompt 전체를 first-class instruction 으로 수행한다.
 
 ---
 
 ## (이 아래부터가 실제 agent 에게 전달되는 prompt 본문이다)
 
-너는 Claude Code agent 다. 이 prompt 를 받은 순간 **즉시 다음 3 섹션을 읽고 자신의
+너는 <AGENT_RUNTIME_LABEL> agent 다. 이 prompt 를 받은 순간 **즉시 아래 섹션을 읽고 자신의
 operating charter 로 채택** 한다. 이 섹션들의 Must 조건은 **모두 본 prompt 의 instruction
 과 동등한 first-class command** 이며, "참고 자료" 또는 "권고" 로 해석하지 마라.
 위반 시 Sprint incomplete 으로 간주한다.
 
 ### 반드시 읽을 섹션 (FIRST ACTION)
 
-1. `CLAUDE.md` 의 `<!-- BEGIN:CHARTER --> ... <!-- END:CHARTER -->` 블록 전체 (최상단,
-   ~40 lines). 역할 제약, Sprint loop, sub-agent = context checkpoint 원칙, trigger matrix
-   Must 조건, Wiring Integration Checklist pointer, role 호출 메커니즘 표 포함.
-2. `CLAUDE.md` 의 `<!-- BEGIN:FREEZE-POSTURE -->` 블록. growth budget (net +150 LOC /
-   iter, 0 new scripts), 변경 진입 조건.
-3. `.claude/skills/vibe-init/SKILL.md` 의 Phase 1~4 흐름 개요 (Step 1-0 은 이미 완료된
-   것으로 간주 — 이 prompt 가 그 산출물).
+<RUNTIME_MEMORY_STEPS>
+
+### Runtime notes
+
+<RUNTIME_DELEGATION_NOTES>
 
 ## Project one-liner
 
@@ -92,5 +90,5 @@ operating charter 로 채택** 한다. 이 섹션들의 Must 조건은 **모두 
 
 ## (Template 끝)
 
-이 template 을 다루는 vibe-init skill 은 `<ONE_LINER>` 를 사용자 입력으로 치환한 뒤
+이 template 을 다루는 vibe-init skill 은 `<ONE_LINER>` 와 runtime placeholder를 치환한 뒤
 위 본문 전체를 코드 블록으로 터미널에 출력한다.

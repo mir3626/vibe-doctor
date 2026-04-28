@@ -12,8 +12,10 @@ Use it to review the orchestration harness, template rules, sync behavior, agent
 1. Load reproducible helper inputs:
 
 ```bash
-node --import tsx -e "import { collectReviewInputs, detectOptInGaps } from './.vibe/harness/src/lib/review.ts'; const inputs = await collectReviewInputs(); const config = (await import('./.vibe/config.json', { with: { type: 'json' } })).default; const issues = detectOptInGaps(config, { productText: inputs.productText, sessionLogRecent: inputs.recentSessionEntries }); console.log(JSON.stringify({ inputs, issues }, null, 2));"
+npm exec --yes --package=tsx -- tsx -e "import { collectReviewInputs, detectOptInGaps } from './.vibe/harness/src/lib/review.ts'; const inputs = await collectReviewInputs(); const config = (await import('./.vibe/config.json', { with: { type: 'json' } })).default; const issues = detectOptInGaps(config, { productText: inputs.productText, sessionLogRecent: inputs.recentSessionEntries }); console.log(JSON.stringify({ inputs, issues }, null, 2));"
 ```
+
+If dependency resolution is unavailable, run `npm install` first and retry the same command. This helper is allowed to run in a partial or uninitialized downstream checkout when the explicit review target is an init/bootstrap/harness process failure.
 
 2. Also read:
    - `.vibe/agent/handoff.md`

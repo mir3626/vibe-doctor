@@ -12,41 +12,38 @@
 
 ## 2. Status
 
-User approved the structural separation plan and asked to preserve legacy one-stop bootstrap sync behavior. v1.7.0 candidate implements:
+Codex Orchestrator maintenance patch for downstream `tvd-extension` partial `/vibe-init` failure is implemented locally.
 
-- canonical harness runtime, source, tests, migrations, Playwright config, and TypeScript configs under `.vibe/harness/**`;
-- downstream root `src/**`, `scripts/**`, `test/**`, `app/**`, `components/**`, and `lib/**` treated as project-owned by default;
-- package scripts split so `vibe:*` runs harness tasks while ordinary `build`, `typecheck`, `test`, and `test:ui` remain project-facing aliases for compatibility;
-- `/vibe-review` guidance clarified as template/harness review, separate from normal product code review;
-- legacy root `scripts/vibe-sync-bootstrap.mjs` retained as a compatibility bridge that delegates to `.vibe/harness/scripts/vibe-sync-bootstrap.mjs` or fetches the canonical upstream bootstrap;
-- v1.7.0 migration removes old root harness files only when `.vibe/sync-hashes.json` proves they are unmodified synced harness copies, and reports retained ambiguous files instead of deleting them.
+- `/vibe-init` now requires an explicit `--mode=human|agent` after Step 1-0 in non-interactive agent-skill execution.
+- `--mode=agent` is delegation-only: it records `.vibe/config.json.mode = "agent"`, renders the runtime-specific delegation prompt, and exits before `.env`, `.vibe/config.local.json`, `.vibe/agent/*`, or interview artifacts are touched.
+- Codex delegation prompt rendering now prioritizes `AGENTS.md`, provider-neutral orchestration docs, and Codex execution guidance while treating `CLAUDE.md` as shared nominal charter context.
+- `.vibe/config.local.example.json` now points Codex at `./.vibe/harness/scripts/run-codex.sh`.
+- `/vibe-review` guidance now uses `npm exec --yes --package=tsx -- tsx` and documents a narrow read-only exception for init/bootstrap/harness process failure reviews in partial checkouts.
+- `vibe:run-agent` session-start lookup now prefers `.vibe/harness/scripts/vibe-agent-session-start.mjs` with legacy root fallback.
 
 ## 3. Verification
 
-Completed on Windows:
+Completed on Windows for this patch:
 
 - `npm run typecheck`
-- `npm test`
+- `node --import tsx --test .vibe/harness/test/init-guard.test.ts .vibe/harness/test/codex-skills.test.ts .vibe/harness/test/upstream-bootstrap.test.ts`
+- `npm test` (338 tests: 337 pass, 1 skipped)
 - `npm run build`
-- `npm run vibe:test-ui -- --version`
-- `npm run vibe:test-ui`
-- `npm run vibe:config-audit --silent`
-- `npm run vibe:sync -- --dry-run --from .`
-
-The self-checkout dry-run exits 0 but shows expected conflicts for moved `.vibe/harness/**` files because this source checkout has no `.vibe/sync-hashes.json` baseline for those new paths.
+- `git diff --check`
+- UTF-8 file classification and mojibake grep over touched files
 
 ## 4. Preserved Value
 
-- Legacy projects can still bootstrap through the documented root raw URL.
-- Downstream product files at root-level source/test/script paths are no longer overwritten by harness sync.
-- Existing exact old `test:ui` harness aliases are redirected to `npm run vibe:test-ui`; project-owned custom scripts remain untouched.
-- Ambiguous old root harness files are retained with a report rather than silently removed.
+- Codex fresh-session `/vibe-init` can no longer accidentally run human bootstrap before asking the Step 1-0 mode question.
+- `mode=agent` no longer leaves durable partial-init state that can fool initialization checks.
+- Fresh downstream local Codex provider config no longer points at the removed root `scripts/run-codex.sh`.
+- Legitimate harness review of broken init/bootstrap state is allowed without opening the product-work boundary.
 
 ## 5. Next Action
 
-Commit/tag `v1.7.0`, push `main` and the tag, then use `/vibe-sync` from downstream projects to receive the boundary split.
+Run `npm run vibe:checkpoint`, then commit this harness patch. After sync into `tvd-extension`, rerun Codex `$vibe-init` and verify `agent` mode prints the Codex-specific delegation prompt without creating `.vibe/agent/*` or `.vibe/config.local.json`.
 
 ## 6. Pending Risks
 
-- Historical docs and session logs still contain old root paths as history; live guidance has been updated.
-- The first downstream sync from legacy versions should inspect `.vibe/harness-migration-1.7.0.md` if the migration retains ambiguous root files.
+- Historical release notes, archived prompts, and old logs still contain root `scripts/run-codex.sh` references as history.
+- This patch does not implement fully autonomous Codex Phase 2-4 execution; it only makes the Step 1-0 delegation boundary executable and provider-aware.

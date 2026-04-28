@@ -42,7 +42,8 @@ describe('Codex skill parity', () => {
   it('documents the guarded init command in the Codex vibe-init wrapper', async () => {
     const wrapper = await readFile(path.join(process.cwd(), '.codex', 'skills', 'vibe-init', 'SKILL.md'), 'utf8');
 
-    assert.match(wrapper, /npm run vibe:init -- --from-agent-skill/);
+    assert.match(wrapper, /npm run vibe:init -- --from-agent-skill --mode=human/);
+    assert.match(wrapper, /--mode=agent --runtime=codex --one-liner/);
     assert.match(wrapper, /docs\/context\/product\.md/);
     assert.match(wrapper, /\.vibe\/agent\/sprint-status\.json/);
     assert.match(wrapper, /only allowed workflow/);
@@ -75,6 +76,15 @@ describe('Codex skill parity', () => {
       assert.match(content, /docs\/context\/product\.md/);
       assert.match(content, /\.vibe\/agent\/sprint-status\.json/);
       assert.match(content, /npm run vibe:init -- --from-agent-skill/);
+      assert.match(content, /init\/bootstrap\/harness process failure/);
     }
+  });
+
+  it('documents the partial-init review exception in Codex vibe-review guidance', async () => {
+    const wrapper = await readFile(path.join(process.cwd(), '.codex', 'skills', 'vibe-review', 'SKILL.md'), 'utf8');
+    const shared = await readFile(path.join(process.cwd(), '.claude', 'skills', 'vibe-review', 'SKILL.md'), 'utf8');
+
+    assert.match(wrapper, /partial or uninitialized checkout/);
+    assert.match(shared, /npm exec --yes --package=tsx -- tsx/);
   });
 });
