@@ -8,7 +8,17 @@
 
 ---
 
-## Latest highlights (v1.7.0)
+## Latest highlights (v1.7.1)
+
+### v1.7.1 (2026-04-29) - Codex init agent-mode guard
+
+- Codex `/vibe-init` now requires the Step 1-0 `human`/`agent` mode gate before bootstrap.
+- `mode=agent` is delegation-only: it records the mode, prints a Codex-aware delegation prompt, and exits before creating partial init state.
+- Fresh local Codex config now points at `./.vibe/harness/scripts/run-codex.sh`.
+
+---
+
+## Previous highlights (v1.7.0)
 
 ### v1.7.0 (2026-04-24) - Harness source boundary
 
@@ -19,7 +29,7 @@
 
 ---
 
-## Previous highlights (v1.6.12)
+## Older highlights (v1.6.12)
 
 ### v1.6.12 (2026-04-24) - Init/review/shell hardening
 

@@ -20,6 +20,7 @@
 
 ## Entries
 
+- 2026-04-28T16:01:23.555Z [release] Prepared `v1.7.1` patch release for Codex `/vibe-init` agent-mode guard: bumped harnessVersion metadata, added release notes, updated README highlights, and verified typecheck/focused tests/build.
 - 2026-04-28T15:57:49.071Z [checkpoint] Pushed Codex `/vibe-init` partial-init patch to `origin/main` at `da0556f`; follow-up checkpoint records pushed state for downstream sync/retest.
 - 2026-04-28T15:51:54.800Z [harness-review] Codex `/vibe-init` partial-init patch: explicit `--mode=human|agent` gate added, `mode=agent` now delegation-only with Codex-aware prompt rendering, config.local Codex wrapper path fixed, partial-init `/vibe-review` exception documented, and verification passed (`typecheck`, focused tests, full `npm test`, `build`, encoding checks).
 - 2026-04-24T09:20:00.000Z [harness-review] v1.7.0 candidate separates canonical harness code under `.vibe/harness/**`, keeps a root `scripts/vibe-sync-bootstrap.mjs` legacy bridge, clarifies `/vibe-review` as template/harness review, and verifies typecheck/test/build/ui/config-audit/sync-dry-run locally.

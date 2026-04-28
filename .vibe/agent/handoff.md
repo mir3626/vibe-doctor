@@ -6,13 +6,13 @@
 - **branch**: `main`
 - **last pushed release**: `v1.6.12`
 - **working target**: `v1.7.0`
-- **current iteration**: Codex `/vibe-init` partial-init patch pushed
-- **harnessVersion**: `1.7.0`
+- **current iteration**: Codex `/vibe-init` partial-init patch prepared as `v1.7.1`
+- **harnessVersion**: `1.7.1`
 - **language/tone**: Korean user-facing, concise engineering notes
 
 ## 2. Status
 
-Codex Orchestrator maintenance patch for downstream `tvd-extension` partial `/vibe-init` failure was committed and pushed to `origin/main`.
+Codex Orchestrator maintenance patch for downstream `tvd-extension` partial `/vibe-init` failure was committed, pushed to `origin/main`, and versioned as `v1.7.1`.
 
 - `/vibe-init` now requires an explicit `--mode=human|agent` after Step 1-0 in non-interactive agent-skill execution.
 - `--mode=agent` is delegation-only: it records `.vibe/config.json.mode = "agent"`, renders the runtime-specific delegation prompt, and exits before `.env`, `.vibe/config.local.json`, `.vibe/agent/*`, or interview artifacts are touched.
@@ -31,6 +31,7 @@ Completed on Windows for this patch:
 - `npm run build`
 - `git diff --check`
 - UTF-8 file classification and mojibake grep over touched files
+- `v1.7.1` release bump verification: `npm run typecheck`, focused init/Codex/config tests, `npm run build`
 
 ## 4. Preserved Value
 
@@ -41,7 +42,7 @@ Completed on Windows for this patch:
 
 ## 5. Next Action
 
-After sync into `tvd-extension`, rerun Codex `$vibe-init` and verify `agent` mode prints the Codex-specific delegation prompt without creating `.vibe/agent/*` or `.vibe/config.local.json`.
+Push the `v1.7.1` commit and annotated tag, then sync `tvd-extension` to `v1.7.1` and rerun Codex `$vibe-init` to verify `agent` mode prints the Codex-specific delegation prompt without creating `.vibe/agent/*` or `.vibe/config.local.json`.
 
 ## 6. Pending Risks
 
