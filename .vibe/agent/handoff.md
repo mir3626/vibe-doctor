@@ -4,14 +4,14 @@
 
 - **repo**: `vibe-doctor`
 - **branch**: `main`
-- **working release**: `v1.7.3`
+- **working release**: `v1.7.3` (`v1.7.3-lts`)
 - **current mode**: Codex Orchestrator maintenance
 - **harnessVersion**: `1.7.3`
 - **language/tone**: Korean user-facing, concise engineering notes
 
 ## 2. Status
 
-Policy sprint for the remaining dogfood12 review decisions is implemented, verified, and pushed to `origin/main` at `e471844`; tag `v1.7.3` is also pushed.
+Policy sprint for the remaining dogfood12 review decisions is implemented, verified, and pushed to `origin/main` at `e471844`; tags `v1.7.3` and `v1.7.3-lts` are also pushed.
 
 - `/vibe-init` now records bundle policy as `automatic`, `custom`, or `off`. Ambiguous user answers default to `automatic`; explicit frontend opt-out requires rationale plus replacement evidence.
 - `/vibe-review` now distinguishes forgotten frontend utility gates from explicit opt-outs missing replacement evidence, and flags unresolved automatic bundle policy for frontend/browser projects.
@@ -20,6 +20,7 @@ Policy sprint for the remaining dogfood12 review decisions is implemented, verif
 - Added migration `.vibe/harness/migrations/1.7.3.mjs` to normalize pendingRisk lifecycle aliases and add missing `bundle.policy` defaults.
 - Planner/Evaluator prompt policy now requires screenshot/playthrough/identity-payoff evidence for frontend, game, visual, canvas/WebGL/Three.js, editor, and dashboard Sprints; typecheck/test/build/browser-smoke alone is not enough for those experiential ACs.
 - Harness version, README, release notes, sync manifest, and generated `sprint-status.schema.json` are updated for `v1.7.3`.
+- `v1.7.3-lts` is an immutable LTS alias pointing at the same release commit as `v1.7.3`; no moving `lts` tag is used.
 
 ## 3. Verification
 
