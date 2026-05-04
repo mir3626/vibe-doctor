@@ -11,6 +11,7 @@ const execFile = promisify(execFileCallback);
 const DEFAULT_RECENT_ENTRIES = 50;
 const DEFAULT_GIT_COMMITS = 20;
 const PHASE3_UTILITY_OPT_IN_TAG = '[decision][phase3-utility-opt-in]';
+const PHASE3_UTILITY_OPT_IN_PATTERN = /\[decision]\s*\[phase3-utility-opt-in]/;
 const FRONTEND_PLATFORM_PATTERN = /\b(web|browser|frontend|next(?:\.js)?|react|vue|svelte)\b/i;
 const REVIEW_SIGNALS_BLOCK_PATTERN =
   /<!--\s*BEGIN:(?:HARNESS|PROJECT):review-signals\s*-->([\s\S]*?)<!--\s*END:(?:HARNESS|PROJECT):review-signals\s*-->/gi;
@@ -39,6 +40,27 @@ export interface WiringDriftFinding {
   missingSyncManifest: boolean;
 }
 
+export interface HarnessGapEntry {
+  id: string;
+  symptom: string;
+  coveredBy: string;
+  status: string;
+  scriptGate: string | null;
+  migrationDeadline: string | null;
+  line: number;
+}
+
+export interface PendingRiskRollup {
+  key: string;
+  count: number;
+  riskIds: string[];
+  sampleText: string;
+  code?: string;
+  raisedBy?: string;
+  targetSprint?: string;
+  latestCreatedAt?: string;
+}
+
 export interface ReviewInputs {
   handoff: string;
   sessionLog: string;
@@ -54,9 +76,12 @@ export interface ReviewInputs {
   productText: string;
   harnessGaps: string;
   openHarnessGapCount: number;
+  uncoveredHarnessGaps: HarnessGapEntry[];
+  deadlineHarnessGaps: HarnessGapEntry[];
   pendingRestorations: PendingRestoration[];
   productFetcherPaths: string[];
   wiringDriftFindings: WiringDriftFinding[];
+  pendingRiskRollups: PendingRiskRollup[];
 }
 
 export interface ReviewConfigInput {
@@ -476,10 +501,121 @@ async function loadReviewSprintStatus(root: string): Promise<SprintStatus> {
   }
 }
 
-function countOpenHarnessGaps(markdown: string): number {
+function parseHarnessGapRow(line: string, lineNumber: number): HarnessGapEntry | null {
+  const trimmed = line.trim();
+  if (!trimmed.startsWith('|') || !trimmed.includes('gap-')) {
+    return null;
+  }
+
+  const cells = trimmed
+    .replace(/^\|/, '')
+    .replace(/\|$/, '')
+    .split('|')
+    .map((cell) => cell.trim());
+
+  if (cells.length < 4 || !/^gap-[a-z0-9-]+$/i.test(cells[0] ?? '')) {
+    return null;
+  }
+
+  return {
+    id: cells[0] ?? '',
+    symptom: cells[1] ?? '',
+    coveredBy: cells[2] ?? '',
+    status: (cells[3] ?? '').toLowerCase(),
+    scriptGate: cells[4] === undefined || cells[4] === '' ? null : cells[4].toLowerCase(),
+    migrationDeadline: cells[5] === undefined || cells[5] === '' ? null : cells[5],
+    line: lineNumber,
+  };
+}
+
+function parseHarnessGaps(markdown: string): HarnessGapEntry[] {
   return markdown
     .split(/\r?\n/)
-    .filter((line) => /^\|\s*gap-[^|]+\|.*\|\s*open\s*\|$/i.test(line.trim())).length;
+    .map((line, index) => parseHarnessGapRow(line, index + 1))
+    .filter((entry): entry is HarnessGapEntry => entry !== null);
+}
+
+function isUncoveredHarnessGap(gap: HarnessGapEntry): boolean {
+  if (['open', 'partial', 'under-review'].includes(gap.status)) {
+    return true;
+  }
+  return gap.scriptGate !== null && gap.scriptGate !== 'covered';
+}
+
+function hasDeadlineSignal(gap: HarnessGapEntry): boolean {
+  const deadline = gap.migrationDeadline?.trim() ?? '';
+  return /^\+\d+\s+sprints?$/i.test(deadline) || /^O[\w.-]*$/i.test(deadline);
+}
+
+function countOpenHarnessGaps(gaps: HarnessGapEntry[]): number {
+  return gaps.filter((gap) => gap.status === 'open').length;
+}
+
+function collectUncoveredHarnessGaps(gaps: HarnessGapEntry[]): HarnessGapEntry[] {
+  return gaps.filter(isUncoveredHarnessGap);
+}
+
+function collectDeadlineHarnessGaps(gaps: HarnessGapEntry[]): HarnessGapEntry[] {
+  return gaps.filter((gap) => isUncoveredHarnessGap(gap) && hasDeadlineSignal(gap));
+}
+
+function normalizePendingRiskText(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/\bsprint-[a-z0-9-]+\b/g, 'sprint-*')
+    .replace(/\b\d+\b/g, '#')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function pendingRiskRollupKey(risk: PendingRisk): string {
+  const code = typeof risk.code === 'string' && risk.code.trim() !== '' ? risk.code.trim() : null;
+  if (code) {
+    return `code:${code}`;
+  }
+
+  const message =
+    typeof risk.message === 'string' && risk.message.trim() !== ''
+      ? risk.message
+      : risk.text;
+  return `text:${normalizePendingRiskText(message)}`;
+}
+
+function collectPendingRiskRollups(risks: PendingRisk[]): PendingRiskRollup[] {
+  const groups = new Map<string, PendingRisk[]>();
+  for (const risk of risks.filter((entry) => entry.status === 'open')) {
+    const key = pendingRiskRollupKey(risk);
+    const group = groups.get(key) ?? [];
+    group.push(risk);
+    groups.set(key, group);
+  }
+
+  return [...groups.entries()]
+    .filter(([, group]) => group.length > 1)
+    .map(([key, group]) => {
+      const sorted = [...group].sort((left, right) => right.createdAt.localeCompare(left.createdAt));
+      const sample = sorted[0] ?? group[0];
+      const rollup: PendingRiskRollup = {
+        key,
+        count: group.length,
+        riskIds: group.map((risk) => risk.id),
+        sampleText: sample?.message ?? sample?.text ?? '',
+      };
+      if (sample?.code) {
+        rollup.code = sample.code;
+      }
+      if (sample?.raisedBy) {
+        rollup.raisedBy = sample.raisedBy;
+      }
+      if (sample?.targetSprint) {
+        rollup.targetSprint = sample.targetSprint;
+      }
+      if (sample?.createdAt) {
+        rollup.latestCreatedAt = sample.createdAt;
+      }
+      return rollup;
+    })
+    .sort((left, right) => right.count - left.count || left.key.localeCompare(right.key));
 }
 
 function sourceFilePath(root: string, absolutePath: string): string {
@@ -786,7 +922,9 @@ function isWebPlatformSeed(seed: ReviewSeedInput): boolean {
 }
 
 function hasUtilityOptInDecision(seed: ReviewSeedInput): boolean {
-  return (seed.sessionLogRecent ?? []).some((entry) => entry.includes(PHASE3_UTILITY_OPT_IN_TAG));
+  return (seed.sessionLogRecent ?? []).some(
+    (entry) => entry.includes(PHASE3_UTILITY_OPT_IN_TAG) || PHASE3_UTILITY_OPT_IN_PATTERN.test(entry),
+  );
 }
 
 export async function collectReviewInputs(root?: string): Promise<ReviewInputs> {
@@ -817,6 +955,8 @@ export async function collectReviewInputs(root?: string): Promise<ReviewInputs> 
     collectWiringDriftFindings(resolvedRoot),
   ]);
   const gitLogState = await readGitLog(resolvedRoot, latestReviewReportPath);
+  const parsedHarnessGaps = parseHarnessGaps(harnessGaps);
+  const openPendingRisks = status.pendingRisks.filter((risk) => risk.status === 'open');
 
   return {
     handoff,
@@ -827,15 +967,18 @@ export async function collectReviewInputs(root?: string): Promise<ReviewInputs> 
     gitLogMode: gitLogState.gitLogMode,
     gitCommitLimit: gitLogState.gitCommitLimit,
     latestReviewReportPath,
-    openPendingRisks: status.pendingRisks.filter((risk) => risk.status === 'open'),
+    openPendingRisks,
     decisions,
     passedSprintCount: status.sprints.filter((sprint) => sprint.status === 'passed').length,
     productText,
     harnessGaps,
-    openHarnessGapCount: countOpenHarnessGaps(harnessGaps),
+    openHarnessGapCount: countOpenHarnessGaps(parsedHarnessGaps),
+    uncoveredHarnessGaps: collectUncoveredHarnessGaps(parsedHarnessGaps),
+    deadlineHarnessGaps: collectDeadlineHarnessGaps(parsedHarnessGaps),
     pendingRestorations,
     productFetcherPaths,
     wiringDriftFindings,
+    pendingRiskRollups: collectPendingRiskRollups(openPendingRisks),
   };
 }
 

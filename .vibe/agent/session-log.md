@@ -20,6 +20,7 @@
 
 ## Entries
 
+- 2026-05-04T06:42:29.585Z [harness-review] Implemented local `/vibe-review` review-input sprint: spaced Phase 3 utility tags are recognized, the six-column harness-gap ledger now feeds uncovered/deadline fields, and repeated open lightweight-audit risks roll up without pendingRisk schema changes.
 - 2026-05-04T06:28:47.751Z [checkpoint] Pushed referenced-MD wrapper guard to `origin/main` at `ba6bebb`; follow-up context checkpoint records remote state.
 - 2026-05-04T06:27:31.193Z [harness-review] Added a non-blocking `run-codex.sh` referenced-MD guard: stdin prompts that explicitly mention allowed rule/context Markdown now receive those MD bodies in an auto-injected context block, while default runs stay non-recursive so `_common-rules.md` references do not inflate every prompt.
 - 2026-05-04T06:06:34.298Z [checkpoint] Pushed `/vibe-init` preflight wrapper-path patch to `origin/main` at `a5b64dd`; follow-up context checkpoint records remote state.

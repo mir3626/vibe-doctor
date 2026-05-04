@@ -11,37 +11,37 @@
 
 ## 2. Status
 
-Referenced-MD wrapper guard is implemented, verified, and pushed on top of `v1.7.2`.
+Review-input harness sprint is implemented locally on top of `v1.7.2`; commit/push is the next step.
 
-- `run-codex.sh` still prepends `.vibe/agent/_common-rules.md`, and now also scans the original stdin prompt for explicitly referenced rule/context Markdown paths.
-- When an allowed referenced MD file exists, the wrapper injects its body under `# Referenced MD Context (auto-injected)` before the Generator prompt. This prevents "read this MD file" rules from being silently skipped without turning the rule into a hard behavioral constraint.
-- The guard is intentionally non-recursive and non-blocking: references introduced by `_common-rules.md` do not trigger extra injection; missing or disallowed paths do not fail the Generator run.
-- Allowed paths are limited to `CLAUDE.md`, `AGENTS.md`, `GEMINI.md`, selected `docs/context/*` rule shards, `.claude/agents/*.md`, `.claude/skills/**/*.md`, and `.codex/skills/**/*.md`.
-- `run-codex-wrapper.test.ts` covers both default non-injection and explicit `docs/context/qa.md` auto-injection.
-- The referenced-MD wrapper guard was pushed to `origin/main` at `ba6bebb`.
-- Previous pushed patches remain on `origin/main`: project report duplicate-open at `44188b6`, preflight wrapper-path at `a5b64dd`.
+- Utility opt-in detection now accepts both `[decision][phase3-utility-opt-in]` and `[decision] [phase3-utility-opt-in]`, so real session-log spacing suppresses the default Phase 3 utility warning.
+- `vibe-review-inputs` now parses the current six-column `docs/context/harness-gaps.md` ledger instead of the old ad hoc open-only regex.
+- Review inputs now include `uncoveredHarnessGaps[]` for unresolved or not-covered rows and `deadlineHarnessGaps[]` for unresolved rows with `+N sprint(s)` or `O*` deadline markers, while preserving `openHarnessGapCount`.
+- Repeated open lightweight-audit pending risks are rolled up into non-persisted `pendingRiskRollups[]`; no pendingRisk schema or stored status values were changed.
+- The `/vibe-review` skill runbook now tells reviewers to use those consolidated fields instead of repeating stale risk noise.
+- `docs/context/harness-gaps.md` records the new review-input coverage under `gap-rule-only-in-md`, while keeping the row under review because wrapper/rule coverage is still intentionally partial.
 
 ## 3. Verification
 
-Completed on Windows for this patch:
+Completed on Windows for this local patch:
 
 - `npm run typecheck`
-- `node --import tsx --test .vibe/harness/test/run-codex-wrapper.test.ts`
-- `npm test` (345 tests: 344 pass, 1 skipped)
+- `node --import tsx --test .vibe/harness/test/vibe-review-inputs.test.ts` (16 tests)
+- `npm test` (347 tests: 346 pass, 1 skipped)
 - `npm run build`
 - `git diff --check`
-- `npm run vibe:checkpoint`
-- Strict UTF-8 decode and mojibake regex checks over touched shell, Markdown, and TypeScript files
+- Strict UTF-8 decode and mojibake regex checks over touched TypeScript and Markdown files
+- `node .vibe/harness/scripts/vibe-review-inputs.mjs` smoke confirmed `uncoveredHarnessGaps`, `deadlineHarnessGaps`, and `pendingRiskRollups` are emitted in the current checkout
 
 ## 4. Expected Downstream Behavior
 
-If a Sprint prompt explicitly references an allowed rule/context MD file, Codex receives that file content in its initial prompt context. Agents remain free to choose implementation details, but they no longer skip a rule merely because the MD file was not separately opened.
+`/vibe-review` should stop auto-seeding utility opt-in skip findings when the session log contains the spaced Phase 3 decision tag. Review inputs should also surface partial or pending harness ledger rows and repeated lightweight-audit risk clusters as explicit upstream process signals.
 
 ## 5. Next Action
 
-No immediate action required. Sync downstream projects that rely on MD rule references in Generator prompts when they need this behavior.
+Run `npm run vibe:checkpoint`, commit this patch as `fix(review): surface partial gaps and risk rollups`, push `origin/main`, then update this handoff with the pushed commit.
 
 ## 6. Pending Risks
 
+- Policy choices were intentionally excluded: no new pendingRisk lifecycle statuses, no migration, and no product identity prompt/evidence gate.
+- The open question of whether explicit `bundle=false` should require a replacement policy finding remains separate from the spacing bug fix.
 - PowerShell PATH on this machine does not expose `file` or GNU `grep`; equivalent strict UTF-8 and regex checks passed.
-- This guard only covers stdin-based `run-codex.sh -` prompts. The native `run-codex.cmd` remains a Windows health/debug wrapper and does not perform prompt augmentation.
