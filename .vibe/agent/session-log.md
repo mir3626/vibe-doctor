@@ -20,6 +20,7 @@
 
 ## Entries
 
+- 2026-05-04T12:58:41.288Z [checkpoint] Pushed v1.7.4 context-overhead policy checkpoint to `origin/main` at `ffbd222`; pushed annotated tag `v1.7.4`.
 - 2026-05-04T12:55:31.318Z [decision][context-overhead-policy] Approved: overhead is real, but unsafe context reduction is worse. No capsule/router/prompt-reduction work until coverage observability and fail-closed safeguards prove safe. `vibe-checkpoint` freshness only proves state files are fresh/existing, not durable decision completeness. Durable events require concise session-log markers; handoff rewrites are required when restart state changes. One-shot prompts may stay terse only when they directly reference MD that is injected, not retrieval-only.
 - 2026-05-04T12:25:17.113Z [release] Declared current release as LTS: pushed annotated tag `v1.7.3-lts` pointing at `v1.7.3` commit `e471844`; documented immutable LTS alias policy on `main`.
 - 2026-05-04T07:26:24.225Z [checkpoint] Pushed v1.7.3 policy sprint to `origin/main` at `e471844`; pushed annotated tag `v1.7.3`.

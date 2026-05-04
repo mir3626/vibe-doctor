@@ -11,7 +11,7 @@
 
 ## 2. Status
 
-Current mainline policy checkpoint is `v1.7.4`; LTS baseline remains immutable tag `v1.7.3-lts`.
+Current mainline policy checkpoint is `v1.7.4`, pushed to `origin/main` at `ffbd222`; tag `v1.7.4` is also pushed. LTS baseline remains immutable tag `v1.7.3-lts`.
 
 - `/vibe-init` now records bundle policy as `automatic`, `custom`, or `off`. Ambiguous user answers default to `automatic`; explicit frontend opt-out requires rationale plus replacement evidence.
 - `/vibe-review` now distinguishes forgotten frontend utility gates from explicit opt-outs missing replacement evidence, and flags unresolved automatic bundle policy for frontend/browser projects.
