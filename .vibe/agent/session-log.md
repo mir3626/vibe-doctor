@@ -20,6 +20,7 @@
 
 ## Entries
 
+- 2026-05-04T06:27:31.193Z [harness-review] Added a non-blocking `run-codex.sh` referenced-MD guard: stdin prompts that explicitly mention allowed rule/context Markdown now receive those MD bodies in an auto-injected context block, while default runs stay non-recursive so `_common-rules.md` references do not inflate every prompt.
 - 2026-05-04T06:06:34.298Z [checkpoint] Pushed `/vibe-init` preflight wrapper-path patch to `origin/main` at `a5b64dd`; follow-up context checkpoint records remote state.
 - 2026-05-04T06:05:17.795Z [harness-review] `/vibe-init` schema-name suspicion traced to a `vibe-preflight --bootstrap` false negative: Codex provider commands pointing at `.vibe/harness/scripts/run-codex.sh` were not treated as v1.7 harness wrappers on Windows. Local patch recognizes provider-command wrapper paths, maps `.sh` to adjacent `.cmd --health`, and verifies against dogfood12.
 - 2026-05-04T05:39:40.247Z [checkpoint] Pushed project report duplicate-open patch to `origin/main` at `44188b6`; follow-up context checkpoint records remote state.

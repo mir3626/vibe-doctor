@@ -134,7 +134,7 @@ Orchestrator는 Phase 0 네이티브 인터뷰 (`.vibe/harness/scripts/vibe-inte
 | 시점 | 스크립트 | 역할 |
 |------|---------|------|
 | Sprint 시작 전 | `node .vibe/harness/scripts/vibe-preflight.mjs` | git·deps·provider·product.md·handoff 체크 |
-| Generator 호출 시 | `./.vibe/harness/scripts/run-codex.sh` | `_common-rules.md` 자동 prepend + UTF-8 + 재시도 |
+| Generator 호출 시 | `./.vibe/harness/scripts/run-codex.sh` | `_common-rules.md` 자동 prepend + 명시 참조된 rule/context MD 자동 주입 + UTF-8 + 재시도 |
 | Sprint 완료 시 | `node .vibe/harness/scripts/vibe-sprint-complete.mjs` | sprint-status·handoff·session-log 자동 갱신 |
 | Context 압축 전 | `node .vibe/harness/scripts/vibe-checkpoint.mjs` | handoff/session-log freshness 검증 |
 | 세션 시작 시 | `node .vibe/harness/scripts/vibe-version-check.mjs` | 하네스 버전 업데이트 알림 |

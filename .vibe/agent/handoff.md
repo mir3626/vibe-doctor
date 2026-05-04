@@ -11,36 +11,36 @@
 
 ## 2. Status
 
-`/vibe-init` bootstrap preflight follow-up is implemented, verified, and pushed on top of `v1.7.2`.
+Referenced-MD wrapper guard is implemented and verified as a local patch on top of `v1.7.2`.
 
-- Investigation found no `vibe.configSchema.json` / `vibe.schema.json` init blocker; the repo has no config schema file and config schema validation is not part of init.
-- The dogfood12 init friction was reproduced from session history as `vibe-preflight --bootstrap` reporting `provider.codex` failure after the v1.7 runtime move to `.vibe/harness/scripts/run-codex.sh`.
-- `vibe-preflight.mjs` now recognizes provider-command wrapper paths, prefers `.vibe/harness/scripts/run-<provider>.<ext>`, preserves legacy `scripts/run-*`, and on Windows maps `.sh` provider commands to adjacent `.cmd --health`.
-- `preflight-wrapper-generalized.test.ts` covers the v1.7 harness-wrapper Codex path.
-- The preflight wrapper-path fix was pushed to `origin/main` at `a5b64dd`.
-- Previous project report duplicate-open fix remains pushed to `origin/main` at `44188b6`.
+- `run-codex.sh` still prepends `.vibe/agent/_common-rules.md`, and now also scans the original stdin prompt for explicitly referenced rule/context Markdown paths.
+- When an allowed referenced MD file exists, the wrapper injects its body under `# Referenced MD Context (auto-injected)` before the Generator prompt. This prevents "read this MD file" rules from being silently skipped without turning the rule into a hard behavioral constraint.
+- The guard is intentionally non-recursive and non-blocking: references introduced by `_common-rules.md` do not trigger extra injection; missing or disallowed paths do not fail the Generator run.
+- Allowed paths are limited to `CLAUDE.md`, `AGENTS.md`, `GEMINI.md`, selected `docs/context/*` rule shards, `.claude/agents/*.md`, `.claude/skills/**/*.md`, and `.codex/skills/**/*.md`.
+- `run-codex-wrapper.test.ts` covers both default non-injection and explicit `docs/context/qa.md` auto-injection.
+- Previous pushed patches remain on `origin/main`: project report duplicate-open at `44188b6`, preflight wrapper-path at `a5b64dd`.
 
 ## 3. Verification
 
 Completed on Windows for this patch:
 
 - `npm run typecheck`
-- `node --import tsx --test .vibe/harness/test/preflight-wrapper-generalized.test.ts`
-- Patched preflight smoke against `C:\Users\Tony\Workspace\dogfood12`: `provider.codex` passed with `codex-cli 0.128.0`
-- `npm test` (344 tests: 343 pass, 1 skipped)
+- `node --import tsx --test .vibe/harness/test/run-codex-wrapper.test.ts`
+- `npm test` (345 tests: 344 pass, 1 skipped)
 - `npm run build`
 - `git diff --check`
-- Strict UTF-8 decode and mojibake regex checks over touched JavaScript/TypeScript files
+- `npm run vibe:checkpoint`
+- Strict UTF-8 decode and mojibake regex checks over touched shell, Markdown, and TypeScript files
 
 ## 4. Expected Downstream Behavior
 
-Downstream projects using Codex provider commands like `./.vibe/harness/scripts/run-codex.sh` should pass `vibe-preflight --bootstrap` on Windows by invoking the adjacent `run-codex.cmd --health` wrapper instead of trying to execute the shell wrapper directly.
+If a Sprint prompt explicitly references an allowed rule/context MD file, Codex receives that file content in its initial prompt context. Agents remain free to choose implementation details, but they no longer skip a rule merely because the MD file was not separately opened.
 
 ## 5. Next Action
 
-No immediate action required. Sync downstream projects that hit the `/vibe-init` bootstrap false negative when they need this behavior.
+Commit and push the referenced-MD wrapper guard when ready, then sync downstream projects that rely on MD rule references in Generator prompts.
 
 ## 6. Pending Risks
 
-- PowerShell PATH on this machine does not expose `file` or `grep`; equivalent strict UTF-8 and regex checks passed.
-- dogfood12 had pre-existing dirty context/report files during investigation; they were not edited by this upstream patch.
+- PowerShell PATH on this machine does not expose `file` or GNU `grep`; equivalent strict UTF-8 and regex checks passed.
+- This guard only covers stdin-based `run-codex.sh -` prompts. The native `run-codex.cmd` remains a Windows health/debug wrapper and does not perform prompt augmentation.

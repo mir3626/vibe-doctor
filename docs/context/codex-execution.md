@@ -73,6 +73,12 @@ wrapper가 자동 설정하는 항목:
 | `shell_environment_policy.inherit=all` + `set.*` | `-c` 옵션 | **codex가 자식으로도 UTF-8 전파** |
 | `CODEX_RETRY` (기본 3) | exponential backoff | 일시 오류 자동 회복 |
 
+프롬프트가 허용된 rule/context Markdown 파일을 명시적으로 참조하면 wrapper가 해당
+본문을 `Referenced MD Context` 블록으로 자동 주입한다. 이는 agent가 "파일을 읽어야
+한다"는 MD 지시를 놓쳐서 skip하는 것을 막기 위한 비차단 guard다. 자동 주입 대상은
+`CLAUDE.md`, `AGENTS.md`, `GEMINI.md`, `docs/context/*`의 규칙 shard, `.claude/agents/*.md`,
+`.claude/skills/**/*.md`, `.codex/skills/**/*.md` 범위로 제한한다.
+
 ### 3.3 방어층 3 — `~/.codex/config.toml` 권장
 
 ```toml
