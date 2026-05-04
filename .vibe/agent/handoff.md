@@ -11,13 +11,14 @@
 
 ## 2. Status
 
-Referenced-MD wrapper guard is implemented and verified as a local patch on top of `v1.7.2`.
+Referenced-MD wrapper guard is implemented, verified, and pushed on top of `v1.7.2`.
 
 - `run-codex.sh` still prepends `.vibe/agent/_common-rules.md`, and now also scans the original stdin prompt for explicitly referenced rule/context Markdown paths.
 - When an allowed referenced MD file exists, the wrapper injects its body under `# Referenced MD Context (auto-injected)` before the Generator prompt. This prevents "read this MD file" rules from being silently skipped without turning the rule into a hard behavioral constraint.
 - The guard is intentionally non-recursive and non-blocking: references introduced by `_common-rules.md` do not trigger extra injection; missing or disallowed paths do not fail the Generator run.
 - Allowed paths are limited to `CLAUDE.md`, `AGENTS.md`, `GEMINI.md`, selected `docs/context/*` rule shards, `.claude/agents/*.md`, `.claude/skills/**/*.md`, and `.codex/skills/**/*.md`.
 - `run-codex-wrapper.test.ts` covers both default non-injection and explicit `docs/context/qa.md` auto-injection.
+- The referenced-MD wrapper guard was pushed to `origin/main` at `ba6bebb`.
 - Previous pushed patches remain on `origin/main`: project report duplicate-open at `44188b6`, preflight wrapper-path at `a5b64dd`.
 
 ## 3. Verification
@@ -38,7 +39,7 @@ If a Sprint prompt explicitly references an allowed rule/context MD file, Codex 
 
 ## 5. Next Action
 
-Commit and push the referenced-MD wrapper guard when ready, then sync downstream projects that rely on MD rule references in Generator prompts.
+No immediate action required. Sync downstream projects that rely on MD rule references in Generator prompts when they need this behavior.
 
 ## 6. Pending Risks
 
