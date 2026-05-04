@@ -20,6 +20,7 @@
 
 ## Entries
 
+- 2026-05-04T07:26:24.225Z [checkpoint] Pushed v1.7.3 policy sprint to `origin/main` at `e471844`; pushed annotated tag `v1.7.3`.
 - 2026-05-04T07:23:02.861Z [harness-review] Implemented local v1.7.3 policy sprint: bundle policy automatic/custom/off with opt-out replacement evidence review findings, expanded pendingRisk lifecycle statuses with migration and consumers, and strengthened Planner/Evaluator experiential evidence policy.
 - 2026-05-04T06:43:55.841Z [checkpoint] Pushed review-input gap/risk rollup patch to `origin/main` at `c09395d`; follow-up context checkpoint records remote state.
 - 2026-05-04T06:42:29.585Z [harness-review] Implemented local `/vibe-review` review-input sprint: spaced Phase 3 utility tags are recognized, the six-column harness-gap ledger now feeds uncovered/deadline fields, and repeated open lightweight-audit risks roll up without pendingRisk schema changes.

@@ -11,7 +11,7 @@
 
 ## 2. Status
 
-Policy sprint for the remaining dogfood12 review decisions is implemented locally and verified; commit/push is the next step.
+Policy sprint for the remaining dogfood12 review decisions is implemented, verified, and pushed to `origin/main` at `e471844`; tag `v1.7.3` is also pushed.
 
 - `/vibe-init` now records bundle policy as `automatic`, `custom`, or `off`. Ambiguous user answers default to `automatic`; explicit frontend opt-out requires rationale plus replacement evidence.
 - `/vibe-review` now distinguishes forgotten frontend utility gates from explicit opt-outs missing replacement evidence, and flags unresolved automatic bundle policy for frontend/browser projects.
@@ -37,7 +37,7 @@ Downstream projects syncing to `v1.7.3` get explicit pendingRisk lifecycle state
 
 ## 5. Next Action
 
-Run `npm run vibe:checkpoint`, complete diff/encoding checks, commit this patch, create/push tag `v1.7.3`, then update this handoff with the pushed commit.
+No immediate action. Next dogfood sync/review should validate the v1.7.3 behavior in a downstream project.
 
 ## 6. Pending Risks
 
