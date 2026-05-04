@@ -20,6 +20,7 @@
 
 ## Entries
 
+- 2026-05-04T06:05:17.795Z [harness-review] `/vibe-init` schema-name suspicion traced to a `vibe-preflight --bootstrap` false negative: Codex provider commands pointing at `.vibe/harness/scripts/run-codex.sh` were not treated as v1.7 harness wrappers on Windows. Local patch recognizes provider-command wrapper paths, maps `.sh` to adjacent `.cmd --health`, and verifies against dogfood12.
 - 2026-05-04T05:39:40.247Z [checkpoint] Pushed project report duplicate-open patch to `origin/main` at `44188b6`; follow-up context checkpoint records remote state.
 - 2026-05-04T05:35:57.261Z [harness-review] Project report duplicate-open patch: `vibe-project-report.mjs` now suppresses same repo/report browser opens for 30s with `--force-open` escape hatch; `/vibe-iterate`, delegation prompt, and CLAUDE flow no longer instruct an immediate rerun after final Sprint auto-report. Verified typecheck, focused tests, full npm test, build, diff-check, and UTF-8/mojibake equivalents.
 - 2026-04-28T16:29:05.291Z [harness-review] Prepared `v1.7.2` patch for Codex `/vibe-init --mode=agent` prompt rendering drift: canonical template body extraction, one-liner normalization, real-template regressions, checked-in `/vibe-review` helper, sync-manifest template shipping, full test/build/diff/encoding verification.

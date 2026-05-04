@@ -11,34 +11,35 @@
 
 ## 2. Status
 
-Project report duplicate-open follow-up is implemented and verified as a local patch on top of `v1.7.2`.
+`/vibe-init` bootstrap preflight follow-up is implemented and verified as a local patch on top of `v1.7.2`.
 
-- `vibe-project-report.mjs` now records a temp-local open marker and suppresses duplicate browser opens for the same repo/report within 30 seconds.
-- `--force-open` bypasses the dedupe window; `--no-open` remains the silent refresh path.
-- `/vibe-iterate` Phase 5, the agent delegation prompt, and `CLAUDE.md` now say not to rerun the report command after the final Sprint auto-report path has already opened it.
-- The likely previous triple-open path was: `vibe-sprint-commit` -> `vibe-sprint-complete` auto-report, then the delegation prompt final report command, then `/vibe-iterate` Phase 5 report command.
+- Investigation found no `vibe.configSchema.json` / `vibe.schema.json` init blocker; the repo has no config schema file and config schema validation is not part of init.
+- The dogfood12 init friction was reproduced from session history as `vibe-preflight --bootstrap` reporting `provider.codex` failure after the v1.7 runtime move to `.vibe/harness/scripts/run-codex.sh`.
+- `vibe-preflight.mjs` now recognizes provider-command wrapper paths, prefers `.vibe/harness/scripts/run-<provider>.<ext>`, preserves legacy `scripts/run-*`, and on Windows maps `.sh` provider commands to adjacent `.cmd --health`.
+- `preflight-wrapper-generalized.test.ts` covers the v1.7 harness-wrapper Codex path.
+- Previous project report duplicate-open fix remains pushed to `origin/main` at `44188b6`.
 
 ## 3. Verification
 
 Completed on Windows for this patch:
 
 - `npm run typecheck`
-- `node --import tsx --test .vibe/harness/test/project-report.test.ts`
-- `node --import tsx --test .vibe/harness/test/init-guard.test.ts .vibe/harness/test/sync.test.ts`
-- `npm test` (343 tests: 342 pass, 1 skipped)
+- `node --import tsx --test .vibe/harness/test/preflight-wrapper-generalized.test.ts`
+- Patched preflight smoke against `C:\Users\Tony\Workspace\dogfood12`: `provider.codex` passed with `codex-cli 0.128.0`
+- `npm test` (344 tests: 343 pass, 1 skipped)
 - `npm run build`
 - `git diff --check`
-- Strict UTF-8 decode and mojibake regex checks over touched Markdown/TypeScript/JavaScript files
+- Strict UTF-8 decode and mojibake regex checks over touched JavaScript/TypeScript files
 
 ## 4. Expected Downstream Behavior
 
-When an iteration or final roadmap Sprint completes, the report should open once. If the Orchestrator or agent accidentally reruns `vibe-project-report.mjs` immediately afterward, the HTML still regenerates but no extra browser tab opens during the 30 second dedupe window.
+Downstream projects using Codex provider commands like `./.vibe/harness/scripts/run-codex.sh` should pass `vibe-preflight --bootstrap` on Windows by invoking the adjacent `run-codex.cmd --health` wrapper instead of trying to execute the shell wrapper directly.
 
 ## 5. Next Action
 
-No immediate action required. The duplicate-open patch was pushed to `origin/main` as `44188b6`; sync downstream projects when they need this behavior.
+Commit and push the preflight wrapper-path patch when ready, then sync downstream projects that hit the `/vibe-init` bootstrap false negative.
 
 ## 6. Pending Risks
 
-- Users who intentionally want to reopen the same report immediately should use `node .vibe/harness/scripts/vibe-project-report.mjs --force-open`.
 - PowerShell PATH on this machine does not expose `file` or `grep`; equivalent strict UTF-8 and regex checks passed.
+- dogfood12 had pre-existing dirty context/report files during investigation; they were not edited by this upstream patch.
