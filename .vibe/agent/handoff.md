@@ -11,12 +11,13 @@
 
 ## 2. Status
 
-`/vibe-init` bootstrap preflight follow-up is implemented and verified as a local patch on top of `v1.7.2`.
+`/vibe-init` bootstrap preflight follow-up is implemented, verified, and pushed on top of `v1.7.2`.
 
 - Investigation found no `vibe.configSchema.json` / `vibe.schema.json` init blocker; the repo has no config schema file and config schema validation is not part of init.
 - The dogfood12 init friction was reproduced from session history as `vibe-preflight --bootstrap` reporting `provider.codex` failure after the v1.7 runtime move to `.vibe/harness/scripts/run-codex.sh`.
 - `vibe-preflight.mjs` now recognizes provider-command wrapper paths, prefers `.vibe/harness/scripts/run-<provider>.<ext>`, preserves legacy `scripts/run-*`, and on Windows maps `.sh` provider commands to adjacent `.cmd --health`.
 - `preflight-wrapper-generalized.test.ts` covers the v1.7 harness-wrapper Codex path.
+- The preflight wrapper-path fix was pushed to `origin/main` at `a5b64dd`.
 - Previous project report duplicate-open fix remains pushed to `origin/main` at `44188b6`.
 
 ## 3. Verification
@@ -37,7 +38,7 @@ Downstream projects using Codex provider commands like `./.vibe/harness/scripts/
 
 ## 5. Next Action
 
-Commit and push the preflight wrapper-path patch when ready, then sync downstream projects that hit the `/vibe-init` bootstrap false negative.
+No immediate action required. Sync downstream projects that hit the `/vibe-init` bootstrap false negative when they need this behavior.
 
 ## 6. Pending Risks
 
