@@ -8,7 +8,18 @@
 
 ---
 
-## Latest highlights (v1.7.3 LTS)
+## Latest highlights (v1.7.4)
+
+### v1.7.4 (2026-05-04) - Context overhead policy checkpoint
+
+- Records the approved context-overhead policy: do not reduce prompt/capsule context until coverage observability and fail-closed safeguards are proven by dogfood.
+- Clarifies that `vibe-checkpoint` freshness does not prove durable decision completeness.
+- Adds a `/vibe-review` follow-up gap so future dogfood can revisit context coverage before any capsule/router prompt reduction.
+- LTS baseline remains `v1.7.3-lts`.
+
+---
+
+## Previous highlights (v1.7.3 LTS)
 
 ### v1.7.3 (2026-05-04) - Review policy lifecycle hardening
 
@@ -165,7 +176,7 @@
 - **v1.3.x** — HTML 프로젝트 보고서, `/vibe-iterate`, `/vibe-review`, `/vibe-sprint-mode`, web dashboard.
 - **v1.2.x** — native socratic interview, stack/framework pattern shards, model tier abstraction, platform wrappers, single-commit automation, statusline.
 
-자세한 릴리스 내역은 `docs/release/v1.2.0.md` ~ `v1.7.3.md` 참조.
+자세한 릴리스 내역은 `docs/release/v1.2.0.md` ~ `v1.7.4.md` 참조.
 
 ---
 
@@ -591,6 +602,7 @@ Orchestrator 가 주로 호출합니다. 사용자가 직접 쓸 일은 드뭅�
 - `v1.7.2` — agent prompt template hardening + review helper script
 - `v1.7.3` — review policy lifecycle hardening
 - `v1.7.3-lts` — 현재 LTS baseline (`v1.7.3` 과 동일 커밋)
+- `v1.7.4` — context overhead policy checkpoint
 
 ---
 
