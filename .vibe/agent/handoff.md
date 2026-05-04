@@ -11,42 +11,34 @@
 
 ## 2. Status
 
-Codex `/vibe-init --mode=agent` downstream failure follow-up is implemented and verified as the `v1.7.2` patch candidate.
+Project report duplicate-open follow-up is implemented and verified as a local patch on top of `v1.7.2`.
 
-- Agent delegation prompt rendering now extracts only the real prompt body between the start marker and `## (Template 끝)`.
-- The canonical delegation template now contains the live `<ONE_LINER>` placeholder only once.
-- Wrapped Korean/Unicode one-liners are normalized before rendering.
-- Tests render the real `.claude/templates/agent-delegation-prompt.md` for both Codex and Claude runtimes, and the CLI agent-mode test uses the canonical template.
-- `/vibe-review` now delegates helper input collection to `.vibe/harness/scripts/vibe-review-inputs.mjs`, with deterministic `tsx`/`zod` preflight and `--install` handling.
-- Review input collection tolerates missing sprint status for explicit init/bootstrap/harness failure reviews in partial checkouts.
-- `.claude/templates/**` is now shipped by the sync manifest.
+- `vibe-project-report.mjs` now records a temp-local open marker and suppresses duplicate browser opens for the same repo/report within 30 seconds.
+- `--force-open` bypasses the dedupe window; `--no-open` remains the silent refresh path.
+- `/vibe-iterate` Phase 5, the agent delegation prompt, and `CLAUDE.md` now say not to rerun the report command after the final Sprint auto-report path has already opened it.
+- The likely previous triple-open path was: `vibe-sprint-commit` -> `vibe-sprint-complete` auto-report, then the delegation prompt final report command, then `/vibe-iterate` Phase 5 report command.
 
 ## 3. Verification
 
 Completed on Windows for this patch:
 
 - `npm run typecheck`
-- `node --import tsx --test .vibe/harness/test/init-guard.test.ts .vibe/harness/test/vibe-review-inputs.test.ts .vibe/harness/test/codex-skills.test.ts .vibe/harness/test/sync.test.ts`
-- `npm test` (342 tests: 341 pass, 1 skipped)
+- `node --import tsx --test .vibe/harness/test/project-report.test.ts`
+- `node --import tsx --test .vibe/harness/test/init-guard.test.ts .vibe/harness/test/sync.test.ts`
+- `npm test` (343 tests: 342 pass, 1 skipped)
 - `npm run build`
 - `git diff --check`
-- UTF-8 file classification and mojibake grep over touched Markdown/TypeScript/JavaScript/JSON files
+- Strict UTF-8 decode and mojibake regex checks over touched Markdown/TypeScript/JavaScript files
 
 ## 4. Expected Downstream Behavior
 
-After syncing `tvd-extension` to `v1.7.2`, Codex `$vibe-init` with `mode=agent` should print the Codex delegation prompt for long Korean one-liners and exit before creating `.env`, `.vibe/config.local.json`, `.vibe/agent/*`, or `.vibe/interview-log/*`.
+When an iteration or final roadmap Sprint completes, the report should open once. If the Orchestrator or agent accidentally reruns `vibe-project-report.mjs` immediately afterward, the HTML still regenerates but no extra browser tab opens during the 30 second dedupe window.
 
 ## 5. Next Action
 
-Commit, annotated-tag, and push `v1.7.2`, then in `tvd-extension` run:
-
-```bash
-npm run vibe:sync -- --ref v1.7.2
-```
-
-Then retry Codex `$vibe-init` Step 1-0 with `mode=agent`.
+Push the duplicate-open patch to `origin/main`. No harnessVersion bump or tag has been made in this session.
 
 ## 6. Pending Risks
 
-- This patch fixes the delegation boundary and review helper. It does not implement fully autonomous Codex Phase 2-4 execution beyond the printed delegation prompt contract.
-- Historical release notes and logs still mention older wrapper paths as history.
+- Users who intentionally want to reopen the same report immediately should use `node .vibe/harness/scripts/vibe-project-report.mjs --force-open`.
+- PowerShell PATH on this machine does not expose `file` or `grep`; equivalent strict UTF-8 and regex checks passed.

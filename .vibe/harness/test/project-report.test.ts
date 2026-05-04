@@ -17,6 +17,7 @@ interface ProjectReportModule {
       stdout?: { write: (value: string) => void };
       stderr?: { write: (value: string) => void };
       platform?: NodeJS.Platform;
+      nowMs?: number;
     },
   ) => Promise<{ outPath: string; html: string }>;
   isMetaProject: (input: {
@@ -249,6 +250,38 @@ describe('project report', () => {
     });
 
     assert.equal(spawnCount, 0);
+  });
+
+  it('deduplicates repeated browser opens in the same completion window', async () => {
+    const root = await makeTempDir('project-report-open-dedupe-');
+    const { runProjectReportCli } = await loadReportModule();
+    let spawnCount = 0;
+    const spawn = () => {
+      spawnCount += 1;
+      return {};
+    };
+    await scaffoldReportProject(root);
+
+    await runProjectReportCli([], {
+      root,
+      spawn,
+      stdout: { write: () => undefined },
+      nowMs: 1_000,
+    });
+    await runProjectReportCli([], {
+      root,
+      spawn,
+      stdout: { write: () => undefined },
+      nowMs: 1_500,
+    });
+    await runProjectReportCli(['--force-open'], {
+      root,
+      spawn,
+      stdout: { write: () => undefined },
+      nowMs: 2_000,
+    });
+
+    assert.equal(spawnCount, 2);
   });
 
   it('browser open errors are warnings and do not fail report generation', async () => {

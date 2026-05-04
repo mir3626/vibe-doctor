@@ -215,7 +215,7 @@ Orchestrator는 Phase 0 네이티브 인터뷰 (`.vibe/harness/scripts/vibe-inte
 6. (트리거 시) Evaluator 소환
 7. `node .vibe/harness/scripts/vibe-sprint-complete.mjs <sprintId> <passed|failed>` → sprint-status.json + handoff.md + session-log.md 자동 갱신 (**파일만 업데이트, 자동 커밋 X**)
 8. **단일 커밋 원칙 (v1.1.1+)**: `node .vibe/harness/scripts/vibe-sprint-commit.mjs <sprintId> passed [--scope <glob>]` 래퍼가 Generator 산출 파일 + 3종 state 파일(`.vibe/agent/sprint-status.json`, `handoff.md`, `session-log.md`) + 아카이브 prompts 를 **한 git commit** 에 묶어 생성. pending risk 가 열려있으면 거부. LOC 자동 계산.
-9. 다음 Sprint → (1)로 반복. **로드맵 마지막 sprint 완료 시 자동**: `.vibe/harness/scripts/vibe-sprint-complete.mjs` 가 `.vibe/harness/scripts/vibe-project-report.mjs` 호출 → `docs/reports/project-report.html` 생성 + 브라우저 자동 오픈. 이후 추가 개선은 `/vibe-iterate` 로 다음 iteration 진입 (차등 인터뷰 + carryover + iteration-history.json 갱신).
+9. 다음 Sprint → (1)로 반복. **로드맵 마지막 sprint 완료 시 자동**: `.vibe/harness/scripts/vibe-sprint-complete.mjs` 가 `.vibe/harness/scripts/vibe-project-report.mjs` 호출 → `docs/reports/project-report.html` 생성 + 브라우저 1회 오픈(짧은 시간 내 중복 오픈은 suppress). 이후 추가 개선은 `/vibe-iterate` 로 다음 iteration 진입 (차등 인터뷰 + carryover + iteration-history.json 갱신). `/vibe-iterate` 종료 단계에서 같은 report 명령을 다시 실행하지 않는다.
 
 > Planner / Generator / Evaluator는 Sprint 내에서만 존재하고 Sprint 간 context를 공유하지 않는다. Sprint 간 상태는 `.vibe/agent/sprint-status.json` + `handoff.md` + `session-log.md` 3종으로만 전달하고, **context 압축 직후**에는 작업 전에 먼저 이 세 파일 + 관련 memory shard를 읽어 상태를 복원한다.
 
