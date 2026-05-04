@@ -426,7 +426,7 @@ function renderMetricCards(model) {
   const passed = sprints.filter((entry) => entry.status === 'passed' || entry.status === 'complete');
   const loc = sumLoc(sprints);
   const openRisks = Array.isArray(model.status?.pendingRisks)
-    ? model.status.pendingRisks.filter((risk) => risk?.status !== 'resolved').length
+    ? model.status.pendingRisks.filter((risk) => risk?.status === 'open').length
     : 0;
   const current = model.iterationHistory.currentIteration ?? 'no active iteration';
   const cards = [
@@ -674,7 +674,7 @@ function renderNextSteps(status, roadmapIds, history) {
   const passed = new Set((Array.isArray(status?.sprints) ? status.sprints : []).filter((entry) => entry.status === 'passed').map((entry) => entry.id));
   const next = roadmapIds.find((id) => !passed.has(id));
   const openRisks = Array.isArray(status?.pendingRisks)
-    ? status.pendingRisks.filter((risk) => risk?.status !== 'resolved').length
+    ? status.pendingRisks.filter((risk) => risk?.status === 'open').length
     : 0;
   const steps = [];
   if (history.currentIteration) {

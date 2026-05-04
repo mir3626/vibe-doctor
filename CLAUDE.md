@@ -24,7 +24,7 @@ Sub-agent는 specialization이 아니라 context checkpoint 메커니즘이다. 
 ## Trigger matrix (Must only)
 
 - Planner: 매 Sprint 시작 전 Must. trivial 예외 3조건과 기록 방식은 `.vibe/agent/_common-rules.md` §10 및 Extensions를 따른다.
-- Evaluator: Orchestrator self-QA 실패 / context pressure 높음 / 비-executable AC 존재 / >5 files 또는 >500 LOC이면 Must.
+- Evaluator: Orchestrator self-QA 실패 / context pressure 높음 / 비-executable AC 존재 / 경험형 제품의 screenshot·playthrough·identity evidence 확인 필요 / >5 files 또는 >500 LOC이면 Must.
 ## Role call mechanics
 
 <!-- BEGIN:SPRINT_ROLES (vibe-init 자동 업데이트 영역) -->
@@ -228,7 +228,7 @@ Sprint 프롬프트 **본문은 Planner가 작성**한다 (매 Sprint 소환 시
   - ❌ 구체적 hex 코드(`#2C3E50`), 함수 시그니처, 내부 변수명
 - **타입 정의와 API 시그니처는 Planner의 fresh context에서 도출한다.** Orchestrator가 이전
   프로젝트 경험에서 가져온 구현 세부사항을 주입하면 재현성이 깨진다.
-- **체크리스트 항목은 검증 가능해야 한다.** 기계 검증 가능한 항목은 "npx tsc --noEmit 통과"처럼 명시하고, 제품 정체성·사용감·시각/상호작용 품질처럼 자동화하기 어려운 항목은 inspection/demo AC 로 분리해 Evaluator 또는 사용자 확인 대상으로 둔다. 자동화가 어렵다는 이유로 중요한 품질 기준을 버리지 않는다.
+- **체크리스트 항목은 검증 가능해야 한다.** 기계 검증 가능한 항목은 "npx tsc --noEmit 통과"처럼 명시하고, 제품 정체성·사용감·시각/상호작용 품질처럼 자동화하기 어려운 항목은 inspection/demo AC 로 분리해 Evaluator 또는 사용자 확인 대상으로 둔다. 자동화가 어렵다는 이유로 중요한 품질 기준을 버리지 않는다. frontend/game/visual/canvas/WebGL/Three.js/editor/dashboard Sprint는 screenshot, Playwright trace, browser-smoke output, 또는 playthrough note를 product identity/payoff와 연결한 evidence item 없이 pass 처리하지 않는다.
 
 ## Agent 오케스트레이션 레이어 (`.vibe/agent/`)
 

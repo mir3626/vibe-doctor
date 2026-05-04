@@ -378,7 +378,24 @@ describe('review inputs', () => {
     );
   });
 
-  it('detectOptInGaps skips friction entries when a recent phase3 utility opt-in decision exists', () => {
+  it('detectOptInGaps skips friction entries when a recent phase3 utility opt-out has replacement evidence', () => {
+    const issues = detectOptInGaps(
+      {
+        bundle: { enabled: false },
+        browserSmoke: { enabled: false },
+      },
+      {
+        productText: 'Platform: browser app',
+        sessionLogRecent: [
+          '- 2026-04-16T00:00:00.000Z [decision][phase3-utility-opt-in] bundle=false browserSmoke=false rationale=intentional replacement=manual-playwright-smoke',
+        ],
+      },
+    );
+
+    assert.deepEqual(issues, []);
+  });
+
+  it('detectOptInGaps reports explicit utility opt-outs that lack replacement evidence', () => {
     const issues = detectOptInGaps(
       {
         bundle: { enabled: false },
@@ -392,7 +409,10 @@ describe('review inputs', () => {
       },
     );
 
-    assert.deepEqual(issues, []);
+    assert.deepEqual(
+      issues.map((issue) => issue.id),
+      ['review-bundle-opt-out-missing-evidence', 'review-browser-smoke-opt-out-missing-evidence'],
+    );
   });
 
   it('detectOptInGaps accepts the spaced phase3 utility opt-in tag emitted by session logs', () => {
@@ -404,12 +424,27 @@ describe('review inputs', () => {
       {
         productText: 'Platform: browser app',
         sessionLogRecent: [
-          '- 2026-04-16T00:00:00.000Z [decision] [phase3-utility-opt-in] bundle=false browserSmoke=true rationale=explicit',
+          '- 2026-04-16T00:00:00.000Z [decision] [phase3-utility-opt-in] bundle=false browserSmoke=false rationale=explicit replacement=manual-smoke',
         ],
       },
     );
 
     assert.deepEqual(issues, []);
+  });
+
+  it('detectOptInGaps reports unresolved automatic bundle policy for frontend projects', () => {
+    const issues = detectOptInGaps(
+      {
+        bundle: { enabled: false, policy: 'automatic' },
+        browserSmoke: { enabled: true },
+      },
+      {
+        productText: 'Platform: web application',
+        sessionLogRecent: [],
+      },
+    );
+
+    assert.deepEqual(issues.map((issue) => issue.id), ['review-bundle-policy-unresolved']);
   });
 
   it('detectOptInGaps skips non-web platforms', () => {

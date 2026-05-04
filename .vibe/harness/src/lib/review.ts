@@ -5,7 +5,13 @@ import path from 'node:path';
 import { readDecisions, type ProjectDecision } from './decisions.js';
 import { fileExists, readJson, readText } from './fs.js';
 import { paths } from './paths.js';
-import { loadSprintStatus, withDefaults, type PendingRisk, type SprintStatus } from './sprint-status.js';
+import {
+  isOpenPendingRisk,
+  loadSprintStatus,
+  withDefaults,
+  type PendingRisk,
+  type SprintStatus,
+} from './sprint-status.js';
 
 const execFile = promisify(execFileCallback);
 const DEFAULT_RECENT_ENTRIES = 50;
@@ -87,9 +93,14 @@ export interface ReviewInputs {
 export interface ReviewConfigInput {
   bundle?: {
     enabled?: boolean;
+    policy?: 'automatic' | 'custom' | 'off';
+    rationale?: string;
+    replacementEvidence?: string;
   };
   browserSmoke?: {
     enabled?: boolean;
+    rationale?: string;
+    replacementEvidence?: string;
   };
 }
 
@@ -111,6 +122,13 @@ export interface ReviewIssueSeed {
   proposal: string;
   estimated_loc: number;
   proposed_sprint: 'backlog';
+}
+
+interface UtilityOptInDecision {
+  bundle?: boolean;
+  browserSmoke?: boolean;
+  rationale?: string;
+  replacementEvidence?: string;
 }
 
 export interface PriorReviewIssue {
@@ -583,7 +601,7 @@ function pendingRiskRollupKey(risk: PendingRisk): string {
 
 function collectPendingRiskRollups(risks: PendingRisk[]): PendingRiskRollup[] {
   const groups = new Map<string, PendingRisk[]>();
-  for (const risk of risks.filter((entry) => entry.status === 'open')) {
+  for (const risk of risks.filter(isOpenPendingRisk)) {
     const key = pendingRiskRollupKey(risk);
     const group = groups.get(key) ?? [];
     group.push(risk);
@@ -927,6 +945,90 @@ function hasUtilityOptInDecision(seed: ReviewSeedInput): boolean {
   );
 }
 
+function parseBooleanToken(value: string | undefined): boolean | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  const normalized = value.trim().toLowerCase();
+  if (['true', 'yes', 'y', '1', 'on'].includes(normalized)) {
+    return true;
+  }
+  if (['false', 'no', 'n', '0', 'off'].includes(normalized)) {
+    return false;
+  }
+  return undefined;
+}
+
+function parseUtilityDecisionEntry(entry: string): UtilityOptInDecision | null {
+  if (!entry.includes(PHASE3_UTILITY_OPT_IN_TAG) && !PHASE3_UTILITY_OPT_IN_PATTERN.test(entry)) {
+    return null;
+  }
+
+  const fields = new Map<string, string>();
+  for (const match of entry.matchAll(/\b([A-Za-z][A-Za-z0-9_-]*)=("[^"]*"|'[^']*'|\S+)/g)) {
+    const key = match[1]?.toLowerCase();
+    const rawValue = match[2];
+    if (!key || rawValue === undefined) {
+      continue;
+    }
+    fields.set(key, rawValue.replace(/^["']|["']$/g, ''));
+  }
+
+  const decision: UtilityOptInDecision = {};
+  const bundle = parseBooleanToken(fields.get('bundle'));
+  const browserSmoke = parseBooleanToken(fields.get('browsersmoke') ?? fields.get('browser-smoke'));
+  const rationale = fields.get('rationale');
+  const replacementEvidence =
+    fields.get('replacementevidence') ??
+    fields.get('replacement-evidence') ??
+    fields.get('replacement') ??
+    fields.get('evidence');
+  if (bundle !== undefined) {
+    decision.bundle = bundle;
+  }
+  if (browserSmoke !== undefined) {
+    decision.browserSmoke = browserSmoke;
+  }
+  if (rationale !== undefined) {
+    decision.rationale = rationale;
+  }
+  if (replacementEvidence !== undefined) {
+    decision.replacementEvidence = replacementEvidence;
+  }
+  return decision;
+}
+
+function readLatestUtilityOptInDecision(seed: ReviewSeedInput): UtilityOptInDecision | null {
+  const entries = seed.sessionLogRecent ?? [];
+  for (const entry of entries) {
+    const parsed = parseUtilityDecisionEntry(entry);
+    if (parsed) {
+      return parsed;
+    }
+  }
+  return null;
+}
+
+function hasReplacementEvidence(
+  decision: UtilityOptInDecision | null,
+  config: { rationale?: string; replacementEvidence?: string } | undefined,
+): boolean {
+  const rationale = decision?.rationale ?? config?.rationale;
+  const replacementEvidence = decision?.replacementEvidence ?? config?.replacementEvidence;
+  return Boolean(rationale?.trim()) && Boolean(replacementEvidence?.trim());
+}
+
+function optOutEvidenceIssue(id: string, proposal: string): ReviewIssueSeed {
+  return {
+    id,
+    severity: 'friction',
+    priority: 'P1',
+    proposal,
+    estimated_loc: 20,
+    proposed_sprint: 'backlog',
+  };
+}
+
 export async function collectReviewInputs(root?: string): Promise<ReviewInputs> {
   const resolvedRoot = resolveRoot(root);
   const config = await readJson<unknown>(sharedConfigPath(resolvedRoot)).catch(() => ({}));
@@ -956,7 +1058,7 @@ export async function collectReviewInputs(root?: string): Promise<ReviewInputs> 
   ]);
   const gitLogState = await readGitLog(resolvedRoot, latestReviewReportPath);
   const parsedHarnessGaps = parseHarnessGaps(harnessGaps);
-  const openPendingRisks = status.pendingRisks.filter((risk) => risk.status === 'open');
+  const openPendingRisks = status.pendingRisks.filter(isOpenPendingRisk);
 
   return {
     handoff,
@@ -986,32 +1088,76 @@ export function detectOptInGaps(
   config: ReviewConfigInput,
   seed: ReviewSeedInput,
 ): ReviewIssueSeed[] {
-  if (!isWebPlatformSeed(seed) || hasUtilityOptInDecision(seed)) {
+  if (!isWebPlatformSeed(seed)) {
     return [];
   }
 
   const issues: ReviewIssueSeed[] = [];
+  const utilityDecision = readLatestUtilityOptInDecision(seed);
 
   if (config.bundle?.enabled !== true) {
-    issues.push({
-      id: 'review-bundle-opt-in-disabled',
-      severity: 'friction',
-      priority: 'P1',
-      proposal: 'frontend 프로젝트인데 bundle-size gate 가 opt-in 되지 않음',
-      estimated_loc: 20,
-      proposed_sprint: 'backlog',
-    });
+    if (utilityDecision?.bundle === false || config.bundle?.policy === 'off') {
+      if (!hasReplacementEvidence(utilityDecision, config.bundle)) {
+        issues.push(
+          optOutEvidenceIssue(
+            'review-bundle-opt-out-missing-evidence',
+            'bundle-size gate 가 명시적으로 꺼졌지만 rationale/replacement evidence 가 없음',
+          ),
+        );
+      }
+    } else if (utilityDecision?.bundle === true) {
+      issues.push(
+        optOutEvidenceIssue(
+          'review-bundle-decision-config-mismatch',
+          'session-log 는 bundle gate 활성화를 기록했지만 .vibe/config.json bundle.enabled 가 true 가 아님',
+        ),
+      );
+    } else if (config.bundle?.policy === 'automatic') {
+      issues.push(
+        optOutEvidenceIssue(
+          'review-bundle-policy-unresolved',
+          'bundle policy 가 automatic 상태로 남아 있어 frontend 프로젝트의 bundle gate 결정 근거가 없음',
+        ),
+      );
+    } else if (!hasUtilityOptInDecision(seed)) {
+      issues.push({
+        id: 'review-bundle-opt-in-disabled',
+        severity: 'friction',
+        priority: 'P1',
+        proposal: 'frontend 프로젝트인데 bundle-size gate 가 opt-in 되지 않음',
+        estimated_loc: 20,
+        proposed_sprint: 'backlog',
+      });
+    }
   }
 
   if (config.browserSmoke?.enabled !== true) {
-    issues.push({
-      id: 'review-browser-smoke-opt-in-disabled',
-      severity: 'friction',
-      priority: 'P1',
-      proposal: 'frontend 프로젝트인데 browser smoke gate 가 opt-in 되지 않음',
-      estimated_loc: 20,
-      proposed_sprint: 'backlog',
-    });
+    if (utilityDecision?.browserSmoke === false) {
+      if (!hasReplacementEvidence(utilityDecision, config.browserSmoke)) {
+        issues.push(
+          optOutEvidenceIssue(
+            'review-browser-smoke-opt-out-missing-evidence',
+            'browser smoke gate 가 명시적으로 꺼졌지만 rationale/replacement evidence 가 없음',
+          ),
+        );
+      }
+    } else if (utilityDecision?.browserSmoke === true) {
+      issues.push(
+        optOutEvidenceIssue(
+          'review-browser-smoke-decision-config-mismatch',
+          'session-log 는 browser smoke 활성화를 기록했지만 .vibe/config.json browserSmoke.enabled 가 true 가 아님',
+        ),
+      );
+    } else if (!hasUtilityOptInDecision(seed)) {
+      issues.push({
+        id: 'review-browser-smoke-opt-in-disabled',
+        severity: 'friction',
+        priority: 'P1',
+        proposal: 'frontend 프로젝트인데 browser smoke gate 가 opt-in 되지 않음',
+        estimated_loc: 20,
+        proposed_sprint: 'backlog',
+      });
+    }
   }
 
   return issues;
