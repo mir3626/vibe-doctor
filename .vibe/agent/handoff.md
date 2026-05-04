@@ -36,7 +36,7 @@ When an iteration or final roadmap Sprint completes, the report should open once
 
 ## 5. Next Action
 
-Push the duplicate-open patch to `origin/main`. No harnessVersion bump or tag has been made in this session.
+No immediate action required. The duplicate-open patch was pushed to `origin/main` as `44188b6`; sync downstream projects when they need this behavior.
 
 ## 6. Pending Risks
 

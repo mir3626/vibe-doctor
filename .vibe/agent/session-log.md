@@ -20,6 +20,7 @@
 
 ## Entries
 
+- 2026-05-04T05:39:40.247Z [checkpoint] Pushed project report duplicate-open patch to `origin/main` at `44188b6`; follow-up context checkpoint records remote state.
 - 2026-05-04T05:35:57.261Z [harness-review] Project report duplicate-open patch: `vibe-project-report.mjs` now suppresses same repo/report browser opens for 30s with `--force-open` escape hatch; `/vibe-iterate`, delegation prompt, and CLAUDE flow no longer instruct an immediate rerun after final Sprint auto-report. Verified typecheck, focused tests, full npm test, build, diff-check, and UTF-8/mojibake equivalents.
 - 2026-04-28T16:29:05.291Z [harness-review] Prepared `v1.7.2` patch for Codex `/vibe-init --mode=agent` prompt rendering drift: canonical template body extraction, one-liner normalization, real-template regressions, checked-in `/vibe-review` helper, sync-manifest template shipping, full test/build/diff/encoding verification.
 - 2026-04-28T16:01:23.555Z [release] Prepared `v1.7.1` patch release for Codex `/vibe-init` agent-mode guard: bumped harnessVersion metadata, added release notes, updated README highlights, and verified typecheck/focused tests/build.
