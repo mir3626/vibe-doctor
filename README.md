@@ -8,7 +8,17 @@
 
 ---
 
-## Latest highlights (v1.7.5)
+## Latest highlights (v1.7.6)
+
+### v1.7.6 (2026-05-05) - Dashboard and report visual refresh
+
+- Refreshes the live dashboard and completion report with a calmer operational UI, Geist typography, a compact brand mark, and less nested glass/card chrome.
+- Adds layout-safe preview rows for empty phase, sprint, timeline, attention, decision, and verification states so new projects do not render as broken or sparse.
+- Keeps the dashboard/report browser smoke coverage and updates report style regressions for the new visual system.
+
+---
+
+## Previous highlights (v1.7.5)
 
 ### v1.7.5 (2026-05-05) - Context dependency audit foundation
 
@@ -186,7 +196,7 @@
 - **v1.3.x** — HTML 프로젝트 보고서, `/vibe-iterate`, `/vibe-review`, `/vibe-sprint-mode`, web dashboard.
 - **v1.2.x** — native socratic interview, stack/framework pattern shards, model tier abstraction, platform wrappers, single-commit automation, statusline.
 
-자세한 릴리스 내역은 `docs/release/v1.2.0.md` ~ `v1.7.5.md` 참조.
+자세한 릴리스 내역은 `docs/release/v1.2.0.md` ~ `v1.7.6.md` 참조.
 
 ---
 
@@ -616,6 +626,7 @@ Orchestrator 가 주로 호출합니다. 사용자가 직접 쓸 일은 드뭅�
 - `v1.7.3-lts` — 현재 LTS baseline (`v1.7.3` 과 동일 커밋)
 - `v1.7.4` — context overhead policy checkpoint
 - `v1.7.5` — context dependency audit foundation
+- `v1.7.6` — dashboard and report visual refresh
 
 ---
 
