@@ -4,14 +4,14 @@
 
 - **repo**: `vibe-doctor`
 - **branch**: `main`
-- **working release**: `v1.7.6` candidate (LTS baseline remains `v1.7.3-lts`)
+- **working release**: `v1.7.6` (LTS baseline remains `v1.7.3-lts`)
 - **current mode**: Codex Orchestrator maintenance
 - **harnessVersion**: `1.7.6`
 - **language/tone**: Korean user-facing, concise engineering notes
 
 ## 2. Status
 
-Current local candidate is `v1.7.6`, refreshing the dashboard and completion report UI while keeping `v1.7.3-lts` as the immutable LTS baseline.
+Current mainline release is `v1.7.6`, pushed to `origin/main` at `3717831`; tag `v1.7.6` is also pushed. LTS baseline remains immutable tag `v1.7.3-lts`.
 
 - `/vibe-init` now records bundle policy as `automatic`, `custom`, or `off`. Ambiguous user answers default to `automatic`; explicit frontend opt-out requires rationale plus replacement evidence.
 - `/vibe-review` now distinguishes forgotten frontend utility gates from explicit opt-outs missing replacement evidence, and flags unresolved automatic bundle policy for frontend/browser projects.
