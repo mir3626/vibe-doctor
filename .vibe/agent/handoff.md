@@ -4,14 +4,14 @@
 
 - **repo**: `vibe-doctor`
 - **branch**: `main`
-- **working release**: `v1.7.4` (LTS baseline remains `v1.7.3-lts`)
+- **working release**: `v1.7.5` candidate (LTS baseline remains `v1.7.3-lts`)
 - **current mode**: Codex Orchestrator maintenance
-- **harnessVersion**: `1.7.4`
+- **harnessVersion**: `1.7.5`
 - **language/tone**: Korean user-facing, concise engineering notes
 
 ## 2. Status
 
-Current mainline policy checkpoint is `v1.7.4`, pushed to `origin/main` at `ffbd222`; tag `v1.7.4` is also pushed. LTS baseline remains immutable tag `v1.7.3-lts`.
+Current local candidate is `v1.7.5`, adding the first safe P1-lite follow-up from the Matt Pocock skills/grill-pass review. LTS baseline remains immutable tag `v1.7.3-lts`.
 
 - `/vibe-init` now records bundle policy as `automatic`, `custom`, or `off`. Ambiguous user answers default to `automatic`; explicit frontend opt-out requires rationale plus replacement evidence.
 - `/vibe-review` now distinguishes forgotten frontend utility gates from explicit opt-outs missing replacement evidence, and flags unresolved automatic bundle policy for frontend/browser projects.
@@ -22,26 +22,34 @@ Current mainline policy checkpoint is `v1.7.4`, pushed to `origin/main` at `ffbd
 - Harness version, README, release notes, sync manifest, and generated `sprint-status.schema.json` are updated for `v1.7.3`.
 - `v1.7.3-lts` is an immutable LTS alias pointing at the same release commit as `v1.7.3`; no moving `lts` tag is used.
 - v1.7.4 records the approved context-overhead policy: no capsule/router/prompt reduction until context coverage observability and fail-closed safeguards have dogfood evidence; `vibe-checkpoint` freshness is not decision completeness; durable events need concise session-log markers; handoff rewrites are required when restart state changes.
+- v1.7.5 adds `npm run vibe:context-audit`, a report-only harness skill/runbook dependency scanner. It classifies referenced paths as `hard`, `soft`, or `unknown`, reports `known`, `missing`, `ambiguous`, and `stale` buckets, and records context byte overhead without gating preflight, sprint commit, push, tags, Generator prompts, or capsule routing.
 
 ## 3. Verification
 
-Completed on Windows for the v1.7.4 policy checkpoint patch:
+Completed on Windows for the v1.7.5 context dependency audit candidate:
 
+- `node --import tsx --test .vibe/harness/test/context-audit.test.ts`
+- `node --import tsx --test .vibe/harness/test/context-audit.test.ts .vibe/harness/test/sync.test.ts .vibe/harness/test/integration/meta-smoke.test.ts`
 - `npm run typecheck`
-- `node .vibe/harness/scripts/vibe-review-inputs.mjs` smoke confirmed `gap-context-overhead-policy` appears in `uncoveredHarnessGaps[]` and `deadlineHarnessGaps[]`.
-- `npm test` (355 tests: 354 pass, 1 skipped)
+- `npm --silent run vibe:context-audit -- --format=json` (report-only baseline: 408 findings)
+- `npm test` (359 tests: 358 pass, 1 skipped)
 - `npm run build`
+- `git diff --check`
+- strict UTF-8 decode and mojibake regex equivalents passed; PowerShell PATH does not expose `file` or GNU `grep` on this machine.
 
 ## 4. Expected Downstream Behavior
 
-Downstream projects syncing to `v1.7.4` get the v1.7.3 lifecycle/policy changes plus the context-overhead policy checkpoint. Projects that need stability can pin `v1.7.3-lts`.
+Downstream projects syncing to `v1.7.5` get the v1.7.3 lifecycle/policy changes, the v1.7.4 context-overhead policy checkpoint, and the new report-only context dependency audit. Projects that need stability can pin `v1.7.3-lts`.
 
 ## 5. Next Action
 
-After the next dogfood runs, `/vibe-review` should inspect `gap-context-overhead-policy` evidence before recommending any context coverage observability or capsule/prompt reduction sprint.
+After the next dogfood runs, `/vibe-review` should inspect `gap-context-overhead-policy` evidence and `vibe-context-audit` baseline noise before recommending any context coverage observability or capsule/prompt reduction sprint.
+
+For the Matt Pocock skills + grill-pass integration review, the current safe upstream sequence is: dogfood the P1-lite report-only dependency/context audit -> domain-language artifact with canonical/provisional/conflict states -> shadow grill pass after normal interview -> advisory `/vibe-diagnose` -> architecture rubric only after dogfood evidence. Do not add blocking `phase0-seal` term-conflict gates, blocking lint, termination-threshold changes, Generator scope leakage, or push/tag side effects before dogfood.
 
 ## 6. Pending Risks
 
 - Bundle/browserSmoke replacement-evidence enforcement is review-only, not preflight-blocking.
 - Product identity is prompt-policy enforced, not script-gated; if dogfood still passes weak experiential work, the next escalation should add an artifact/evidence wrapper guard.
+- `vibe-context-audit` currently produces a noisy report-only baseline; do not convert it into a gate until dogfood proves the classification is actionable.
 - PowerShell PATH on this machine does not expose `file` or GNU `grep`; use strict UTF-8 decode and regex equivalents for encoding checks.

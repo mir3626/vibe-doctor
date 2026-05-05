@@ -154,6 +154,7 @@ Orchestrator는 Phase 0 네이티브 인터뷰 (`.vibe/harness/scripts/vibe-inte
 | Sprint 시작 전 (Planner skip) | `node .vibe/harness/scripts/vibe-planner-skip-log.mjs` | session-log `[decision][planner-skip]` 엔트리 기록 (trivial 예외 발동 시 필수) |
 | Post sprint commit | `node .vibe/harness/scripts/vibe-sprint-commit.mjs --push-tag` | Detects upward harnessVersion deltas and creates annotated `vX.Y.Z` tags; push is opt-in (`gap-release-tag-automation`) |
 | Rule audit | `node .vibe/harness/scripts/vibe-rule-audit.mjs` | Compares CLAUDE.md imperative rules with harness-gaps coverage and retrospective transcript tiering |
+| Context dependency audit | `node .vibe/harness/scripts/vibe-context-audit.mjs` | Report-only scan of skill/runbook path dependencies, hard/soft/ambiguous strength, missing references, and context byte overhead. Never gates preflight, commits, push, or tags. |
 | Audit skip directive | `node .vibe/harness/scripts/vibe-audit-skip-set.mjs` | Sets or clears `.vibe/config.local.json` userDirectives.auditSkippedMode and records a session-log `[decision]` |
 | Codex 호출 실패 시 | `.vibe/harness/scripts/run-codex.sh` + `.vibe/agent/codex-unavailable.flag` | 3회 retry 소진 시 flag touch + stderr CODEX_UNAVAILABLE 블록 출력. Orchestrator 는 flag 존재 시 Generator 위임 대신 사용자 승인 분기 진입. 다음 성공 호출 시 flag auto-remove. |
 
