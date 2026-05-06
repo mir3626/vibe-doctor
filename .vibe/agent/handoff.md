@@ -4,14 +4,14 @@
 
 - **repo**: `vibe-doctor`
 - **branch**: `main`
-- **working release**: `v1.7.7` candidate (LTS baseline remains `v1.7.3-lts`)
+- **working release**: `v1.7.7` (LTS baseline remains `v1.7.3-lts`)
 - **current mode**: Codex Orchestrator maintenance
 - **harnessVersion**: `1.7.7`
 - **language/tone**: Korean user-facing, concise engineering notes
 
 ## 2. Status
 
-Current local candidate is `v1.7.7` for the `/vibe-interview` consensus gate. `v1.7.6` is the latest pushed mainline release at `3717831`; tag `v1.7.6` is pushed. LTS baseline remains immutable tag `v1.7.3-lts`.
+Current mainline release is `v1.7.7`, pushed to `origin/main` at `1d4dfe8`; tag `v1.7.7` is also pushed. LTS baseline remains immutable tag `v1.7.3-lts`.
 
 - `/vibe-init` now records bundle policy as `automatic`, `custom`, or `off`. Ambiguous user answers default to `automatic`; explicit frontend opt-out requires rationale plus replacement evidence.
 - `/vibe-review` now distinguishes forgotten frontend utility gates from explicit opt-outs missing replacement evidence, and flags unresolved automatic bundle policy for frontend/browser projects.
@@ -44,7 +44,7 @@ Downstream projects syncing to `v1.7.7` get the v1.7.3 lifecycle/policy changes,
 
 ## 5. Next Action
 
-Commit/tag/push `v1.7.7`, then dogfood `/vibe-init` on a downstream project and confirm: termination pauses at consensus, `revise` preserves corrections, human approval produces `status: approved`, and PO-proxy produces `status: proxy-unconfirmed`.
+Dogfood `/vibe-init` on a downstream project and confirm: termination pauses at consensus, `revise` preserves corrections, human approval produces `status: approved`, and PO-proxy produces `status: proxy-unconfirmed`.
 
 After the next dogfood runs, `/vibe-review` should inspect `gap-context-overhead-policy` evidence and `vibe-context-audit` baseline noise before recommending any context coverage observability or capsule/prompt reduction sprint.
 
