@@ -11,7 +11,7 @@
 
 ## 2. Status
 
-Current mainline candidate is `v1.7.10`. LTS baseline remains immutable tag `v1.7.3-lts`.
+Current mainline release is `v1.7.10`, pushed to `origin/main` at `1a74c43`; tag `v1.7.10` is also pushed. LTS baseline remains immutable tag `v1.7.3-lts`.
 
 - Root cause for repeated downstream GitHub CI failures after harness sync was confirmed from `codex-widget-for-desktop` run logs.
 - Failing step: `npm test` -> `.vibe/harness/test/schemas.test.ts` -> `sprint-status parses the production payload`.
@@ -43,9 +43,7 @@ Downstream projects syncing to `v1.7.10` should stop failing GitHub CI merely be
 
 ## 5. Next Action
 
-Commit and tag `v1.7.10`, push `origin/main` and tag, then create a follow-up checkpoint commit recording the pushed release hash.
-
-After downstream sync, inspect whether any remaining CI failures are product-specific. The earlier historical `node-pty prebuild linux-x64 is not a directory` failure was product/runtime packaging, not this harness schema bug.
+Sync `codex-widget-for-desktop` to `v1.7.10` and rerun CI. If CI still fails, inspect whether the new failure is product-specific. The earlier historical `node-pty prebuild linux-x64 is not a directory` failure was product/runtime packaging, not this harness schema bug.
 
 ## 6. Pending Risks
 

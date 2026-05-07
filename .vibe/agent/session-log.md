@@ -20,6 +20,7 @@
 
 ## Entries
 
+- 2026-05-07T18:05:05.000Z [checkpoint] Pushed v1.7.10 offset datetime schema fix to `origin/main` at `1a74c43`; pushed annotated tag `v1.7.10`.
 - 2026-05-07T18:03:00.000Z [harness-review] Prepared v1.7.10 CI compatibility patch after inspecting `codex-widget-for-desktop` GitHub Actions failures: current repeated failure is `schemas.test.ts` rejecting `.vibe/agent/sprint-status.json` timestamps with `+09:00` offsets, not WSL wrapper behavior. Added offset-aware shared state datetime schema, regenerated JSON schemas, added `+09:00` sprint-status regression, verified focused tests, schema check, typecheck, build, full npm test, diff-check, report-only audits, and live downstream sprint-status parse.
 - 2026-05-07T17:14:50.000Z [checkpoint] Pushed v1.7.9 diff sidecar foundation to `origin/main` at `8ed2be0`; pushed annotated tag `v1.7.9`.
 - 2026-05-07T17:12:00.000Z [harness-review] Prepared v1.7.9 diff-reviewer sidecar foundation: sealed input packet, provider auto-selection for Codex/Claude Orchestrators, latest-model defaults (`gpt-5.5`/`opus`), high/xhigh effort metadata, strict stdout JSON schemas, ignored non-durable `.vibe/sidecars/` artifacts, provider adapters, sidecar docs, and dogfood-gated follow-up backlog. Verified sidecar wrapper typecheck, schema check, focused sidecar/Codex-agent tests, typecheck, build, full npm test, diff-check, context-audit, rule-audit, and mock wrapper smoke.
