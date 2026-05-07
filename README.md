@@ -8,7 +8,16 @@
 
 ---
 
-## Latest highlights (v1.7.9)
+## Latest highlights (v1.7.10)
+
+### v1.7.10 (2026-05-08) - Offset datetime schema compatibility
+
+- Accepts ISO datetime values with explicit timezone offsets, such as `2026-05-08T02:25:00.000+09:00`, in harness state schemas.
+- Fixes downstream GitHub CI failures where Linux `npm test` rejected Windows/Korea-local `sprint-status.json` timestamps after harness sync.
+
+---
+
+## Previous highlights (v1.7.9)
 
 ### v1.7.9 (2026-05-08) - Diff sidecar foundation
 
@@ -227,7 +236,7 @@
 - **v1.3.x** — HTML 프로젝트 보고서, `/vibe-iterate`, `/vibe-review`, `/vibe-sprint-mode`, web dashboard.
 - **v1.2.x** — native socratic interview, stack/framework pattern shards, model tier abstraction, platform wrappers, single-commit automation, statusline.
 
-자세한 릴리스 내역은 `docs/release/v1.2.0.md` ~ `v1.7.9.md` 참조.
+자세한 릴리스 내역은 `docs/release/v1.2.0.md` ~ `v1.7.10.md` 참조.
 
 ---
 
@@ -661,6 +670,7 @@ Orchestrator 가 주로 호출합니다. 사용자가 직접 쓸 일은 드뭅�
 - `v1.7.7` — interview consensus gate before product context seed
 - `v1.7.8` — review parser and dogfood follow-up hardening
 - `v1.7.9` — diff sidecar foundation
+- `v1.7.10` — offset datetime schema compatibility
 
 ---
 
