@@ -4,12 +4,14 @@
 
 - **repo**: `vibe-doctor`
 - **branch**: `main`
-- **working release**: `v1.7.11` candidate (LTS baseline remains `v1.7.3-lts`)
+- **working release**: `v1.7.11` (LTS baseline remains `v1.7.3-lts`)
 - **current mode**: Codex Orchestrator maintenance
 - **harnessVersion**: `1.7.11`
 - **language/tone**: Korean user-facing, concise engineering notes
 
 ## 2. Status
+
+Current mainline release is `v1.7.11`, pushed to `origin/main` at `d024237`; annotated tag `v1.7.11` is also pushed. LTS baseline remains immutable tag `v1.7.3-lts`.
 
 Prepared the v1.7.11 upstream sidecar dogfood hardening patch from downstream `codex-widget-for-desktop` evidence at commit `4b4648a`.
 
@@ -49,7 +51,7 @@ Downstream projects syncing to `v1.7.11` should be able to run Codex sidecars on
 
 ## 5. Next Action
 
-Commit the v1.7.11 patch, tag `v1.7.11`, push `main` and the tag, then update this handoff with the pushed commit hash.
+Downstream dogfood prompt: sync `codex-widget-for-desktop` to `v1.7.11`, run the sidecar dogfood again on Windows/Codex, and verify the prior `spawnSync codex ENOENT` plus sealed-packet hardening regressions stay closed.
 
 ## 6. Pending Risks
 
