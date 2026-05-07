@@ -11,7 +11,7 @@
 
 ## 2. Status
 
-Current mainline candidate is `v1.7.9`. LTS baseline remains immutable tag `v1.7.3-lts`.
+Current mainline release is `v1.7.9`, pushed to `origin/main` at `8ed2be0`; tag `v1.7.9` is also pushed. LTS baseline remains immutable tag `v1.7.3-lts`.
 
 - v1.7.9 adds a manual `diff-reviewer` sidecar foundation for Codex and Claude Orchestrators.
 - Sidecar input is a sealed packet containing prompt summary, changed files, current git diff, checklist snippets, evidence refs, coverage, and `sha256:` input hash.
@@ -51,9 +51,7 @@ The command should write one ignored artifact path to stdout. It must not mutate
 
 ## 5. Next Action
 
-Commit and tag `v1.7.9`, push `origin/main` and tag, then create a follow-up checkpoint commit recording the pushed release hash.
-
-After sync, dogfood in `codex-widget-for-desktop` by running the sidecar against a real downstream diff and checking:
+Dogfood in `codex-widget-for-desktop` by syncing `v1.7.9`, running the sidecar against a real downstream diff, then checking:
 
 - artifact schema validates
 - provider auto-selection follows the downstream Orchestrator
