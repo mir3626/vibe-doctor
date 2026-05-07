@@ -20,6 +20,7 @@
 
 ## Entries
 
+- 2026-05-07T17:12:00.000Z [harness-review] Prepared v1.7.9 diff-reviewer sidecar foundation: sealed input packet, provider auto-selection for Codex/Claude Orchestrators, latest-model defaults (`gpt-5.5`/`opus`), high/xhigh effort metadata, strict stdout JSON schemas, ignored non-durable `.vibe/sidecars/` artifacts, provider adapters, sidecar docs, and dogfood-gated follow-up backlog. Verified sidecar wrapper typecheck, schema check, focused sidecar/Codex-agent tests, typecheck, build, full npm test, diff-check, context-audit, rule-audit, and mock wrapper smoke.
 - 2026-05-07T14:08:02.204Z [checkpoint] Pushed v1.7.8 review parser hardening to `origin/main` at `2cdeacc`; pushed annotated tag `v1.7.8`.
 - 2026-05-07T14:06:34.847Z [harness-review] Prepared v1.7.8 from `codex-widget-for-desktop` dogfood `/vibe-review`: confirmed P1 pipe-aware gap-ledger parser bug, P1 Findings heading contract mismatch, P3 legacy decisions JSONL warning, and P2 semantic acceptance evidence gap. Implemented parser/decision fixes with regressions; kept context-audit report-only; expanded semantic agent-context/multimodal/workflow-agent evidence guidance. Verified focused review/decision tests, typecheck, full npm test, build, diff-check, and UTF-8/mojibake equivalents.
 - 2026-05-06T13:42:37.428Z [checkpoint] Pushed v1.7.7 interview consensus gate to `origin/main` at `1d4dfe8`; pushed annotated tag `v1.7.7`.
