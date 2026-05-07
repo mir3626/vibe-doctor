@@ -4,12 +4,14 @@
 
 - **repo**: `vibe-doctor`
 - **branch**: `main`
-- **working release**: `v1.7.12` candidate (LTS baseline remains `v1.7.3-lts`)
+- **working release**: `v1.7.12` (LTS baseline remains `v1.7.3-lts`)
 - **current mode**: Codex Orchestrator maintenance
 - **harnessVersion**: `1.7.12`
 - **language/tone**: Korean user-facing, concise engineering notes
 
 ## 2. Status
+
+Current mainline release is `v1.7.12`, pushed to `origin/main` at `a2908f3`; annotated tag `v1.7.12` is also pushed. LTS baseline remains immutable tag `v1.7.3-lts`.
 
 Prepared the v1.7.12 provider-neutral Orchestrator wording patch.
 
@@ -38,7 +40,7 @@ Downstream projects syncing to `v1.7.12` should no longer see Codex memory or ov
 
 ## 5. Next Action
 
-Commit the v1.7.12 patch, tag `v1.7.12`, push `main` and the tag, then update this handoff with the pushed commit hash.
+Downstream projects can sync to `v1.7.12` when they need the provider-neutral Orchestrator wording correction.
 
 ## 6. Pending Risks
 

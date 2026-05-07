@@ -20,6 +20,7 @@
 
 ## Entries
 
+- 2026-05-07T18:39:38.132Z [checkpoint] Pushed v1.7.12 provider-neutral Orchestrator wording to `origin/main` at `a2908f3`; pushed annotated tag `v1.7.12`.
 - 2026-05-07T18:38:25.780Z [harness-review] Prepared v1.7.12 provider-neutral Orchestrator wording patch: confirmed synced Codex memory had a bad Claude-specific escalation phrase, updated AGENTS/CLAUDE/README/orchestration docs so Claude is nominal default not the only Orchestrator, bumped harnessVersion to 1.7.12, and verified strong-claim search, typecheck, schema check, bootstrap preflight, full npm test, diff-check, and JSON parse checks.
 - 2026-05-07T18:25:50.794Z [checkpoint] Pushed v1.7.11 sidecar dogfood hardening to `origin/main` at `d024237`; pushed annotated tag `v1.7.11`.
 - 2026-05-07T18:24:16.620Z [harness-review] Prepared v1.7.11 sidecar dogfood hardening from `codex-widget-for-desktop` commit `4b4648a`: Windows Codex sidecar execution now resolves the npm Codex JS entrypoint, sealed `inputHash` is verified, coverage is wrapper-owned, reviewer status/findings semantics are enforced, relative sidecar paths resolve against `--cwd`, artifact-root escapes are rejected, sensitive/untracked/non-text diff content is omitted safely, Claude adapter tools are empty, and real Windows Codex sidecar smoke produced `status:"pass"`.
