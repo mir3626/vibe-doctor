@@ -4,14 +4,14 @@
 
 - **repo**: `vibe-doctor`
 - **branch**: `main`
-- **working release**: `v1.7.7` (LTS baseline remains `v1.7.3-lts`)
+- **working release**: `v1.7.8` candidate (LTS baseline remains `v1.7.3-lts`)
 - **current mode**: Codex Orchestrator maintenance
-- **harnessVersion**: `1.7.7`
+- **harnessVersion**: `1.7.8`
 - **language/tone**: Korean user-facing, concise engineering notes
 
 ## 2. Status
 
-Current mainline release is `v1.7.7`, pushed to `origin/main` at `1d4dfe8`; tag `v1.7.7` is also pushed. LTS baseline remains immutable tag `v1.7.3-lts`.
+Current local candidate is `v1.7.8` for downstream `codex-widget-for-desktop` `/vibe-review` follow-up. `v1.7.7` is pushed to `origin/main` at `1d4dfe8`; tag `v1.7.7` is also pushed. LTS baseline remains immutable tag `v1.7.3-lts`.
 
 - `/vibe-init` now records bundle policy as `automatic`, `custom`, or `off`. Ambiguous user answers default to `automatic`; explicit frontend opt-out requires rationale plus replacement evidence.
 - `/vibe-review` now distinguishes forgotten frontend utility gates from explicit opt-outs missing replacement evidence, and flags unresolved automatic bundle policy for frontend/browser projects.
@@ -25,26 +25,26 @@ Current mainline release is `v1.7.7`, pushed to `origin/main` at `1d4dfe8`; tag 
 - v1.7.5 adds `npm run vibe:context-audit`, a report-only harness skill/runbook dependency scanner. It classifies referenced paths as `hard`, `soft`, or `unknown`, reports `known`, `missing`, `ambiguous`, and `stale` buckets, and records context byte overhead without gating preflight, sprint commit, push, tags, Generator prompts, or capsule routing.
 - v1.7.6 refreshes `vibe-dashboard.mjs` and `vibe-project-report.mjs` with a calmer operational UI, Geist typography, compact inline SVG brand mark, reduced section-as-card nesting, and render-only `data-demo="true"` preview rows for empty dashboard/report states.
 - v1.7.7 adds a `/vibe-interview` consensus gate: termination now emits `phase:"consensus"` before final seed generation, `--consensus --decision approve|revise|defer|proxy-unconfirmed` records the outcome, and the final Phase 3 seed includes a `Phase 3 Consensus Check` block with status/hash/corrections/unresolved dimensions.
+- v1.7.8 candidate accepts downstream dogfood review findings 1, 2, 4, and 5: Markdown table parsing now handles escaped/inline-code pipes in `harness-gaps.md`; prior review parsing accepts `## Findings (...)`; legacy minimal decision JSONL bootstrap records normalize at read time; semantic agent-context/multimodal/workflow-agent features now require task-quality evidence beyond shape/smoke checks. Finding 3 remains report-only context-audit observability, not reduction work.
 
 ## 3. Verification
 
-Completed on Windows for the v1.7.7 interview consensus candidate:
+Completed on Windows for the v1.7.8 review parser/follow-up candidate:
 
-- `node --check .vibe/harness/scripts/vibe-interview.mjs`
-- `node --import tsx --test .vibe/harness/test/interview-cli.test.ts .vibe/harness/test/interview-engine.test.ts .vibe/harness/test/interview-coverage.test.ts`
+- `node --import tsx --test .vibe/harness/test/vibe-review-inputs.test.ts .vibe/harness/test/review-regression.test.ts .vibe/harness/test/decisions.test.ts`
 - `npm run typecheck`
-- `npm test` (359 tests: 358 pass, 1 skipped)
+- `npm test` (361 tests: 360 pass, 1 skipped)
 - `npm run build`
 - `git diff --check`
 - strict UTF-8 decode and mojibake regex equivalents passed; PowerShell PATH does not expose `file` or GNU `grep` on this machine.
 
 ## 4. Expected Downstream Behavior
 
-Downstream projects syncing to `v1.7.7` get the v1.7.3 lifecycle/policy changes, v1.7.4 context-overhead checkpoint, v1.7.5 report-only context dependency audit, v1.7.6 dashboard/report UI refresh, and the `/vibe-interview` consensus gate. Projects that need stability can pin `v1.7.3-lts`.
+Downstream projects syncing to `v1.7.8` get the v1.7.3 lifecycle/policy changes, v1.7.4 context-overhead checkpoint, v1.7.5 report-only context dependency audit, v1.7.6 dashboard/report UI refresh, v1.7.7 `/vibe-interview` consensus gate, and the `/vibe-review` parser/semantic evidence hardening. Projects that need stability can pin `v1.7.3-lts`.
 
 ## 5. Next Action
 
-Dogfood `/vibe-init` on a downstream project and confirm: termination pauses at consensus, `revise` preserves corrections, human approval produces `status: approved`, and PO-proxy produces `status: proxy-unconfirmed`.
+Commit/tag/push `v1.7.8`, then dogfood `/vibe-review` again on `codex-widget-for-desktop` or another downstream project and confirm: covered pipe-heavy ledger rows stay covered, parenthesized Findings headings load as prior-review issues, legacy decision bootstrap records produce no noisy warning, and semantic agent-context features ask for task-quality evidence.
 
 After the next dogfood runs, `/vibe-review` should inspect `gap-context-overhead-policy` evidence and `vibe-context-audit` baseline noise before recommending any context coverage observability or capsule/prompt reduction sprint.
 

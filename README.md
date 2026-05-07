@@ -8,7 +8,18 @@
 
 ---
 
-## Latest highlights (v1.7.7)
+## Latest highlights (v1.7.8)
+
+### v1.7.8 (2026-05-07) - Review parser and dogfood follow-up hardening
+
+- Hardens `/vibe-review` harness-gap ledger parsing so escaped pipes and inline-code pipes do not shift six-column table cells.
+- Keeps prior-review regression parsing aligned with the documented `## Findings (severity desc)` heading.
+- Accepts legacy minimal `.vibe/agent/project-decisions.jsonl` bootstrap records without noisy schema warnings.
+- Expands review/planning guidance for semantic agent-context, multimodal, and workflow-agent features to require task-quality evidence beyond shape/smoke checks.
+
+---
+
+## Previous highlights (v1.7.7)
 
 ### v1.7.7 (2026-05-06) - Interview consensus gate
 
@@ -206,7 +217,7 @@
 - **v1.3.x** — HTML 프로젝트 보고서, `/vibe-iterate`, `/vibe-review`, `/vibe-sprint-mode`, web dashboard.
 - **v1.2.x** — native socratic interview, stack/framework pattern shards, model tier abstraction, platform wrappers, single-commit automation, statusline.
 
-자세한 릴리스 내역은 `docs/release/v1.2.0.md` ~ `v1.7.7.md` 참조.
+자세한 릴리스 내역은 `docs/release/v1.2.0.md` ~ `v1.7.8.md` 참조.
 
 ---
 
@@ -638,6 +649,7 @@ Orchestrator 가 주로 호출합니다. 사용자가 직접 쓸 일은 드뭅�
 - `v1.7.5` — context dependency audit foundation
 - `v1.7.6` — dashboard and report visual refresh
 - `v1.7.7` — interview consensus gate before product context seed
+- `v1.7.8` — review parser and dogfood follow-up hardening
 
 ---
 
