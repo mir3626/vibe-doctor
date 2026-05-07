@@ -4,49 +4,55 @@
 
 - **repo**: `vibe-doctor`
 - **branch**: `main`
-- **working release**: `v1.7.10` (LTS baseline remains `v1.7.3-lts`)
+- **working release**: `v1.7.11` candidate (LTS baseline remains `v1.7.3-lts`)
 - **current mode**: Codex Orchestrator maintenance
-- **harnessVersion**: `1.7.10`
+- **harnessVersion**: `1.7.11`
 - **language/tone**: Korean user-facing, concise engineering notes
 
 ## 2. Status
 
-Current mainline release is `v1.7.10`, pushed to `origin/main` at `1a74c43`; tag `v1.7.10` is also pushed. LTS baseline remains immutable tag `v1.7.3-lts`.
+Prepared the v1.7.11 upstream sidecar dogfood hardening patch from downstream `codex-widget-for-desktop` evidence at commit `4b4648a`.
 
-- Root cause for repeated downstream GitHub CI failures after harness sync was confirmed from `codex-widget-for-desktop` run logs.
-- Failing step: `npm test` -> `.vibe/harness/test/schemas.test.ts` -> `sprint-status parses the production payload`.
-- Failure details: `.vibe/agent/sprint-status.json` contained local timezone ISO timestamps such as `2026-05-08T02:25:00.000+09:00`; the previous state schemas used `z.string().datetime()` defaults, which reject explicit offsets and accept only `Z` timestamps.
-- This is not a WSL wrapper failure. The WSL-related suspicion was adjacent in history, but the current reproducible failure is schema/date compatibility across Korea/Windows local state and Linux CI.
-- v1.7.10 adds shared `IsoDateTimeSchema = z.string().datetime({ offset: true })` and applies it to state/schema timestamps plus sidecar artifact metadata.
-- Regenerated checked-in JSON schemas and added a regression test covering `+09:00` timestamps in `sprint-status.json`.
-- Verified the live `codex-widget-for-desktop` production `sprint-status.json` parses with the patched upstream schema.
+- Fixed Windows/Codex sidecar execution by resolving the npm-installed `@openai/codex/bin/codex.js` entrypoint and invoking it via `process.execPath` on Windows. Non-Windows remains direct `codex`.
+- Hardened sealed packet handling: `--input-file` resolves relative to `--cwd`, recomputes `inputHash`, and rejects mismatches before artifact creation.
+- Made sidecar artifact coverage wrapper-owned from the sealed input packet; reviewer stdout cannot override counters or clear truncation.
+- Added reviewer-output semantic validation: `pass` requires zero findings, `advisory` requires low/medium findings with no high findings, and `fail` requires at least one high finding.
+- Resolved relative `--prompt-file`, `--input-file`, and `--mock-output-file` against `--cwd`.
+- Rejected `--artifact-root` outside `--cwd`.
+- Added secret-safe diff collection: sensitive tracked paths/extensions are omitted, untracked contents are omitted by default, `--include-untracked-content` is explicit local-debug opt-in, and non-text/unsafe-control untracked bytes are still omitted.
+- Changed omission placeholders to neutral blocks instead of synthetic new-file patches.
+- Removed file-reading tools from the Claude `diff-reviewer` adapter metadata.
+- Kept `gap-sidecar-review-coverage` as `under-review | partial | +3 sprints`; sidecars remain manual/advisory only.
 
 ## 3. Verification
 
-Completed on Windows for the v1.7.10 offset datetime compatibility patch:
+Completed on Windows for the v1.7.11 candidate:
 
-- `node --import tsx --test .vibe/harness/test/sprint-status.test.ts .vibe/harness/test/schemas.test.ts`
-- `npm run vibe:gen-schemas -- --check`
-- `npm run typecheck`
+- `node --import tsx --test .vibe/harness/test/sidecar.test.ts`
+- `npx tsc --noEmit --strict --noUncheckedIndexedAccess --exactOptionalPropertyTypes --module NodeNext --moduleResolution NodeNext --target ES2022 --lib ES2023 --types node --esModuleInterop --skipLibCheck .vibe/harness/scripts/vibe-sidecar-run-impl.ts .vibe/harness/test/sidecar.test.ts`
+- `npm run vibe:typecheck`
 - `npm run build`
-- `npm test` (367 tests: 366 pass, 1 skipped)
+- `npm run vibe:gen-schemas -- --check`
+- `node .vibe/harness/scripts/vibe-preflight.mjs --bootstrap`
+- `npm test` (375 tests: 374 pass, 1 skipped)
 - `git diff --check`
-- patched schema parsed the current downstream `codex-widget-for-desktop` `.vibe/agent/sprint-status.json`
-- `npm run vibe:context-audit` (report-only; existing noisy baseline)
+- strict UTF-8 decode and mojibake grep over touched files
+- `npm run vibe:context-audit` (report-only; known noisy baseline)
 - `npm run vibe:rule-audit` (report-only; existing 27 undisposed CLAUDE.md rules remain)
+- Real Windows Codex sidecar smoke: `npm run vibe:sidecar-run -- diff-reviewer --sprint-id dogfood-v1711-codex-final3 --provider codex --timeout-ms 120000 --max-input-bytes 64000` produced a validated `status: "pass"` artifact before ignored artifacts were removed.
 
 ## 4. Expected Downstream Behavior
 
-Downstream projects syncing to `v1.7.10` should stop failing GitHub CI merely because harness state timestamps use explicit timezone offsets such as `+09:00`.
+Downstream projects syncing to `v1.7.11` should be able to run Codex sidecars on Windows without `spawnSync codex ENOENT`. Sidecar artifacts should remain ignored and non-durable, while tampered/stale input packets, contradictory reviewer outputs, artifact-root escapes, and unsafe diff content are rejected or omitted by the wrapper.
 
-`codex-widget-for-desktop` should sync to `v1.7.10`, rerun CI, and the previous `Invalid datetime` failure in `schemas.test.ts` should disappear.
+`codex-widget-for-desktop` should sync to `v1.7.11`, rerun the v1.7.9 sidecar dogfood, and confirm Windows Codex sidecar execution plus the sealed-packet hardening regressions.
 
 ## 5. Next Action
 
-Sync `codex-widget-for-desktop` to `v1.7.10` and rerun CI. If CI still fails, inspect whether the new failure is product-specific. The earlier historical `node-pty prebuild linux-x64 is not a directory` failure was product/runtime packaging, not this harness schema bug.
+Commit the v1.7.11 patch, tag `v1.7.11`, push `main` and the tag, then update this handoff with the pushed commit hash.
 
 ## 6. Pending Risks
 
-- State schemas now accept explicit offsets; scripts still generally write UTC `Z` timestamps via `new Date().toISOString()`.
-- JSON Schema `format: date-time` does not express the Zod offset option strongly, so runtime Zod tests remain the primary regression guard.
+- `gap-sidecar-review-coverage` remains partial because sidecars are still manual/advisory and not consumed by `/vibe-review`, preflight, sprint-complete, or sprint-commit.
+- `--include-untracked-content` is intentionally opt-in local debugging only; default behavior omits untracked contents.
 - Existing report-only `context-audit` and `rule-audit` noise is unchanged.

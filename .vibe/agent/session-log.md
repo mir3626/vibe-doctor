@@ -20,6 +20,7 @@
 
 ## Entries
 
+- 2026-05-07T18:24:16.620Z [harness-review] Prepared v1.7.11 sidecar dogfood hardening from `codex-widget-for-desktop` commit `4b4648a`: Windows Codex sidecar execution now resolves the npm Codex JS entrypoint, sealed `inputHash` is verified, coverage is wrapper-owned, reviewer status/findings semantics are enforced, relative sidecar paths resolve against `--cwd`, artifact-root escapes are rejected, sensitive/untracked/non-text diff content is omitted safely, Claude adapter tools are empty, and real Windows Codex sidecar smoke produced `status:"pass"`.
 - 2026-05-07T18:05:05.000Z [checkpoint] Pushed v1.7.10 offset datetime schema fix to `origin/main` at `1a74c43`; pushed annotated tag `v1.7.10`.
 - 2026-05-07T18:03:00.000Z [harness-review] Prepared v1.7.10 CI compatibility patch after inspecting `codex-widget-for-desktop` GitHub Actions failures: current repeated failure is `schemas.test.ts` rejecting `.vibe/agent/sprint-status.json` timestamps with `+09:00` offsets, not WSL wrapper behavior. Added offset-aware shared state datetime schema, regenerated JSON schemas, added `+09:00` sprint-status regression, verified focused tests, schema check, typecheck, build, full npm test, diff-check, report-only audits, and live downstream sprint-status parse.
 - 2026-05-07T17:14:50.000Z [checkpoint] Pushed v1.7.9 diff sidecar foundation to `origin/main` at `8ed2be0`; pushed annotated tag `v1.7.9`.

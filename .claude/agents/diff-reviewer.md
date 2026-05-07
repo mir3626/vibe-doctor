@@ -1,7 +1,7 @@
 ---
 name: diff-reviewer
 description: Read-only sidecar reviewer for sealed diff packets; returns structured JSON findings only.
-tools: Read, Grep, Glob
+tools: []
 model: opus
 ---
 
