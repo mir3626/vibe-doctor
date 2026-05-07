@@ -217,14 +217,14 @@
     "currentSprintId": "idle",
     "contextWindow": "main (Orchestrator)",
     "pendingPrompt": null,
-    "lastHandoffAt": "2026-05-07T18:25:50.794Z",
-    "nextAction": "sync codex-widget-for-desktop to v1.7.11 and rerun Windows Codex sidecar dogfood",
-    "lastActionSummary": "v1.7.11 sidecar dogfood hardening pushed to origin/main at d024237 with tag v1.7.11",
+    "lastHandoffAt": "2026-05-07T18:38:25.780Z",
+    "nextAction": "commit, tag, and push v1.7.12 provider-neutral Orchestrator wording",
+    "lastActionSummary": "v1.7.12 provider-neutral Orchestrator wording prepared and verified locally",
     "orchestratorContextBudget": "medium",
     "preferencesActive": [
       "After verified harness changes, proceed directly with commit/tag/push when that is the natural next step; do not ask for separate push confirmation."
     ],
-    "updatedAt": "2026-05-07T18:25:50.794Z"
+    "updatedAt": "2026-05-07T18:38:25.780Z"
   },
   "policies": {
     "scratchpadPath": ".vibe/agent/handoff.md",
@@ -387,7 +387,7 @@
     "docs/release/v1.6.11.md"
   ],
   "sprintsSinceLastAudit": 6,
-  "stateUpdatedAt": "2026-05-07T18:25:50.794Z",
+  "stateUpdatedAt": "2026-05-07T18:38:25.780Z",
   "verifiedAt": null,
   "verificationCommands": []
 }
