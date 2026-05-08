@@ -11,7 +11,9 @@
 
 ## 2. Status
 
-Prepared the v1.7.13 template iteration-state reset patch.
+Current mainline release is `v1.7.13`, pushed to `origin/main` at `112b674`; annotated tag `v1.7.13` is also pushed. LTS baseline remains immutable tag `v1.7.3-lts`.
+
+Prepared and released the v1.7.13 template iteration-state reset patch.
 
 - Reset upstream template `.vibe/agent/iteration-history.json` to an empty history.
 - Reset upstream template `docs/plans/sprint-roadmap.md` to an initial placeholder so new downstream projects do not inherit old upstream Iteration 7-12 sections.
@@ -39,7 +41,7 @@ Downstream projects syncing to `v1.7.13` should run the guarded migration. Proje
 
 ## 5. Next Action
 
-Commit, tag, and push `v1.7.13`. After push, downstream projects with the symptom should run `/vibe-sync` to pick up the migration, then rerun `/vibe-iterate`.
+Downstream projects with the symptom should run `/vibe-sync` to pick up `v1.7.13`, then rerun `/vibe-iterate`.
 
 ## 6. Pending Risks
 

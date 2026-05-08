@@ -20,6 +20,7 @@
 
 ## Entries
 
+- 2026-05-08T12:23:55.986Z [checkpoint] Pushed v1.7.13 template iteration-state reset to `origin/main` at `112b674`; pushed annotated tag `v1.7.13`.
 - 2026-05-08T12:22:31.280Z [harness-review] Prepared v1.7.13 template iteration-state reset: upstream template iteration-history and sprint-roadmap are empty, /vibe-init now resets copied template iteration docs with sprint state, v1.7.13 migration removes known copied upstream iter-7..12 entries including stale iter-9 while preserving real project-owned iter-9, and verification passed focused init/sync tests, typecheck, schema check, bootstrap preflight, full npm test, diff-check, and UTF-8/mojibake checks.
 - 2026-05-07T18:39:38.132Z [checkpoint] Pushed v1.7.12 provider-neutral Orchestrator wording to `origin/main` at `a2908f3`; pushed annotated tag `v1.7.12`.
 - 2026-05-07T18:38:25.780Z [harness-review] Prepared v1.7.12 provider-neutral Orchestrator wording patch: confirmed synced Codex memory had a bad Claude-specific escalation phrase, updated AGENTS/CLAUDE/README/orchestration docs so Claude is nominal default not the only Orchestrator, bumped harnessVersion to 1.7.12, and verified strong-claim search, typecheck, schema check, bootstrap preflight, full npm test, diff-check, and JSON parse checks.
