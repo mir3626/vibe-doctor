@@ -8,7 +8,17 @@
 
 ---
 
-## Latest highlights (v1.7.12)
+## Latest highlights (v1.7.13)
+
+### v1.7.13 (2026-05-08) - Template iteration state reset
+
+- Resets upstream template `iteration-history.json` and `sprint-roadmap.md` so new downstream projects do not inherit old upstream Iteration 7-12 state.
+- Extends `/vibe-init` template-state cleanup to reset copied iteration history and roadmap alongside sprint status.
+- Adds a guarded `v1.7.13` migration that removes known copied upstream iteration entries, including stale `iter-9`, without touching project-owned `iter-9` work.
+
+---
+
+## Previous highlights (v1.7.12)
 
 ### v1.7.12 (2026-05-08) - Provider-neutral Orchestrator wording
 
@@ -256,7 +266,7 @@
 - **v1.3.x** — HTML 프로젝트 보고서, `/vibe-iterate`, `/vibe-review`, `/vibe-sprint-mode`, web dashboard.
 - **v1.2.x** — native socratic interview, stack/framework pattern shards, model tier abstraction, platform wrappers, single-commit automation, statusline.
 
-자세한 릴리스 내역은 `docs/release/v1.2.0.md` ~ `v1.7.12.md` 참조.
+자세한 릴리스 내역은 `docs/release/v1.2.0.md` ~ `v1.7.13.md` 참조.
 
 ---
 
@@ -693,6 +703,7 @@ Orchestrator 가 주로 호출합니다. 사용자가 직접 쓸 일은 드뭅�
 - `v1.7.10` — offset datetime schema compatibility
 - `v1.7.11` — sidecar dogfood hardening
 - `v1.7.12` — provider-neutral Orchestrator wording
+- `v1.7.13` — template iteration state reset
 
 ---
 

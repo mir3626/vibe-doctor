@@ -846,6 +846,7 @@ describe('sync manifest', () => {
     assert.equal(manifest.migrations['1.1.0'], '.vibe/harness/migrations/1.1.0.mjs');
     assert.equal(manifest.migrations['1.7.0'], '.vibe/harness/migrations/1.7.0.mjs');
     assert.equal(manifest.migrations['1.7.3'], '.vibe/harness/migrations/1.7.3.mjs');
+    assert.equal(manifest.migrations['1.7.13'], '.vibe/harness/migrations/1.7.13.mjs');
   });
 });
 
@@ -937,5 +938,111 @@ describe('v1.7.3 migration', () => {
     assert.equal(typeof status.pendingRisks[0]?.statusUpdatedAt, 'string');
     assert.equal(status.pendingRisks[1]?.status, 'closed-by-scope');
     assert.equal(typeof status.pendingRisks[1]?.statusUpdatedAt, 'string');
+  });
+});
+
+describe('v1.7.13 migration', () => {
+  it('removes copied upstream template iteration state without keeping iter-9 as project state', async () => {
+    const root = await makeTempDir('vibe-migration-1713-');
+    await writeJson(path.join(root, '.vibe', 'agent', 'iteration-history.json'), {
+      $schema: './iteration-history.schema.json',
+      currentIteration: null,
+      iterations: [
+        {
+          id: 'iter-9',
+          label: 'rule-gates-and-wiring-drift',
+          startedAt: '2026-04-24T05:30:00.000Z',
+          completedAt: '2026-04-24T05:39:04.765Z',
+          goal: 'template iteration history copied from upstream',
+          plannedSprints: ['sprint-rule-disposition-gate', 'sprint-wiring-drift-detector'],
+          completedSprints: ['sprint-rule-disposition-gate', 'sprint-wiring-drift-detector'],
+          milestoneProgress: {},
+          summary: 'stale template entry',
+        },
+      ],
+    });
+    await mkdir(path.join(root, 'docs', 'plans'), { recursive: true });
+    await writeFile(
+      path.join(root, 'docs', 'plans', 'sprint-roadmap.md'),
+      [
+        '# Sprint Roadmap',
+        '',
+        '# Iteration 9 - rule-gates-and-wiring-drift',
+        '',
+        '- **id**: `sprint-rule-disposition-gate`',
+        '- **id**: `sprint-wiring-drift-detector`',
+        '',
+      ].join('\n'),
+      'utf8',
+    );
+
+    const { stdout } = await execFile(process.execPath, [
+      path.join(process.cwd(), '.vibe', 'harness', 'migrations', '1.7.13.mjs'),
+      root,
+    ]);
+
+    const history = JSON.parse(await readFile(path.join(root, '.vibe', 'agent', 'iteration-history.json'), 'utf8')) as {
+      currentIteration: string | null;
+      iterations: unknown[];
+    };
+    const roadmap = await readFile(path.join(root, 'docs', 'plans', 'sprint-roadmap.md'), 'utf8');
+
+    assert.match(stdout, /iterationHistory=reset-template/);
+    assert.match(stdout, /sprintRoadmap=reset-template/);
+    assert.equal(history.currentIteration, null);
+    assert.deepEqual(history.iterations, []);
+    assert.doesNotMatch(roadmap, /Iteration 9/);
+    assert.doesNotMatch(roadmap, /sprint-rule-disposition-gate/);
+  });
+
+  it('keeps project-owned iteration state even when a project reaches iter-9 itself', async () => {
+    const root = await makeTempDir('vibe-migration-1713-project-');
+    await writeJson(path.join(root, '.vibe', 'agent', 'iteration-history.json'), {
+      $schema: './iteration-history.schema.json',
+      currentIteration: 'iter-9',
+      iterations: [
+        {
+          id: 'iter-9',
+          label: 'customer-billing-polish',
+          startedAt: '2026-05-08T00:00:00.000Z',
+          completedAt: null,
+          goal: 'real downstream project iteration',
+          plannedSprints: ['sprint-billing-polish'],
+          completedSprints: [],
+          milestoneProgress: {},
+          summary: '',
+        },
+      ],
+    });
+    await mkdir(path.join(root, 'docs', 'plans'), { recursive: true });
+    await writeFile(
+      path.join(root, 'docs', 'plans', 'sprint-roadmap.md'),
+      [
+        '# Sprint Roadmap',
+        '',
+        '# Iteration 9 - customer-billing-polish',
+        '',
+        '- **id**: `sprint-billing-polish`',
+        '',
+      ].join('\n'),
+      'utf8',
+    );
+
+    const { stdout } = await execFile(process.execPath, [
+      path.join(process.cwd(), '.vibe', 'harness', 'migrations', '1.7.13.mjs'),
+      root,
+    ]);
+
+    const history = JSON.parse(await readFile(path.join(root, '.vibe', 'agent', 'iteration-history.json'), 'utf8')) as {
+      currentIteration: string | null;
+      iterations: Array<{ label?: string }>;
+    };
+    const roadmap = await readFile(path.join(root, 'docs', 'plans', 'sprint-roadmap.md'), 'utf8');
+
+    assert.match(stdout, /iterationHistory=idempotent/);
+    assert.match(stdout, /sprintRoadmap=idempotent/);
+    assert.equal(history.currentIteration, 'iter-9');
+    assert.equal(history.iterations[0]?.label, 'customer-billing-polish');
+    assert.match(roadmap, /sprint-billing-polish/);
   });
 });

@@ -4,46 +4,45 @@
 
 - **repo**: `vibe-doctor`
 - **branch**: `main`
-- **working release**: `v1.7.12` (LTS baseline remains `v1.7.3-lts`)
+- **working release**: `v1.7.13` (LTS baseline remains `v1.7.3-lts`)
 - **current mode**: Codex Orchestrator maintenance
-- **harnessVersion**: `1.7.12`
+- **harnessVersion**: `1.7.13`
 - **language/tone**: Korean user-facing, concise engineering notes
 
 ## 2. Status
 
-Current mainline release is `v1.7.12`, pushed to `origin/main` at `a2908f3`; annotated tag `v1.7.12` is also pushed. LTS baseline remains immutable tag `v1.7.3-lts`.
+Prepared the v1.7.13 template iteration-state reset patch.
 
-Prepared the v1.7.12 provider-neutral Orchestrator wording patch.
-
-- Confirmed the strongest problematic assertion was in synced Codex memory: `AGENTS.md` told Sprint Generator work to escalate uncertain design decisions to a Claude-specific Orchestrator.
-- Updated `AGENTS.md` to escalate to the current upstream Orchestrator instead.
-- Reworded `CLAUDE.md` so Claude is the nominal Orchestrator for Claude sessions, while explicitly not claiming Claude is the only valid Orchestrator.
-- Reworded README overview, core-design table, and operating principles so the default nominal mode remains Claude Code Orchestrator + Codex Generator, but direct Codex sessions are explicitly allowed as Codex Orchestrator maintenance mode for upstream harness work.
-- Reworded `docs/context/orchestration.md` role table with the same distinction.
-- Added `docs/release/v1.7.12.md` and bumped harness metadata to `1.7.12`.
+- Reset upstream template `.vibe/agent/iteration-history.json` to an empty history.
+- Reset upstream template `docs/plans/sprint-roadmap.md` to an initial placeholder so new downstream projects do not inherit old upstream Iteration 7-12 sections.
+- Updated `/vibe-init` copied-template-state cleanup to reset iteration history and sprint roadmap alongside sprint status, handoff, and session log.
+- Added guarded migration `.vibe/harness/migrations/1.7.13.mjs` and registered it in `.vibe/sync-manifest.json`.
+- Migration removes known upstream template iteration entries, including stale `iter-9`, by matching upstream labels/sprint IDs. It preserves real project-owned `iter-9` work.
+- Added release notes and README highlight for `v1.7.13`.
 
 ## 3. Verification
 
-Completed on Windows for the v1.7.12 candidate:
+Completed on Windows for the v1.7.13 candidate:
 
-- Strong-claim search for Claude-specific Orchestrator assertions across synced docs and agent memory returned no active hits.
+- `node --import tsx --test .vibe/harness/test/init-guard.test.ts`
+- `node --import tsx --test .vibe/harness/test/sync.test.ts`
 - `npm run vibe:typecheck`
 - `npm run vibe:gen-schemas -- --check`
 - `node .vibe/harness/scripts/vibe-preflight.mjs --bootstrap`
-- `npm test` (375 tests: 374 pass, 1 skipped)
+- `npm test` (377 tests: 376 pass, 1 skipped)
 - `git diff --check`
-- JSON parse checks for `package.json` and `.vibe/config.json`
+- UTF-8 replacement/mojibake checks for touched files
 
 ## 4. Expected Downstream Behavior
 
-Downstream projects syncing to `v1.7.12` should no longer see Codex memory or overview docs strongly claim that the Orchestrator must be Claude. They should still understand the default nominal mode as Claude Code Orchestrator + Codex Generator, while direct Codex maintenance sessions remain supported.
+Downstream projects syncing to `v1.7.13` should run the guarded migration. Projects that copied the old upstream template iteration state should no longer have stale Iteration 7-12 entries driving `/vibe-iterate`, so the next iteration should start from project-owned state instead of stale `iter-9`.
 
 ## 5. Next Action
 
-Downstream projects can sync to `v1.7.12` when they need the provider-neutral Orchestrator wording correction.
+Commit, tag, and push `v1.7.13`. After push, downstream projects with the symptom should run `/vibe-sync` to pick up the migration, then rerun `/vibe-iterate`.
 
 ## 6. Pending Risks
 
-- Provider-neutral wording does not change runtime defaults; `.vibe/config.json` still defaults this upstream repo to `claude-opus` as its nominal Orchestrator.
-- Package identity still contains legacy `vibe-base-claude-code-ts` naming; this patch only addresses Orchestrator role assertions, not package renaming.
-- Existing report-only `context-audit` and `rule-audit` noise is unchanged.
+- The migration intentionally matches known upstream labels/sprint IDs; unrelated project-owned `iter-9` work is preserved.
+- If a downstream has manually mixed old upstream roadmap sections with real project roadmap content, the migration is conservative and may require a one-time manual cleanup.
+- Historical archived docs can still mention old upstream iterations; they are not active state for `/vibe-iterate`.

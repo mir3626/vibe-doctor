@@ -139,6 +139,35 @@ describe('vibe:init agent-skill guard', () => {
       verificationCommands: [],
       sprintsSinceLastAudit: 5,
     });
+    await writeJson(path.join(root, '.vibe', 'agent', 'iteration-history.json'), {
+      currentIteration: null,
+      iterations: [
+        {
+          id: 'iter-9',
+          label: 'rule-gates-and-wiring-drift',
+          startedAt: '2026-04-24T05:30:00.000Z',
+          completedAt: '2026-04-24T05:39:04.765Z',
+          goal: 'template iteration history copied from upstream',
+          plannedSprints: ['sprint-rule-disposition-gate'],
+          completedSprints: ['sprint-rule-disposition-gate'],
+          milestoneProgress: {},
+          summary: 'stale template entry',
+        },
+      ],
+    });
+    await mkdir(path.join(root, 'docs', 'plans'), { recursive: true });
+    await writeFile(
+      path.join(root, 'docs', 'plans', 'sprint-roadmap.md'),
+      [
+        '# Sprint Roadmap',
+        '',
+        '# Iteration 9 - rule-gates-and-wiring-drift',
+        '',
+        '- **id**: `sprint-rule-disposition-gate`',
+        '',
+      ].join('\n'),
+      'utf8',
+    );
 
     const result = spawnSync(process.execPath, ['--import', tsxLoader, initPath, AGENT_INIT_FLAG, '--mode=human'], {
       cwd: root,
@@ -156,6 +185,15 @@ describe('vibe:init agent-skill guard', () => {
     assert.equal(status.project?.name, path.basename(root));
     assert.deepEqual(status.sprints, []);
     assert.equal(status.sprintsSinceLastAudit, 0);
+
+    const iteration = await readJson<{ currentIteration?: string | null; iterations?: unknown[] }>(
+      path.join(root, '.vibe', 'agent', 'iteration-history.json'),
+    );
+    const roadmap = await readFile(path.join(root, 'docs', 'plans', 'sprint-roadmap.md'), 'utf8');
+    assert.equal(iteration.currentIteration, null);
+    assert.deepEqual(iteration.iterations, []);
+    assert.doesNotMatch(roadmap, /Iteration 9/);
+    assert.match(roadmap, /초기 상태/);
   });
 
   it('agent-skill init refuses non-interactive bootstrap without an explicit mode', async () => {

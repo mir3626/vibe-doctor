@@ -200,6 +200,7 @@
     "1.4.0": ".vibe/harness/migrations/1.4.0.mjs",
     "1.6.2": ".vibe/harness/migrations/1.6.2.mjs",
     "1.7.0": ".vibe/harness/migrations/1.7.0.mjs",
-    "1.7.3": ".vibe/harness/migrations/1.7.3.mjs"
+    "1.7.3": ".vibe/harness/migrations/1.7.3.mjs",
+    "1.7.13": ".vibe/harness/migrations/1.7.13.mjs"
   }
 }
