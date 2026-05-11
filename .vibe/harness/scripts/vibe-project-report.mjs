@@ -81,6 +81,10 @@ function isTemplateProjectStatus(root, status) {
   );
 }
 
+function isTemplateProductState(root, productMd) {
+  return path.basename(root).toLowerCase() !== 'vibe-doctor' && /PROJECT NOT INITIALIZED/im.test(productMd);
+}
+
 function emptyIterationHistory() {
   return {
     currentIteration: null,
@@ -1061,7 +1065,7 @@ async function buildModel(root) {
     readOptionalJson(path.join(root, '.vibe', 'config.json'), {}),
     readOptionalJson(path.join(root, 'package.json'), {}),
   ]);
-  const templateState = isTemplateProjectStatus(root, rawStatus);
+  const templateState = isTemplateProjectStatus(root, rawStatus) || isTemplateProductState(root, rawProductMd);
   const productMd = templateState ? '' : rawProductMd;
   const roadmapMd = templateState ? '' : rawRoadmapMd;
   const milestonesMd = templateState ? '' : rawMilestonesMd;

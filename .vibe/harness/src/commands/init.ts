@@ -1,7 +1,7 @@
 import process from 'node:process';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { copyFile } from 'node:fs/promises';
+import { copyFile, mkdir, readdir, rm } from 'node:fs/promises';
 import readline from 'node:readline/promises';
 import { stdin as input, stdout as output } from 'node:process';
 import { parseArgs, getStringFlag } from '../lib/args.js';
@@ -352,6 +352,70 @@ function initialSprintRoadmap(): string {
   ].join('\n');
 }
 
+function initialProjectMap(nowIso: string): Record<string, unknown> {
+  return {
+    $schema: './project-map.schema.json',
+    schemaVersion: '0.1',
+    updatedAt: nowIso,
+    modules: {},
+    activePlatformRules: [],
+  };
+}
+
+function initialSprintApiContracts(nowIso: string): Record<string, unknown> {
+  return {
+    $schema: './sprint-api-contracts.schema.json',
+    schemaVersion: '0.1',
+    updatedAt: nowIso,
+    contracts: {},
+  };
+}
+
+function initialTokens(): Record<string, unknown> {
+  return {
+    updatedAt: null,
+    cumulativeTokens: 0,
+    elapsedSeconds: 0,
+    sprintTokens: {},
+  };
+}
+
+async function removeIfExists(filePath: string): Promise<void> {
+  await rm(filePath, { recursive: true, force: true });
+}
+
+async function clearDirectoryExcept(dirPath: string, keepNames: Set<string>): Promise<void> {
+  await mkdir(dirPath, { recursive: true });
+  const entries = await readdir(dirPath, { withFileTypes: true });
+  await Promise.all(
+    entries
+      .filter((entry) => !keepNames.has(entry.name))
+      .map((entry) => removeIfExists(path.join(dirPath, entry.name))),
+  );
+}
+
+async function resetProjectOwnedRuntimeState(nowIso: string): Promise<void> {
+  await writeJson(path.join(paths.root, '.vibe', 'agent', 'iteration-history.json'), initialIterationHistory());
+  await writeJson(path.join(paths.root, '.vibe', 'agent', 'project-map.json'), initialProjectMap(nowIso));
+  await writeJson(path.join(paths.root, '.vibe', 'agent', 'sprint-api-contracts.json'), initialSprintApiContracts(nowIso));
+  await writeJson(path.join(paths.root, '.vibe', 'agent', 'tokens.json'), initialTokens());
+  await writeText(path.join(paths.root, '.vibe', 'agent', 'project-decisions.jsonl'), '');
+  await writeText(path.join(paths.root, 'docs', 'plans', 'sprint-roadmap.md'), initialSprintRoadmap());
+
+  await clearDirectoryExcept(path.join(paths.root, 'docs', 'plans'), new Set(['.gitkeep', 'sprint-roadmap.md']));
+  await clearDirectoryExcept(path.join(paths.root, 'docs', 'prompts'), new Set(['.gitkeep']));
+  await clearDirectoryExcept(path.join(paths.root, 'docs', 'reports'), new Set(['.gitkeep']));
+  await clearDirectoryExcept(path.join(paths.root, '.vibe', 'archive', 'prompts'), new Set(['.gitkeep']));
+
+  await Promise.all([
+    removeIfExists(path.join(paths.root, '.vibe', 'agent', 'daily')),
+    removeIfExists(path.join(paths.root, '.vibe', 'agent', 'dashboard.pid')),
+    removeIfExists(path.join(paths.root, '.vibe', 'agent', 'attention.jsonl')),
+    removeIfExists(path.join(paths.root, '.vibe', 'agent', 'codex-unavailable.flag')),
+    removeIfExists(path.join(paths.root, '.vibe', 'runs')),
+  ]);
+}
+
 async function ensureInitialAgentState(): Promise<void> {
   const statusPath = path.join(paths.root, '.vibe', 'agent', 'sprint-status.json');
   const nowIso = new Date().toISOString();
@@ -396,9 +460,8 @@ async function ensureInitialAgentState(): Promise<void> {
       '',
     ].join('\n'),
   );
-  await writeJson(path.join(paths.root, '.vibe', 'agent', 'iteration-history.json'), initialIterationHistory());
-  await writeText(path.join(paths.root, 'docs', 'plans', 'sprint-roadmap.md'), initialSprintRoadmap());
-  logger.info('initialized .vibe/agent state with empty sprint and iteration history');
+  await resetProjectOwnedRuntimeState(nowIso);
+  logger.info('initialized .vibe/agent state with empty sprint, iteration, and project runtime history');
 }
 
 async function recordSharedConfigMode(mode: InitMode): Promise<void> {

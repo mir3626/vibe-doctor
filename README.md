@@ -8,7 +8,17 @@
 
 ---
 
-## Latest highlights (v1.7.13)
+## Latest highlights (v1.7.14)
+
+### v1.7.14 (2026-05-11) - Template project-state hygiene
+
+- Resets project-owned context shards to explicit `PROJECT NOT INITIALIZED` placeholders so new clones do not inherit upstream product, architecture, QA, token, or convention assumptions.
+- Removes stale upstream project plans, prompts, generated reports, and archived Sprint prompts from the checked-in template.
+- Resets checked-in runtime snapshots (`sprint-status`, `handoff`, `session-log`) and extends `/vibe-init` cleanup/sync migrations so copied template artifacts are cleared before a downstream project starts work.
+
+---
+
+## Previous highlights (v1.7.13)
 
 ### v1.7.13 (2026-05-08) - Template iteration state reset
 
@@ -266,7 +276,7 @@
 - **v1.3.x** — HTML 프로젝트 보고서, `/vibe-iterate`, `/vibe-review`, `/vibe-sprint-mode`, web dashboard.
 - **v1.2.x** — native socratic interview, stack/framework pattern shards, model tier abstraction, platform wrappers, single-commit automation, statusline.
 
-자세한 릴리스 내역은 `docs/release/v1.2.0.md` ~ `v1.7.13.md` 참조.
+자세한 릴리스 내역은 `docs/release/v1.2.0.md` ~ `v1.7.14.md` 참조.
 
 ---
 
@@ -704,6 +714,7 @@ Orchestrator 가 주로 호출합니다. 사용자가 직접 쓸 일은 드뭅�
 - `v1.7.11` — sidecar dogfood hardening
 - `v1.7.12` — provider-neutral Orchestrator wording
 - `v1.7.13` — template iteration state reset
+- `v1.7.14` — template project-state hygiene
 
 ---
 

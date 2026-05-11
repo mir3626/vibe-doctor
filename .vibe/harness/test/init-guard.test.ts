@@ -155,6 +155,31 @@ describe('vibe:init agent-skill guard', () => {
         },
       ],
     });
+    await writeJson(path.join(root, '.vibe', 'agent', 'project-map.json'), {
+      $schema: './project-map.schema.json',
+      schemaVersion: '0.1',
+      updatedAt: '2026-04-01T00:00:00.000Z',
+      modules: { 'src/template.ts': { exports: ['old'], imports: [], sprintAdded: 'sprint-old' } },
+      activePlatformRules: [],
+    });
+    await writeJson(path.join(root, '.vibe', 'agent', 'sprint-api-contracts.json'), {
+      $schema: './sprint-api-contracts.schema.json',
+      schemaVersion: '0.1',
+      updatedAt: '2026-04-01T00:00:00.000Z',
+      contracts: { 'src/template.ts': { publicExports: { old: ['old'] }, types: {} } },
+    });
+    await writeJson(path.join(root, '.vibe', 'agent', 'tokens.json'), {
+      updatedAt: '2026-04-01T00:00:00.000Z',
+      cumulativeTokens: 999,
+      elapsedSeconds: 99,
+      sprintTokens: { 'sprint-old': 999 },
+    });
+    await writeFile(path.join(root, '.vibe', 'agent', 'project-decisions.jsonl'), '{"old":true}\n', 'utf8');
+    await writeFile(path.join(root, '.vibe', 'agent', 'handoff.md'), '# Handoff\nstale sprint-M1 handoff\n', 'utf8');
+    await writeFile(path.join(root, '.vibe', 'agent', 'session-log.md'), '# Session Log\n\n## Entries\n- stale sprint-M1\n', 'utf8');
+    await mkdir(path.join(root, '.vibe', 'agent', 'daily'), { recursive: true });
+    await writeFile(path.join(root, '.vibe', 'agent', 'daily', '2026-04-01.jsonl'), '{"old":true}\n', 'utf8');
+    await writeFile(path.join(root, '.vibe', 'agent', 'dashboard.pid'), '123\n', 'utf8');
     await mkdir(path.join(root, 'docs', 'plans'), { recursive: true });
     await writeFile(
       path.join(root, 'docs', 'plans', 'sprint-roadmap.md'),
@@ -168,6 +193,16 @@ describe('vibe:init agent-skill guard', () => {
       ].join('\n'),
       'utf8',
     );
+    await writeFile(path.join(root, 'docs', 'plans', 'iter-7-upstream-handoff.md'), 'old plan\n', 'utf8');
+    await mkdir(path.join(root, 'docs', 'prompts'), { recursive: true });
+    await writeFile(path.join(root, 'docs', 'prompts', '.gitkeep'), '', 'utf8');
+    await writeFile(path.join(root, 'docs', 'prompts', 'sprint-old.md'), 'old prompt\n', 'utf8');
+    await mkdir(path.join(root, 'docs', 'reports'), { recursive: true });
+    await writeFile(path.join(root, 'docs', 'reports', '.gitkeep'), '', 'utf8');
+    await writeFile(path.join(root, 'docs', 'reports', 'project-report.html'), '<html>old report</html>\n', 'utf8');
+    await mkdir(path.join(root, '.vibe', 'archive', 'prompts'), { recursive: true });
+    await writeFile(path.join(root, '.vibe', 'archive', 'prompts', '.gitkeep'), '', 'utf8');
+    await writeFile(path.join(root, '.vibe', 'archive', 'prompts', 'sprint-old.md'), 'old archive\n', 'utf8');
 
     const result = spawnSync(process.execPath, ['--import', tsxLoader, initPath, AGENT_INIT_FLAG, '--mode=human'], {
       cwd: root,
@@ -189,11 +224,40 @@ describe('vibe:init agent-skill guard', () => {
     const iteration = await readJson<{ currentIteration?: string | null; iterations?: unknown[] }>(
       path.join(root, '.vibe', 'agent', 'iteration-history.json'),
     );
+    const projectMap = await readJson<{ modules?: Record<string, unknown> }>(
+      path.join(root, '.vibe', 'agent', 'project-map.json'),
+    );
+    const contracts = await readJson<{ contracts?: Record<string, unknown> }>(
+      path.join(root, '.vibe', 'agent', 'sprint-api-contracts.json'),
+    );
+    const tokens = await readJson<{ cumulativeTokens?: number; sprintTokens?: Record<string, unknown> }>(
+      path.join(root, '.vibe', 'agent', 'tokens.json'),
+    );
+    const handoff = await readFile(path.join(root, '.vibe', 'agent', 'handoff.md'), 'utf8');
+    const sessionLog = await readFile(path.join(root, '.vibe', 'agent', 'session-log.md'), 'utf8');
     const roadmap = await readFile(path.join(root, 'docs', 'plans', 'sprint-roadmap.md'), 'utf8');
     assert.equal(iteration.currentIteration, null);
     assert.deepEqual(iteration.iterations, []);
+    assert.deepEqual(projectMap.modules, {});
+    assert.deepEqual(contracts.contracts, {});
+    assert.equal(tokens.cumulativeTokens, 0);
+    assert.deepEqual(tokens.sprintTokens, {});
+    assert.equal(await readFile(path.join(root, '.vibe', 'agent', 'project-decisions.jsonl'), 'utf8'), '');
+    assert.match(handoff, /status: initialized/);
+    assert.doesNotMatch(handoff, /sprint-M1/);
+    assert.match(sessionLog, /\[decision\]\[vibe-init-state\]/);
+    assert.doesNotMatch(sessionLog, /sprint-M1/);
     assert.doesNotMatch(roadmap, /Iteration 9/);
     assert.match(roadmap, /초기 상태/);
+    assert.equal(await fileExists(path.join(root, 'docs', 'plans', 'iter-7-upstream-handoff.md')), false);
+    assert.equal(await fileExists(path.join(root, 'docs', 'prompts', 'sprint-old.md')), false);
+    assert.equal(await fileExists(path.join(root, 'docs', 'reports', 'project-report.html')), false);
+    assert.equal(await fileExists(path.join(root, '.vibe', 'archive', 'prompts', 'sprint-old.md')), false);
+    assert.equal(await fileExists(path.join(root, '.vibe', 'agent', 'daily')), false);
+    assert.equal(await fileExists(path.join(root, '.vibe', 'agent', 'dashboard.pid')), false);
+    assert.equal(await fileExists(path.join(root, 'docs', 'prompts', '.gitkeep')), true);
+    assert.equal(await fileExists(path.join(root, 'docs', 'reports', '.gitkeep')), true);
+    assert.equal(await fileExists(path.join(root, '.vibe', 'archive', 'prompts', '.gitkeep')), true);
   });
 
   it('agent-skill init refuses non-interactive bootstrap without an explicit mode', async () => {

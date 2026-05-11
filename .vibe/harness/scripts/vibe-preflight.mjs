@@ -732,11 +732,20 @@ const productPath = resolve('docs/context/product.md');
 const hasProduct = existsSync(productPath);
 if (hasProduct) {
   const content = readFileSync(productPath, 'utf8').trim();
-  record(
-    'phase0.product',
-    content.length > 50,
-    content.length > 50 ? 'product.md present and populated' : 'product.md exists but too short (<50 chars)',
-  );
+  const notInitialized = /PROJECT NOT INITIALIZED/im.test(content);
+  if (notInitialized && BOOTSTRAP_MODE) {
+    record('phase0.product', true, 'bootstrap mode - product.md placeholder allowed');
+  } else {
+    record(
+      'phase0.product',
+      content.length > 50 && !notInitialized,
+      notInitialized
+        ? 'product.md is still the template placeholder - run /vibe-init first'
+        : content.length > 50
+          ? 'product.md present and populated'
+          : 'product.md exists but too short (<50 chars)',
+    );
+  }
 } else {
   record('phase0.product', false, 'missing docs/context/product.md - run Phase 0 native interview (vibe-interview.mjs) first');
 }

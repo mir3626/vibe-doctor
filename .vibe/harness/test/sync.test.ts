@@ -259,6 +259,24 @@ describe('vibe init artifact guard', () => {
     assert.equal(await hasVibeInitArtifacts(root), false);
   });
 
+  it('rejects explicit not-initialized product placeholders even after mechanical state exists', async () => {
+    const root = await makeTempDir('sync-placeholder-product-');
+    await mkdir(path.join(root, 'docs', 'context'), { recursive: true });
+    await writeFile(
+      path.join(root, 'docs', 'context', 'product.md'),
+      '# Product context\n\nPROJECT NOT INITIALIZED - run /vibe-init.\n',
+      'utf8',
+    );
+    await writeJson(path.join(root, '.vibe', 'agent', 'sprint-status.json'), {
+      schemaVersion: '0.1',
+      project: { name: 'demo', createdAt: '2026-04-01T00:00:00.000Z' },
+      sprints: [],
+      verificationCommands: [],
+    });
+
+    assert.equal(await hasVibeInitArtifacts(root), false);
+  });
+
   it('accepts initialized project state with an empty sprint history', async () => {
     const root = await makeTempDir('sync-initialized-');
     await mkdir(path.join(root, 'docs', 'context'), { recursive: true });
@@ -843,10 +861,12 @@ describe('sync manifest', () => {
     assert.equal(manifest.files.project.includes('.vibe/agent/sprint-api-contracts.json'), true);
     assert.equal(manifest.files.project.includes('.vibe/agent/project-decisions.jsonl'), true);
     assert.equal(manifest.files.project.includes('.vibe/archive/README.md'), true);
+    assert.equal(manifest.files.project.includes('docs/prompts/**'), true);
     assert.equal(manifest.migrations['1.1.0'], '.vibe/harness/migrations/1.1.0.mjs');
     assert.equal(manifest.migrations['1.7.0'], '.vibe/harness/migrations/1.7.0.mjs');
     assert.equal(manifest.migrations['1.7.3'], '.vibe/harness/migrations/1.7.3.mjs');
     assert.equal(manifest.migrations['1.7.13'], '.vibe/harness/migrations/1.7.13.mjs');
+    assert.equal(manifest.migrations['1.7.14'], '.vibe/harness/migrations/1.7.14.mjs');
   });
 });
 
@@ -1044,5 +1064,91 @@ describe('v1.7.13 migration', () => {
     assert.equal(history.currentIteration, 'iter-9');
     assert.equal(history.iterations[0]?.label, 'customer-billing-polish');
     assert.match(roadmap, /sprint-billing-polish/);
+  });
+});
+
+describe('v1.7.14 migration', () => {
+  it('removes copied template-owned docs, reports, and archived prompts', async () => {
+    const root = await makeTempDir('vibe-migration-1714-');
+    await mkdir(path.join(root, 'docs', 'plans'), { recursive: true });
+    await mkdir(path.join(root, 'docs', 'prompts'), { recursive: true });
+    await mkdir(path.join(root, 'docs', 'reports'), { recursive: true });
+    await mkdir(path.join(root, '.vibe', 'archive', 'prompts'), { recursive: true });
+    await writeFile(path.join(root, 'docs', 'plans', 'dogfood6-improvements.md'), 'dogfood6 stale plan\n', 'utf8');
+    await writeFile(
+      path.join(root, 'docs', 'plans', 'iter-7-upstream-handoff.md'),
+      'dogfood10 upstream iter-7 handoff\n',
+      'utf8',
+    );
+    await writeFile(
+      path.join(root, 'docs', 'prompts', 'dashboard-redesign.md'),
+      'Dashboard 디자인 리팩토링 stale prompt renderShellHtml()\n',
+      'utf8',
+    );
+    await writeFile(
+      path.join(root, 'docs', 'reports', 'project-report.html'),
+      '<html>vibe-doctor iter-7-kickoff</html>\n',
+      'utf8',
+    );
+    await writeFile(
+      path.join(root, '.vibe', 'archive', 'prompts', 'sprint-M1-codex-unavailable-signal.md'),
+      'CODEX_UNAVAILABLE sprint-M1-codex-unavailable-signal\n',
+      'utf8',
+    );
+    await writeJson(path.join(root, '.vibe', 'agent', 'project-map.json'), {
+      $schema: './project-map.schema.json',
+      schemaVersion: '0.1',
+      updatedAt: '2026-04-16T00:00:00.000Z',
+      modules: {},
+      activePlatformRules: [],
+    });
+    await writeJson(path.join(root, '.vibe', 'agent', 'sprint-api-contracts.json'), {
+      $schema: './sprint-api-contracts.schema.json',
+      schemaVersion: '0.1',
+      updatedAt: '2026-04-16T00:00:00.000Z',
+      contracts: {},
+    });
+
+    const { stdout } = await execFile(process.execPath, [
+      path.join(process.cwd(), '.vibe', 'harness', 'migrations', '1.7.14.mjs'),
+      root,
+    ]);
+
+    assert.match(stdout, /removedTemplateArtifacts=5/);
+    assert.match(stdout, /projectMap=normalized/);
+    assert.match(stdout, /contracts=normalized/);
+    await assert.rejects(readFile(path.join(root, 'docs', 'plans', 'dogfood6-improvements.md'), 'utf8'), /ENOENT/);
+    await assert.rejects(readFile(path.join(root, 'docs', 'plans', 'iter-7-upstream-handoff.md'), 'utf8'), /ENOENT/);
+    await assert.rejects(readFile(path.join(root, 'docs', 'prompts', 'dashboard-redesign.md'), 'utf8'), /ENOENT/);
+    await assert.rejects(readFile(path.join(root, 'docs', 'reports', 'project-report.html'), 'utf8'), /ENOENT/);
+    await assert.rejects(
+      readFile(path.join(root, '.vibe', 'archive', 'prompts', 'sprint-M1-codex-unavailable-signal.md'), 'utf8'),
+      /ENOENT/,
+    );
+    assert.equal(await readFile(path.join(root, 'docs', 'prompts', '.gitkeep'), 'utf8'), '');
+    assert.equal(await readFile(path.join(root, 'docs', 'reports', '.gitkeep'), 'utf8'), '');
+  });
+
+  it('preserves project-owned files that reuse common output names', async () => {
+    const root = await makeTempDir('vibe-migration-1714-preserve-');
+    await mkdir(path.join(root, 'docs', 'prompts'), { recursive: true });
+    await mkdir(path.join(root, 'docs', 'reports'), { recursive: true });
+    await writeFile(path.join(root, 'docs', 'prompts', 'dashboard-redesign.md'), 'project dashboard redesign\n', 'utf8');
+    await writeFile(path.join(root, 'docs', 'reports', 'project-report.html'), '<html>customer project</html>\n', 'utf8');
+
+    const { stdout } = await execFile(process.execPath, [
+      path.join(process.cwd(), '.vibe', 'harness', 'migrations', '1.7.14.mjs'),
+      root,
+    ]);
+
+    assert.match(stdout, /removedTemplateArtifacts=0/);
+    assert.equal(
+      await readFile(path.join(root, 'docs', 'prompts', 'dashboard-redesign.md'), 'utf8'),
+      'project dashboard redesign\n',
+    );
+    assert.equal(
+      await readFile(path.join(root, 'docs', 'reports', 'project-report.html'), 'utf8'),
+      '<html>customer project</html>\n',
+    );
   });
 });
