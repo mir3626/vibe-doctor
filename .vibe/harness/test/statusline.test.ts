@@ -14,6 +14,7 @@ const powershellScriptPath = path.resolve('.claude', 'statusline.ps1');
 const settingsPath = path.resolve('.claude', 'settings.json');
 const emojiTarget = '\u{1F3AF}';
 const emojiWarning = '\u26A0\uFE0F';
+const emojiSprint = '\u{1F3C3}';
 
 function detectWorkingBash(): string | null {
   try {
@@ -152,7 +153,7 @@ describe('statusline.mjs', () => {
     const { stdout, stderr } = runNodeStatusline(root);
 
     assert.equal(stderr, '');
-    assert.equal(stdout, '🎯 sprint-M9-statusline-permissions (2/3) | sprint:off | ⚠️ 2');
+    assert.equal(stdout, '🎯 sprint-M9-statusline-permissions (2/3) | ⚠️ 2');
   });
 
   it('hides copied template sprint state before vibe-init', async () => {
@@ -174,7 +175,7 @@ describe('statusline.mjs', () => {
     const { stdout, stderr } = runNodeStatusline(root);
 
     assert.equal(stderr, '');
-    assert.equal(stdout, `${emojiTarget} idle (0/0) | sprint:off | ${emojiWarning} 0`);
+    assert.equal(stdout, `${emojiTarget} idle (0/0) | ${emojiWarning} 0`);
   });
 
   it('reads Claude usage from redirected stdin by default', async () => {
@@ -189,7 +190,7 @@ describe('statusline.mjs', () => {
     const transcriptPath = path.join(root, 'transcript.jsonl');
     const { stdout } = runNodeStatusline(root, `${JSON.stringify({ transcript_path: transcriptPath })}\n`);
 
-    assert.equal(stdout, '🎯 sprint-M9-statusline-permissions (2/3) | sprint:off | 💭 Claude 2K | ⚠️ 2');
+    assert.equal(stdout, '🎯 sprint-M9-statusline-permissions (2/3) | 💭 Claude 2K | ⚠️ 2');
   });
 
   it('does not show update nags for exact upstream pins', async () => {
@@ -226,7 +227,7 @@ describe('statusline.mjs', () => {
 
     const { stdout } = runNodeStatusline(root);
 
-    assert.equal(stdout, '🎯 sprint-M9-statusline-permissions (2/3) | sprint:extended | ⚠️ 2');
+    assert.equal(stdout, `🎯 sprint-M9-statusline-permissions (2/3) | ${emojiSprint} sprint:extended | ⚠️ 2`);
   });
 });
 
@@ -245,7 +246,7 @@ describe('statusline.sh', { skip: bashCommand === null }, () => {
 
     const { stdout } = await runBashStatusline(root);
 
-    assert.match(stdout, /^🎯 .+ \(\d+\/\d+\) \| sprint:off \| ⏱️ \d+m \| 🔧 Codex \d+K \| ⚠️ \d+$/u);
+    assert.match(stdout, /^🎯 .+ \(\d+\/\d+\) \| ⏱️ \d+m \| 🔧 Codex \d+K \| ⚠️ \d+$/u);
   });
 
   it('renders sprint info and risks when tokens.json is missing', async () => {
@@ -254,7 +255,7 @@ describe('statusline.sh', { skip: bashCommand === null }, () => {
 
     const { stdout } = await runBashStatusline(root);
 
-    assert.equal(stdout, '🎯 sprint-M9-statusline-permissions (2/3) | sprint:off | ⚠️ 2');
+    assert.equal(stdout, '🎯 sprint-M9-statusline-permissions (2/3) | ⚠️ 2');
     assert.doesNotMatch(stdout, /🔧|⏱️/u);
     assert.doesNotMatch(stdout, /💭/u);
   });
@@ -309,7 +310,7 @@ describe('statusline.sh', { skip: bashCommand === null }, () => {
       { VIBE_STATUSLINE_READ_STDIN: '1' },
     ).toString('utf8');
 
-    assert.equal(stdout, '🎯 sprint-M9-statusline-permissions (2/3) | sprint:off | ⏱️ 3m | 💭 Claude 5K | 🔧 Codex 4K | ⚠️ 2');
+    assert.equal(stdout, '🎯 sprint-M9-statusline-permissions (2/3) | ⏱️ 3m | 💭 Claude 5K | 🔧 Codex 4K | ⚠️ 2');
   });
 
   it('bash statusline emits expected emoji bytes', async () => {
@@ -319,7 +320,7 @@ describe('statusline.sh', { skip: bashCommand === null }, () => {
 
     assert.ok(stdout.includes(Buffer.from('🎯', 'utf8')));
     assert.ok(stdout.includes(Buffer.from('⚠️', 'utf8')));
-    assert.equal(stdout.toString('utf8'), '🎯 sprint-M9-statusline-permissions (2/3) | sprint:off | ⚠️ 2');
+    assert.equal(stdout.toString('utf8'), '🎯 sprint-M9-statusline-permissions (2/3) | ⚠️ 2');
   });
 
   it('bash statusline shows version suffix when config has harnessVersionInstalled', async () => {
@@ -331,7 +332,7 @@ describe('statusline.sh', { skip: bashCommand === null }, () => {
 
     const { stdout } = await runBashStatusline(root);
 
-    assert.equal(stdout, '🎯 sprint-M9-statusline-permissions (2/3) | sprint:off | ⚠️ 2 | 🏷️ v1.3.1');
+    assert.equal(stdout, '🎯 sprint-M9-statusline-permissions (2/3) | ⚠️ 2 | 🏷️ v1.3.1');
   });
 
   it('bash statusline shows update hint when latestVersion > installed', async () => {
@@ -346,7 +347,7 @@ describe('statusline.sh', { skip: bashCommand === null }, () => {
 
     const { stdout } = await runBashStatusline(root);
 
-    assert.equal(stdout, '🎯 sprint-M9-statusline-permissions (2/3) | sprint:off | ⚠️ 2 | 🏷️ v1.3.1 \u26A0 v1.4.0 (/vibe-sync)');
+    assert.equal(stdout, '🎯 sprint-M9-statusline-permissions (2/3) | ⚠️ 2 | 🏷️ v1.3.1 \u26A0 v1.4.0 (/vibe-sync)');
   });
 
   it('bash statusline does not show update nags for exact upstream pins', async () => {
@@ -375,7 +376,7 @@ describe('statusline.sh', { skip: bashCommand === null }, () => {
 
     const { stdout } = await runBashStatusline(root);
 
-    assert.equal(stdout, '🎯 sprint-M9-statusline-permissions (2/3) | sprint:off | ⚠️ 2');
+    assert.equal(stdout, '🎯 sprint-M9-statusline-permissions (2/3) | ⚠️ 2');
   });
 
   it('bash statusline omits suffix when config unparseable', async () => {
@@ -388,7 +389,7 @@ describe('statusline.sh', { skip: bashCommand === null }, () => {
 
     const { stdout } = await runBashStatusline(root);
 
-    assert.equal(stdout, '🎯 sprint-M9-statusline-permissions (2/3) | sprint:off | ⚠️ 2');
+    assert.equal(stdout, '🎯 sprint-M9-statusline-permissions (2/3) | ⚠️ 2');
   });
 });
 
@@ -407,6 +408,6 @@ describe('statusline.ps1', { skip: process.platform !== 'win32' }, () => {
 
     const { stdout } = await runPowerShellStatusline(root);
 
-    assert.equal(stdout, '🎯 sprint-M9-statusline-permissions (2/3) | sprint:off | ⏱️ 1m | 🔧 Codex 2K | ⚠️ 2');
+    assert.equal(stdout, '🎯 sprint-M9-statusline-permissions (2/3) | ⏱️ 1m | 🔧 Codex 2K | ⚠️ 2');
   });
 });

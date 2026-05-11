@@ -8,13 +8,22 @@
 
 ---
 
-## Latest highlights (v1.7.15)
+## Latest highlights (v1.7.16)
+
+### v1.7.16 (2026-05-11) - Sprint-mode statusline polish
+
+- Hides the sprint-mode statusline segment when mode is `off` so inactive state does not add noise.
+- Shows active sprint-mode states with an emoji segment, for example `🏃 sprint:extended`.
+
+---
+
+## Previous highlights (v1.7.15)
 
 ### v1.7.15 (2026-05-11) - Sprint-mode wildcard permissions
 
 - Updates `/vibe-sprint-mode extended` presets to current Claude Code wildcard permission syntax so grouped command families like `npm *`, `npx *`, `node *`, and `git *` stop re-prompting due to legacy `Bash(cmd:*)` rules.
 - Adds explicit deny guards for critical operations such as force push, hard reset, git clean, destructive branch/delete operations, `rm`, `npm publish`, and `gh pr` release actions.
-- Adds `sprint:off|core|extended|partial` to the statusline so the active sprint-mode state is visible during Claude sessions.
+- Adds active sprint-mode visibility to the statusline during Claude sessions.
 
 ---
 
@@ -286,7 +295,7 @@
 - **v1.3.x** — HTML 프로젝트 보고서, `/vibe-iterate`, `/vibe-review`, `/vibe-sprint-mode`, web dashboard.
 - **v1.2.x** — native socratic interview, stack/framework pattern shards, model tier abstraction, platform wrappers, single-commit automation, statusline.
 
-자세한 릴리스 내역은 `docs/release/v1.2.0.md` ~ `v1.7.15.md` 참조.
+자세한 릴리스 내역은 `docs/release/v1.2.0.md` ~ `v1.7.16.md` 참조.
 
 ---
 
@@ -726,6 +735,7 @@ Orchestrator 가 주로 호출합니다. 사용자가 직접 쓸 일은 드뭅�
 - `v1.7.13` — template iteration state reset
 - `v1.7.14` — template project-state hygiene
 - `v1.7.15` — sprint-mode wildcard permissions
+- `v1.7.16` — sprint-mode statusline polish
 
 ---
 
