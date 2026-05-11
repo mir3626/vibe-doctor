@@ -191,6 +191,38 @@ function getVersionSuffix(root) {
   return `v${installedVersion}`;
 }
 
+function readPresetRules(root, fileName) {
+  const preset = readJsonOptional(path.join(root, '.vibe', 'settings-presets', fileName));
+  const rules = preset?.rules ?? preset?.allowRules;
+  return Array.isArray(rules) && rules.every((entry) => typeof entry === 'string') ? rules : [];
+}
+
+function getSprintModeStatus(root) {
+  const settings = readJsonOptional(path.join(root, '.claude', 'settings.local.json'));
+  const allow = settings?.permissions?.allow;
+  if (!Array.isArray(allow) || allow.some((entry) => typeof entry !== 'string')) {
+    return 'off';
+  }
+
+  const allowSet = new Set(allow);
+  const coreRules = readPresetRules(root, 'agent-delegation.json');
+  const extendedRules = readPresetRules(root, 'agent-delegation-extended.json');
+  const hasAny = [...coreRules, ...extendedRules].some((entry) => allowSet.has(entry));
+  if (!hasAny) {
+    return 'off';
+  }
+
+  if (extendedRules.length > 0 && extendedRules.every((entry) => allowSet.has(entry))) {
+    return 'extended';
+  }
+
+  if (coreRules.length > 0 && coreRules.every((entry) => allowSet.has(entry))) {
+    return 'core';
+  }
+
+  return 'partial';
+}
+
 async function main() {
   const root = process.cwd();
   const statusPath = path.join(root, '.vibe', 'agent', 'sprint-status.json');
@@ -211,6 +243,7 @@ async function main() {
   const totalCount = sprints.length;
   const openRisks = pendingRisks.filter((entry) => entry?.status === 'open').length;
   const parts = [`${emojiTarget} ${currentSprintId} (${passedCount}/${totalCount})`];
+  parts.push(`sprint:${getSprintModeStatus(root)}`);
 
   const tokensPath = path.join(root, '.vibe', 'agent', 'tokens.json');
   if (fs.existsSync(tokensPath)) {

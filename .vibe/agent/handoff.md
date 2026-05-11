@@ -8,7 +8,7 @@ This file is project-owned runtime state. Downstream projects must run `/vibe-in
 
 - repo: `vibe-doctor`
 - status: template placeholder
-- harnessVersion: `1.7.14`
+- harnessVersion: `1.7.15`
 
 ## 2. Status
 
