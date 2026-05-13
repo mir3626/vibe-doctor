@@ -11,16 +11,16 @@
   "verificationCommands": [],
   "handoff": {
     "currentSprintId": "idle",
-    "lastActionSummary": "Upstream harness maintenance checkpoint: script/type refactor, Codex Markdown auto-injection allowlist update, wrapper injection diagnostic plus explicit shard-block transitive injection, repository-root Codex skill wrapper paths with injection shard markers, README release/guide sharding plus package script inventory cleanup, guarded vibe-init/vibe-interview/vibe-iterate/vibe-review shard audits, Codex wrapper diagnostic fixtures and all-skill wrapper audit coverage, shared skill-shard-audit helper extraction, vibe-sprint-mode permission audit coverage, vibe-sync boundary audit coverage including a root README full-ownership guard, final Markdown injection guarantee inventory documentation, dashboard/report renderer template module split, and README/guide docs realigned with .vibe/harness runtime layout; downstream must still run /vibe-init.",
+    "lastActionSummary": "Upstream harness maintenance checkpoint: release metadata set to v1.7.17 for the Codex Markdown injection diagnostics, skill sharding audits, sync/sprint-mode boundary guards, docs alignment, and dashboard/report template split; downstream must still run /vibe-init.",
     "orchestratorContextBudget": "medium",
     "preferencesActive": [],
     "handoffDocPath": ".vibe/agent/handoff.md",
-    "updatedAt": "2026-05-13T17:25:20.097Z"
+    "updatedAt": "2026-05-13T17:46:25.062Z"
   },
   "pendingRisks": [],
   "lastSprintScope": [],
   "lastSprintScopeGlob": [],
   "sprintsSinceLastAudit": 0,
-  "stateUpdatedAt": "2026-05-13T17:25:20.097Z",
+  "stateUpdatedAt": "2026-05-13T17:46:25.062Z",
   "verifiedAt": null
 }

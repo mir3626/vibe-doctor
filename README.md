@@ -10,14 +10,14 @@
 
 ## Latest Highlights
 
-### Unreleased (pre-commit) - Injection and sharding safety hardening
+### v1.7.17 (2026-05-14) - Injection and sharding safety hardening
 
 - Adds Codex wrapper Markdown injection diagnostics, including transitive shard injection checks for shared skill runbooks.
 - Splits `/vibe-init`, `/vibe-interview`, `/vibe-iterate`, and `/vibe-review` runbooks into guarded shards with dedicated audit gates wired into preflight and CI.
 - Adds sprint-mode and sync boundary audits, including a guard that prevents full harness ownership of root `README.md`.
 - Splits dashboard/report HTML renderers into dedicated `.vibe/harness/scripts/lib/*` modules while preserving synchronous render flow.
 
-### Latest Released: v1.7.16 (2026-05-11) - Sprint-mode statusline polish
+### Previous: v1.7.16 (2026-05-11) - Sprint-mode statusline polish
 
 - Hides the sprint-mode statusline segment when mode is `off` so inactive state does not add noise.
 - Shows active sprint-mode states with an emoji segment, for example `🏃 sprint:extended`.
@@ -316,7 +316,7 @@ Root `src/**`, `scripts/**`, `test/**`, `app/**`, `components/**`, and `lib/**` 
 
 ## 버전 / tag 정책
 
-현재 작업 트리는 `harnessVersion: 1.7.16` 기반의 unreleased maintenance changes를 포함합니다. 릴리스를 자를 때는 `package.json`, `.vibe/config.json`, release note, tag를 같은 버전으로 맞춥니다.
+현재 릴리스는 `harnessVersion: 1.7.17` 입니다. 릴리스를 자를 때는 `package.json`, `.vibe/config.json`, release note, tag를 같은 버전으로 맞춥니다.
 
 - `harnessVersion` 은 `.vibe/config.json` 과 `package.json` 에 semver로 기록합니다.
 - 각 minor/patch 릴리스는 해당 커밋에 `vMAJOR.MINOR.PATCH` git tag를 붙인 뒤 origin에 push합니다.

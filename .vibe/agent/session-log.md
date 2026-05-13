@@ -6,6 +6,7 @@ This file is project-owned runtime state. Downstream `/vibe-init` rewrites it be
 
 ## Entries
 
+- 2026-05-13T17:46:25.062Z [checkpoint] upstream harness maintenance: release metadata updated for v1.7.17 before tagging the Codex injection and skill shard audit work.
 - 2026-05-13T17:25:20.097Z [checkpoint] upstream harness maintenance: README and guide docs realigned with package scripts, .vibe/harness runtime layout, migration paths, and root README sync-boundary wording.
 - 2026-05-13T16:55:17.537Z [checkpoint] upstream harness maintenance: pre-commit cleanup aligned README audit command inventory, restored the sprint-mode emoji example, and added a vibe-sync audit guard against full harness ownership of root README.md.
 - 2026-05-13T16:27:31.340Z [checkpoint] upstream harness maintenance: dashboard and project report HTML/SVG/CSS renderers split into scripts/lib template modules with a structural regression test; CLI/model state masking and synchronous render flow preserved.

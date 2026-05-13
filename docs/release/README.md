@@ -6,6 +6,7 @@ and in version-specific notes.
 
 ## Current
 
+- [v1.7.17](v1.7.17.md) - Injection and sharding safety hardening
 - [v1.7.16](v1.7.16.md) - Sprint-mode statusline polish
 - [v1.7.15](v1.7.15.md) - Sprint-mode wildcard permissions
 - [v1.7.14](v1.7.14.md) - Template project-state hygiene
