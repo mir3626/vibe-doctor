@@ -15,6 +15,13 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run typecheck
+      - run: npm run vibe:codex-wrapper-audit
+      - run: npm run vibe:init-shard-audit
+      - run: npm run vibe:interview-shard-audit
+      - run: npm run vibe:iterate-shard-audit
+      - run: npm run vibe:review-shard-audit
+      - run: npm run vibe:sprint-mode-audit
+      - run: npm run vibe:sync-audit
       - run: npm run build
       - run: npm test
       - run: npx playwright install --with-deps chromium

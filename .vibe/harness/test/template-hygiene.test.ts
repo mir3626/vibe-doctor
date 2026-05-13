@@ -64,4 +64,25 @@ describe('template project-owned hygiene', () => {
     assert.doesNotMatch(handoff, /sprint-M\d|dogfood\d+|iter-[789]/i);
     assert.doesNotMatch(sessionLog, /sprint-M\d|dogfood\d+|iter-[789]/i);
   });
+
+  it('keeps dashboard and project report render templates split from CLIs', async () => {
+    const [dashboardCli, dashboardTemplate, reportCli, reportTemplate, reportMeta] = await Promise.all([
+      readFile(path.join(process.cwd(), '.vibe', 'harness', 'scripts', 'vibe-dashboard.mjs'), 'utf8'),
+      readFile(path.join(process.cwd(), '.vibe', 'harness', 'scripts', 'lib', 'dashboard-template.mjs'), 'utf8'),
+      readFile(path.join(process.cwd(), '.vibe', 'harness', 'scripts', 'vibe-project-report.mjs'), 'utf8'),
+      readFile(path.join(process.cwd(), '.vibe', 'harness', 'scripts', 'lib', 'project-report-template.mjs'), 'utf8'),
+      readFile(path.join(process.cwd(), '.vibe', 'harness', 'scripts', 'lib', 'project-report-meta.mjs'), 'utf8'),
+    ]);
+
+    assert.match(dashboardCli, /from '\.\/lib\/dashboard-template\.mjs'/);
+    assert.doesNotMatch(dashboardCli, /function renderShellHtml\(/);
+    assert.match(dashboardTemplate, /export function renderShellHtml\(/);
+    assert.match(dashboardTemplate, /export function renderIconSvg\(/);
+
+    assert.match(reportCli, /from '\.\/lib\/project-report-template\.mjs'/);
+    assert.match(reportCli, /from '\.\/lib\/project-report-meta\.mjs'/);
+    assert.doesNotMatch(reportCli, /function renderHtml\(/);
+    assert.match(reportTemplate, /export function renderProjectReportHtml\(/);
+    assert.match(reportMeta, /export function isMetaSprintId\(/);
+  });
 });

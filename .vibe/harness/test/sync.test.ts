@@ -830,6 +830,7 @@ describe('sync manifest', () => {
     assert.equal(manifest.files.harness.includes('docs/release/**'), true);
     assert.equal(manifest.files.harness.includes('.codex/skills/**'), true);
     assert.equal(manifest.files.harness.includes('.claude/statusline.mjs'), true);
+    assert.equal(manifest.files.harness.includes('README.md'), false);
     assert.equal(manifest.files.harness.includes('src/lib/sprint-status.ts'), false);
     assert.equal(manifest.files.harness.includes('scripts/vibe-sprint-commit.mjs'), false);
     assert.equal(manifest.files.harness.includes('test/checkpoint.test.ts'), false);
