@@ -709,6 +709,45 @@ function referencesArtifact(content: string, artifactPath: string): boolean {
   return content.includes(artifactPath) || content.includes(basename);
 }
 
+function normalizeMarkdownReference(rawPath: string): string {
+  return rawPath.trim().replace(/\\/g, '/').replace(/^\.\//, '');
+}
+
+function isSafeRepositoryRelativePath(relativePath: string): boolean {
+  return (
+    relativePath.length > 0 &&
+    !relativePath.includes('\0') &&
+    !relativePath.startsWith('/') &&
+    !path.isAbsolute(relativePath) &&
+    !/^[A-Za-z]:/.test(relativePath) &&
+    !relativePath.split('/').includes('..')
+  );
+}
+
+function extractMarkdownPaths(text: string): string[] {
+  const paths = new Set<string>();
+  const pattern = /`([^`]+\.md)`|\(([^)]+\.md)\)/g;
+  for (const match of text.matchAll(pattern)) {
+    const rawPath = match[1] ?? match[2] ?? '';
+    const normalized = normalizeMarkdownReference(rawPath);
+    if (isSafeRepositoryRelativePath(normalized)) {
+      paths.add(normalized);
+    }
+  }
+  return [...paths].sort((left, right) => left.localeCompare(right));
+}
+
+function extractShardReferencePaths(text: string): string[] {
+  const paths = new Set<string>();
+  const blockPattern = /<!--[ \t]*BEGIN:[^>]*SHARDS[ \t]*-->[\s\S]*?<!--[ \t]*END:[^>]*SHARDS[ \t]*-->/g;
+  for (const blockMatch of text.matchAll(blockPattern)) {
+    for (const markdownPath of extractMarkdownPaths(blockMatch[0])) {
+      paths.add(markdownPath);
+    }
+  }
+  return [...paths].sort((left, right) => left.localeCompare(right));
+}
+
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
@@ -746,11 +785,23 @@ async function collectWiringReferenceFiles(root: string): Promise<Array<{ path: 
   ];
   const candidates = [...WIRING_REFERENCE_FILES, ...skillFiles, ...scriptFiles];
   const references: Array<{ path: string; content: string }> = [];
+  const seen = new Set<string>();
+  const queue = [...candidates];
 
-  for (const relativePath of candidates) {
+  while (queue.length > 0) {
+    const relativePath = queue.shift();
+    if (!relativePath || seen.has(relativePath)) {
+      continue;
+    }
+    seen.add(relativePath);
     const content = await readOptionalText(path.join(root, relativePath));
     if (content.length > 0) {
       references.push({ path: relativePath, content });
+      for (const shardPath of extractShardReferencePaths(content)) {
+        if (!seen.has(shardPath)) {
+          queue.push(shardPath);
+        }
+      }
     }
   }
 

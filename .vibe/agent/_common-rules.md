@@ -102,6 +102,14 @@ Short markdown으로 아래 섹션을 순서대로 포함:
 ## Files modified
 - path — 한 줄 설명
 
+## Sprint Contract
+- Target/output surface: Sprint prompt의 계약 대상과 실제 변경된 사용자·런타임 표면
+- Allowed writes/exclusions: 실제 수정 범위와 지킨 Do NOT modify 경계
+- Explicit exceptions/reference-only values: 적용한 예외와 참조만 해야 하는 값; 없으면 "none"
+- Proof predicates: 완료를 증명해야 하는 조건, public contract보다 강하지 않게 작성
+- Current proof: 이번 실행에서 직접 얻은 fresh evidence
+- Non-proof: skipped/blocked/proxy/historical/inferred evidence; 없으면 "none"
+
 ## AC (lower bound)
 - [x] mechanical or inspection acceptance item — evidence 한 줄
 

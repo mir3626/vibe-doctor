@@ -141,6 +141,7 @@ Orchestrator 단독 작성. 각 entry 필드:
    - semantic agent-context, multimodal, workflow-agent 기능이면 dogfood transcript, screen-share note, task-quality artifact, 또는 before/after task outcome 중 하나 이상의 evidence item을 반드시 포함한다. 단순 shape/smoke/mock 통과는 "dogfood ready" 신호일 뿐 semantic acceptance 를 증명하지 않는다.
 3. Sprint 프롬프트 본문 — Generator에 바로 투입 가능한 자기완결 형식
    - 공용 규칙은 `.vibe/agent/_common-rules.md` 준수 선언
+   - Sprint Contract 블록: target/output surface, allowed writes/exclusions, explicit exceptions, reference-only values, proof predicates, current proof/non-proof 요구
    - Files Generator may touch 목록 (체크리스트 항목 완전 커버리지 고려)
    - Do NOT modify 목록
    - Verification 명령
@@ -158,6 +159,7 @@ Orchestrator 단독 작성. 각 entry 필드:
 
 - 샌드박스 밖에서 `cmd //c "npm run typecheck && npm run test && npm run build"` 등 재검증
 - Generator report의 "Sandbox-only failures" 섹션은 sandbox 탓인지 실제 실패인지 교차 확인
+- Generator report의 "Sprint Contract" 섹션에서 proof predicates가 public contract보다 강하거나 약해지지 않았는지 확인
 - 체크리스트 항목 × Generator 산출 × 재검증 결과를 매핑
 - 필요 시 `diff-reviewer` sidecar를 명시적으로 실행해 변경 diff의 회귀/누락 테스트/계약 위험을 advisory artifact로 받는다. Sidecar는 durable state를 쓰지 않으며, Orchestrator가 수용한 finding만 handoff/session-log에 인용할 수 있다. 상세 계약은 `docs/context/sidecars.md`.
 

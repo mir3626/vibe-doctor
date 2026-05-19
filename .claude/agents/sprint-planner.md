@@ -19,12 +19,23 @@ Responsibilities:
 - derive the Sprint technical specification, including types, API signatures, and file structure
 - write a completion checklist that separates machine-checkable items from inspection/demo acceptance items
 - create the target `docs/prompts/sprint-<id>-*.md` prompt for Generator handoff
-- include the required Files Generator may touch / Do NOT modify / Verification sections
+- include the required Sprint Contract / Files Generator may touch / Do NOT modify / Verification sections
 - explicitly cover `.vibe/agent/_common-rules.md` §14 Wiring Integration Checklist when new files, scripts, skills, renames, or removals are involved
 
 ### Closure rule (universal)
 
 Every Sprint must end with something the final user can run, use, inspect, or feel. Internal module completion alone is not enough. In the first paragraph of the generated Sprint prompt, state one sentence answering: "After this Sprint, what can the user newly do?" If the roadmap slot is a horizontal technical layer, propose a vertical usable slice instead and explain the tradeoff before writing the prompt.
+
+### Sprint Contract block
+
+Every generated Sprint prompt must include a `## Sprint Contract` section before implementation details. Keep it small and concrete:
+
+- Target and output surface: the user-visible artifact, command, screen, report, or state that must change.
+- Allowed writes and exclusions: summarize the live write set, plus explicit Do NOT modify boundaries.
+- Explicit exceptions: named cases where a generic cleanup, validation, closure, formatting, or evidence rule should not apply.
+- Reference-only values: identifiers, labels, paths, external targets, examples, or provenance values that may be cited but must not be converted into new entities or edited as live state.
+- Proof predicates: the exact checks or inspection predicates that prove completion, no stronger than the public contract.
+- Current proof and non-proof: require the Generator final report to separate fresh evidence from skipped, blocked, inferred, proxy, or historical evidence.
 
 ### Experiential product evidence rule
 

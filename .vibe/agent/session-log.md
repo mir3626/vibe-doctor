@@ -6,6 +6,9 @@ This file is project-owned runtime state. Downstream `/vibe-init` rewrites it be
 
 ## Entries
 
+- 2026-05-19T00:30:00.000Z [checkpoint] upstream harness maintenance: release metadata updated for v1.7.19 before tagging and pushing the review wiring shard and Sprint Contract ledger changes.
+- 2026-05-19T00:16:33.777Z [checkpoint] upstream harness maintenance: implemented Vowline-inspired follow-ups for sharded skill wiring references in vibe-review-inputs and Sprint Contract proof-boundary fields in Planner/Generator contracts.
+- 2026-05-18T23:25:38.246Z [harness-review] reviewed chojondocho/vowline for transferable harnessing; follow-ups were vibe-review-inputs wiring drift, sprint-local contract ledger, scoped provider bridge verification, and Windows-safe installer caution.
 - 2026-05-17T14:57:52.5705953Z [checkpoint] upstream harness maintenance: v1.7.18 adds active sprint-roadmap lifecycle maintenance, archived roadmap readers, final-sprint archive checks, and a compact handoff budget.
 - 2026-05-13T17:46:25.062Z [checkpoint] upstream harness maintenance: release metadata updated for v1.7.17 before tagging the Codex injection and skill shard audit work.
 - 2026-05-13T17:25:20.097Z [checkpoint] upstream harness maintenance: README and guide docs realigned with package scripts, .vibe/harness runtime layout, migration paths, and root README sync-boundary wording.

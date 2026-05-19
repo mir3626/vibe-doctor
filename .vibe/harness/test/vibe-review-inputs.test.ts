@@ -546,7 +546,21 @@ describe('review inputs', () => {
     await scaffoldRepo(root);
     await writeText(path.join(root, 'scripts', 'vibe-orphan.mjs'), '#!/usr/bin/env node\n');
     await writeText(path.join(root, 'scripts', 'vibe-missing-manifest.mjs'), '#!/usr/bin/env node\n');
+    await writeText(path.join(root, 'scripts', 'vibe-sharded.mjs'), '#!/usr/bin/env node\n');
     await writeText(path.join(root, 'scripts', 'vibe-wired.mjs'), '#!/usr/bin/env node\n');
+    await writeText(
+      path.join(root, '.claude', 'skills', 'vibe-example', 'SKILL.md'),
+      [
+        '# example',
+        '<!-- BEGIN:VIBE-EXAMPLE:SHARDS -->',
+        '- `.claude/skills/vibe-example/sections/protocol.md`',
+        '<!-- END:VIBE-EXAMPLE:SHARDS -->',
+      ].join('\n'),
+    );
+    await writeText(
+      path.join(root, '.claude', 'skills', 'vibe-example', 'sections', 'protocol.md'),
+      'Run `node scripts/vibe-sharded.mjs` during this workflow.\n',
+    );
     await writeJson(path.join(root, 'package.json'), {
       scripts: {
         'vibe:missing-manifest': 'node scripts/vibe-missing-manifest.mjs',
@@ -555,7 +569,7 @@ describe('review inputs', () => {
     });
     await writeJson(path.join(root, '.vibe', 'sync-manifest.json'), {
       files: {
-        harness: ['.vibe/harness/scripts/vibe-orphan.mjs', 'scripts/vibe-wired.mjs'],
+        harness: ['.vibe/harness/scripts/vibe-orphan.mjs', 'scripts/vibe-sharded.mjs', 'scripts/vibe-wired.mjs'],
         hybrid: {},
         project: [],
       },
