@@ -6,6 +6,7 @@ and in version-specific notes.
 
 ## Current
 
+- [v1.7.20](v1.7.20.md) - Downstream-safe template hygiene test gating
 - [v1.7.19](v1.7.19.md) - Review wiring shards and Sprint Contract ledger
 - [v1.7.18](v1.7.18.md) - Active roadmap lifecycle maintenance
 - [v1.7.17](v1.7.17.md) - Injection and sharding safety hardening

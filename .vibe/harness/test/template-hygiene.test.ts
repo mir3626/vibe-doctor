@@ -1,7 +1,24 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { describe, it } from 'node:test';
+
+// These assertions guard the UPSTREAM template (vibe-doctor) shipping in a pristine "PROJECT NOT
+// INITIALIZED" state. In an initialized DOWNSTREAM project the docs/state are real content by design,
+// so the suite would always (falsely) fail — skip it there. The pristine marker in handoff.md is the
+// authoritative "this is the uninitialized template" signal (project.name stays 'vibe-doctor' even
+// downstream, so it can't be used for this).
+const isPristineTemplate = ((): boolean => {
+  try {
+    return readFileSync(path.join(process.cwd(), '.vibe', 'agent', 'handoff.md'), 'utf8').includes('PROJECT NOT INITIALIZED');
+  } catch {
+    return false;
+  }
+})();
+// Only the pristine-state assertions are template-repo-only; the dashboard/report structure check is a
+// generic harness-integrity test that stays valid (and useful) downstream.
+const templateOnly = isPristineTemplate ? it : it.skip;
 
 async function listFiles(dirPath: string): Promise<string[]> {
   const entries = await readdir(dirPath, { withFileTypes: true });
@@ -15,14 +32,14 @@ async function listFiles(dirPath: string): Promise<string[]> {
 }
 
 describe('template project-owned hygiene', () => {
-  it('does not ship stale project prompts, reports, plans, or archived sprint prompts', async () => {
+  templateOnly('does not ship stale project prompts, reports, plans, or archived sprint prompts', async () => {
     assert.deepEqual(await listFiles(path.join(process.cwd(), 'docs', 'prompts')), ['.gitkeep']);
     assert.deepEqual(await listFiles(path.join(process.cwd(), 'docs', 'reports')), ['.gitkeep']);
     assert.deepEqual(await listFiles(path.join(process.cwd(), '.vibe', 'archive', 'prompts')), ['.gitkeep']);
     assert.deepEqual(await listFiles(path.join(process.cwd(), 'docs', 'plans')), ['.gitkeep', 'sprint-roadmap.md']);
   });
 
-  it('keeps project context shards in explicit not-initialized template form', async () => {
+  templateOnly('keeps project context shards in explicit not-initialized template form', async () => {
     const shards = await Promise.all(
       ['product.md', 'architecture.md', 'conventions.md', 'qa.md', 'secrets.md', 'tokens.md'].map((fileName) =>
         readFile(path.join(process.cwd(), 'docs', 'context', fileName), 'utf8'),
@@ -40,7 +57,7 @@ describe('template project-owned hygiene', () => {
     assert.doesNotMatch(conventions, /Vitest/);
   });
 
-  it('keeps checked-in project runtime state empty and explicitly template-owned', async () => {
+  templateOnly('keeps checked-in project runtime state empty and explicitly template-owned', async () => {
     const [handoff, sessionLog, sprintStatusRaw] = await Promise.all([
       readFile(path.join(process.cwd(), '.vibe', 'agent', 'handoff.md'), 'utf8'),
       readFile(path.join(process.cwd(), '.vibe', 'agent', 'session-log.md'), 'utf8'),
