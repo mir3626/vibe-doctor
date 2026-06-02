@@ -313,6 +313,9 @@ describe('vibe:init agent-skill guard', () => {
     assert.match(result.stdout, /AGENTS\.md/);
     assert.match(result.stdout, /Chrome MV3 확장 프로그램 — 영상 페이지/);
     assert.match(result.stdout, /사용자 승인 후 안전하게 다운로드 큐/);
+    assert.match(result.stdout, /npm run vibe:init-ready/);
+    assert.match(result.stdout, /Pre-MVP init readiness gate/);
+    assert.match(result.stdout, /phase-2-providers\.md/);
     assert.doesNotMatch(result.stdout, /Template 끝/);
 
     const config = await readJson<{ mode?: string }>(path.join(root, '.vibe', 'config.json'));

@@ -48,6 +48,29 @@ Orchestrator asks:
 - User answers N: skip. Print "프리셋 미적용. 나중에 `/vibe-sprint-mode on`으로 활성화할 수 있습니다."
 - If the script exits non-zero, print warning and continue.
 
+### Step 4-0c: Pre-MVP init readiness gate (CRITICAL)
+
+Before writing any MVP implementation files, Sprint prompts, or Generator handoff prompts, run:
+
+```bash
+npm run vibe:init-ready
+```
+
+Expected outcome:
+
+- exit `0` with `[vibe-init-ready] OK: ...`
+
+If the command exits non-zero, do not start Sprint/MVP work. Fix the listed Phase 2~4 artifacts,
+then rerun `npm run vibe:init-ready` until it passes. This gate specifically prevents `mode=agent`
+delegation from skipping `.vibe/config.local.json`, project-owned context shards, interview logs,
+and the Sprint roadmap before implementation begins.
+
+After it passes, append one line to `.vibe/agent/session-log.md`:
+
+```text
+[decision][init-ready-gate] passed before MVP work
+```
+
 ### Step 4-1: 설정 요약 출력
 
 모든 단계가 끝나면 아래를 출력합니다:

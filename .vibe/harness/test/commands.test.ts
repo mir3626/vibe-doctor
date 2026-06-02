@@ -4,7 +4,7 @@ import {
   findViolations,
   forbiddenPatterns,
 } from '../src/commands/audit-config.js';
-import { selectQaScripts, QA_SCRIPT_ORDER } from '../src/commands/qa.js';
+import { selectQaScripts, QA_SCRIPT_ORDER, isHarnessQaScript } from '../src/commands/qa.js';
 import { renderReport } from '../src/lib/report.js';
 
 // ---------- audit-config.findViolations ----------
@@ -76,6 +76,35 @@ test('QA_SCRIPT_ORDER prioritises fast signals before full build', () => {
   // reorder will silently change vibe:qa execution behaviour.
   assert.equal(QA_SCRIPT_ORDER[0], 'test:unit');
   assert.equal(QA_SCRIPT_ORDER.at(-1), 'build');
+});
+
+test('selectQaScripts can skip harness-owned aliases for initialized downstream projects', () => {
+  const scripts = {
+    build: 'npm run vibe:build',
+    lint: 'eslint .',
+    test: 'npm run vibe:self-test',
+    'test:unit': 'vitest run src/foo.test.ts',
+    typecheck: 'tsc --noEmit',
+  };
+
+  assert.deepEqual(selectQaScripts(scripts, { skipHarnessScripts: true }), [
+    'test:unit',
+    'typecheck',
+    'lint',
+  ]);
+});
+
+test('selectQaScripts keeps harness aliases when the caller does not request filtering', () => {
+  assert.deepEqual(selectQaScripts({ test: 'npm run vibe:self-test' }), ['test']);
+});
+
+test('isHarnessQaScript identifies harness self-tests without blocking project smoke wrappers', () => {
+  assert.equal(isHarnessQaScript('npm run vibe:self-test'), true);
+  assert.equal(isHarnessQaScript('tsc -p .vibe/harness/tsconfig.harness.json --noEmit'), true);
+  assert.equal(isHarnessQaScript('node --import tsx --test .vibe/harness/test/*.test.ts'), true);
+  assert.equal(isHarnessQaScript('node .vibe/harness/scripts/vibe-playwright-test.mjs'), true);
+  assert.equal(isHarnessQaScript('npm run vibe:browser-smoke'), false);
+  assert.equal(isHarnessQaScript('vitest run'), false);
 });
 
 // ---------- report.renderReport ----------

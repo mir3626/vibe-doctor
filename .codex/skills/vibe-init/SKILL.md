@@ -21,5 +21,5 @@ Codex notes:
 - Treat Claude-specific UI references as references to the active agent session unless the source explicitly describes Claude-only behavior.
 - Perform Step 1-0 before any bootstrap command. Ask whether this session is `human` or `agent` driven.
 - If the user chooses `human`, run `npm run vibe:init -- --from-agent-skill --mode=human` when the source skill reaches Phase 1-1.
-- If the user chooses `agent`, ask for the one-line project definition, run `npm run vibe:init -- --from-agent-skill --mode=agent --runtime=codex --one-liner "<ONE_LINER>"`, print the generated delegation prompt, and stop. Do not run Phase 1-1 bootstrap first.
+- If the user chooses `agent`, ask for the one-line project definition, run `npm run vibe:init -- --from-agent-skill --mode=agent --runtime=codex --one-liner "<ONE_LINER>"`, print the generated delegation prompt, and stop. Do not run Phase 1-1 bootstrap first; the fresh delegated agent must pass `npm run vibe:init-ready` after Phase 2~4 before any Sprint/MVP work.
 - Keep `.vibe/agent/handoff.md` and `.vibe/agent/session-log.md` current when the source skill requires context persistence.

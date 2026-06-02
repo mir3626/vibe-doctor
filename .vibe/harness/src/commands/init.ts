@@ -121,6 +121,7 @@ function runtimeMemorySteps(runtime: AgentRuntime): string {
       '4. `CLAUDE.md` 의 `<!-- BEGIN:CHARTER -->` 와 `<!-- BEGIN:FREEZE-POSTURE -->` 블록은 shared nominal charter로 읽되,',
       '   Claude Code 전용 Agent/PreCompact mechanics는 Codex에서 그대로 가정하지 않는다.',
       '5. `.claude/skills/vibe-init/SKILL.md` 의 Phase 1~4 흐름 개요 (Step 1-0 은 이미 완료된 것으로 간주).',
+      '6. `.claude/skills/vibe-init/phases/phase-2-providers.md`, `phase-3-interview.md`, `phase-4-complete.md`, `rules.md` 를 직접 읽고 Step 순서대로 수행한다.',
     ].join('\n');
   }
 
@@ -128,6 +129,7 @@ function runtimeMemorySteps(runtime: AgentRuntime): string {
     '1. `CLAUDE.md` 의 `<!-- BEGIN:CHARTER --> ... <!-- END:CHARTER -->` 블록 전체.',
     '2. `CLAUDE.md` 의 `<!-- BEGIN:FREEZE-POSTURE -->` 블록.',
     '3. `.claude/skills/vibe-init/SKILL.md` 의 Phase 1~4 흐름 개요 (Step 1-0 은 이미 완료된 것으로 간주).',
+    '4. `.claude/skills/vibe-init/phases/phase-2-providers.md`, `phase-3-interview.md`, `phase-4-complete.md`, `rules.md` 를 직접 읽고 Step 순서대로 수행한다.',
   ].join('\n');
 }
 

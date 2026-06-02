@@ -96,8 +96,8 @@ Step 1-0 에서 사용자가 `agent` 를 선택하면 다음을 순차 수행:
 
    ```
    위 prompt 를 copy-paste 하여 새 agent 세션에 전달하세요.
-   그 세션의 agent 가 /vibe-init Phase 2~4 + Sprint 로드맵 + Sprint 실행 + closure
-   를 자율적으로 진행합니다.
+   그 세션의 agent 가 /vibe-init Phase 2~4(Phase 3 Sprint 로드맵 포함)
+   + `npm run vibe:init-ready` 통과 + Sprint 실행 + closure 를 자율적으로 진행합니다.
 
    본 /vibe-init 세션은 여기서 종료합니다.
    ```

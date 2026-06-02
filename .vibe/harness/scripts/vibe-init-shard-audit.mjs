@@ -36,6 +36,7 @@ const REQUIRED_STEPS = [
   'Step 4-0',
   'Step 4-0a',
   'Step 4-0b',
+  'Step 4-0c',
   'Step 4-1',
 ];
 
@@ -52,6 +53,7 @@ const CRITICAL_SIGNALS = [
   { id: 'utility-opt-in-log', pattern: /\[decision]\[phase3-utility-opt-in]/ },
   { id: 'roadmap-drafted-log', pattern: /\[decision]\[sprint-roadmap-drafted]/ },
   { id: 'phase0-seal', pattern: /vibe-phase0-seal\.mjs/ },
+  { id: 'init-ready-gate', pattern: /npm run vibe:init-ready/ },
   { id: 'sprint-mode-preset', pattern: /vibe-sprint-mode\.mjs on/ },
   { id: 'config-local', pattern: /\.vibe\/config\.local\.json/ },
   { id: 'agents-md', pattern: /AGENTS\.md/ },

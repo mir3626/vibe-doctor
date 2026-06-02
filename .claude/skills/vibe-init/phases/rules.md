@@ -6,6 +6,7 @@
 - 빈 답변도 허용합니다. 빈 값은 기본값으로 채웁니다.
 - `npm run vibe:init -- --from-agent-skill --mode=human` 실행이 실패하면 원인을 파악하여 해결 후 재시도합니다.
 - `mode=agent` 선택 후에는 `npm run vibe:init -- --from-agent-skill --mode=agent --runtime=<claude|codex> --one-liner "<...>"`만 실행하고 즉시 종료합니다. `--mode=agent` 경로에서 Phase 1-1 bootstrap command를 먼저 실행하지 않습니다.
+- 새 agent 세션은 Phase 2~4 완료 후 Sprint/MVP 구현 전에 반드시 `npm run vibe:init-ready`를 통과시킵니다. 실패하면 구현 파일 또는 Sprint prompt를 만들지 말고 누락된 init 산출물을 먼저 고칩니다.
 - provider 인증 시, 사용자가 직접 터미널 명령을 실행해야 하는 경우 `! 명령어` 형식을 안내합니다.
 - 커스텀 provider의 CLI 인자 형식을 모르는 경우, 기본 템플릿(`["--prompt", "{prompt}"]`)을 사용하고 나중에 `.vibe/config.local.json`에서 수정 가능하다고 안내합니다.
 - AGENTS.md는 파일명은 유지하되, 내용만 선택된 Generator provider에 맞게 수정합니다.

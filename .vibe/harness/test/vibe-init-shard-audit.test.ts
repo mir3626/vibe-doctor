@@ -24,6 +24,7 @@ const requiredSteps = [
   'Step 4-0',
   'Step 4-0a',
   'Step 4-0b',
+  'Step 4-0c',
   'Step 4-1',
 ];
 
@@ -99,7 +100,7 @@ function buildSkillContent(omitStep?: string): string {
     ...(sections.get('Phase 3') ?? []),
     '',
     '## Phase 4 — 설정 요약 및 완료',
-    'Run vibe-phase0-seal.mjs and vibe-sprint-mode.mjs on when needed.',
+    'Run vibe-phase0-seal.mjs, vibe-sprint-mode.mjs on, and npm run vibe:init-ready when needed.',
     ...(sections.get('Phase 4') ?? []),
     '',
     '## 중요 규칙',
@@ -188,7 +189,7 @@ describe('vibe-init-shard-audit', () => {
     );
     await writeText(
       path.join(root, '.claude', 'skills', 'vibe-init', 'phases', 'phase-4.md'),
-      ['## Phase 4 — 설정 요약 및 완료', 'Run vibe-phase0-seal.mjs and vibe-sprint-mode.mjs on when needed.', '### Step 4-0: fixture', '### Step 4-0a: fixture', '### Step 4-0b: fixture', '### Step 4-1: fixture'].join('\n'),
+      ['## Phase 4 — 설정 요약 및 완료', 'Run vibe-phase0-seal.mjs, vibe-sprint-mode.mjs on, and npm run vibe:init-ready when needed.', '### Step 4-0: fixture', '### Step 4-0a: fixture', '### Step 4-0b: fixture', '### Step 4-0c: fixture', '### Step 4-1: fixture'].join('\n'),
     );
     await writeText(
       path.join(root, '.claude', 'skills', 'vibe-init', 'phases', 'rules.md'),

@@ -11,16 +11,16 @@
   "verificationCommands": [],
   "handoff": {
     "currentSprintId": "idle",
-    "lastActionSummary": "Upstream harness maintenance checkpoint: release metadata set to v1.7.17 for the Codex Markdown injection diagnostics, skill sharding audits, sync/sprint-mode boundary guards, docs alignment, and dashboard/report template split; downstream must still run /vibe-init.",
+    "lastActionSummary": "Upstream harness maintenance checkpoint: release metadata updated for v1.7.21 with init-ready gate, downstream QA alias filtering, and stop-hook summary logging.",
     "orchestratorContextBudget": "medium",
     "preferencesActive": [],
     "handoffDocPath": ".vibe/agent/handoff.md",
-    "updatedAt": "2026-05-13T17:46:25.062Z"
+    "updatedAt": "2026-06-02T13:07:59.389Z"
   },
   "pendingRisks": [],
   "lastSprintScope": [],
   "lastSprintScopeGlob": [],
   "sprintsSinceLastAudit": 0,
-  "stateUpdatedAt": "2026-05-13T17:46:25.062Z",
+  "stateUpdatedAt": "2026-06-02T13:07:59.389Z",
   "verifiedAt": null
 }

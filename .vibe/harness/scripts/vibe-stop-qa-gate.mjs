@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 // Gate vibe:qa so Stop hooks only run when the repo has code changes.
 
-import { execFileSync, execSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { execFileSync, spawnSync } from 'node:child_process';
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 const EXTENSIONS = new Set([
@@ -76,6 +76,53 @@ function parseListZ(buffer) {
   return buffer.toString('utf8').split('\0').filter(Boolean);
 }
 
+function relativeLogPath(repoRoot, absolutePath) {
+  return path.relative(repoRoot, absolutePath).replaceAll('\\', '/');
+}
+
+function writeQaLog(repoRoot, result) {
+  const now = new Date();
+  const date = now.toISOString().slice(0, 10);
+  const stamp = now.toISOString().replaceAll(':', '-').replaceAll('.', '-');
+  const dir = path.join(repoRoot, '.vibe', 'runs', date);
+  const logPath = path.join(dir, `stop-qa-${stamp}.log`);
+  const stdout = result.stdout ?? '';
+  const stderr = result.stderr ?? '';
+  const status = typeof result.status === 'number' ? result.status : 1;
+
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(
+    logPath,
+    [
+      '# vibe-stop-qa-gate',
+      `timestamp: ${now.toISOString()}`,
+      'command: npm run vibe:qa --silent',
+      `exit: ${status}`,
+      '',
+      '## stdout',
+      stdout.trimEnd(),
+      '',
+      '## stderr',
+      stderr.trimEnd(),
+      '',
+      result.error ? `## error\n${result.error.message}\n` : '',
+    ].join('\n'),
+    'utf8',
+  );
+
+  return relativeLogPath(repoRoot, logPath);
+}
+
+function runQa(repoRoot) {
+  return spawnSync('npm', ['run', 'vibe:qa', '--silent'], {
+    cwd: repoRoot,
+    encoding: 'utf8',
+    maxBuffer: 20 * 1024 * 1024,
+    shell: true,
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+}
+
 function main() {
   try {
     const repoRoot = execFileSync('git', ['rev-parse', '--show-toplevel'], { encoding: 'utf8' }).trim();
@@ -97,16 +144,16 @@ function main() {
       console.log('[vibe-qa] skip: tsx not installed \u2014 run `npm install` first');
       process.exit(0);
     }
-    try {
-      execSync('npm run vibe:qa --silent', {
-        cwd: repoRoot,
-        stdio: 'inherit',
-      });
+    const result = runQa(repoRoot);
+    const logPath = writeQaLog(repoRoot, result);
+    if (result.status === 0 && !result.error) {
+      console.log(`[vibe-qa] ok: log=${logPath}`);
       process.exit(0);
-    } catch (error) {
-      const status = typeof error?.status === 'number' ? error.status : 1;
-      process.exit(status);
     }
+    const status = typeof result.status === 'number' ? result.status : 1;
+    const errorSuffix = result.error ? ` error=${result.error.message}` : '';
+    console.error(`[vibe-qa] fail: exit=${status} log=${logPath}${errorSuffix}`);
+    process.exit(status);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     console.error(`[vibe-qa] gate error: ${message}`);

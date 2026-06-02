@@ -6,6 +6,10 @@ This file is project-owned runtime state. Downstream `/vibe-init` rewrites it be
 
 ## Entries
 
+- 2026-06-02T13:07:59.389Z [checkpoint] upstream harness maintenance: release metadata updated for v1.7.21 before tagging the init readiness gate, downstream QA alias filtering, and stop-hook summary logging changes.
+- 2026-06-02T12:34:58.115Z [checkpoint] upstream harness maintenance: agent-mode `/vibe-init` delegation now requires direct phase-shard reading and a pre-MVP `npm run vibe:init-ready` gate that blocks Sprint prompts and implementation until project-owned init artifacts exist.
+- 2026-06-02T11:01:14.907Z [checkpoint] upstream harness maintenance: `vibe-stop-qa-gate` now captures full `vibe:qa` output to `.vibe/runs/<date>/stop-qa-*.log` and prints concise ok/fail summaries only.
+- 2026-06-02T10:55:02.083Z [checkpoint] upstream harness maintenance: `vibe:qa` now skips harness-owned root QA aliases in initialized downstream projects while keeping pristine-template harness self-test behavior.
 - 2026-05-19T00:30:00.000Z [checkpoint] upstream harness maintenance: release metadata updated for v1.7.19 before tagging and pushing the review wiring shard and Sprint Contract ledger changes.
 - 2026-05-19T00:16:33.777Z [checkpoint] upstream harness maintenance: implemented Vowline-inspired follow-ups for sharded skill wiring references in vibe-review-inputs and Sprint Contract proof-boundary fields in Planner/Generator contracts.
 - 2026-05-18T23:25:38.246Z [harness-review] reviewed chojondocho/vowline for transferable harnessing; follow-ups were vibe-review-inputs wiring drift, sprint-local contract ledger, scoped provider bridge verification, and Windows-safe installer caution.
