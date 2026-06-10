@@ -6,6 +6,9 @@ This file is project-owned runtime state. Downstream `/vibe-init` rewrites it be
 
 ## Entries
 
+- 2026-06-10T03:18:44.337Z [checkpoint] upstream harness maintenance: release metadata updated for v1.7.22 before tagging the project-owned `vibe-goal-iterate` skill and scoped verification override.
+- 2026-06-10T03:15:12.925Z [checkpoint] upstream harness maintenance: added `vibe-goal-iterate` verification override so per-item loops run only targeted checks, reserve harness-wide/full-suite verification for final-item completion plus explicit harness/runtime/skill/orchestration changes, and treat `vibe:checkpoint` as context persistence rather than broad verification.
+- 2026-06-10T02:53:12.889Z [checkpoint] upstream harness maintenance: moved `vibe-goal-iterate` from global Codex skills into project-owned `.claude/skills` shared runbook plus `.codex/skills` wrapper, removed the global source directory, and verified skill validation, wrapper audit, MD injection, sync audit, and encoding checks.
 - 2026-06-02T13:07:59.389Z [checkpoint] upstream harness maintenance: release metadata updated for v1.7.21 before tagging the init readiness gate, downstream QA alias filtering, and stop-hook summary logging changes.
 - 2026-06-02T12:34:58.115Z [checkpoint] upstream harness maintenance: agent-mode `/vibe-init` delegation now requires direct phase-shard reading and a pre-MVP `npm run vibe:init-ready` gate that blocks Sprint prompts and implementation until project-owned init artifacts exist.
 - 2026-06-02T11:01:14.907Z [checkpoint] upstream harness maintenance: `vibe-stop-qa-gate` now captures full `vibe:qa` output to `.vibe/runs/<date>/stop-qa-*.log` and prints concise ok/fail summaries only.

@@ -6,6 +6,7 @@ and in version-specific notes.
 
 ## Current
 
+- [v1.7.22](v1.7.22.md) - Goal iteration skill and scoped verification
 - [v1.7.21](v1.7.21.md) - Init readiness gate and quieter downstream QA
 - [v1.7.20](v1.7.20.md) - Downstream-safe template hygiene test gating
 - [v1.7.19](v1.7.19.md) - Review wiring shards and Sprint Contract ledger

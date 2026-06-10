@@ -1,0 +1,4 @@
+interface:
+  display_name: "Vibe Goal Iterate"
+  short_description: "Run settled designs through vibe iterations."
+  default_prompt: "Use $vibe-goal-iterate to turn the finalized design in this conversation into itemized /goal plus $vibe-iterate implementation cycles for every item, preserving handoff checkpoints between items and continuing until all items are complete or blocked."
