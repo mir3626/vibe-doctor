@@ -153,7 +153,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node .vibe/harness/scripts/vibe-checkpoint.mjs"
+            "command": "node .vibe/harness/scripts/vibe-checkpoint.mjs --auto-refresh"
           }
         ]
       }

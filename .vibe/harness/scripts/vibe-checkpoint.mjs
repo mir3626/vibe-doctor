@@ -1,15 +1,18 @@
 #!/usr/bin/env node
 // vibe-checkpoint performs mechanical context persistence checks.
-// Usage: node .vibe/harness/scripts/vibe-checkpoint.mjs [--json]
+// Usage: node .vibe/harness/scripts/vibe-checkpoint.mjs [--json] [--auto-refresh]
 
 import { execSync } from 'node:child_process';
-import { existsSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 const JSON_MODE = process.argv.includes('--json');
+const AUTO_REFRESH = process.argv.includes('--auto-refresh');
 const results = [];
 const MAX_HANDOFF_BYTES = Number.parseInt(process.env.VIBE_HANDOFF_MAX_BYTES ?? '', 10) || 96 * 1024;
 const MAX_HANDOFF_LINES = Number.parseInt(process.env.VIBE_HANDOFF_MAX_LINES ?? '', 10) || 1200;
+const AUTO_STATE_START = '<!-- vibe:auto-state:start -->';
+const AUTO_STATE_END = '<!-- vibe:auto-state:end -->';
 
 function record(id, ok, detail) {
   results.push({ id, ok, detail });
@@ -41,6 +44,110 @@ const handoffPath = resolve('.vibe/agent/handoff.md');
 const sessionLogPath = resolve('.vibe/agent/session-log.md');
 const statusPath = resolve('.vibe/agent/sprint-status.json');
 
+function getHandoffFreshness(status, lastCommit) {
+  const updatedAt = parseIso(status?.handoff?.updatedAt);
+  const mtime = statSync(handoffPath).mtime;
+  const freshest = [updatedAt, mtime]
+    .filter(Boolean)
+    .sort((a, b) => b.getTime() - a.getTime())[0] ?? null;
+  const recentCutoff = Date.now() - (30 * 60 * 1000);
+  const freshByTime = freshest ? freshest.getTime() >= recentCutoff : false;
+  const freshByCommit = freshest && lastCommit ? freshest.getTime() >= lastCommit.getTime() : false;
+  const updatedAtText = updatedAt ? updatedAt.toISOString() : String(status?.handoff?.updatedAt ?? 'n/a');
+  const mtimeText = mtime.toISOString();
+  const lastCommitText = lastCommit ? lastCommit.toISOString() : 'n/a';
+  const detail = `updatedAt=${updatedAtText}, mtime=${mtimeText}, lastCommit=${lastCommitText}`;
+
+  return {
+    fresh: Boolean(freshByTime || freshByCommit),
+    updatedAt,
+    detail: freshByTime || freshByCommit ? detail : `handoff stale: ${detail}`,
+  };
+}
+
+function upsertAutoStateBlock(content, block) {
+  const start = content.indexOf(AUTO_STATE_START);
+  const end = content.indexOf(AUTO_STATE_END);
+  if (start !== -1 && end > start) {
+    return content.slice(0, start) + block + content.slice(end + AUTO_STATE_END.length);
+  }
+
+  const match = content.match(/^# .*$/m);
+  if (match?.index !== undefined) {
+    const at = match.index + match[0].length;
+    return `${content.slice(0, at)}\n\n${block}${content.slice(at)}`;
+  }
+
+  return `${block}\n\n${content}`;
+}
+
+function runAutoRefresh() {
+  try {
+    if (!existsSync(handoffPath) || !existsSync(statusPath)) {
+      return;
+    }
+
+    const status = JSON.parse(readFileSync(statusPath, 'utf8'));
+    if (
+      !status
+      || typeof status !== 'object'
+      || Array.isArray(status)
+      || !status.handoff
+      || typeof status.handoff !== 'object'
+      || Array.isArray(status.handoff)
+    ) {
+      return;
+    }
+
+    const g = (cmd) => {
+      try {
+        return sh(cmd);
+      } catch {
+        return '';
+      }
+    };
+    if (g('git rev-parse --is-inside-work-tree') !== 'true') {
+      return;
+    }
+
+    const lastCommit = getLastCommitDate();
+    const { fresh, updatedAt } = getHandoffFreshness(status, lastCommit);
+    const porcelain = g('git status --porcelain').split(/\r?\n/).filter(Boolean);
+    const isOutdated = porcelain.length > 0 || Boolean(lastCommit && updatedAt && lastCommit.getTime() > updatedAt.getTime());
+    if (fresh && !isOutdated) {
+      return;
+    }
+
+    const now = new Date().toISOString();
+    const recentCommits = g('git log -5 --format=%h%x09%s')
+      .split(/\r?\n/)
+      .filter(Boolean)
+      .slice(0, 5)
+      .map((line) => `- ${line.replace('\t', ' ')}`);
+    const body = [
+      'Auto-captured git snapshot (PreCompact); not a substitute for the narrative below.',
+      `Captured: ${now}`,
+      `Branch: ${g('git rev-parse --abbrev-ref HEAD') || 'n/a'} @ ${(g('git log -1 --format=%h%x09%s') || 'n/a').replace('\t', ' ')}`,
+      `Uncommitted: ${porcelain.length} file(s)`,
+      ...porcelain.slice(0, 20).map((line) => `- ${line}`),
+      ...(porcelain.length > 20 ? [`- ... +${porcelain.length - 20} more`] : []),
+      `Staged: ${g('git diff --cached --shortstat') || 'none'}; Unstaged: ${g('git diff --shortstat') || 'none'}`,
+      'Recent commits:',
+      ...(recentCommits.length > 0 ? recentCommits : ['- n/a']),
+    ];
+    const block = [AUTO_STATE_START, ...body.map((line) => `> ${line}`), AUTO_STATE_END].join('\n');
+
+    writeFileSync(handoffPath, upsertAutoStateBlock(readFileSync(handoffPath, 'utf8'), block), 'utf8');
+    status.handoff.updatedAt = now;
+    writeFileSync(statusPath, `${JSON.stringify(status, null, 2)}\n`, 'utf8');
+  } catch {
+  }
+}
+
+if (AUTO_REFRESH) {
+  runAutoRefresh();
+}
+
 record('handoff.exists', existsSync(handoffPath), existsSync(handoffPath) ? handoffPath : `missing: ${handoffPath}`);
 record('session-log.exists', existsSync(sessionLogPath), existsSync(sessionLogPath) ? sessionLogPath : `missing: ${sessionLogPath}`);
 
@@ -64,24 +171,9 @@ try {
   } else if (!statusOk) {
     record('handoff.fresh', false, 'sprint-status.json unavailable for freshness check');
   } else {
-    const updatedAt = parseIso(status?.handoff?.updatedAt);
-    const mtime = statSync(handoffPath).mtime;
-    const freshest = [updatedAt, mtime]
-      .filter(Boolean)
-      .sort((a, b) => b.getTime() - a.getTime())[0] ?? null;
     const lastCommit = getLastCommitDate();
-    const recentCutoff = Date.now() - (30 * 60 * 1000);
-    const freshByTime = freshest ? freshest.getTime() >= recentCutoff : false;
-    const freshByCommit = freshest && lastCommit ? freshest.getTime() >= lastCommit.getTime() : false;
-    const updatedAtText = updatedAt ? updatedAt.toISOString() : String(status?.handoff?.updatedAt ?? 'n/a');
-    const mtimeText = mtime.toISOString();
-    const lastCommitText = lastCommit ? lastCommit.toISOString() : 'n/a';
-
-    if (freshByTime || freshByCommit) {
-      record('handoff.fresh', true, `updatedAt=${updatedAtText}, mtime=${mtimeText}, lastCommit=${lastCommitText}`);
-    } else {
-      record('handoff.fresh', false, `handoff stale: updatedAt=${updatedAtText}, mtime=${mtimeText}, lastCommit=${lastCommitText}`);
-    }
+    const { fresh, detail } = getHandoffFreshness(status, lastCommit);
+    record('handoff.fresh', fresh, detail);
   }
 } catch (e) {
   record('handoff.fresh', false, e.message);
@@ -146,7 +238,7 @@ try {
 }
 
 if (JSON_MODE) {
-  process.stdout.write(JSON.stringify(results, null, 2) + '\n');
+  process.stdout.write(`${JSON.stringify(results, null, 2)}\n`);
 } else {
   for (const r of results) {
     const mark = r.ok ? 'OK ' : 'FAIL';

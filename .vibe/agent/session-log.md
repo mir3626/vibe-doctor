@@ -6,6 +6,7 @@ This file is project-owned runtime state. Downstream `/vibe-init` rewrites it be
 
 ## Entries
 
+- 2026-06-13T13:59:24.000Z [checkpoint] upstream harness maintenance: release metadata updated for v1.7.23. Added opt-in `vibe-checkpoint --auto-refresh` wired into the PreCompact hook that upserts a bounded idempotent git-snapshot block into handoff.md and bumps handoff.updatedAt when the handoff is stale or work-outdated; flag-absent path stays byte-for-byte read-only. Verified: typecheck, full self-test (463 pass/0 fail/1 skip), focused checkpoint tests, temp-repo smoke.
 - 2026-06-10T03:18:44.337Z [checkpoint] upstream harness maintenance: release metadata updated for v1.7.22 before tagging the project-owned `vibe-goal-iterate` skill and scoped verification override.
 - 2026-06-10T03:15:12.925Z [checkpoint] upstream harness maintenance: added `vibe-goal-iterate` verification override so per-item loops run only targeted checks, reserve harness-wide/full-suite verification for final-item completion plus explicit harness/runtime/skill/orchestration changes, and treat `vibe:checkpoint` as context persistence rather than broad verification.
 - 2026-06-10T02:53:12.889Z [checkpoint] upstream harness maintenance: moved `vibe-goal-iterate` from global Codex skills into project-owned `.claude/skills` shared runbook plus `.codex/skills` wrapper, removed the global source directory, and verified skill validation, wrapper audit, MD injection, sync audit, and encoding checks.
@@ -16,7 +17,7 @@ This file is project-owned runtime state. Downstream `/vibe-init` rewrites it be
 - 2026-05-19T00:30:00.000Z [checkpoint] upstream harness maintenance: release metadata updated for v1.7.19 before tagging and pushing the review wiring shard and Sprint Contract ledger changes.
 - 2026-05-19T00:16:33.777Z [checkpoint] upstream harness maintenance: implemented Vowline-inspired follow-ups for sharded skill wiring references in vibe-review-inputs and Sprint Contract proof-boundary fields in Planner/Generator contracts.
 - 2026-05-18T23:25:38.246Z [harness-review] reviewed chojondocho/vowline for transferable harnessing; follow-ups were vibe-review-inputs wiring drift, sprint-local contract ledger, scoped provider bridge verification, and Windows-safe installer caution.
-- 2026-05-17T14:57:52.5705953Z [checkpoint] upstream harness maintenance: v1.7.18 adds active sprint-roadmap lifecycle maintenance, archived roadmap readers, final-sprint archive checks, and a compact handoff budget.
+- 2026-05-17T14:57:52.570Z [checkpoint] upstream harness maintenance: v1.7.18 adds active sprint-roadmap lifecycle maintenance, archived roadmap readers, final-sprint archive checks, and a compact handoff budget.
 - 2026-05-13T17:46:25.062Z [checkpoint] upstream harness maintenance: release metadata updated for v1.7.17 before tagging the Codex injection and skill shard audit work.
 - 2026-05-13T17:25:20.097Z [checkpoint] upstream harness maintenance: README and guide docs realigned with package scripts, .vibe/harness runtime layout, migration paths, and root README sync-boundary wording.
 - 2026-05-13T16:55:17.537Z [checkpoint] upstream harness maintenance: pre-commit cleanup aligned README audit command inventory, restored the sprint-mode emoji example, and added a vibe-sync audit guard against full harness ownership of root README.md.
