@@ -3,7 +3,7 @@
 // Usage: node .vibe/harness/scripts/vibe-checkpoint.mjs [--json] [--auto-refresh]
 
 import { execSync } from 'node:child_process';
-import { existsSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 const JSON_MODE = process.argv.includes('--json');
@@ -11,8 +11,10 @@ const AUTO_REFRESH = process.argv.includes('--auto-refresh');
 const results = [];
 const MAX_HANDOFF_BYTES = Number.parseInt(process.env.VIBE_HANDOFF_MAX_BYTES ?? '', 10) || 96 * 1024;
 const MAX_HANDOFF_LINES = Number.parseInt(process.env.VIBE_HANDOFF_MAX_LINES ?? '', 10) || 1200;
+const MIN_DOC_BYTES = Number.parseInt(process.env.VIBE_DOC_MIN_BYTES ?? '', 10) || 64;
 const AUTO_STATE_START = '<!-- vibe:auto-state:start -->';
 const AUTO_STATE_END = '<!-- vibe:auto-state:end -->';
+const DOC_INTEGRITY_FIXED = ['CLAUDE.md', 'AGENTS.md', 'GEMINI.md', '.vibe/agent/_common-rules.md'];
 
 function record(id, ok, detail) {
   results.push({ id, ok, detail });
@@ -144,6 +146,38 @@ function runAutoRefresh() {
   }
 }
 
+function getDocIntegrityTargets() {
+  try {
+    if (sh('git rev-parse --is-inside-work-tree') === 'true') {
+      const tracked = sh('git ls-files -- CLAUDE.md AGENTS.md GEMINI.md .vibe/agent/_common-rules.md "docs/context/*.md"')
+        .split(/\r?\n/)
+        .filter(Boolean)
+        .filter((file) => existsSync(resolve(file)));
+      return { degraded: false, targets: tracked };
+    }
+  } catch {
+  }
+
+  const contextDir = resolve('docs/context');
+  let contextDocs = [];
+  try {
+    contextDocs = existsSync(contextDir)
+      ? readdirSync(contextDir, { withFileTypes: true })
+        .filter((entry) => entry.isFile() && entry.name.endsWith('.md'))
+        .map((entry) => `docs/context/${entry.name}`)
+      : [];
+  } catch {
+  }
+
+  return {
+    degraded: true,
+    targets: [
+      ...DOC_INTEGRITY_FIXED.filter((file) => existsSync(resolve(file))),
+      ...contextDocs,
+    ],
+  };
+}
+
 if (AUTO_REFRESH) {
   runAutoRefresh();
 }
@@ -197,6 +231,33 @@ try {
   }
 } catch (e) {
   record('handoff.budget', false, e.message);
+}
+
+try {
+  const { degraded, targets } = getDocIntegrityTargets();
+  const failures = [];
+  for (const file of targets) {
+    try {
+      const content = readFileSync(resolve(file), 'utf8');
+      const bytes = Buffer.byteLength(content, 'utf8');
+      if (content.trim() === '') {
+        failures.push(`${file}: empty`);
+      } else if (bytes < MIN_DOC_BYTES) {
+        failures.push(`${file}: below threshold (${bytes}/${MIN_DOC_BYTES} bytes)`);
+      }
+    } catch (e) {
+      failures.push(`${file}: read error (${e.message})`);
+    }
+  }
+  record(
+    'docs.integrity',
+    failures.length === 0,
+    failures.length === 0
+      ? `checked=${targets.length} file(s)${degraded ? ' (degraded)' : ''}`
+      : `${failures.join('; ')}. Restore the document from git; do not regenerate it.`,
+  );
+} catch (e) {
+  record('docs.integrity', false, e.message);
 }
 
 try {

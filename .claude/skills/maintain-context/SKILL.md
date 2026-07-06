@@ -20,12 +20,14 @@ Generator agents normally do not need this workflow. Sprint state is handed back
 ## Workflow
 
 1. Update only the relevant shard docs for behavior, architecture, conventions, QA, or workflow changes. Remove stale or duplicate guidance.
-2. Rewrite `.vibe/agent/handoff.md` as compact active state: current branch/version, latest completed work, open risks, and exact restart steps only. Archive or summarize old history instead of appending another long section.
-3. Append one concise entry to `.vibe/agent/session-log.md` with an ISO timestamp and a useful tag such as `[decision]`, `[harness-review]`, or `[checkpoint]`.
-4. If sprint status changed, update `.vibe/agent/sprint-status.json` through the appropriate harness script rather than manual JSON edits.
-5. Run `npm run vibe:checkpoint` when available. If the package script is absent, run `node .vibe/harness/scripts/vibe-checkpoint.mjs`.
-6. If checkpoint fails, fix the stale/missing state files and rerun it. Do not report context as preserved until the check passes.
-7. Mention the context files and checkpoint result in the final report.
+2. Modify or rewrite existing documents with the native Edit/Write tools only. Never rewrite an existing file through shell heredocs, redirects, or inline scripts, and never open a file in write mode while reading the same file inside one expression — evaluation order truncates the file before the read happens, so the "rewrite" silently writes back nothing. The Edit tool fails loudly on a mismatch and cannot empty a file; that guarantee is the point.
+3. Rewrite `.vibe/agent/handoff.md` as compact active state: current branch/version, latest completed work, open risks, and exact restart steps only. Archive or summarize old history instead of appending another long section.
+4. Append one concise entry to `.vibe/agent/session-log.md` with an ISO timestamp and a useful tag such as `[decision]`, `[harness-review]`, or `[checkpoint]`.
+5. If sprint status changed, update `.vibe/agent/sprint-status.json` through the appropriate harness script rather than manual JSON edits.
+6. Run `npm run vibe:checkpoint` when available. If the package script is absent, run `node .vibe/harness/scripts/vibe-checkpoint.mjs`.
+7. If checkpoint fails, fix the stale/missing state files and rerun it. Do not report context as preserved until the check passes.
+8. Before committing the pass, inspect `git diff --stat`. If a first-read document (CLAUDE.md, AGENTS.md, docs/context shards, handoff.md) shows an unintended mass deletion or a pure-deletion line count, stop, find the cause, and restore the file from git before continuing. A "successful rewrite" in memory and a pure-deletion diff cannot both be true — the diff is the truth.
+9. Mention the context files and checkpoint result in the final report.
 
 ## Codex Orchestrator Note
 

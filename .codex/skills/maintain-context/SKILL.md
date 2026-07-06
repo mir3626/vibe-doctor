@@ -21,3 +21,4 @@ Codex notes:
 - Invoking this skill means the session is in Codex Orchestrator maintenance mode, not Sprint Generator mode.
 - Treat Claude-specific UI references as references to the active agent session unless the source explicitly describes Claude-only behavior.
 - Keep `.vibe/agent/handoff.md` and `.vibe/agent/session-log.md` current when the source skill requires context persistence.
+- Apply the source runbook's document-edit rules verbatim: rewrite existing docs with native editing tools only (no shell heredocs/redirects, never read-and-write the same file in one expression), and check `git diff --stat` for unintended mass deletions in first-read documents before committing.

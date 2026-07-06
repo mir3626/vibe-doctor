@@ -136,7 +136,7 @@ Orchestrator는 Phase 0 네이티브 인터뷰 (`.vibe/harness/scripts/vibe-inte
 | Sprint 시작 전 | `node .vibe/harness/scripts/vibe-preflight.mjs` | git·deps·provider·product.md·handoff 체크 |
 | Generator 호출 시 | `./.vibe/harness/scripts/run-codex.sh` | `_common-rules.md` 자동 prepend + 명시 참조된 rule/context MD 자동 주입 + UTF-8 + 재시도 |
 | Sprint 완료 시 | `node .vibe/harness/scripts/vibe-sprint-complete.mjs` | sprint-status·handoff·session-log 자동 갱신 |
-| Context 압축 전 | `node .vibe/harness/scripts/vibe-checkpoint.mjs --auto-refresh` | handoff stale/outdated(uncommitted 변경 또는 updatedAt 이후 새 커밋) 시 기계적 git 스냅샷(브랜치·HEAD·변경파일·diffstat·최근커밋) 마커 블록 자동 갱신 + `handoff.updatedAt` bump, 이후 freshness/budget/session-log 검증. `--auto-refresh` 미지정 시 검증 전용(기존 동작 불변). 서사(narrative)는 Orchestrator가 작성. |
+| Context 압축 전 | `node .vibe/harness/scripts/vibe-checkpoint.mjs --auto-refresh` | handoff stale/outdated(uncommitted 변경 또는 updatedAt 이후 새 커밋) 시 기계적 git 스냅샷(브랜치·HEAD·변경파일·diffstat·최근커밋) 마커 블록 자동 갱신 + `handoff.updatedAt` bump, 이후 freshness/budget/session-log 검증. `--auto-refresh` 미지정 시 검증 전용(기존 동작 불변). 서사(narrative)는 Orchestrator가 작성. first-read 문서(CLAUDE.md·AGENTS.md·GEMINI.md·`_common-rules.md`·docs/context 샤드) `docs.integrity` 체크 포함 — tracked∧exists 문서가 비었거나 64B 미만이면 FAIL, 보고 전용(auto-refresh가 문서를 재작성하지 않음). |
 | 세션 시작 시 | `node .vibe/harness/scripts/vibe-version-check.mjs` | 하네스 버전 업데이트 알림 |
 | 턴 종료 시 (Stop) | `node .vibe/harness/scripts/vibe-stop-qa-gate.mjs` | git diff 기반 코드 변경 감지 → 있을 때만 `npm run vibe:qa --silent` 실행 (문서/설정만 수정한 턴은 skip) |
 | Sprint 커밋 시 | `node .vibe/harness/scripts/vibe-sprint-commit.mjs` | state 갱신 + auto-stage + 템플릿 커밋 메시지 |

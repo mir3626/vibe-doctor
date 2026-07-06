@@ -7,6 +7,7 @@ import { afterEach, describe, it } from 'node:test';
 
 const checkpointScriptPath = path.resolve('.vibe', 'harness', 'scripts', 'vibe-checkpoint.mjs');
 const tempDirs: string[] = [];
+type CheckpointRecord = { id: string; ok: boolean; detail: string };
 
 afterEach(async () => {
   while (tempDirs.length > 0) {
@@ -31,6 +32,13 @@ async function writeText(filePath: string, value: string): Promise<void> {
 function runGit(cwd: string, args: string[]): void {
   const result = spawnSync('git', args, { cwd, encoding: 'utf8' });
   assert.equal(result.status, 0, `git ${args.join(' ')} failed\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}`);
+}
+
+function getRecord(stdout: string, id: string): CheckpointRecord {
+  const records = JSON.parse(stdout) as CheckpointRecord[];
+  const record = records.find((entry) => entry.id === id);
+  assert.ok(record, `missing checkpoint record: ${id}`);
+  return record;
 }
 
 async function writeCheckpointState(root: string, updatedAt: string, handoffContent = '# Handoff\n\nHuman narrative.\n'): Promise<void> {
@@ -86,6 +94,96 @@ describe('vibe-checkpoint', () => {
     assert.equal(result.status, 1);
     assert.equal(budget?.ok, false);
     assert.match(budget?.detail ?? '', /handoff too large/);
+  });
+
+  describe('docs.integrity', () => {
+    it('passes for tracked healthy boot docs and ignores missing GEMINI.md', async () => {
+      const root = await makeTempDir('checkpoint-docs-healthy-');
+      await writeCheckpointState(root, new Date().toISOString());
+      await writeText(path.join(root, 'CLAUDE.md'), `# Claude\n\n${'healthy boot document content. '.repeat(4)}\n`);
+      await writeText(path.join(root, 'docs', 'context', 'product.md'), `# Product\n\n${'healthy context shard content. '.repeat(4)}\n`);
+      runGit(root, ['init']);
+      runGit(root, ['config', 'user.email', 'checkpoint@example.test']);
+      runGit(root, ['config', 'user.name', 'Checkpoint Test']);
+      runGit(root, ['add', '.']);
+      runGit(root, ['commit', '-m', 'initial docs']);
+
+      const result = spawnSync(process.execPath, [checkpointScriptPath, '--json'], {
+        cwd: root,
+        encoding: 'utf8',
+      });
+      const docs = getRecord(result.stdout, 'docs.integrity');
+
+      assert.equal(result.status, 0);
+      assert.equal(docs.ok, true);
+      assert.match(docs.detail, /checked=2 file\(s\)/);
+      assert.doesNotMatch(docs.detail, /GEMINI\.md/);
+    });
+
+    it('fails when a tracked CLAUDE.md is truncated after commit', async () => {
+      const root = await makeTempDir('checkpoint-docs-truncated-');
+      await writeCheckpointState(root, new Date().toISOString());
+      await writeText(path.join(root, 'CLAUDE.md'), `# Claude\n\n${'healthy boot document content. '.repeat(4)}\n`);
+      runGit(root, ['init']);
+      runGit(root, ['config', 'user.email', 'checkpoint@example.test']);
+      runGit(root, ['config', 'user.name', 'Checkpoint Test']);
+      runGit(root, ['add', '.']);
+      runGit(root, ['commit', '-m', 'initial docs']);
+      await writeText(path.join(root, 'CLAUDE.md'), '');
+
+      const result = spawnSync(process.execPath, [checkpointScriptPath, '--json'], {
+        cwd: root,
+        encoding: 'utf8',
+      });
+      const docs = getRecord(result.stdout, 'docs.integrity');
+
+      assert.equal(result.status, 1);
+      assert.equal(docs.ok, false);
+      assert.match(docs.detail, /CLAUDE\.md/);
+    });
+
+    it('passes when GEMINI.md is untracked even if present and empty', async () => {
+      const root = await makeTempDir('checkpoint-docs-untracked-');
+      await writeCheckpointState(root, new Date().toISOString());
+      await writeText(path.join(root, 'CLAUDE.md'), `# Claude\n\n${'healthy boot document content. '.repeat(4)}\n`);
+      runGit(root, ['init']);
+      runGit(root, ['config', 'user.email', 'checkpoint@example.test']);
+      runGit(root, ['config', 'user.name', 'Checkpoint Test']);
+      runGit(root, ['add', '.']);
+      runGit(root, ['commit', '-m', 'initial docs']);
+      await writeText(path.join(root, 'GEMINI.md'), '');
+
+      const result = spawnSync(process.execPath, [checkpointScriptPath, '--json'], {
+        cwd: root,
+        encoding: 'utf8',
+      });
+      const docs = getRecord(result.stdout, 'docs.integrity');
+
+      assert.equal(result.status, 0);
+      assert.equal(docs.ok, true);
+      assert.doesNotMatch(docs.detail, /GEMINI\.md/);
+    });
+
+    it('fails when a tracked docs/context/product.md contains only whitespace', async () => {
+      const root = await makeTempDir('checkpoint-docs-whitespace-');
+      await writeCheckpointState(root, new Date().toISOString());
+      await writeText(path.join(root, 'docs', 'context', 'product.md'), '  \n\t\n');
+      runGit(root, ['init']);
+      runGit(root, ['config', 'user.email', 'checkpoint@example.test']);
+      runGit(root, ['config', 'user.name', 'Checkpoint Test']);
+      runGit(root, ['add', '.']);
+      runGit(root, ['commit', '-m', 'initial docs']);
+
+      const result = spawnSync(process.execPath, [checkpointScriptPath, '--json'], {
+        cwd: root,
+        encoding: 'utf8',
+      });
+      const docs = getRecord(result.stdout, 'docs.integrity');
+
+      assert.equal(result.status, 1);
+      assert.equal(docs.ok, false);
+      assert.match(docs.detail, /docs\/context\/product\.md/);
+    });
   });
 
   describe('--auto-refresh', () => {
