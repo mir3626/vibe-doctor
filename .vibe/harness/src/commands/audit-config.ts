@@ -33,6 +33,12 @@ export function findViolations(
 }
 
 async function main(): Promise<void> {
+  const vibeHarnessHooks = process.env.VIBE_HARNESS_HOOKS?.trim().toLowerCase();
+  if (vibeHarnessHooks === 'off' || vibeHarnessHooks === '0' || vibeHarnessHooks === 'false') {
+    console.log(`[vibe] harness hooks disabled (VIBE_HARNESS_HOOKS=${vibeHarnessHooks})`);
+    return;
+  }
+
   const result = await runCommand('git', ['ls-files'], {
     cwd: paths.root,
     allowFailure: true,

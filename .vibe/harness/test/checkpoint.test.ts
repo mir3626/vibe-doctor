@@ -69,6 +69,20 @@ describe('vibe-checkpoint', () => {
     assert.doesNotMatch(result.stderr, /PreCompact blocked/);
   });
 
+  it('exits successfully before state checks when harness hooks are disabled', async () => {
+    const root = await makeTempDir('checkpoint-hooks-disabled-');
+
+    const result = spawnSync(process.execPath, [checkpointScriptPath], {
+      cwd: root,
+      encoding: 'utf8',
+      env: { ...process.env, VIBE_HARNESS_HOOKS: 'off' },
+    });
+
+    assert.equal(result.status, 0);
+    assert.match(result.stdout, /harness hooks disabled/);
+    assert.equal(result.stderr, '');
+  });
+
   it('blocks oversized active handoff files', async () => {
     const root = await makeTempDir('checkpoint-handoff-budget-');
     const now = new Date().toISOString();

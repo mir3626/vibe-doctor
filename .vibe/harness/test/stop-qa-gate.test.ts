@@ -1,11 +1,19 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, it } from 'node:test';
 
 const scriptPath = path.resolve('.vibe', 'harness', 'scripts', 'vibe-stop-qa-gate.mjs');
+const hookEntryPoints = [
+  '.vibe/harness/scripts/vibe-stop-qa-gate.mjs',
+  '.vibe/harness/scripts/vibe-agent-session-start.mjs',
+  '.vibe/harness/scripts/vibe-attention-notify.mjs',
+  '.vibe/harness/scripts/vibe-checkpoint.mjs',
+  '.vibe/harness/src/commands/audit-config.ts',
+];
 const tempDirs: string[] = [];
 
 afterEach(async () => {
@@ -34,6 +42,41 @@ async function writeText(filePath: string, value: string): Promise<void> {
 }
 
 describe('vibe-stop-qa-gate', () => {
+  it('skips QA work when harness hooks are disabled', async () => {
+    const root = await makeTempDir('stop-qa-gate-disabled-');
+    git(root, 'init');
+    await writeText(
+      path.join(root, 'package.json'),
+      `${JSON.stringify({
+        scripts: {
+          'vibe:qa': 'node qa-fail.mjs',
+        },
+      }, null, 2)}\n`,
+    );
+    await writeText(path.join(root, 'node_modules', 'tsx', 'package.json'), '{"name":"tsx"}\n');
+    await writeText(path.join(root, 'qa-fail.mjs'), "console.log('QA_SHOULD_NOT_RUN');\nprocess.exit(9);\n");
+    await writeText(path.join(root, 'src', 'changed.ts'), 'export const changed = true;\n');
+
+    const result = spawnSync(process.execPath, [scriptPath], {
+      cwd: root,
+      encoding: 'utf8',
+      env: { ...process.env, VIBE_HARNESS_HOOKS: 'off' },
+    });
+
+    assert.equal(result.status, 0);
+    assert.match(result.stdout, /harness hooks disabled/);
+    assert.doesNotMatch(result.stdout, /QA_SHOULD_NOT_RUN/);
+    assert.equal(result.stderr, '');
+    assert.equal(existsSync(path.join(root, '.vibe', 'runs')), false);
+  });
+
+  it('keeps the harness hook kill-switch wired into every hook entrypoint', async () => {
+    for (const hookEntryPoint of hookEntryPoints) {
+      const content = await readFile(path.resolve(hookEntryPoint), 'utf8');
+      assert.match(content, /VIBE_HARNESS_HOOKS/, hookEntryPoint);
+    }
+  });
+
   it('captures verbose QA output to a log and prints only a concise failure summary', async () => {
     const root = await makeTempDir('stop-qa-gate-');
     git(root, 'init');
@@ -60,6 +103,7 @@ describe('vibe-stop-qa-gate', () => {
     const result = spawnSync(process.execPath, [scriptPath], {
       cwd: root,
       encoding: 'utf8',
+      env: { ...process.env, VIBE_HARNESS_HOOKS: 'on' },
     });
 
     assert.equal(result.status, 7);

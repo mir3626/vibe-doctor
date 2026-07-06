@@ -1,5 +1,11 @@
 #!/usr/bin/env node
 
+const vibeHarnessHooks = process.env.VIBE_HARNESS_HOOKS?.trim().toLowerCase();
+if (vibeHarnessHooks === 'off' || vibeHarnessHooks === '0' || vibeHarnessHooks === 'false') {
+  console.log(`[vibe] harness hooks disabled (VIBE_HARNESS_HOOKS=${vibeHarnessHooks})`);
+  process.exit(0);
+}
+
 import path from 'node:path';
 import process from 'node:process';
 import { appendAttentionEvent } from './vibe-attention.mjs';

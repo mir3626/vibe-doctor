@@ -38,6 +38,7 @@
       "docs/context/orchestration.md",
       "docs/context/sidecars.md",
       "docs/context/harness-gaps.md",
+      "docs/context/legacy-model-overrides.md",
       "docs/context/vibe-init-sharding.md",
       "docs/context/vibe-interview-sharding.md",
       "docs/context/vibe-iterate-sharding.md",

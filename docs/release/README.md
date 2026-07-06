@@ -6,6 +6,7 @@ and in version-specific notes.
 
 ## Current
 
+- [v1.7.25](v1.7.25.md) - Hook kill-switch and legacy-model override shard
 - [v1.7.24](v1.7.24.md) - Doc-integrity checkpoint guard
 - [v1.7.23](v1.7.23.md) - PreCompact handoff auto-refresh
 - [v1.7.22](v1.7.22.md) - Goal iteration skill and scoped verification
