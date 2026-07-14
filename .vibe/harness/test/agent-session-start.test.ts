@@ -49,6 +49,28 @@ describe('vibe-agent-session-start', () => {
     assert.equal(event.payload?.cwd, root);
   });
 
+  it('auto-detects SessionStart from stdin and uses the input cwd', async () => {
+    const root = await makeTempDir('agent-session-start-stdin-');
+    const strayCwd = await makeTempDir('agent-session-start-stdin-stray-');
+    await mkdir(path.join(root, '.vibe'), { recursive: true });
+    await writeFile(path.join(root, '.vibe', 'config.json'), '{}\n', 'utf8');
+
+    const result = spawnSync(process.execPath, [scriptPath], {
+      cwd: strayCwd,
+      encoding: 'utf8',
+      input: JSON.stringify({ hook_event_name: 'SessionStart', cwd: root, source: 'startup' }),
+    });
+
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(result.stdout, '');
+
+    const dailyDir = path.join(root, '.vibe', 'agent', 'daily');
+    const [dailyFile] = await readdir(dailyDir);
+    const raw = await readFile(path.join(dailyDir, dailyFile ?? ''), 'utf8');
+    const event = JSON.parse(raw.trim()) as { payload?: { cwd?: string } };
+    assert.equal(event.payload?.cwd, root);
+  });
+
   it('keeps hook stdout empty when harness hooks are disabled', async () => {
     const root = await makeTempDir('agent-session-start-disabled-');
     const result = spawnSync(process.execPath, [scriptPath, '--hook'], {

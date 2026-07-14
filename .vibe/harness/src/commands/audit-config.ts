@@ -1,5 +1,6 @@
 import process from 'node:process';
 import path from 'node:path';
+import { readFileSync } from 'node:fs';
 import { runMain } from '../lib/cli.js';
 import { appendJsonl } from '../lib/fs.js';
 import { logger } from '../lib/logger.js';
@@ -7,7 +8,30 @@ import { paths } from '../lib/paths.js';
 import { runCommand } from '../lib/shell.js';
 import { isoDate } from '../lib/time.js';
 
-const HOOK_MODE = process.argv.includes('--hook');
+type HookInput = {
+  hook_event_name?: unknown;
+  cwd?: unknown;
+};
+
+function readHookInput(): HookInput | null {
+  if (process.stdin.isTTY) {
+    return null;
+  }
+
+  try {
+    const raw = readFileSync(0, 'utf8').trim();
+    if (!raw) {
+      return null;
+    }
+
+    const input: unknown = JSON.parse(raw);
+    return input && typeof input === 'object' ? input as HookInput : null;
+  } catch {
+    return null;
+  }
+}
+
+const EXPLICIT_HOOK_MODE = process.argv.includes('--hook');
 
 export const forbiddenPatterns = [
   '.env',
@@ -34,17 +58,19 @@ export function findViolations(
   );
 }
 
-async function main(): Promise<void> {
+async function main(hookMode: boolean, hookInput: HookInput | null): Promise<void> {
   const vibeHarnessHooks = process.env.VIBE_HARNESS_HOOKS?.trim().toLowerCase();
   if (vibeHarnessHooks === 'off' || vibeHarnessHooks === '0' || vibeHarnessHooks === 'false') {
-    if (!HOOK_MODE) {
+    if (!hookMode) {
       console.log(`[vibe] harness hooks disabled (VIBE_HARNESS_HOOKS=${vibeHarnessHooks})`);
     }
     return;
   }
 
-  const root = HOOK_MODE && process.env.CLAUDE_PROJECT_DIR?.trim()
-    ? path.resolve(process.env.CLAUDE_PROJECT_DIR)
+  const hookProjectDir = process.env.CLAUDE_PROJECT_DIR?.trim()
+    || (typeof hookInput?.cwd === 'string' ? hookInput.cwd.trim() : '');
+  const root = hookMode && hookProjectDir
+    ? path.resolve(hookProjectDir)
     : paths.root;
   const result = await runCommand('git', ['ls-files'], {
     cwd: root,
@@ -65,7 +91,7 @@ async function main(): Promise<void> {
 
   if (violations.length > 0) {
     const message = `Sensitive files appear tracked: ${violations.join(', ')}`;
-    if (HOOK_MODE) {
+    if (hookMode) {
       process.stdout.write(`${JSON.stringify({ systemMessage: message })}\n`);
     } else {
       logger.error(message);
@@ -74,16 +100,18 @@ async function main(): Promise<void> {
     return;
   }
 
-  if (!HOOK_MODE) {
+  if (!hookMode) {
     logger.info('Config audit passed');
   }
 }
 
 runMain(async () => {
+  const hookInput = readHookInput();
+  const hookMode = EXPLICIT_HOOK_MODE || hookInput?.hook_event_name === 'PostToolUse';
   try {
-    await main();
+    await main(hookMode, hookInput);
   } catch (error) {
-    if (!HOOK_MODE) {
+    if (!hookMode) {
       throw error;
     }
     const message = error instanceof Error ? error.message : String(error);

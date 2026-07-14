@@ -1,21 +1,16 @@
 #!/usr/bin/env node
 
-const HOOK_MODE = process.argv.includes('--hook');
-const vibeHarnessHooks = process.env.VIBE_HARNESS_HOOKS?.trim().toLowerCase();
-if (vibeHarnessHooks === 'off' || vibeHarnessHooks === '0' || vibeHarnessHooks === 'false') {
-  if (!HOOK_MODE) {
-    console.log(`[vibe] harness hooks disabled (VIBE_HARNESS_HOOKS=${vibeHarnessHooks})`);
-  }
-  process.exit(0);
-}
-
 import path from 'node:path';
 import process from 'node:process';
 import { appendAttentionEvent } from './vibe-attention.mjs';
 
-function rootDir() {
-  if (HOOK_MODE && process.env.CLAUDE_PROJECT_DIR?.trim()) {
-    return path.resolve(process.env.CLAUDE_PROJECT_DIR);
+const EXPLICIT_HOOK_MODE = process.argv.includes('--hook');
+
+function rootDir(hookMode, hookInput) {
+  const hookProjectDir = process.env.CLAUDE_PROJECT_DIR?.trim()
+    || (typeof hookInput?.cwd === 'string' ? hookInput.cwd.trim() : '');
+  if (hookMode && hookProjectDir) {
+    return path.resolve(hookProjectDir);
   }
   return process.env.VIBE_ROOT ? path.resolve(process.env.VIBE_ROOT) : process.cwd();
 }
@@ -72,7 +67,16 @@ function severityForNotificationType(notificationType) {
   return notificationType === 'idle_prompt' || notificationType === 'auth_success' ? 'info' : 'urgent';
 }
 
-function notificationFromRaw(raw) {
+function parseHookInput(raw) {
+  try {
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function notificationFromRaw(raw, parsedInput = parseHookInput(raw)) {
   if (raw.trim() === '') {
     return {
       detail: 'Permission prompt',
@@ -82,8 +86,8 @@ function notificationFromRaw(raw) {
       severity: 'urgent',
     };
   }
-  try {
-    const parsed = JSON.parse(raw);
+  if (parsedInput) {
+    const parsed = parsedInput;
     const notificationType =
       typeof parsed?.notification_type === 'string' ? parsed.notification_type : 'unknown';
     const message =
@@ -102,22 +106,31 @@ function notificationFromRaw(raw) {
           : titleForNotificationType(notificationType),
       severity: severityForNotificationType(notificationType),
     };
-  } catch {
-    return {
-      detail: raw.trim().slice(0, 500) || 'Permission prompt',
-      rawPayload: raw,
-      notificationType: 'unknown',
-      title: 'User attention required',
-      severity: 'urgent',
-    };
   }
+  return {
+    detail: raw.trim().slice(0, 500) || 'Permission prompt',
+    rawPayload: raw,
+    notificationType: 'unknown',
+    title: 'User attention required',
+    severity: 'urgent',
+  };
 }
 
 async function main() {
   try {
-    const root = rootDir();
     const raw = await readStdin();
-    const { detail, rawPayload, notificationType, title, severity } = notificationFromRaw(raw);
+    const hookInput = parseHookInput(raw);
+    const hookMode = EXPLICIT_HOOK_MODE || hookInput?.hook_event_name === 'Notification';
+    const vibeHarnessHooks = process.env.VIBE_HARNESS_HOOKS?.trim().toLowerCase();
+    if (vibeHarnessHooks === 'off' || vibeHarnessHooks === '0' || vibeHarnessHooks === 'false') {
+      if (!hookMode) {
+        console.log(`[vibe] harness hooks disabled (VIBE_HARNESS_HOOKS=${vibeHarnessHooks})`);
+      }
+      return;
+    }
+
+    const root = rootDir(hookMode, hookInput);
+    const { detail, rawPayload, notificationType, title, severity } = notificationFromRaw(raw, hookInput);
     await appendAttentionEvent({
       severity,
       source: 'claude-code-notification',

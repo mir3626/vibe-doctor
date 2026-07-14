@@ -1,7 +1,30 @@
 #!/usr/bin/env node
 // Gate vibe:qa so Stop hooks only run when the repo has code changes.
 
-const HOOK_MODE = process.argv.includes('--hook');
+import { execFileSync, spawnSync } from 'node:child_process';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import path from 'node:path';
+
+function readHookInput() {
+  if (process.stdin.isTTY) {
+    return null;
+  }
+
+  try {
+    const raw = readFileSync(0, 'utf8').trim();
+    if (!raw) {
+      return null;
+    }
+
+    const input = JSON.parse(raw);
+    return input && typeof input === 'object' ? input : null;
+  } catch {
+    return null;
+  }
+}
+
+const HOOK_INPUT = readHookInput();
+const HOOK_MODE = process.argv.includes('--hook') || HOOK_INPUT?.hook_event_name === 'Stop';
 const vibeHarnessHooks = process.env.VIBE_HARNESS_HOOKS?.trim().toLowerCase();
 if (vibeHarnessHooks === 'off' || vibeHarnessHooks === '0' || vibeHarnessHooks === 'false') {
   if (!HOOK_MODE) {
@@ -9,10 +32,6 @@ if (vibeHarnessHooks === 'off' || vibeHarnessHooks === '0' || vibeHarnessHooks =
   }
   process.exit(0);
 }
-
-import { execFileSync, spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
-import path from 'node:path';
 
 const EXTENSIONS = new Set([
   '.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs', '.cs', '.py', '.go', '.rs',
@@ -134,8 +153,10 @@ function runQa(repoRoot) {
 
 function main() {
   try {
-    const invocationRoot = HOOK_MODE && process.env.CLAUDE_PROJECT_DIR?.trim()
-      ? path.resolve(process.env.CLAUDE_PROJECT_DIR)
+    const hookProjectDir = process.env.CLAUDE_PROJECT_DIR?.trim()
+      || (typeof HOOK_INPUT?.cwd === 'string' ? HOOK_INPUT.cwd.trim() : '');
+    const invocationRoot = HOOK_MODE && hookProjectDir
+      ? path.resolve(hookProjectDir)
       : process.cwd();
     const repoRoot = execFileSync('git', ['rev-parse', '--show-toplevel'], {
       cwd: invocationRoot,

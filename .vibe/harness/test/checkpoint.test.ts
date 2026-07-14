@@ -72,6 +72,52 @@ describe('vibe-checkpoint', () => {
     assert.equal(result.stderr, '');
   });
 
+  it('auto-detects PreCompact from stdin for legacy hook commands and uses the input cwd', async () => {
+    const root = await makeTempDir('checkpoint-precompact-stdin-success-');
+    const strayCwd = await makeTempDir('checkpoint-precompact-stdin-stray-cwd-');
+    await writeCheckpointState(root, new Date().toISOString());
+
+    const result = spawnSync(process.execPath, [checkpointScriptPath, '--auto-refresh'], {
+      cwd: strayCwd,
+      encoding: 'utf8',
+      input: JSON.stringify({ hook_event_name: 'PreCompact', cwd: root, trigger: 'manual' }),
+    });
+
+    assert.equal(result.status, 0);
+    assert.equal(result.stdout, '');
+    assert.equal(result.stderr, '');
+  });
+
+  it('auto-detected PreCompact failures use exit 2 and stderr only', async () => {
+    const root = await makeTempDir('checkpoint-precompact-stdin-failure-');
+
+    const result = spawnSync(process.execPath, [checkpointScriptPath], {
+      cwd: root,
+      encoding: 'utf8',
+      input: JSON.stringify({ hook_event_name: 'PreCompact', cwd: root, trigger: 'auto' }),
+    });
+
+    assert.equal(result.status, 2);
+    assert.equal(result.stdout, '');
+    assert.match(result.stderr, /\[FAIL\] handoff\.exists/);
+    assert.match(result.stderr, /Checkpoint blocked/);
+  });
+
+  it('keeps manual output when stdin is not a PreCompact event', async () => {
+    const root = await makeTempDir('checkpoint-non-precompact-stdin-');
+    await writeCheckpointState(root, new Date().toISOString());
+
+    const result = spawnSync(process.execPath, [checkpointScriptPath], {
+      cwd: root,
+      encoding: 'utf8',
+      input: JSON.stringify({ hook_event_name: 'Stop', cwd: root }),
+    });
+
+    assert.equal(result.status, 0);
+    assert.match(result.stdout, /\[OK \] handoff\.exists/);
+    assert.equal(result.stderr, '');
+  });
+
   it('blocks PreCompact with exit 2 and stderr only when checkpoint validation fails', async () => {
     const root = await makeTempDir('checkpoint-precompact-failure-');
 

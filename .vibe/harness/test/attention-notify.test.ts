@@ -11,10 +11,21 @@ async function tempRoot(): Promise<string> {
   return mkdtemp(path.join(os.tmpdir(), 'vibe-attention-'));
 }
 
-function runNotify(rootDir: string, input: string): Promise<{ exit: number; stdout: string; stderr: string }> {
-  const child = spawn(process.execPath, [scriptPath, '--hook'], {
+function runNotify(
+  rootDir: string,
+  input: string,
+  options: { explicitHook?: boolean; envRoot?: boolean } = {},
+): Promise<{ exit: number; stdout: string; stderr: string }> {
+  const { explicitHook = true, envRoot = true } = options;
+  const env = { ...process.env };
+  if (envRoot) {
+    env.CLAUDE_PROJECT_DIR = rootDir;
+  } else {
+    delete env.CLAUDE_PROJECT_DIR;
+  }
+  const child = spawn(process.execPath, explicitHook ? [scriptPath, '--hook'] : [scriptPath], {
     cwd: os.tmpdir(),
-    env: { ...process.env, CLAUDE_PROJECT_DIR: rootDir },
+    env,
     stdio: ['pipe', 'pipe', 'pipe'],
   });
   let stdout = '';
@@ -49,6 +60,27 @@ test('stdin payload is parsed into an urgent attention event', async () => {
   assert.equal(event.severity, 'urgent');
   assert.equal(event.source, 'claude-code-notification');
   assert.equal(event.detail, 'Allow tool?');
+});
+
+test('Notification stdin auto-detection uses the input cwd without a hook flag', async () => {
+  const rootDir = await tempRoot();
+  const result = await runNotify(
+    rootDir,
+    JSON.stringify({
+      hook_event_name: 'Notification',
+      cwd: rootDir,
+      notification_type: 'permission_prompt',
+      message: 'Approve legacy hook?',
+    }),
+    { explicitHook: false, envRoot: false },
+  );
+
+  assert.equal(result.exit, 0);
+  assert.equal(result.stdout, '');
+  assert.equal(result.stderr, '');
+
+  const event = await readFirstAttention(rootDir);
+  assert.equal(event.detail, 'Approve legacy hook?');
 });
 
 test('empty stdin still produces a minimal event', async () => {

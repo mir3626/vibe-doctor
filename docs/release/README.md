@@ -6,6 +6,7 @@ and in version-specific notes.
 
 ## Current
 
+- [v1.7.27](v1.7.27.md) - Hook stdin contract auto-detection
 - [v1.7.26](v1.7.26.md) - Claude hook cwd and output contract hardening
 - [v1.7.25](v1.7.25.md) - Hook kill-switch and legacy-model override shard
 - [v1.7.24](v1.7.24.md) - Doc-integrity checkpoint guard

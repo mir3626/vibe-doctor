@@ -2,7 +2,32 @@
 // Provider-neutral session-start entrypoint.
 // Runs best-effort lifecycle checks without polluting provider stdout.
 
-const HOOK_MODE = process.argv.includes('--hook');
+import { spawnSync } from 'node:child_process';
+import { existsSync, readFileSync } from 'node:fs';
+import path from 'node:path';
+import process from 'node:process';
+import { fileURLToPath } from 'node:url';
+
+function readHookInput() {
+  if (process.stdin.isTTY) {
+    return null;
+  }
+
+  try {
+    const raw = readFileSync(0, 'utf8').trim();
+    if (!raw) {
+      return null;
+    }
+
+    const input = JSON.parse(raw);
+    return input && typeof input === 'object' ? input : null;
+  } catch {
+    return null;
+  }
+}
+
+const HOOK_INPUT = readHookInput();
+const HOOK_MODE = process.argv.includes('--hook') || HOOK_INPUT?.hook_event_name === 'SessionStart';
 const vibeHarnessHooks = process.env.VIBE_HARNESS_HOOKS?.trim().toLowerCase();
 if (vibeHarnessHooks === 'off' || vibeHarnessHooks === '0' || vibeHarnessHooks === 'false') {
   if (!HOOK_MODE) {
@@ -11,15 +36,11 @@ if (vibeHarnessHooks === 'off' || vibeHarnessHooks === '0' || vibeHarnessHooks =
   process.exit(0);
 }
 
-import { existsSync } from 'node:fs';
-import { spawnSync } from 'node:child_process';
-import path from 'node:path';
-import process from 'node:process';
-import { fileURLToPath } from 'node:url';
-
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
-const root = HOOK_MODE && process.env.CLAUDE_PROJECT_DIR?.trim()
-  ? path.resolve(process.env.CLAUDE_PROJECT_DIR)
+const hookProjectDir = process.env.CLAUDE_PROJECT_DIR?.trim()
+  || (typeof HOOK_INPUT?.cwd === 'string' ? HOOK_INPUT.cwd.trim() : '');
+const root = HOOK_MODE && hookProjectDir
+  ? path.resolve(hookProjectDir)
   : process.env.VIBE_ROOT
     ? path.resolve(process.env.VIBE_ROOT)
     : process.cwd();

@@ -51,11 +51,19 @@ test('config-audit hook binds to CLAUDE_PROJECT_DIR and emits only valid hook ou
   const strayCwd = await mkdtemp(path.join(tmpdir(), 'config-audit-hook-stray-'));
   const auditPath = path.resolve('.vibe/harness/src/commands/audit-config.ts');
   const tsxPath = path.resolve('node_modules/tsx/dist/cli.mjs');
-  const run = () => {
-    return spawnSync(`npm --prefix "${root}" run --silent vibe:config-audit -- --hook`, {
+  const run = (explicitHook = true) => {
+    const env = { ...process.env };
+    if (explicitHook) {
+      env.CLAUDE_PROJECT_DIR = root;
+    } else {
+      delete env.CLAUDE_PROJECT_DIR;
+    }
+    const hookArgs = explicitHook ? ' -- --hook' : '';
+    return spawnSync(`npm --prefix "${root}" run --silent vibe:config-audit${hookArgs}`, {
       cwd: strayCwd,
       encoding: 'utf8',
-      env: { ...process.env, CLAUDE_PROJECT_DIR: root },
+      env,
+      input: JSON.stringify({ hook_event_name: 'PostToolUse', cwd: root, tool_name: 'Edit' }),
       shell: true,
     });
   };
@@ -78,6 +86,11 @@ test('config-audit hook binds to CLAUDE_PROJECT_DIR and emits only valid hook ou
 
     const auditLog = path.join(root, '.vibe', 'runs', new Date().toISOString().slice(0, 10), 'audit.jsonl');
     assert.deepEqual(JSON.parse((await readFile(auditLog, 'utf8')).trim()).violations, []);
+
+    const detectedClean = run(false);
+    assert.equal(detectedClean.status, 0, detectedClean.stderr);
+    assert.equal(detectedClean.stdout, '');
+    assert.equal(detectedClean.stderr, '');
 
     await writeFile(path.join(root, '.env'), 'SECRET=fixture\n', 'utf8');
     assert.equal(spawnSync('git', ['add', '-f', '.env'], { cwd: root }).status, 0);

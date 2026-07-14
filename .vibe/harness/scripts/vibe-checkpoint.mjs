@@ -2,7 +2,31 @@
 // vibe-checkpoint performs mechanical context persistence checks.
 // Usage: node .vibe/harness/scripts/vibe-checkpoint.mjs [--json] [--auto-refresh] [--precompact-hook]
 
-const PRECOMPACT_HOOK_MODE = process.argv.includes('--precompact-hook');
+import { execSync } from 'node:child_process';
+import { existsSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+
+function readHookInput() {
+  if (process.stdin.isTTY) {
+    return null;
+  }
+
+  try {
+    const raw = readFileSync(0, 'utf8').trim();
+    if (!raw) {
+      return null;
+    }
+
+    const input = JSON.parse(raw);
+    return input && typeof input === 'object' ? input : null;
+  } catch {
+    return null;
+  }
+}
+
+const HOOK_INPUT = readHookInput();
+const PRECOMPACT_HOOK_MODE = process.argv.includes('--precompact-hook')
+  || HOOK_INPUT?.hook_event_name === 'PreCompact';
 const vibeHarnessHooks = process.env.VIBE_HARNESS_HOOKS?.trim().toLowerCase();
 if (vibeHarnessHooks === 'off' || vibeHarnessHooks === '0' || vibeHarnessHooks === 'false') {
   if (!PRECOMPACT_HOOK_MODE) {
@@ -11,13 +35,11 @@ if (vibeHarnessHooks === 'off' || vibeHarnessHooks === '0' || vibeHarnessHooks =
   process.exit(0);
 }
 
-if (PRECOMPACT_HOOK_MODE && process.env.CLAUDE_PROJECT_DIR?.trim()) {
-  process.chdir(process.env.CLAUDE_PROJECT_DIR);
+const hookProjectDir = process.env.CLAUDE_PROJECT_DIR?.trim()
+  || (typeof HOOK_INPUT?.cwd === 'string' ? HOOK_INPUT.cwd.trim() : '');
+if (PRECOMPACT_HOOK_MODE && hookProjectDir) {
+  process.chdir(hookProjectDir);
 }
-
-import { execSync } from 'node:child_process';
-import { existsSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
-import { resolve } from 'node:path';
 
 const JSON_MODE = process.argv.includes('--json');
 const AUTO_REFRESH = process.argv.includes('--auto-refresh');

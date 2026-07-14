@@ -150,6 +150,20 @@ describe('vibe-stop-qa-gate', () => {
     assert.equal(result.stderr, '');
     const output = JSON.parse(result.stdout) as { systemMessage?: string };
     assert.match(output.systemMessage ?? '', /fail: exit=7 log=\.vibe\/runs\//);
+
+    const detectedEnv = { ...process.env };
+    delete detectedEnv.CLAUDE_PROJECT_DIR;
+    const detected = spawnSync(process.execPath, [scriptPath], {
+      cwd: strayCwd,
+      encoding: 'utf8',
+      env: detectedEnv,
+      input: JSON.stringify({ hook_event_name: 'Stop', cwd: root, stop_hook_active: false }),
+    });
+
+    assert.equal(detected.status, 0);
+    assert.equal(detected.stderr, '');
+    const detectedOutput = JSON.parse(detected.stdout) as { systemMessage?: string };
+    assert.match(detectedOutput.systemMessage ?? '', /fail: exit=7 log=\.vibe\/runs\//);
   });
 
   it('prints a concise success summary and stores QA output in the same log location', async () => {
