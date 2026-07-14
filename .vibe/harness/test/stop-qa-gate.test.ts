@@ -4,6 +4,7 @@ import { existsSync } from 'node:fs';
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { setTimeout as delay } from 'node:timers/promises';
 import { afterEach, describe, it } from 'node:test';
 
 const scriptPath = path.resolve('.vibe', 'harness', 'scripts', 'vibe-stop-qa-gate.mjs');
@@ -15,6 +16,16 @@ const hookEntryPoints = [
   '.vibe/harness/src/commands/audit-config.ts',
 ];
 const tempDirs: string[] = [];
+
+type GateState = {
+  schemaVersion?: number;
+  fingerprint?: string;
+  result?: 'success' | 'failure';
+  exitCode?: number;
+  logPath?: string;
+  completedAt?: string;
+  reportedAt?: string;
+};
 
 afterEach(async () => {
   while (tempDirs.length > 0) {
@@ -41,21 +52,107 @@ async function writeText(filePath: string, value: string): Promise<void> {
   await writeFile(filePath, value, 'utf8');
 }
 
+async function prepareFixture(root: string, selfTestSource: string): Promise<void> {
+  git(root, 'init');
+  await writeText(
+    path.join(root, 'package.json'),
+    `${JSON.stringify({
+      scripts: {
+        'vibe:typecheck': 'node qa-typecheck.mjs',
+        'vibe:self-test': 'node qa-self-test.mjs',
+        'vibe:qa': 'node product-qa-should-not-run.mjs',
+      },
+    }, null, 2)}\n`,
+  );
+  await writeText(path.join(root, '.gitignore'), 'node_modules/\n.vibe/runs/\nqa-count.txt\n');
+  await writeText(path.join(root, 'node_modules', 'tsx', 'package.json'), '{"name":"tsx"}\n');
+  await writeText(path.join(root, 'qa-typecheck.mjs'), "console.log('TYPECHECK_OK');\n");
+  await writeText(path.join(root, 'qa-self-test.mjs'), selfTestSource);
+  await writeText(
+    path.join(root, 'product-qa-should-not-run.mjs'),
+    [
+      "import { writeFileSync } from 'node:fs';",
+      "writeFileSync('product-qa-ran.txt', 'true');",
+      'process.exit(9);',
+      '',
+    ].join('\n'),
+  );
+  await writeText(
+    path.join(root, '.vibe', 'sync-manifest.json'),
+    `${JSON.stringify({
+      files: {
+        harness: ['.vibe/harness/**', '.codex/agents/**'],
+        hybrid: { '.claude/settings.json': { strategy: 'json-deep-merge' } },
+      },
+    }, null, 2)}\n`,
+  );
+  await writeText(path.join(root, '.vibe', 'harness', 'src', 'baseline.ts'), 'export const baseline = true;\n');
+  git(root, 'add', '.');
+  git(
+    root,
+    '-c',
+    'user.name=Vibe Test',
+    '-c',
+    'user.email=vibe-test@example.invalid',
+    'commit',
+    '-m',
+    'fixture baseline',
+  );
+}
+
+function runHook(root: string, cwd = root): { elapsedMs: number; result: ReturnType<typeof spawnSync> } {
+  const startedAt = Date.now();
+  const result = spawnSync(process.execPath, [scriptPath, '--hook'], {
+    cwd,
+    encoding: 'utf8',
+    env: { ...process.env, CLAUDE_PROJECT_DIR: root, VIBE_HARNESS_HOOKS: 'on' },
+  });
+  return { elapsedMs: Date.now() - startedAt, result };
+}
+
+async function readState(root: string): Promise<GateState | null> {
+  try {
+    return JSON.parse(
+      await readFile(path.join(root, '.vibe', 'runs', 'stop-harness-qa-state.json'), 'utf8'),
+    ) as GateState;
+  } catch {
+    return null;
+  }
+}
+
+async function waitForState(
+  root: string,
+  predicate: (state: GateState) => boolean,
+  timeoutMs = 10_000,
+): Promise<GateState> {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const state = await readState(root);
+    if (state && predicate(state)) {
+      return state;
+    }
+    await delay(50);
+  }
+  assert.fail(`timed out waiting for Stop QA state in ${root}`);
+}
+
+async function waitForLeaseRelease(root: string, timeoutMs = 5_000): Promise<void> {
+  const target = path.join(root, '.vibe', 'runs', 'stop-harness-qa-worker.lock');
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (!existsSync(target)) {
+      return;
+    }
+    await delay(25);
+  }
+  assert.fail(`timed out waiting for Stop QA worker lease release in ${root}`);
+}
+
 describe('vibe-stop-qa-gate', () => {
   it('skips QA work when harness hooks are disabled', async () => {
     const root = await makeTempDir('stop-qa-gate-disabled-');
-    git(root, 'init');
-    await writeText(
-      path.join(root, 'package.json'),
-      `${JSON.stringify({
-        scripts: {
-          'vibe:qa': 'node qa-fail.mjs',
-        },
-      }, null, 2)}\n`,
-    );
-    await writeText(path.join(root, 'node_modules', 'tsx', 'package.json'), '{"name":"tsx"}\n');
-    await writeText(path.join(root, 'qa-fail.mjs'), "console.log('QA_SHOULD_NOT_RUN');\nprocess.exit(9);\n");
-    await writeText(path.join(root, 'src', 'changed.ts'), 'export const changed = true;\n');
+    await prepareFixture(root, 'process.exit(9);\n');
+    await writeText(path.join(root, '.vibe', 'harness', 'src', 'changed.ts'), 'export const changed = true;\n');
 
     const result = spawnSync(process.execPath, [scriptPath], {
       cwd: root,
@@ -65,7 +162,6 @@ describe('vibe-stop-qa-gate', () => {
 
     assert.equal(result.status, 0);
     assert.match(result.stdout, /harness hooks disabled/);
-    assert.doesNotMatch(result.stdout, /QA_SHOULD_NOT_RUN/);
     assert.equal(result.stderr, '');
     assert.equal(existsSync(path.join(root, '.vibe', 'runs')), false);
 
@@ -86,32 +182,42 @@ describe('vibe-stop-qa-gate', () => {
     }
   });
 
-  it('captures verbose QA output to a log and prints only a concise failure summary', async () => {
-    const root = await makeTempDir('stop-qa-gate-');
-    git(root, 'init');
-    await writeText(
-      path.join(root, 'package.json'),
-      `${JSON.stringify({
-        scripts: {
-          'vibe:qa': 'node qa-fail.mjs',
-        },
-      }, null, 2)}\n`,
-    );
-    await writeText(path.join(root, 'node_modules', 'tsx', 'package.json'), '{"name":"tsx"}\n');
-    await writeText(
-      path.join(root, 'qa-fail.mjs'),
+  it('does not schedule harness QA for product-only changes', async () => {
+    const root = await makeTempDir('stop-qa-gate-product-only-');
+    await prepareFixture(root, 'process.exit(9);\n');
+    await writeText(path.join(root, 'src', 'product.ts'), 'export const product = true;\n');
+
+    const { result } = runHook(root);
+    assert.equal(result.status, 0);
+    assert.equal(result.stdout, '');
+    assert.equal(result.stderr, '');
+    assert.equal(existsSync(path.join(root, '.vibe', 'runs')), false);
+    assert.equal(existsSync(path.join(root, 'product-qa-ran.txt')), false);
+
+    const manual = spawnSync(process.execPath, [scriptPath], {
+      cwd: root,
+      encoding: 'utf8',
+      env: { ...process.env, VIBE_HARNESS_HOOKS: 'on' },
+    });
+    assert.equal(manual.status, 0);
+    assert.match(manual.stdout, /skip: no harness-owned changes/);
+  });
+
+  it('captures verbose manual harness QA output and preserves the failing exit status', async () => {
+    const root = await makeTempDir('stop-qa-gate-manual-fail-');
+    await prepareFixture(
+      root,
       [
         "import { existsSync, readFileSync, writeFileSync } from 'node:fs';",
-        "const countPath = 'qa-count.txt';",
-        "const count = existsSync(countPath) ? Number(readFileSync(countPath, 'utf8')) : 0;",
-        "writeFileSync(countPath, String(count + 1));",
+        "const count = existsSync('qa-count.txt') ? Number(readFileSync('qa-count.txt', 'utf8')) : 0;",
+        "writeFileSync('qa-count.txt', String(count + 1));",
         "console.log('LONG_STDOUT_LINE_SHOULD_ONLY_BE_IN_LOG');",
         "console.error('LONG_STDERR_LINE_SHOULD_ONLY_BE_IN_LOG');",
         'process.exit(7);',
         '',
       ].join('\n'),
     );
-    await writeText(path.join(root, 'src', 'changed.ts'), 'export const changed = true;\n');
+    await writeText(path.join(root, '.vibe', 'harness', 'src', 'changed.ts'), 'export const changed = true;\n');
 
     const result = spawnSync(process.execPath, [scriptPath], {
       cwd: root,
@@ -120,16 +226,21 @@ describe('vibe-stop-qa-gate', () => {
     });
 
     assert.equal(result.status, 7);
-    assert.match(result.stdout, /\[vibe-qa\] run: .*src\/changed\.ts/);
-    assert.match(result.stderr, /\[vibe-qa\] fail: exit=7 log=\.vibe\/runs\/\d{4}-\d{2}-\d{2}\/stop-qa-/);
+    assert.match(result.stdout, /\[vibe-harness-qa\] run: .*\.vibe\/harness\/src\/changed\.ts/);
+    assert.match(
+      result.stderr,
+      /\[vibe-harness-qa\] fail: exit=7 log=\.vibe\/runs\/\d{4}-\d{2}-\d{2}\/stop-harness-qa-/,
+    );
     assert.doesNotMatch(result.stdout, /LONG_STDOUT_LINE_SHOULD_ONLY_BE_IN_LOG/);
     assert.doesNotMatch(result.stderr, /LONG_STDERR_LINE_SHOULD_ONLY_BE_IN_LOG/);
+    assert.equal(existsSync(path.join(root, 'product-qa-ran.txt')), false);
 
     const logMatch = result.stderr.match(/log=([^\s]+)/);
     assert.ok(logMatch?.[1]);
     const log = await readFile(path.join(root, logMatch[1]), 'utf8');
     assert.match(log, /LONG_STDOUT_LINE_SHOULD_ONLY_BE_IN_LOG/);
     assert.match(log, /LONG_STDERR_LINE_SHOULD_ONLY_BE_IN_LOG/);
+    assert.match(log, /commands: npm run vibe:typecheck; npm run vibe:self-test/);
     assert.match(log, /exit: 7/);
 
     const retry = spawnSync(process.execPath, [scriptPath], {
@@ -139,119 +250,129 @@ describe('vibe-stop-qa-gate', () => {
     });
     assert.equal(retry.status, 7);
     assert.equal(await readFile(path.join(root, 'qa-count.txt'), 'utf8'), '2');
-    assert.equal(existsSync(path.join(root, '.vibe', 'runs', 'stop-qa-cache.json')), false);
+    const state = await readState(root);
+    assert.equal(state?.schemaVersion, 2);
+    assert.equal(state?.result, 'failure');
   });
 
-  it('reports QA failure as valid JSON without blocking the Stop hook', async () => {
+  it('returns before background failure and reports it once as valid Stop JSON', async () => {
     const root = await makeTempDir('stop-qa-gate-hook-fail-');
     const strayCwd = await makeTempDir('stop-qa-gate-hook-stray-');
-    git(root, 'init');
-    await writeText(path.join(root, 'package.json'), `${JSON.stringify({
-      scripts: { 'vibe:qa': 'node qa-fail.mjs' },
-    })}\n`);
-    await writeText(path.join(root, 'node_modules', 'tsx', 'package.json'), '{"name":"tsx"}\n');
-    await writeText(path.join(root, 'qa-fail.mjs'), 'process.exit(7);\n');
-    await writeText(path.join(root, 'src', 'changed.ts'), 'export const changed = true;\n');
+    await prepareFixture(
+      root,
+      [
+        "import { setTimeout as delay } from 'node:timers/promises';",
+        "import { writeFileSync } from 'node:fs';",
+        'await delay(1_500);',
+        "writeFileSync('qa-count.txt', '1');",
+        "console.error('BACKGROUND_FAILURE_LOG_ONLY');",
+        'process.exit(7);',
+        '',
+      ].join('\n'),
+    );
+    await writeText(path.join(root, '.vibe', 'harness', 'src', 'changed.ts'), 'export const changed = true;\n');
 
-    const result = spawnSync(process.execPath, [scriptPath, '--hook'], {
-      cwd: strayCwd,
-      encoding: 'utf8',
-      env: { ...process.env, CLAUDE_PROJECT_DIR: root },
-    });
+    const first = runHook(root, strayCwd);
+    assert.equal(first.result.status, 0);
+    assert.equal(first.result.stdout, '');
+    assert.equal(first.result.stderr, '');
+    assert.equal(existsSync(path.join(root, 'qa-count.txt')), false);
 
-    assert.equal(result.status, 0);
-    assert.equal(result.stderr, '');
-    const output = JSON.parse(result.stdout) as { systemMessage?: string };
-    assert.match(output.systemMessage ?? '', /fail: exit=7 log=\.vibe\/runs\//);
+    const failed = await waitForState(root, (state) => state.result === 'failure');
+    assert.equal(failed.exitCode, 7);
+    assert.match(failed.logPath ?? '', /^\.vibe\/runs\/\d{4}-\d{2}-\d{2}\/stop-harness-qa-/);
+    assert.equal(await readFile(path.join(root, 'qa-count.txt'), 'utf8'), '1');
+    assert.equal(existsSync(path.join(root, 'product-qa-ran.txt')), false);
+    const log = await readFile(path.join(root, failed.logPath ?? ''), 'utf8');
+    assert.match(log, /BACKGROUND_FAILURE_LOG_ONLY/);
+    await waitForLeaseRelease(root);
 
-    const detectedEnv = { ...process.env };
+    const detectedEnv: NodeJS.ProcessEnv = { ...process.env, VIBE_HARNESS_HOOKS: 'on' };
     delete detectedEnv.CLAUDE_PROJECT_DIR;
-    const detected = spawnSync(process.execPath, [scriptPath], {
+    const warning = spawnSync(process.execPath, [scriptPath], {
       cwd: strayCwd,
       encoding: 'utf8',
       env: detectedEnv,
       input: JSON.stringify({ hook_event_name: 'Stop', cwd: root, stop_hook_active: false }),
     });
+    assert.equal(warning.status, 0);
+    assert.equal(warning.stderr, '');
+    const output = JSON.parse(warning.stdout) as { systemMessage?: string };
+    assert.match(output.systemMessage ?? '', /background fail: exit=7 log=\.vibe\/runs\//);
 
-    assert.equal(detected.status, 0);
-    assert.equal(detected.stderr, '');
-    const detectedOutput = JSON.parse(detected.stdout) as { systemMessage?: string };
-    assert.match(detectedOutput.systemMessage ?? '', /fail: exit=7 log=\.vibe\/runs\//);
+    const duplicate = runHook(root);
+    assert.equal(duplicate.result.status, 0);
+    assert.equal(duplicate.result.stdout, '');
+    assert.equal(duplicate.result.stderr, '');
+    assert.equal(await readFile(path.join(root, 'qa-count.txt'), 'utf8'), '1');
+    assert.equal(typeof (await readState(root))?.reportedAt, 'string');
   });
 
-  it('caches successful QA by code-state fingerprint and invalidates on content changes', async () => {
-    const root = await makeTempDir('stop-qa-gate-ok-');
-    git(root, 'init');
-    await writeText(
-      path.join(root, 'package.json'),
-      `${JSON.stringify({
-        scripts: {
-          'vibe:qa': 'node qa-ok.mjs',
-        },
-      }, null, 2)}\n`,
-    );
-    await writeText(path.join(root, 'node_modules', 'tsx', 'package.json'), '{"name":"tsx"}\n');
-    await writeText(
-      path.join(root, 'qa-ok.mjs'),
+  it('deduplicates background work, caches success, and ignores product-only invalidation', async () => {
+    const root = await makeTempDir('stop-qa-gate-hook-ok-');
+    await prepareFixture(
+      root,
       [
+        "import { setTimeout as delay } from 'node:timers/promises';",
         "import { existsSync, readFileSync, writeFileSync } from 'node:fs';",
-        "const countPath = 'qa-count.txt';",
-        "const count = existsSync(countPath) ? Number(readFileSync(countPath, 'utf8')) : 0;",
-        "writeFileSync(countPath, String(count + 1));",
-        "console.log('QA_OK_LOG_ONLY');",
+        "if (process.env.CLAUDE_PROJECT_DIR) { console.error('LEAKED_HOOK_PROJECT_ROOT'); process.exit(8); }",
+        'await delay(1_500);',
+        "const count = existsSync('qa-count.txt') ? Number(readFileSync('qa-count.txt', 'utf8')) : 0;",
+        "writeFileSync('qa-count.txt', String(count + 1));",
+        "console.log('BACKGROUND_SUCCESS_LOG_ONLY');",
         '',
       ].join('\n'),
     );
-    await writeText(path.join(root, 'src', 'changed.ts'), 'export const changed = true;\n');
+    const harnessFile = path.join(root, '.vibe', 'harness', 'src', 'changed.ts');
+    await writeText(harnessFile, 'export const changed = true;\n');
+    await writeText(
+      path.join(root, '.vibe', 'runs', 'stop-harness-qa-worker.lock'),
+      `${JSON.stringify({ fingerprint: 'stale', startedAt: '2000-01-01T00:00:00.000Z' })}\n`,
+    );
 
-    const result = spawnSync(process.execPath, [scriptPath], {
-      cwd: root,
-      encoding: 'utf8',
-    });
+    const first = runHook(root);
+    assert.equal(existsSync(path.join(root, 'qa-count.txt')), false);
+    const duplicate = runHook(root);
+    for (const invocation of [first, duplicate]) {
+      assert.equal(invocation.result.status, 0);
+      assert.equal(invocation.result.stdout, '');
+      assert.equal(invocation.result.stderr, '');
+    }
 
-    assert.equal(result.status, 0);
-    assert.match(result.stdout, /\[vibe-qa\] ok: log=\.vibe\/runs\/\d{4}-\d{2}-\d{2}\/stop-qa-/);
-    assert.doesNotMatch(result.stdout, /QA_OK_LOG_ONLY/);
+    const firstState = await waitForState(root, (state) => state.result === 'success');
+    assert.equal(firstState.schemaVersion, 2);
+    assert.match(firstState.fingerprint ?? '', /^[a-f0-9]{64}$/);
+    assert.equal(await readFile(path.join(root, 'qa-count.txt'), 'utf8'), '1');
+    assert.equal(existsSync(path.join(root, 'product-qa-ran.txt')), false);
+    await waitForLeaseRelease(root);
 
-    const logMatch = result.stdout.match(/log=([^\s]+)/);
-    assert.ok(logMatch?.[1]);
-    const log = await readFile(path.join(root, logMatch[1]), 'utf8');
-    assert.match(log, /QA_OK_LOG_ONLY/);
-    assert.match(log, /exit: 0/);
-
-    const cache = JSON.parse(
-      await readFile(path.join(root, '.vibe', 'runs', 'stop-qa-cache.json'), 'utf8'),
-    ) as { schemaVersion?: number; result?: string; fingerprint?: string; logPath?: string };
-    assert.equal(cache.schemaVersion, 1);
-    assert.equal(cache.result, 'success');
-    assert.match(cache.fingerprint ?? '', /^[a-f0-9]{64}$/);
-    assert.equal(cache.logPath, logMatch[1]);
-
-    const hookCacheHit = spawnSync(process.execPath, [scriptPath, '--hook'], {
-      cwd: root,
-      encoding: 'utf8',
-      env: { ...process.env, CLAUDE_PROJECT_DIR: root },
-    });
-    assert.equal(hookCacheHit.status, 0);
-    assert.equal(hookCacheHit.stdout, '');
-    assert.equal(hookCacheHit.stderr, '');
+    const cacheHit = runHook(root);
+    assert.equal(cacheHit.result.status, 0);
+    assert.equal(cacheHit.result.stdout, '');
+    assert.equal(cacheHit.result.stderr, '');
+    await delay(200);
     assert.equal(await readFile(path.join(root, 'qa-count.txt'), 'utf8'), '1');
 
-    const manualCacheHit = spawnSync(process.execPath, [scriptPath], {
-      cwd: root,
-      encoding: 'utf8',
-    });
-    assert.equal(manualCacheHit.status, 0);
-    assert.match(manualCacheHit.stdout, /skip: unchanged since successful QA/);
+    await writeText(path.join(root, 'src', 'product.ts'), 'export const product = true;\n');
+    const productChange = runHook(root);
+    assert.equal(productChange.result.status, 0);
+    assert.equal(productChange.result.stdout, '');
+    assert.equal(productChange.result.stderr, '');
+    await delay(200);
     assert.equal(await readFile(path.join(root, 'qa-count.txt'), 'utf8'), '1');
 
-    await writeText(path.join(root, 'src', 'changed.ts'), 'export const changed = false;\n');
-    const changedResult = spawnSync(process.execPath, [scriptPath], {
-      cwd: root,
-      encoding: 'utf8',
-    });
-    assert.equal(changedResult.status, 0);
-    assert.match(changedResult.stdout, /\[vibe-qa\] ok:/);
+    await writeText(harnessFile, 'export const changed = false;\n');
+    const harnessChange = runHook(root);
+    assert.equal(harnessChange.result.status, 0);
+    assert.equal(harnessChange.result.stdout, '');
+    assert.equal(harnessChange.result.stderr, '');
+    const secondState = await waitForState(
+      root,
+      (state) => state.result === 'success' && state.fingerprint !== firstState.fingerprint,
+    );
+    assert.notEqual(secondState.fingerprint, firstState.fingerprint);
     assert.equal(await readFile(path.join(root, 'qa-count.txt'), 'utf8'), '2');
+    assert.equal(existsSync(path.join(root, 'product-qa-ran.txt')), false);
+    await waitForLeaseRelease(root);
   });
 });

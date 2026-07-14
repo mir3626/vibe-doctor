@@ -1,7 +1,7 @@
 #!/usr/bin/env node
-// Gate vibe:qa so Stop hooks only run when the repo has code changes.
+// Run harness-owned QA out of band so Claude Stop hooks return immediately.
 
-import { execFileSync, spawnSync } from 'node:child_process';
+import { execFileSync, spawn, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import {
   existsSync,
@@ -14,9 +14,13 @@ import {
   writeFileSync,
 } from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const WORKER_FLAG = '--background-worker';
+const WORKER_MODE = process.argv.includes(WORKER_FLAG);
 
 function readHookInput() {
-  if (process.stdin.isTTY) {
+  if (WORKER_MODE || process.stdin.isTTY) {
     return null;
   }
 
@@ -25,7 +29,6 @@ function readHookInput() {
     if (!raw) {
       return null;
     }
-
     const input = JSON.parse(raw);
     return input && typeof input === 'object' ? input : null;
   } catch {
@@ -35,30 +38,13 @@ function readHookInput() {
 
 const HOOK_INPUT = readHookInput();
 const HOOK_MODE = process.argv.includes('--hook') || HOOK_INPUT?.hook_event_name === 'Stop';
-const vibeHarnessHooks = process.env.VIBE_HARNESS_HOOKS?.trim().toLowerCase();
-if (vibeHarnessHooks === 'off' || vibeHarnessHooks === '0' || vibeHarnessHooks === 'false') {
-  if (!HOOK_MODE) {
-    console.log(`[vibe] harness hooks disabled (VIBE_HARNESS_HOOKS=${vibeHarnessHooks})`);
-  }
-  process.exit(0);
-}
-
-const EXTENSIONS = new Set([
-  '.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs', '.cs', '.py', '.go', '.rs',
-  '.java', '.kt', '.swift', '.rb', '.php', '.c', '.cpp', '.h', '.hpp', '.m', '.mm',
-]);
-const FILENAMES = new Set([
-  'package.json', 'tsconfig.json', 'Cargo.toml', 'go.mod',
-  'pyproject.toml', 'requirements.txt', 'pom.xml',
-]);
-const SUFFIXES = ['.csproj', '.asmdef'];
-const DENY_PREFIXES = [
-  'node_modules/', '.git/', 'dist/', 'build/', 'coverage/',
-  '.vibe/sync-backup/', '.vibe/runs/',
-];
-const QA_CACHE_SCHEMA_VERSION = 1;
-const QA_CACHE_FILE = path.join('.vibe', 'runs', 'stop-qa-cache.json');
+const FORCE_RUN = process.argv.includes('--force');
+const STATE_SCHEMA_VERSION = 2;
+const STATE_FILE = path.join('.vibe', 'runs', 'stop-harness-qa-state.json');
+const LEASE_FILE = path.join('.vibe', 'runs', 'stop-harness-qa-worker.lock');
+const LEASE_STALE_MS = 30 * 60 * 1000;
 const LOCKFILES = [
+  'package.json',
   'package-lock.json',
   'npm-shrinkwrap.json',
   'pnpm-lock.yaml',
@@ -66,6 +52,30 @@ const LOCKFILES = [
   'bun.lock',
   'bun.lockb',
 ];
+const FALLBACK_HARNESS_PATTERNS = [
+  '.vibe/harness/**',
+  '.vibe/settings-presets/**',
+  '.claude/agents/**',
+  '.claude/skills/**',
+  '.claude/templates/**',
+  '.codex/agents/**',
+  '.codex/skills/**',
+  '.vibe/sync-manifest.json',
+  'scripts/vibe-sync-bootstrap.mjs',
+];
+const FALLBACK_HYBRID_PATHS = [
+  'CLAUDE.md',
+  'AGENTS.md',
+  'GEMINI.md',
+  '.claude/settings.json',
+  '.vibe/config.json',
+  'package.json',
+];
+
+function hooksDisabled() {
+  const value = process.env.VIBE_HARNESS_HOOKS?.trim().toLowerCase();
+  return value === 'off' || value === '0' || value === 'false';
+}
 
 function git(repoRoot, ...args) {
   return execFileSync('git', args, { cwd: repoRoot, encoding: 'buffer' });
@@ -73,20 +83,6 @@ function git(repoRoot, ...args) {
 
 function normalizeGitPath(filePath) {
   return filePath.replaceAll('\\', '/');
-}
-
-function classify(filePath) {
-  const normalized = normalizeGitPath(filePath);
-  if (DENY_PREFIXES.some((prefix) => normalized.startsWith(prefix))) {
-    return false;
-  }
-
-  const base = path.posix.basename(normalized);
-  if (FILENAMES.has(base) || SUFFIXES.some((suffix) => normalized.endsWith(suffix))) {
-    return true;
-  }
-
-  return EXTENSIONS.has(path.posix.extname(base).toLowerCase());
 }
 
 function parseStatusZ(buffer) {
@@ -98,21 +94,18 @@ function parseStatusZ(buffer) {
     if (!entry) {
       continue;
     }
-
     const status = entry.slice(0, 2);
     const candidate = entry.slice(3);
-    if (status[0] === 'R' || status[0] === 'C' || status[1] === 'R' || status[1] === 'C') {
-      const destination = tokens[index + 1];
-      if (destination) {
-        paths.push(destination);
-        index += 1;
-      } else if (candidate) {
+    if (status.includes('R') || status.includes('C')) {
+      if (candidate) {
         paths.push(candidate);
       }
-      continue;
-    }
-
-    if (candidate) {
+      const pairedPath = tokens[index + 1];
+      if (pairedPath) {
+        paths.push(pairedPath);
+        index += 1;
+      }
+    } else if (candidate) {
       paths.push(candidate);
     }
   }
@@ -120,8 +113,42 @@ function parseStatusZ(buffer) {
   return paths;
 }
 
-function parseListZ(buffer) {
-  return buffer.toString('utf8').split('\0').filter(Boolean);
+function readOwnership(repoRoot) {
+  try {
+    const manifest = JSON.parse(readFileSync(path.join(repoRoot, '.vibe', 'sync-manifest.json'), 'utf8'));
+    const patterns = manifest?.files?.harness;
+    const hybrid = manifest?.files?.hybrid;
+    if (!Array.isArray(patterns) || !hybrid || typeof hybrid !== 'object') {
+      throw new Error('invalid sync manifest ownership');
+    }
+    return { patterns, hybridPaths: Object.keys(hybrid) };
+  } catch {
+    return {
+      patterns: FALLBACK_HARNESS_PATTERNS,
+      hybridPaths: FALLBACK_HYBRID_PATHS,
+    };
+  }
+}
+
+function matchesHarnessPattern(filePath, pattern) {
+  const normalizedPattern = normalizeGitPath(pattern);
+  if (normalizedPattern.endsWith('/**')) {
+    return filePath.startsWith(normalizedPattern.slice(0, -2));
+  }
+  return filePath === normalizedPattern;
+}
+
+function listHarnessChanges(repoRoot) {
+  const changed = new Set(parseStatusZ(
+    git(repoRoot, 'status', '--porcelain=v1', '-z', '--untracked-files=all'),
+  ).map(normalizeGitPath));
+  const ownership = readOwnership(repoRoot);
+  const hybrid = new Set(ownership.hybridPaths.map(normalizeGitPath));
+
+  return [...changed]
+    .filter((filePath) => hybrid.has(filePath)
+      || ownership.patterns.some((pattern) => matchesHarnessPattern(filePath, pattern)))
+    .sort();
 }
 
 function updateHash(hash, label, value) {
@@ -134,7 +161,6 @@ function updateHash(hash, label, value) {
 function updateFileHash(hash, repoRoot, relativePath) {
   const absolutePath = path.join(repoRoot, relativePath);
   updateHash(hash, 'path', relativePath);
-
   try {
     const stat = lstatSync(absolutePath);
     updateHash(hash, 'mode', stat.mode);
@@ -154,71 +180,93 @@ function updateFileHash(hash, repoRoot, relativePath) {
   }
 }
 
-function readHead(repoRoot) {
-  try {
-    return execFileSync('git', ['rev-parse', '--verify', 'HEAD'], {
-      cwd: repoRoot,
-      encoding: 'utf8',
-      stdio: ['ignore', 'pipe', 'ignore'],
-    }).trim();
-  } catch {
-    return 'unborn';
-  }
-}
-
-function computeQaFingerprint(repoRoot, codePaths) {
+function computeFingerprint(repoRoot, harnessPaths) {
   const hash = createHash('sha256');
-  updateHash(hash, 'schema', QA_CACHE_SCHEMA_VERSION);
-  updateHash(hash, 'head', readHead(repoRoot));
+  updateHash(hash, 'schema', STATE_SCHEMA_VERSION);
   updateHash(hash, 'node', process.version);
   updateHash(hash, 'platform', `${process.platform}/${process.arch}`);
-
-  const inputs = new Set([...codePaths, ...LOCKFILES]);
+  const inputs = new Set([...harnessPaths, ...LOCKFILES]);
   for (const relativePath of [...inputs].sort()) {
     updateFileHash(hash, repoRoot, relativePath);
   }
-
   return hash.digest('hex');
 }
 
-function readQaCache(repoRoot) {
+function readJson(absolutePath) {
   try {
-    const parsed = JSON.parse(readFileSync(path.join(repoRoot, QA_CACHE_FILE), 'utf8'));
-    if (
-      parsed?.schemaVersion !== QA_CACHE_SCHEMA_VERSION
-      || parsed?.result !== 'success'
-      || typeof parsed?.fingerprint !== 'string'
-      || typeof parsed?.logPath !== 'string'
-    ) {
-      return null;
-    }
-    return parsed;
+    return JSON.parse(readFileSync(absolutePath, 'utf8'));
   } catch {
     return null;
   }
 }
 
-function writeQaCache(repoRoot, fingerprint, logPath) {
-  const cachePath = path.join(repoRoot, QA_CACHE_FILE);
-  const dir = path.dirname(cachePath);
-  const tempPath = `${cachePath}.${process.pid}.${Date.now()}.tmp`;
+function atomicWriteJson(absolutePath, value) {
+  const dir = path.dirname(absolutePath);
+  const tempPath = `${absolutePath}.${process.pid}.${Date.now()}.tmp`;
   mkdirSync(dir, { recursive: true });
-
   try {
-    writeFileSync(
-      tempPath,
-      `${JSON.stringify({
-        schemaVersion: QA_CACHE_SCHEMA_VERSION,
-        result: 'success',
-        fingerprint,
-        logPath,
-        completedAt: new Date().toISOString(),
-      }, null, 2)}\n`,
-      'utf8',
-    );
-    renameSync(tempPath, cachePath);
+    writeFileSync(tempPath, `${JSON.stringify(value, null, 2)}\n`, 'utf8');
+    renameSync(tempPath, absolutePath);
   } finally {
     rmSync(tempPath, { force: true });
+  }
+}
+
+function readState(repoRoot) {
+  const state = readJson(path.join(repoRoot, STATE_FILE));
+  if (
+    state?.schemaVersion !== STATE_SCHEMA_VERSION
+    || !['success', 'failure'].includes(state?.result)
+    || typeof state?.fingerprint !== 'string'
+    || typeof state?.logPath !== 'string'
+  ) {
+    return null;
+  }
+  return state;
+}
+
+function writeState(repoRoot, state) {
+  atomicWriteJson(path.join(repoRoot, STATE_FILE), {
+    schemaVersion: STATE_SCHEMA_VERSION,
+    ...state,
+  });
+}
+
+function leasePath(repoRoot) {
+  return path.join(repoRoot, LEASE_FILE);
+}
+
+function acquireLease(repoRoot, fingerprint) {
+  const target = leasePath(repoRoot);
+  mkdirSync(path.dirname(target), { recursive: true });
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      writeFileSync(target, `${JSON.stringify({
+        schemaVersion: STATE_SCHEMA_VERSION,
+        fingerprint,
+        startedAt: new Date().toISOString(),
+      })}\n`, { encoding: 'utf8', flag: 'wx' });
+      return true;
+    } catch (error) {
+      if (!error || typeof error !== 'object' || error.code !== 'EEXIST') {
+        throw error;
+      }
+      const lease = readJson(target);
+      const startedAt = Date.parse(lease?.startedAt ?? '');
+      if (Number.isFinite(startedAt) && Date.now() - startedAt < LEASE_STALE_MS) {
+        return false;
+      }
+      rmSync(target, { force: true });
+    }
+  }
+  return false;
+}
+
+function releaseLease(repoRoot, fingerprint) {
+  const target = leasePath(repoRoot);
+  const lease = readJson(target);
+  if (!lease || lease.fingerprint === fingerprint) {
+    rmSync(target, { force: true });
   }
 }
 
@@ -226,123 +274,222 @@ function relativeLogPath(repoRoot, absolutePath) {
   return path.relative(repoRoot, absolutePath).replaceAll('\\', '/');
 }
 
-function writeQaLog(repoRoot, result) {
+function runHarnessQa(repoRoot) {
+  const scripts = ['vibe:typecheck', 'vibe:self-test'];
+  const stdout = [];
+  const stderr = [];
+  let status = 0;
+  let error = null;
+
+  for (const script of scripts) {
+    const result = spawnSync('npm', ['run', script, '--silent'], {
+      cwd: repoRoot,
+      encoding: 'utf8',
+      maxBuffer: 20 * 1024 * 1024,
+      shell: true,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    stdout.push(`## npm run ${script}\n${result.stdout ?? ''}`);
+    stderr.push(`## npm run ${script}\n${result.stderr ?? ''}`);
+    if (result.status !== 0 || result.error) {
+      status = typeof result.status === 'number' ? result.status : 1;
+      error = result.error ?? null;
+      break;
+    }
+  }
+
+  return {
+    status,
+    stdout: stdout.join('\n'),
+    stderr: stderr.join('\n'),
+    error,
+  };
+}
+
+function writeQaLog(repoRoot, result, mode) {
   const now = new Date();
   const date = now.toISOString().slice(0, 10);
   const stamp = now.toISOString().replaceAll(':', '-').replaceAll('.', '-');
   const dir = path.join(repoRoot, '.vibe', 'runs', date);
-  const logPath = path.join(dir, `stop-qa-${stamp}.log`);
-  const stdout = result.stdout ?? '';
-  const stderr = result.stderr ?? '';
-  const status = typeof result.status === 'number' ? result.status : 1;
-
+  const logPath = path.join(dir, `stop-harness-qa-${stamp}.log`);
   mkdirSync(dir, { recursive: true });
-  writeFileSync(
-    logPath,
-    [
-      '# vibe-stop-qa-gate',
-      `timestamp: ${now.toISOString()}`,
-      'command: npm run vibe:qa --silent',
-      `exit: ${status}`,
-      '',
-      '## stdout',
-      stdout.trimEnd(),
-      '',
-      '## stderr',
-      stderr.trimEnd(),
-      '',
-      result.error ? `## error\n${result.error.message}\n` : '',
-    ].join('\n'),
-    'utf8',
-  );
-
+  writeFileSync(logPath, [
+    '# vibe-stop-qa-gate',
+    `timestamp: ${now.toISOString()}`,
+    `mode: ${mode}`,
+    'commands: npm run vibe:typecheck; npm run vibe:self-test',
+    `exit: ${result.status}`,
+    '',
+    '## stdout',
+    result.stdout.trimEnd(),
+    '',
+    '## stderr',
+    result.stderr.trimEnd(),
+    '',
+    result.error ? `## error\n${result.error.message}\n` : '',
+  ].join('\n'), 'utf8');
   return relativeLogPath(repoRoot, logPath);
 }
 
-function runQa(repoRoot) {
-  return spawnSync('npm', ['run', 'vibe:qa', '--silent'], {
-    cwd: repoRoot,
-    encoding: 'utf8',
-    maxBuffer: 20 * 1024 * 1024,
-    shell: true,
-    stdio: ['ignore', 'pipe', 'pipe'],
+function recordResult(repoRoot, fingerprint, result, mode) {
+  const logPath = writeQaLog(repoRoot, result, mode);
+  writeState(repoRoot, {
+    fingerprint,
+    result: result.status === 0 && !result.error ? 'success' : 'failure',
+    exitCode: result.status,
+    logPath,
+    completedAt: new Date().toISOString(),
   });
+  return logPath;
+}
+
+function runWorker(repoRoot, fingerprint) {
+  try {
+    if (hooksDisabled()) {
+      return;
+    }
+    const harnessPaths = listHarnessChanges(repoRoot);
+    if (harnessPaths.length === 0 || computeFingerprint(repoRoot, harnessPaths) !== fingerprint) {
+      return;
+    }
+    const result = runHarnessQa(repoRoot);
+    recordResult(repoRoot, fingerprint, result, 'background');
+  } catch (error) {
+    const message = error instanceof Error ? error.stack ?? error.message : String(error);
+    recordResult(repoRoot, fingerprint, {
+      status: 1,
+      stdout: '',
+      stderr: message,
+      error: null,
+    }, 'background');
+  } finally {
+    releaseLease(repoRoot, fingerprint);
+  }
+}
+
+function scheduleWorker(repoRoot, fingerprint) {
+  if (!acquireLease(repoRoot, fingerprint)) {
+    return false;
+  }
+  try {
+    const workerEnv = { ...process.env };
+    delete workerEnv.CLAUDE_PROJECT_DIR;
+    const child = spawn(process.execPath, [
+      fileURLToPath(import.meta.url),
+      WORKER_FLAG,
+      repoRoot,
+      fingerprint,
+    ], {
+      cwd: repoRoot,
+      detached: true,
+      stdio: 'ignore',
+      windowsHide: true,
+      env: workerEnv,
+    });
+    child.on('error', () => releaseLease(repoRoot, fingerprint));
+    child.unref();
+    return true;
+  } catch (error) {
+    releaseLease(repoRoot, fingerprint);
+    throw error;
+  }
+}
+
+function hookMessage(message) {
+  process.stdout.write(`${JSON.stringify({ systemMessage: message })}\n`);
+}
+
+function resolveRepoRoot() {
+  const hookProjectDir = process.env.CLAUDE_PROJECT_DIR?.trim()
+    || (typeof HOOK_INPUT?.cwd === 'string' ? HOOK_INPUT.cwd.trim() : '');
+  const invocationRoot = HOOK_MODE && hookProjectDir ? path.resolve(hookProjectDir) : process.cwd();
+  if (existsSync(path.join(invocationRoot, '.git'))) {
+    return invocationRoot;
+  }
+  return execFileSync('git', ['rev-parse', '--show-toplevel'], {
+    cwd: invocationRoot,
+    encoding: 'utf8',
+  }).trim();
 }
 
 function main() {
-  try {
-    const hookProjectDir = process.env.CLAUDE_PROJECT_DIR?.trim()
-      || (typeof HOOK_INPUT?.cwd === 'string' ? HOOK_INPUT.cwd.trim() : '');
-    const invocationRoot = HOOK_MODE && hookProjectDir
-      ? path.resolve(hookProjectDir)
-      : process.cwd();
-    const repoRoot = execFileSync('git', ['rev-parse', '--show-toplevel'], {
-      cwd: invocationRoot,
-      encoding: 'utf8',
-    }).trim();
-    const changed = new Set([
-      ...parseStatusZ(git(repoRoot, 'status', '--porcelain=v1', '-z')),
-      ...parseListZ(git(repoRoot, 'ls-files', '--others', '--exclude-standard', '-z')),
-    ].map(normalizeGitPath));
-
-    const codePaths = [...changed].filter(classify);
-    if (codePaths.length === 0) {
-      if (!HOOK_MODE) {
-        console.log('[vibe-qa] skip: no code changes');
-      }
-      process.exit(0);
+  if (WORKER_MODE) {
+    const index = process.argv.indexOf(WORKER_FLAG);
+    const repoRoot = process.argv[index + 1];
+    const fingerprint = process.argv[index + 2];
+    if (repoRoot && /^[a-f0-9]{64}$/.test(fingerprint ?? '')) {
+      runWorker(path.resolve(repoRoot), fingerprint);
     }
+    return;
+  }
 
-    const fingerprint = computeQaFingerprint(repoRoot, codePaths);
-    const cached = readQaCache(repoRoot);
-    if (cached?.fingerprint === fingerprint) {
-      if (!HOOK_MODE) {
-        console.log(`[vibe-qa] skip: unchanged since successful QA log=${cached.logPath}`);
-      }
-      process.exit(0);
-    }
-
-    const sample = codePaths.slice(0, 3).join(', ');
+  if (hooksDisabled()) {
     if (!HOOK_MODE) {
-      console.log(`[vibe-qa] run: ${sample}`);
+      console.log('[vibe] harness hooks disabled');
     }
-    const tsxInstalled = existsSync(path.join(repoRoot, 'node_modules', 'tsx', 'package.json'));
-    if (!tsxInstalled) {
-      const message = '[vibe-qa] skip: tsx not installed \u2014 run `npm install` first';
+    return;
+  }
+
+  try {
+    const repoRoot = resolveRepoRoot();
+    const harnessPaths = listHarnessChanges(repoRoot);
+    if (harnessPaths.length === 0) {
+      if (!HOOK_MODE) {
+        console.log('[vibe-harness-qa] skip: no harness-owned changes');
+      }
+      return;
+    }
+
+    const fingerprint = computeFingerprint(repoRoot, harnessPaths);
+    const state = readState(repoRoot);
+    if (!FORCE_RUN && state?.fingerprint === fingerprint) {
+      if (state.result === 'success') {
+        if (!HOOK_MODE) {
+          console.log(`[vibe-harness-qa] skip: unchanged successful state log=${state.logPath}`);
+        }
+        return;
+      }
       if (HOOK_MODE) {
-        process.stdout.write(`${JSON.stringify({ systemMessage: message })}\n`);
+        if (!state.reportedAt) {
+          writeState(repoRoot, { ...state, reportedAt: new Date().toISOString() });
+          hookMessage(`[vibe-harness-qa] background fail: exit=${state.exitCode} log=${state.logPath}`);
+        }
+        return;
+      }
+    }
+
+    if (!existsSync(path.join(repoRoot, 'node_modules', 'tsx', 'package.json'))) {
+      const message = '[vibe-harness-qa] skip: tsx not installed — run `npm install` first';
+      if (HOOK_MODE) {
+        hookMessage(message);
       } else {
         console.log(message);
       }
-      process.exit(0);
+      return;
     }
-    const result = runQa(repoRoot);
-    const logPath = writeQaLog(repoRoot, result);
-    if (result.status === 0 && !result.error) {
-      writeQaCache(repoRoot, fingerprint, logPath);
-      if (!HOOK_MODE) {
-        console.log(`[vibe-qa] ok: log=${logPath}`);
-      }
-      process.exit(0);
-    }
-    const status = typeof result.status === 'number' ? result.status : 1;
-    const errorSuffix = result.error ? ` error=${result.error.message}` : '';
-    const message = `[vibe-qa] fail: exit=${status} log=${logPath}${errorSuffix}`;
+
     if (HOOK_MODE) {
-      process.stdout.write(`${JSON.stringify({ systemMessage: message })}\n`);
-      process.exit(0);
+      scheduleWorker(repoRoot, fingerprint);
+      return;
     }
-    console.error(message);
-    process.exit(status);
+
+    console.log(`[vibe-harness-qa] run: ${harnessPaths.slice(0, 3).join(', ')}`);
+    const result = runHarnessQa(repoRoot);
+    const logPath = recordResult(repoRoot, fingerprint, result, 'manual');
+    if (result.status === 0 && !result.error) {
+      console.log(`[vibe-harness-qa] ok: log=${logPath}`);
+      return;
+    }
+    console.error(`[vibe-harness-qa] fail: exit=${result.status} log=${logPath}`);
+    process.exitCode = result.status;
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    const summary = `[vibe-qa] gate error: ${message}`;
+    const summary = `[vibe-harness-qa] gate error: ${message}`;
     if (HOOK_MODE) {
-      process.stdout.write(`${JSON.stringify({ systemMessage: summary })}\n`);
+      hookMessage(summary);
     } else {
       console.error(summary);
     }
-    process.exit(0);
   }
 }
 
