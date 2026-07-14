@@ -101,6 +101,10 @@ describe('vibe-stop-qa-gate', () => {
     await writeText(
       path.join(root, 'qa-fail.mjs'),
       [
+        "import { existsSync, readFileSync, writeFileSync } from 'node:fs';",
+        "const countPath = 'qa-count.txt';",
+        "const count = existsSync(countPath) ? Number(readFileSync(countPath, 'utf8')) : 0;",
+        "writeFileSync(countPath, String(count + 1));",
         "console.log('LONG_STDOUT_LINE_SHOULD_ONLY_BE_IN_LOG');",
         "console.error('LONG_STDERR_LINE_SHOULD_ONLY_BE_IN_LOG');",
         'process.exit(7);',
@@ -127,6 +131,15 @@ describe('vibe-stop-qa-gate', () => {
     assert.match(log, /LONG_STDOUT_LINE_SHOULD_ONLY_BE_IN_LOG/);
     assert.match(log, /LONG_STDERR_LINE_SHOULD_ONLY_BE_IN_LOG/);
     assert.match(log, /exit: 7/);
+
+    const retry = spawnSync(process.execPath, [scriptPath], {
+      cwd: root,
+      encoding: 'utf8',
+      env: { ...process.env, VIBE_HARNESS_HOOKS: 'on' },
+    });
+    assert.equal(retry.status, 7);
+    assert.equal(await readFile(path.join(root, 'qa-count.txt'), 'utf8'), '2');
+    assert.equal(existsSync(path.join(root, '.vibe', 'runs', 'stop-qa-cache.json')), false);
   });
 
   it('reports QA failure as valid JSON without blocking the Stop hook', async () => {
@@ -166,7 +179,7 @@ describe('vibe-stop-qa-gate', () => {
     assert.match(detectedOutput.systemMessage ?? '', /fail: exit=7 log=\.vibe\/runs\//);
   });
 
-  it('prints a concise success summary and stores QA output in the same log location', async () => {
+  it('caches successful QA by code-state fingerprint and invalidates on content changes', async () => {
     const root = await makeTempDir('stop-qa-gate-ok-');
     git(root, 'init');
     await writeText(
@@ -178,7 +191,17 @@ describe('vibe-stop-qa-gate', () => {
       }, null, 2)}\n`,
     );
     await writeText(path.join(root, 'node_modules', 'tsx', 'package.json'), '{"name":"tsx"}\n');
-    await writeText(path.join(root, 'qa-ok.mjs'), "console.log('QA_OK_LOG_ONLY');\n");
+    await writeText(
+      path.join(root, 'qa-ok.mjs'),
+      [
+        "import { existsSync, readFileSync, writeFileSync } from 'node:fs';",
+        "const countPath = 'qa-count.txt';",
+        "const count = existsSync(countPath) ? Number(readFileSync(countPath, 'utf8')) : 0;",
+        "writeFileSync(countPath, String(count + 1));",
+        "console.log('QA_OK_LOG_ONLY');",
+        '',
+      ].join('\n'),
+    );
     await writeText(path.join(root, 'src', 'changed.ts'), 'export const changed = true;\n');
 
     const result = spawnSync(process.execPath, [scriptPath], {
@@ -195,5 +218,40 @@ describe('vibe-stop-qa-gate', () => {
     const log = await readFile(path.join(root, logMatch[1]), 'utf8');
     assert.match(log, /QA_OK_LOG_ONLY/);
     assert.match(log, /exit: 0/);
+
+    const cache = JSON.parse(
+      await readFile(path.join(root, '.vibe', 'runs', 'stop-qa-cache.json'), 'utf8'),
+    ) as { schemaVersion?: number; result?: string; fingerprint?: string; logPath?: string };
+    assert.equal(cache.schemaVersion, 1);
+    assert.equal(cache.result, 'success');
+    assert.match(cache.fingerprint ?? '', /^[a-f0-9]{64}$/);
+    assert.equal(cache.logPath, logMatch[1]);
+
+    const hookCacheHit = spawnSync(process.execPath, [scriptPath, '--hook'], {
+      cwd: root,
+      encoding: 'utf8',
+      env: { ...process.env, CLAUDE_PROJECT_DIR: root },
+    });
+    assert.equal(hookCacheHit.status, 0);
+    assert.equal(hookCacheHit.stdout, '');
+    assert.equal(hookCacheHit.stderr, '');
+    assert.equal(await readFile(path.join(root, 'qa-count.txt'), 'utf8'), '1');
+
+    const manualCacheHit = spawnSync(process.execPath, [scriptPath], {
+      cwd: root,
+      encoding: 'utf8',
+    });
+    assert.equal(manualCacheHit.status, 0);
+    assert.match(manualCacheHit.stdout, /skip: unchanged since successful QA/);
+    assert.equal(await readFile(path.join(root, 'qa-count.txt'), 'utf8'), '1');
+
+    await writeText(path.join(root, 'src', 'changed.ts'), 'export const changed = false;\n');
+    const changedResult = spawnSync(process.execPath, [scriptPath], {
+      cwd: root,
+      encoding: 'utf8',
+    });
+    assert.equal(changedResult.status, 0);
+    assert.match(changedResult.stdout, /\[vibe-qa\] ok:/);
+    assert.equal(await readFile(path.join(root, 'qa-count.txt'), 'utf8'), '2');
   });
 });

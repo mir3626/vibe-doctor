@@ -2,7 +2,17 @@
 // Gate vibe:qa so Stop hooks only run when the repo has code changes.
 
 import { execFileSync, spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import {
+  existsSync,
+  lstatSync,
+  mkdirSync,
+  readFileSync,
+  readlinkSync,
+  renameSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import path from 'node:path';
 
 function readHookInput() {
@@ -45,6 +55,16 @@ const SUFFIXES = ['.csproj', '.asmdef'];
 const DENY_PREFIXES = [
   'node_modules/', '.git/', 'dist/', 'build/', 'coverage/',
   '.vibe/sync-backup/', '.vibe/runs/',
+];
+const QA_CACHE_SCHEMA_VERSION = 1;
+const QA_CACHE_FILE = path.join('.vibe', 'runs', 'stop-qa-cache.json');
+const LOCKFILES = [
+  'package-lock.json',
+  'npm-shrinkwrap.json',
+  'pnpm-lock.yaml',
+  'yarn.lock',
+  'bun.lock',
+  'bun.lockb',
 ];
 
 function git(repoRoot, ...args) {
@@ -102,6 +122,104 @@ function parseStatusZ(buffer) {
 
 function parseListZ(buffer) {
   return buffer.toString('utf8').split('\0').filter(Boolean);
+}
+
+function updateHash(hash, label, value) {
+  const buffer = Buffer.isBuffer(value) ? value : Buffer.from(String(value), 'utf8');
+  hash.update(`${label}\0${buffer.length}\0`, 'utf8');
+  hash.update(buffer);
+  hash.update('\0', 'utf8');
+}
+
+function updateFileHash(hash, repoRoot, relativePath) {
+  const absolutePath = path.join(repoRoot, relativePath);
+  updateHash(hash, 'path', relativePath);
+
+  try {
+    const stat = lstatSync(absolutePath);
+    updateHash(hash, 'mode', stat.mode);
+    if (stat.isSymbolicLink()) {
+      updateHash(hash, 'symlink', readlinkSync(absolutePath));
+    } else if (stat.isFile()) {
+      updateHash(hash, 'file', readFileSync(absolutePath));
+    } else {
+      updateHash(hash, 'kind', 'non-file');
+    }
+  } catch (error) {
+    if (error && typeof error === 'object' && error.code === 'ENOENT') {
+      updateHash(hash, 'kind', 'missing');
+      return;
+    }
+    throw error;
+  }
+}
+
+function readHead(repoRoot) {
+  try {
+    return execFileSync('git', ['rev-parse', '--verify', 'HEAD'], {
+      cwd: repoRoot,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    }).trim();
+  } catch {
+    return 'unborn';
+  }
+}
+
+function computeQaFingerprint(repoRoot, codePaths) {
+  const hash = createHash('sha256');
+  updateHash(hash, 'schema', QA_CACHE_SCHEMA_VERSION);
+  updateHash(hash, 'head', readHead(repoRoot));
+  updateHash(hash, 'node', process.version);
+  updateHash(hash, 'platform', `${process.platform}/${process.arch}`);
+
+  const inputs = new Set([...codePaths, ...LOCKFILES]);
+  for (const relativePath of [...inputs].sort()) {
+    updateFileHash(hash, repoRoot, relativePath);
+  }
+
+  return hash.digest('hex');
+}
+
+function readQaCache(repoRoot) {
+  try {
+    const parsed = JSON.parse(readFileSync(path.join(repoRoot, QA_CACHE_FILE), 'utf8'));
+    if (
+      parsed?.schemaVersion !== QA_CACHE_SCHEMA_VERSION
+      || parsed?.result !== 'success'
+      || typeof parsed?.fingerprint !== 'string'
+      || typeof parsed?.logPath !== 'string'
+    ) {
+      return null;
+    }
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function writeQaCache(repoRoot, fingerprint, logPath) {
+  const cachePath = path.join(repoRoot, QA_CACHE_FILE);
+  const dir = path.dirname(cachePath);
+  const tempPath = `${cachePath}.${process.pid}.${Date.now()}.tmp`;
+  mkdirSync(dir, { recursive: true });
+
+  try {
+    writeFileSync(
+      tempPath,
+      `${JSON.stringify({
+        schemaVersion: QA_CACHE_SCHEMA_VERSION,
+        result: 'success',
+        fingerprint,
+        logPath,
+        completedAt: new Date().toISOString(),
+      }, null, 2)}\n`,
+      'utf8',
+    );
+    renameSync(tempPath, cachePath);
+  } finally {
+    rmSync(tempPath, { force: true });
+  }
 }
 
 function relativeLogPath(repoRoot, absolutePath) {
@@ -175,6 +293,15 @@ function main() {
       process.exit(0);
     }
 
+    const fingerprint = computeQaFingerprint(repoRoot, codePaths);
+    const cached = readQaCache(repoRoot);
+    if (cached?.fingerprint === fingerprint) {
+      if (!HOOK_MODE) {
+        console.log(`[vibe-qa] skip: unchanged since successful QA log=${cached.logPath}`);
+      }
+      process.exit(0);
+    }
+
     const sample = codePaths.slice(0, 3).join(', ');
     if (!HOOK_MODE) {
       console.log(`[vibe-qa] run: ${sample}`);
@@ -192,6 +319,7 @@ function main() {
     const result = runQa(repoRoot);
     const logPath = writeQaLog(repoRoot, result);
     if (result.status === 0 && !result.error) {
+      writeQaCache(repoRoot, fingerprint, logPath);
       if (!HOOK_MODE) {
         console.log(`[vibe-qa] ok: log=${logPath}`);
       }
