@@ -1,11 +1,18 @@
 #!/usr/bin/env node
 // vibe-checkpoint performs mechanical context persistence checks.
-// Usage: node .vibe/harness/scripts/vibe-checkpoint.mjs [--json] [--auto-refresh]
+// Usage: node .vibe/harness/scripts/vibe-checkpoint.mjs [--json] [--auto-refresh] [--precompact-hook]
 
+const PRECOMPACT_HOOK_MODE = process.argv.includes('--precompact-hook');
 const vibeHarnessHooks = process.env.VIBE_HARNESS_HOOKS?.trim().toLowerCase();
 if (vibeHarnessHooks === 'off' || vibeHarnessHooks === '0' || vibeHarnessHooks === 'false') {
-  console.log(`[vibe] harness hooks disabled (VIBE_HARNESS_HOOKS=${vibeHarnessHooks})`);
+  if (!PRECOMPACT_HOOK_MODE) {
+    console.log(`[vibe] harness hooks disabled (VIBE_HARNESS_HOOKS=${vibeHarnessHooks})`);
+  }
   process.exit(0);
+}
+
+if (PRECOMPACT_HOOK_MODE && process.env.CLAUDE_PROJECT_DIR?.trim()) {
+  process.chdir(process.env.CLAUDE_PROJECT_DIR);
 }
 
 import { execSync } from 'node:child_process';
@@ -304,6 +311,18 @@ try {
   record('context.budget', false, e.message);
 }
 
+const anyFail = results.some((r) => !r.ok);
+
+if (PRECOMPACT_HOOK_MODE) {
+  if (anyFail) {
+    for (const r of results.filter((entry) => !entry.ok)) {
+      process.stderr.write(`[FAIL] ${r.id} - ${r.detail}\n`);
+    }
+    process.stderr.write('Checkpoint blocked - update .vibe/agent/handoff.md + session-log.md then retry.\n');
+  }
+  process.exit(anyFail ? 2 : 0);
+}
+
 if (JSON_MODE) {
   process.stdout.write(`${JSON.stringify(results, null, 2)}\n`);
 } else {
@@ -313,7 +332,6 @@ if (JSON_MODE) {
   }
 }
 
-const anyFail = results.some((r) => !r.ok);
 if (anyFail) {
   process.stderr.write('Checkpoint blocked - update .vibe/agent/handoff.md + session-log.md then retry.\n');
 }

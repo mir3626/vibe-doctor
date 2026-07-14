@@ -158,7 +158,7 @@ Orchestrator는 Phase 0 네이티브 인터뷰 (`.vibe/harness/scripts/vibe-inte
 | Audit skip directive | `node .vibe/harness/scripts/vibe-audit-skip-set.mjs` | Sets or clears `.vibe/config.local.json` userDirectives.auditSkippedMode and records a session-log `[decision]` |
 | Codex 호출 실패 시 | `.vibe/harness/scripts/run-codex.sh` + `.vibe/agent/codex-unavailable.flag` | 3회 retry 소진 시 flag touch + stderr CODEX_UNAVAILABLE 블록 출력. Orchestrator 는 flag 존재 시 Generator 위임 대신 사용자 승인 분기 진입. 다음 성공 호출 시 flag auto-remove. |
 
-**원칙**: 스크립트가 FAIL을 반환하면 다음 단계로 진행하지 않는다. Stop 게이트는 비차단적으로 동작한다(게이트 자체 실패 시 exit 0으로 턴 차단 방지). 하네스와 무관한 세션(예: 프로젝트 API/CLI가 같은 repo에서 spawn하는 헤드리스 에이전트)은 spawn 환경에 `VIBE_HARNESS_HOOKS=off`를 설정하면 모든 하네스 훅 진입점(Stop QA·SessionStart·Notification·PostToolUse config-audit·PreCompact checkpoint)이 즉시 exit 0으로 skip된다.
+**원칙**: 스크립트가 FAIL을 반환하면 다음 단계로 진행하지 않는다. Claude Code 훅 명령은 `${CLAUDE_PROJECT_DIR}`에 절대 결합하고 hook mode를 사용한다. hook mode의 정상·skip 결과는 stdout을 비우며, 사용자에게 알려야 하는 비차단 결과만 단일 JSON `systemMessage`로 출력한다. PreCompact 검증 실패는 stdout 없이 exit 2 + stderr로 압축을 막는다. Stop은 QA 실패도 exit 0 + JSON 알림으로 끝나 턴 종료를 차단하지 않는다. 하네스와 무관한 세션(예: 프로젝트 API/CLI가 같은 repo에서 spawn하는 헤드리스 에이전트)은 spawn 환경에 `VIBE_HARNESS_HOOKS=off`를 설정하면 모든 하네스 훅 진입점(Stop QA·SessionStart·Notification·PostToolUse config-audit·PreCompact checkpoint)이 즉시 exit 0으로 skip된다.
 <!-- END:HARNESS:hook-enforcement -->
 
 > **CRITICAL — provider별 호출 방법**:

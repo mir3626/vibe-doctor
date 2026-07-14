@@ -2,9 +2,12 @@
 // Provider-neutral session-start entrypoint.
 // Runs best-effort lifecycle checks without polluting provider stdout.
 
+const HOOK_MODE = process.argv.includes('--hook');
 const vibeHarnessHooks = process.env.VIBE_HARNESS_HOOKS?.trim().toLowerCase();
 if (vibeHarnessHooks === 'off' || vibeHarnessHooks === '0' || vibeHarnessHooks === 'false') {
-  console.log(`[vibe] harness hooks disabled (VIBE_HARNESS_HOOKS=${vibeHarnessHooks})`);
+  if (!HOOK_MODE) {
+    console.log(`[vibe] harness hooks disabled (VIBE_HARNESS_HOOKS=${vibeHarnessHooks})`);
+  }
   process.exit(0);
 }
 
@@ -15,7 +18,11 @@ import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
-const root = process.env.VIBE_ROOT ? path.resolve(process.env.VIBE_ROOT) : process.cwd();
+const root = HOOK_MODE && process.env.CLAUDE_PROJECT_DIR?.trim()
+  ? path.resolve(process.env.CLAUDE_PROJECT_DIR)
+  : process.env.VIBE_ROOT
+    ? path.resolve(process.env.VIBE_ROOT)
+    : process.cwd();
 
 const steps = [
   'vibe-session-started.mjs',

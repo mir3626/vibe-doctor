@@ -26,16 +26,18 @@ async function makeTempDir(prefix: string): Promise<string> {
 describe('vibe-agent-session-start', () => {
   it('records a session-started daily event without provider-specific hooks', async () => {
     const root = await makeTempDir('agent-session-start-');
+    const strayCwd = await makeTempDir('agent-session-start-stray-');
     await mkdir(path.join(root, '.vibe'), { recursive: true });
     await writeFile(path.join(root, '.vibe', 'config.json'), '{}\n', 'utf8');
 
-    const result = spawnSync(process.execPath, [scriptPath], {
-      cwd: root,
-      env: { ...process.env, VIBE_ROOT: root },
+    const result = spawnSync(process.execPath, [scriptPath, '--hook'], {
+      cwd: strayCwd,
+      env: { ...process.env, CLAUDE_PROJECT_DIR: root },
       encoding: 'utf8',
     });
 
     assert.equal(result.status, 0, result.stderr);
+    assert.equal(result.stdout, '');
 
     const dailyDir = path.join(root, '.vibe', 'agent', 'daily');
     const [dailyFile] = await readdir(dailyDir);
@@ -45,6 +47,19 @@ describe('vibe-agent-session-start', () => {
     const event = JSON.parse(raw.trim()) as { type?: string; payload?: { cwd?: string } };
     assert.equal(event.type, 'session-started');
     assert.equal(event.payload?.cwd, root);
+  });
+
+  it('keeps hook stdout empty when harness hooks are disabled', async () => {
+    const root = await makeTempDir('agent-session-start-disabled-');
+    const result = spawnSync(process.execPath, [scriptPath, '--hook'], {
+      cwd: root,
+      env: { ...process.env, CLAUDE_PROJECT_DIR: root, VIBE_HARNESS_HOOKS: 'off' },
+      encoding: 'utf8',
+    });
+
+    assert.equal(result.status, 0);
+    assert.equal(result.stdout, '');
+    assert.equal(result.stderr, '');
   });
 
   it('can be skipped by env flag for nested provider invocations', async () => {

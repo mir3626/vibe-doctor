@@ -1,9 +1,12 @@
 #!/usr/bin/env node
 // Gate vibe:qa so Stop hooks only run when the repo has code changes.
 
+const HOOK_MODE = process.argv.includes('--hook');
 const vibeHarnessHooks = process.env.VIBE_HARNESS_HOOKS?.trim().toLowerCase();
 if (vibeHarnessHooks === 'off' || vibeHarnessHooks === '0' || vibeHarnessHooks === 'false') {
-  console.log(`[vibe] harness hooks disabled (VIBE_HARNESS_HOOKS=${vibeHarnessHooks})`);
+  if (!HOOK_MODE) {
+    console.log(`[vibe] harness hooks disabled (VIBE_HARNESS_HOOKS=${vibeHarnessHooks})`);
+  }
   process.exit(0);
 }
 
@@ -131,7 +134,13 @@ function runQa(repoRoot) {
 
 function main() {
   try {
-    const repoRoot = execFileSync('git', ['rev-parse', '--show-toplevel'], { encoding: 'utf8' }).trim();
+    const invocationRoot = HOOK_MODE && process.env.CLAUDE_PROJECT_DIR?.trim()
+      ? path.resolve(process.env.CLAUDE_PROJECT_DIR)
+      : process.cwd();
+    const repoRoot = execFileSync('git', ['rev-parse', '--show-toplevel'], {
+      cwd: invocationRoot,
+      encoding: 'utf8',
+    }).trim();
     const changed = new Set([
       ...parseStatusZ(git(repoRoot, 'status', '--porcelain=v1', '-z')),
       ...parseListZ(git(repoRoot, 'ls-files', '--others', '--exclude-standard', '-z')),
@@ -139,30 +148,51 @@ function main() {
 
     const codePaths = [...changed].filter(classify);
     if (codePaths.length === 0) {
-      console.log('[vibe-qa] skip: no code changes');
+      if (!HOOK_MODE) {
+        console.log('[vibe-qa] skip: no code changes');
+      }
       process.exit(0);
     }
 
     const sample = codePaths.slice(0, 3).join(', ');
-    console.log(`[vibe-qa] run: ${sample}`);
+    if (!HOOK_MODE) {
+      console.log(`[vibe-qa] run: ${sample}`);
+    }
     const tsxInstalled = existsSync(path.join(repoRoot, 'node_modules', 'tsx', 'package.json'));
     if (!tsxInstalled) {
-      console.log('[vibe-qa] skip: tsx not installed \u2014 run `npm install` first');
+      const message = '[vibe-qa] skip: tsx not installed \u2014 run `npm install` first';
+      if (HOOK_MODE) {
+        process.stdout.write(`${JSON.stringify({ systemMessage: message })}\n`);
+      } else {
+        console.log(message);
+      }
       process.exit(0);
     }
     const result = runQa(repoRoot);
     const logPath = writeQaLog(repoRoot, result);
     if (result.status === 0 && !result.error) {
-      console.log(`[vibe-qa] ok: log=${logPath}`);
+      if (!HOOK_MODE) {
+        console.log(`[vibe-qa] ok: log=${logPath}`);
+      }
       process.exit(0);
     }
     const status = typeof result.status === 'number' ? result.status : 1;
     const errorSuffix = result.error ? ` error=${result.error.message}` : '';
-    console.error(`[vibe-qa] fail: exit=${status} log=${logPath}${errorSuffix}`);
+    const message = `[vibe-qa] fail: exit=${status} log=${logPath}${errorSuffix}`;
+    if (HOOK_MODE) {
+      process.stdout.write(`${JSON.stringify({ systemMessage: message })}\n`);
+      process.exit(0);
+    }
+    console.error(message);
     process.exit(status);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    console.error(`[vibe-qa] gate error: ${message}`);
+    const summary = `[vibe-qa] gate error: ${message}`;
+    if (HOOK_MODE) {
+      process.stdout.write(`${JSON.stringify({ systemMessage: summary })}\n`);
+    } else {
+      console.error(summary);
+    }
     process.exit(0);
   }
 }

@@ -123,6 +123,9 @@ describe('statusline wiring', () => {
       hooks?: {
         SessionStart?: Array<{ hooks?: Array<{ command?: string }> }>;
         Notification?: Array<{ matcher?: string; hooks?: Array<{ command?: string }> }>;
+        PostToolUse?: Array<{ hooks?: Array<{ command?: string }> }>;
+        Stop?: Array<{ hooks?: Array<{ command?: string }> }>;
+        PreCompact?: Array<{ hooks?: Array<{ command?: string }> }>;
       };
     };
 
@@ -131,7 +134,7 @@ describe('statusline wiring', () => {
     assert.doesNotMatch(settings.statusLine?.command ?? '', /\/dev\/null|\|\| true/);
     assert.equal(
       settings.hooks?.SessionStart?.[0]?.hooks?.[0]?.command,
-      'node .vibe/harness/scripts/vibe-agent-session-start.mjs',
+      'node "${CLAUDE_PROJECT_DIR}/.vibe/harness/scripts/vibe-agent-session-start.mjs" --hook',
     );
     assert.doesNotMatch(settings.hooks?.SessionStart?.[0]?.hooks?.[0]?.command ?? '', /\/dev\/null|\|\| true/);
     assert.deepEqual(
@@ -139,9 +142,12 @@ describe('statusline wiring', () => {
       ['elicitation_dialog', 'idle_prompt', 'permission_prompt'],
     );
     for (const entry of settings.hooks?.Notification ?? []) {
-      assert.equal(entry.hooks?.[0]?.command, 'node .vibe/harness/scripts/vibe-attention-notify.mjs');
+      assert.equal(entry.hooks?.[0]?.command, 'node "${CLAUDE_PROJECT_DIR}/.vibe/harness/scripts/vibe-attention-notify.mjs" --hook');
       assert.doesNotMatch(entry.hooks?.[0]?.command ?? '', /\/dev\/null|\|\| true/);
     }
+    assert.equal(settings.hooks?.PostToolUse?.[0]?.hooks?.[0]?.command, 'npm --prefix "${CLAUDE_PROJECT_DIR}" run --silent vibe:config-audit -- --hook');
+    assert.equal(settings.hooks?.Stop?.[0]?.hooks?.[0]?.command, 'node "${CLAUDE_PROJECT_DIR}/.vibe/harness/scripts/vibe-stop-qa-gate.mjs" --hook');
+    assert.equal(settings.hooks?.PreCompact?.[0]?.hooks?.[0]?.command, 'node "${CLAUDE_PROJECT_DIR}/.vibe/harness/scripts/vibe-checkpoint.mjs" --auto-refresh --precompact-hook');
   });
 });
 

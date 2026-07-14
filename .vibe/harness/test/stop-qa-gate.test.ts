@@ -68,6 +68,15 @@ describe('vibe-stop-qa-gate', () => {
     assert.doesNotMatch(result.stdout, /QA_SHOULD_NOT_RUN/);
     assert.equal(result.stderr, '');
     assert.equal(existsSync(path.join(root, '.vibe', 'runs')), false);
+
+    const hookResult = spawnSync(process.execPath, [scriptPath, '--hook'], {
+      cwd: root,
+      encoding: 'utf8',
+      env: { ...process.env, CLAUDE_PROJECT_DIR: root, VIBE_HARNESS_HOOKS: 'off' },
+    });
+    assert.equal(hookResult.status, 0);
+    assert.equal(hookResult.stdout, '');
+    assert.equal(hookResult.stderr, '');
   });
 
   it('keeps the harness hook kill-switch wired into every hook entrypoint', async () => {
@@ -118,6 +127,29 @@ describe('vibe-stop-qa-gate', () => {
     assert.match(log, /LONG_STDOUT_LINE_SHOULD_ONLY_BE_IN_LOG/);
     assert.match(log, /LONG_STDERR_LINE_SHOULD_ONLY_BE_IN_LOG/);
     assert.match(log, /exit: 7/);
+  });
+
+  it('reports QA failure as valid JSON without blocking the Stop hook', async () => {
+    const root = await makeTempDir('stop-qa-gate-hook-fail-');
+    const strayCwd = await makeTempDir('stop-qa-gate-hook-stray-');
+    git(root, 'init');
+    await writeText(path.join(root, 'package.json'), `${JSON.stringify({
+      scripts: { 'vibe:qa': 'node qa-fail.mjs' },
+    })}\n`);
+    await writeText(path.join(root, 'node_modules', 'tsx', 'package.json'), '{"name":"tsx"}\n');
+    await writeText(path.join(root, 'qa-fail.mjs'), 'process.exit(7);\n');
+    await writeText(path.join(root, 'src', 'changed.ts'), 'export const changed = true;\n');
+
+    const result = spawnSync(process.execPath, [scriptPath, '--hook'], {
+      cwd: strayCwd,
+      encoding: 'utf8',
+      env: { ...process.env, CLAUDE_PROJECT_DIR: root },
+    });
+
+    assert.equal(result.status, 0);
+    assert.equal(result.stderr, '');
+    const output = JSON.parse(result.stdout) as { systemMessage?: string };
+    assert.match(output.systemMessage ?? '', /fail: exit=7 log=\.vibe\/runs\//);
   });
 
   it('prints a concise success summary and stores QA output in the same log location', async () => {

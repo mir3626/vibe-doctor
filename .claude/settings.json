@@ -93,7 +93,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node .vibe/harness/scripts/vibe-agent-session-start.mjs"
+            "command": "node \"${CLAUDE_PROJECT_DIR}/.vibe/harness/scripts/vibe-agent-session-start.mjs\" --hook"
           }
         ]
       }
@@ -104,7 +104,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node .vibe/harness/scripts/vibe-attention-notify.mjs"
+            "command": "node \"${CLAUDE_PROJECT_DIR}/.vibe/harness/scripts/vibe-attention-notify.mjs\" --hook"
           }
         ]
       },
@@ -113,7 +113,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node .vibe/harness/scripts/vibe-attention-notify.mjs"
+            "command": "node \"${CLAUDE_PROJECT_DIR}/.vibe/harness/scripts/vibe-attention-notify.mjs\" --hook"
           }
         ]
       },
@@ -122,7 +122,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node .vibe/harness/scripts/vibe-attention-notify.mjs"
+            "command": "node \"${CLAUDE_PROJECT_DIR}/.vibe/harness/scripts/vibe-attention-notify.mjs\" --hook"
           }
         ]
       }
@@ -133,7 +133,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "npm run vibe:config-audit --silent"
+            "command": "npm --prefix \"${CLAUDE_PROJECT_DIR}\" run --silent vibe:config-audit -- --hook"
           }
         ]
       }
@@ -143,7 +143,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node .vibe/harness/scripts/vibe-stop-qa-gate.mjs"
+            "command": "node \"${CLAUDE_PROJECT_DIR}/.vibe/harness/scripts/vibe-stop-qa-gate.mjs\" --hook"
           }
         ]
       }
@@ -153,7 +153,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node .vibe/harness/scripts/vibe-checkpoint.mjs --auto-refresh"
+            "command": "node \"${CLAUDE_PROJECT_DIR}/.vibe/harness/scripts/vibe-checkpoint.mjs\" --auto-refresh --precompact-hook"
           }
         ]
       }

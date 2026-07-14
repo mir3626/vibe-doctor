@@ -56,6 +56,36 @@ async function writeCheckpointState(root: string, updatedAt: string, handoffCont
 }
 
 describe('vibe-checkpoint', () => {
+  it('uses the Claude Code PreCompact output contract in hook mode', async () => {
+    const root = await makeTempDir('checkpoint-precompact-success-');
+    const strayCwd = await makeTempDir('checkpoint-precompact-stray-cwd-');
+    await writeCheckpointState(root, new Date().toISOString());
+
+    const result = spawnSync(process.execPath, [checkpointScriptPath, '--auto-refresh', '--precompact-hook'], {
+      cwd: strayCwd,
+      encoding: 'utf8',
+      env: { ...process.env, CLAUDE_PROJECT_DIR: root },
+    });
+
+    assert.equal(result.status, 0);
+    assert.equal(result.stdout, '');
+    assert.equal(result.stderr, '');
+  });
+
+  it('blocks PreCompact with exit 2 and stderr only when checkpoint validation fails', async () => {
+    const root = await makeTempDir('checkpoint-precompact-failure-');
+
+    const result = spawnSync(process.execPath, [checkpointScriptPath, '--precompact-hook'], {
+      cwd: root,
+      encoding: 'utf8',
+    });
+
+    assert.equal(result.status, 2);
+    assert.equal(result.stdout, '');
+    assert.match(result.stderr, /\[FAIL\] handoff\.exists/);
+    assert.match(result.stderr, /Checkpoint blocked/);
+  });
+
   it('uses provider-neutral checkpoint wording on failure', async () => {
     const root = await makeTempDir('checkpoint-missing-state-');
 
@@ -81,6 +111,16 @@ describe('vibe-checkpoint', () => {
     assert.equal(result.status, 0);
     assert.match(result.stdout, /harness hooks disabled/);
     assert.equal(result.stderr, '');
+
+    const hookResult = spawnSync(process.execPath, [checkpointScriptPath, '--precompact-hook'], {
+      cwd: root,
+      encoding: 'utf8',
+      env: { ...process.env, VIBE_HARNESS_HOOKS: 'off' },
+    });
+
+    assert.equal(hookResult.status, 0);
+    assert.equal(hookResult.stdout, '');
+    assert.equal(hookResult.stderr, '');
   });
 
   it('blocks oversized active handoff files', async () => {

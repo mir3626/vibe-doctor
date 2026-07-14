@@ -7,6 +7,8 @@ import { paths } from '../lib/paths.js';
 import { runCommand } from '../lib/shell.js';
 import { isoDate } from '../lib/time.js';
 
+const HOOK_MODE = process.argv.includes('--hook');
+
 export const forbiddenPatterns = [
   '.env',
   '.env.local',
@@ -35,31 +37,56 @@ export function findViolations(
 async function main(): Promise<void> {
   const vibeHarnessHooks = process.env.VIBE_HARNESS_HOOKS?.trim().toLowerCase();
   if (vibeHarnessHooks === 'off' || vibeHarnessHooks === '0' || vibeHarnessHooks === 'false') {
-    console.log(`[vibe] harness hooks disabled (VIBE_HARNESS_HOOKS=${vibeHarnessHooks})`);
+    if (!HOOK_MODE) {
+      console.log(`[vibe] harness hooks disabled (VIBE_HARNESS_HOOKS=${vibeHarnessHooks})`);
+    }
     return;
   }
 
+  const root = HOOK_MODE && process.env.CLAUDE_PROJECT_DIR?.trim()
+    ? path.resolve(process.env.CLAUDE_PROJECT_DIR)
+    : paths.root;
   const result = await runCommand('git', ['ls-files'], {
-    cwd: paths.root,
+    cwd: root,
     allowFailure: true,
   });
+  if (result.exitCode !== 0) {
+    throw new Error(`git ls-files failed: ${result.stderr.trim() || `exit ${result.exitCode}`}`);
+  }
 
   const tracked = result.stdout.split(/\r?\n/).filter(Boolean);
   const violations = findViolations(tracked);
 
-  await appendJsonl(path.join(paths.vibeRunsDir, isoDate(), 'audit.jsonl'), {
+  await appendJsonl(path.join(root, '.vibe', 'runs', isoDate(), 'audit.jsonl'), {
     type: 'config-audit',
     timestamp: new Date().toISOString(),
     violations,
   });
 
   if (violations.length > 0) {
-    logger.error(`Sensitive files appear tracked: ${violations.join(', ')}`);
-    process.exitCode = 1;
+    const message = `Sensitive files appear tracked: ${violations.join(', ')}`;
+    if (HOOK_MODE) {
+      process.stdout.write(`${JSON.stringify({ systemMessage: message })}\n`);
+    } else {
+      logger.error(message);
+      process.exitCode = 1;
+    }
     return;
   }
 
-  logger.info('Config audit passed');
+  if (!HOOK_MODE) {
+    logger.info('Config audit passed');
+  }
 }
 
-runMain(main, import.meta.url);
+runMain(async () => {
+  try {
+    await main();
+  } catch (error) {
+    if (!HOOK_MODE) {
+      throw error;
+    }
+    const message = error instanceof Error ? error.message : String(error);
+    process.stdout.write(`${JSON.stringify({ systemMessage: `Config audit error: ${message}` })}\n`);
+  }
+}, import.meta.url);

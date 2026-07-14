@@ -1,5 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 import {
   findViolations,
   forbiddenPatterns,
@@ -40,6 +44,51 @@ test('findViolations returns empty array for a clean tree', () => {
 
 test('findViolations handles empty input', () => {
   assert.deepEqual(findViolations([], forbiddenPatterns), []);
+});
+
+test('config-audit hook binds to CLAUDE_PROJECT_DIR and emits only valid hook output', async () => {
+  const root = await mkdtemp(path.join(tmpdir(), 'config-audit-hook-root-'));
+  const strayCwd = await mkdtemp(path.join(tmpdir(), 'config-audit-hook-stray-'));
+  const auditPath = path.resolve('.vibe/harness/src/commands/audit-config.ts');
+  const tsxPath = path.resolve('node_modules/tsx/dist/cli.mjs');
+  const run = () => {
+    return spawnSync(`npm --prefix "${root}" run --silent vibe:config-audit -- --hook`, {
+      cwd: strayCwd,
+      encoding: 'utf8',
+      env: { ...process.env, CLAUDE_PROJECT_DIR: root },
+      shell: true,
+    });
+  };
+
+  try {
+    assert.equal(spawnSync('git', ['init'], { cwd: root }).status, 0);
+    await writeFile(path.join(root, 'package.json'), `${JSON.stringify({
+      scripts: {
+        'vibe:config-audit': `node "${tsxPath}" "${auditPath}"`,
+      },
+    })}\n`, 'utf8');
+    const clean = run();
+    assert.equal(clean.status, 0, JSON.stringify({
+      error: clean.error?.message,
+      stdout: clean.stdout,
+      stderr: clean.stderr,
+    }));
+    assert.equal(clean.stdout, '');
+    assert.equal(clean.stderr, '');
+
+    const auditLog = path.join(root, '.vibe', 'runs', new Date().toISOString().slice(0, 10), 'audit.jsonl');
+    assert.deepEqual(JSON.parse((await readFile(auditLog, 'utf8')).trim()).violations, []);
+
+    await writeFile(path.join(root, '.env'), 'SECRET=fixture\n', 'utf8');
+    assert.equal(spawnSync('git', ['add', '-f', '.env'], { cwd: root }).status, 0);
+    const violation = run();
+    assert.equal(violation.status, 0, violation.stderr);
+    assert.equal(violation.stderr, '');
+    assert.match((JSON.parse(violation.stdout) as { systemMessage?: string }).systemMessage ?? '', /\.env/);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+    await rm(strayCwd, { recursive: true, force: true });
+  }
 });
 
 // ---------- qa.selectQaScripts ----------

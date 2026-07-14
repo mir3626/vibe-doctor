@@ -5,24 +5,30 @@ import { mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
+const scriptPath = path.resolve('.vibe/harness/scripts/vibe-attention-notify.mjs');
+
 async function tempRoot(): Promise<string> {
   return mkdtemp(path.join(os.tmpdir(), 'vibe-attention-'));
 }
 
-function runNotify(rootDir: string, input: string): Promise<{ exit: number; stderr: string }> {
-  const child = spawn(process.execPath, ['.vibe/harness/scripts/vibe-attention-notify.mjs'], {
-    cwd: process.cwd(),
-    env: { ...process.env, VIBE_ROOT: rootDir },
-    stdio: ['pipe', 'ignore', 'pipe'],
+function runNotify(rootDir: string, input: string): Promise<{ exit: number; stdout: string; stderr: string }> {
+  const child = spawn(process.execPath, [scriptPath, '--hook'], {
+    cwd: os.tmpdir(),
+    env: { ...process.env, CLAUDE_PROJECT_DIR: rootDir },
+    stdio: ['pipe', 'pipe', 'pipe'],
   });
+  let stdout = '';
   let stderr = '';
+  child.stdout.on('data', (chunk) => {
+    stdout += String(chunk);
+  });
   child.stderr.on('data', (chunk) => {
     stderr += String(chunk);
   });
   child.stdin.end(input);
   return new Promise((resolve, reject) => {
     child.on('error', reject);
-    child.on('exit', (code) => resolve({ exit: code ?? 1, stderr }));
+    child.on('exit', (code) => resolve({ exit: code ?? 1, stdout, stderr }));
   });
 }
 
@@ -35,6 +41,7 @@ test('stdin payload is parsed into an urgent attention event', async () => {
   const rootDir = await tempRoot();
   const result = await runNotify(rootDir, JSON.stringify({ session_id: 's1', message: 'Allow tool?' }));
   assert.equal(result.exit, 0);
+  assert.equal(result.stdout, '');
 
   const event = await readFirstAttention(rootDir);
   assert.equal(typeof event.id, 'string');

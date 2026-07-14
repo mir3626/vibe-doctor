@@ -1,8 +1,11 @@
 #!/usr/bin/env node
 
+const HOOK_MODE = process.argv.includes('--hook');
 const vibeHarnessHooks = process.env.VIBE_HARNESS_HOOKS?.trim().toLowerCase();
 if (vibeHarnessHooks === 'off' || vibeHarnessHooks === '0' || vibeHarnessHooks === 'false') {
-  console.log(`[vibe] harness hooks disabled (VIBE_HARNESS_HOOKS=${vibeHarnessHooks})`);
+  if (!HOOK_MODE) {
+    console.log(`[vibe] harness hooks disabled (VIBE_HARNESS_HOOKS=${vibeHarnessHooks})`);
+  }
   process.exit(0);
 }
 
@@ -11,6 +14,9 @@ import process from 'node:process';
 import { appendAttentionEvent } from './vibe-attention.mjs';
 
 function rootDir() {
+  if (HOOK_MODE && process.env.CLAUDE_PROJECT_DIR?.trim()) {
+    return path.resolve(process.env.CLAUDE_PROJECT_DIR);
+  }
   return process.env.VIBE_ROOT ? path.resolve(process.env.VIBE_ROOT) : process.cwd();
 }
 
