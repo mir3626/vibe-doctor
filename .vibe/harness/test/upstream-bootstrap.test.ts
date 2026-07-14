@@ -95,7 +95,7 @@ describe('upstream bootstrap', { skip: !gitAvailable }, () => {
 
     const result = spawnSync(process.execPath, [sessionStartPath], {
       cwd: root,
-      env: { ...process.env, VIBE_ROOT: root },
+      env: { ...process.env, VIBE_ROOT: root, VIBE_SKIP_AGENT_SESSION_START: '0' },
       encoding: 'utf8',
     });
 

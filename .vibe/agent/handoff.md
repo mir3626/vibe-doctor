@@ -8,15 +8,17 @@ This file is project-owned runtime state. Downstream projects must run `/vibe-in
 
 - repo: `vibe-doctor`
 - status: template placeholder
-- harnessVersion: `1.7.29`
+- harnessVersion: `1.7.30`
 
 ## 2. Status
 
 The checked-in upstream template intentionally does not ship active project handoff state.
 
-Maintenance checkpoint: release metadata is set for `v1.7.29`. The harness keeps `docs/plans/sprint-roadmap.md` as an active, current-iteration roadmap and archives completed or inactive iteration sections under `docs/plans/archive/roadmaps/`. Checkpoint enforces a compact `.vibe/agent/handoff.md` budget so downstream handoffs stay current-focused instead of accumulating sprint history.
+Maintenance checkpoint: release metadata is set for `v1.7.30`. The harness keeps `docs/plans/sprint-roadmap.md` as an active, current-iteration roadmap and archives completed or inactive iteration sections under `docs/plans/archive/roadmaps/`. Checkpoint enforces a compact `.vibe/agent/handoff.md` budget so downstream handoffs stay current-focused instead of accumulating sprint history.
 
-Latest maintenance work (v1.7.29): Stop foreground now detects only sync-manifest harness/hybrid changes, atomically schedules one detached hidden worker, and returns hook-silently without waiting for QA. The worker runs only `vibe:typecheck` plus `vibe:self-test`; project-only changes and downstream product QA are out of scope. It clears the parent hook's `CLAUDE_PROJECT_DIR` before nested tests so fixture cwd resolution stays isolated. A schema-v2 SHA-256 result receipt and stale-safe exclusive lease deduplicate identical/concurrent work, while a background failure is retained and reported once as nonblocking JSON on the next Stop.
+Latest maintenance work (v1.7.30): SessionStart now atomically suppresses duplicate deliveries of the same `session_id + source` for 60 seconds while preserving lifecycle source transitions, and daily events include session/source/invocation provenance. Stop harness QA runs nested npm without `shell: true`, keeps Windows child processes hidden, clears `CLAUDE_PROJECT_DIR`, and forces `VIBE_SKIP_AGENT_SESSION_START=1`; only dedicated lifecycle tests opt back in. This prevents the detached self-test from opening repeated foreground consoles or appending real-project SessionStart events. Verification passed 22 focused tests, two full 473-test runs (472 pass, 1 skip), typecheck, build, sync audit, checkpoint, and a live detached Stop smoke (144 ms hook return, zero stdout/stderr, zero real-project daily-log growth).
+
+Previous maintenance work (v1.7.29): Stop foreground now detects only sync-manifest harness/hybrid changes, atomically schedules one detached hidden worker, and returns hook-silently without waiting for QA. The worker runs only `vibe:typecheck` plus `vibe:self-test`; project-only changes and downstream product QA are out of scope. It clears the parent hook's `CLAUDE_PROJECT_DIR` before nested tests so fixture cwd resolution stays isolated. A schema-v2 SHA-256 result receipt and stale-safe exclusive lease deduplicate identical/concurrent work, while a background failure is retained and reported once as nonblocking JSON on the next Stop.
 
 Previous maintenance work (v1.7.28): Stop QA writes an atomic success-only SHA-256 receipt under ignored `.vibe/runs/`, bound to HEAD, changed code contents, Node platform/version, and supported dependency lockfiles. Repeated Stop events on the same successful state return immediately with empty hook stdout; any relevant state change invalidates the receipt, while failures stay uncached and retryable. v1.7.29 supersedes its synchronous first-state execution path.
 
@@ -32,4 +34,4 @@ Previous maintenance work (v1.7.23): `vibe-checkpoint.mjs` opt-in `--auto-refres
 
 ## 3. Next Action
 
-Run `/vibe-init` in a new downstream project. Existing downstream projects can sync to `v1.7.29`; agent-mode one-liner initialization should not begin MVP work until `npm run vibe:init-ready` passes. Initialized projects should keep product verification in root `test`/`typecheck`/`lint`/`build` scripts and use explicit `vibe:*` commands for harness verification. Stop no longer substitutes for explicit product verification.
+Run `/vibe-init` in a new downstream project. Existing downstream projects can sync to `v1.7.30`; agent-mode one-liner initialization should not begin MVP work until `npm run vibe:init-ready` passes. Initialized projects should keep product verification in root `test`/`typecheck`/`lint`/`build` scripts and use explicit `vibe:*` commands for harness verification. Stop no longer substitutes for explicit product verification.

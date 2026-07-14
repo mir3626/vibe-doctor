@@ -182,6 +182,42 @@ describe('vibe-stop-qa-gate', () => {
     }
   });
 
+  it('runs nested harness QA hidden, without a shell, and with lifecycle isolation', async () => {
+    const source = await readFile(scriptPath, 'utf8');
+    assert.match(source, /VIBE_SKIP_AGENT_SESSION_START:\s*'1'/);
+    assert.match(source, /shell:\s*false/);
+    assert.match(source, /windowsHide:\s*true/);
+    assert.doesNotMatch(source, /shell:\s*true/);
+
+    const root = await makeTempDir('stop-qa-gate-isolated-');
+    await prepareFixture(
+      root,
+      [
+        "if (process.env.VIBE_SKIP_AGENT_SESSION_START !== '1') process.exit(10);",
+        'if (process.env.CLAUDE_PROJECT_DIR) process.exit(11);',
+        "console.log('ISOLATED_HARNESS_QA');",
+        '',
+      ].join('\n'),
+    );
+    await writeText(path.join(root, '.vibe', 'harness', 'src', 'changed.ts'), 'export const changed = true;\n');
+
+    const result = spawnSync(process.execPath, [scriptPath], {
+      cwd: root,
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        CLAUDE_PROJECT_DIR: 'C:\\should-not-leak',
+        VIBE_HARNESS_HOOKS: 'on',
+      },
+    });
+
+    assert.equal(result.status, 0, result.stderr);
+    const logMatch = result.stdout.match(/log=([^\s]+)/);
+    assert.ok(logMatch?.[1]);
+    const log = await readFile(path.join(root, logMatch[1]), 'utf8');
+    assert.match(log, /ISOLATED_HARNESS_QA/);
+  });
+
   it('does not schedule harness QA for product-only changes', async () => {
     const root = await makeTempDir('stop-qa-gate-product-only-');
     await prepareFixture(root, 'process.exit(9);\n');
@@ -316,6 +352,7 @@ describe('vibe-stop-qa-gate', () => {
         "import { setTimeout as delay } from 'node:timers/promises';",
         "import { existsSync, readFileSync, writeFileSync } from 'node:fs';",
         "if (process.env.CLAUDE_PROJECT_DIR) { console.error('LEAKED_HOOK_PROJECT_ROOT'); process.exit(8); }",
+        "if (process.env.VIBE_SKIP_AGENT_SESSION_START !== '1') { console.error('SESSION_START_NOT_ISOLATED'); process.exit(9); }",
         'await delay(1_500);',
         "const count = existsSync('qa-count.txt') ? Number(readFileSync('qa-count.txt', 'utf8')) : 0;",
         "writeFileSync('qa-count.txt', String(count + 1));",

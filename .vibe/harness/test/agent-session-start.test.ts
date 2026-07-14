@@ -23,6 +23,14 @@ async function makeTempDir(prefix: string): Promise<string> {
   return dir;
 }
 
+function sessionStartEnv(extra: NodeJS.ProcessEnv = {}): NodeJS.ProcessEnv {
+  return {
+    ...process.env,
+    VIBE_SKIP_AGENT_SESSION_START: '0',
+    ...extra,
+  };
+}
+
 describe('vibe-agent-session-start', () => {
   it('records a session-started daily event without provider-specific hooks', async () => {
     const root = await makeTempDir('agent-session-start-');
@@ -32,7 +40,7 @@ describe('vibe-agent-session-start', () => {
 
     const result = spawnSync(process.execPath, [scriptPath, '--hook'], {
       cwd: strayCwd,
-      env: { ...process.env, CLAUDE_PROJECT_DIR: root },
+      env: sessionStartEnv({ CLAUDE_PROJECT_DIR: root }),
       encoding: 'utf8',
     });
 
@@ -44,9 +52,13 @@ describe('vibe-agent-session-start', () => {
     assert.match(dailyFile ?? '', /^\d{4}-\d{2}-\d{2}\.jsonl$/);
 
     const raw = await readFile(path.join(dailyDir, dailyFile ?? ''), 'utf8');
-    const event = JSON.parse(raw.trim()) as { type?: string; payload?: { cwd?: string } };
+    const event = JSON.parse(raw.trim()) as {
+      type?: string;
+      payload?: { cwd?: string; invocation?: string };
+    };
     assert.equal(event.type, 'session-started');
     assert.equal(event.payload?.cwd, root);
+    assert.equal(event.payload?.invocation, 'hook');
   });
 
   it('auto-detects SessionStart from stdin and uses the input cwd', async () => {
@@ -55,10 +67,18 @@ describe('vibe-agent-session-start', () => {
     await mkdir(path.join(root, '.vibe'), { recursive: true });
     await writeFile(path.join(root, '.vibe', 'config.json'), '{}\n', 'utf8');
 
+    const env = sessionStartEnv();
+    delete env.CLAUDE_PROJECT_DIR;
     const result = spawnSync(process.execPath, [scriptPath], {
       cwd: strayCwd,
+      env,
       encoding: 'utf8',
-      input: JSON.stringify({ hook_event_name: 'SessionStart', cwd: root, source: 'startup' }),
+      input: JSON.stringify({
+        hook_event_name: 'SessionStart',
+        cwd: root,
+        session_id: 'session-stdin',
+        source: 'startup',
+      }),
     });
 
     assert.equal(result.status, 0, result.stderr);
@@ -67,15 +87,56 @@ describe('vibe-agent-session-start', () => {
     const dailyDir = path.join(root, '.vibe', 'agent', 'daily');
     const [dailyFile] = await readdir(dailyDir);
     const raw = await readFile(path.join(dailyDir, dailyFile ?? ''), 'utf8');
-    const event = JSON.parse(raw.trim()) as { payload?: { cwd?: string } };
+    const event = JSON.parse(raw.trim()) as {
+      payload?: { cwd?: string; sessionId?: string; source?: string; invocation?: string };
+    };
     assert.equal(event.payload?.cwd, root);
+    assert.equal(event.payload?.sessionId, 'session-stdin');
+    assert.equal(event.payload?.source, 'startup');
+    assert.equal(event.payload?.invocation, 'hook');
+  });
+
+  it('deduplicates repeated delivery of the same hook lifecycle but preserves source transitions', async () => {
+    const root = await makeTempDir('agent-session-start-dedupe-');
+    const strayCwd = await makeTempDir('agent-session-start-dedupe-stray-');
+    await mkdir(path.join(root, '.vibe'), { recursive: true });
+    await writeFile(path.join(root, '.vibe', 'config.json'), '{}\n', 'utf8');
+    const env = sessionStartEnv();
+    delete env.CLAUDE_PROJECT_DIR;
+
+    const invoke = (source: string) => spawnSync(process.execPath, [scriptPath], {
+      cwd: strayCwd,
+      env,
+      encoding: 'utf8',
+      input: JSON.stringify({
+        hook_event_name: 'SessionStart',
+        cwd: root,
+        session_id: 'same-session',
+        source,
+      }),
+    });
+
+    for (const source of ['startup', 'startup', 'resume']) {
+      const result = invoke(source);
+      assert.equal(result.status, 0, result.stderr);
+      assert.equal(result.stdout, '');
+    }
+
+    const dailyDir = path.join(root, '.vibe', 'agent', 'daily');
+    const [dailyFile] = await readdir(dailyDir);
+    const raw = await readFile(path.join(dailyDir, dailyFile ?? ''), 'utf8');
+    const events = raw.trim().split(/\r?\n/).map((line) => JSON.parse(line) as {
+      payload?: { sessionId?: string; source?: string };
+    });
+    assert.deepEqual(events.map((event) => event.payload?.source), ['startup', 'resume']);
+    assert.ok(events.every((event) => event.payload?.sessionId === 'same-session'));
   });
 
   it('keeps hook stdout empty when harness hooks are disabled', async () => {
     const root = await makeTempDir('agent-session-start-disabled-');
     const result = spawnSync(process.execPath, [scriptPath, '--hook'], {
       cwd: root,
-      env: { ...process.env, CLAUDE_PROJECT_DIR: root, VIBE_HARNESS_HOOKS: 'off' },
+      env: sessionStartEnv({ CLAUDE_PROJECT_DIR: root, VIBE_HARNESS_HOOKS: 'off' }),
       encoding: 'utf8',
     });
 
@@ -88,7 +149,7 @@ describe('vibe-agent-session-start', () => {
     const root = await makeTempDir('agent-session-start-skip-');
     const result = spawnSync(process.execPath, [scriptPath], {
       cwd: root,
-      env: { ...process.env, VIBE_ROOT: root, VIBE_SKIP_AGENT_SESSION_START: '1' },
+      env: sessionStartEnv({ VIBE_ROOT: root, VIBE_SKIP_AGENT_SESSION_START: '1' }),
       encoding: 'utf8',
     });
 

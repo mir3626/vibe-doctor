@@ -47,6 +47,7 @@ function runAgentSessionStart(cwd: string): void {
     env: { ...process.env, VIBE_ROOT: cwd },
     encoding: 'utf8',
     stdio: ['ignore', 'pipe', 'pipe'],
+    windowsHide: true,
   });
 
   if (result.stdout) {

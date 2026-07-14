@@ -274,6 +274,48 @@ function relativeLogPath(repoRoot, absolutePath) {
   return path.relative(repoRoot, absolutePath).replaceAll('\\', '/');
 }
 
+function npmInvocation(script) {
+  const npmExecPath = process.env.npm_execpath?.trim();
+  if (npmExecPath && existsSync(npmExecPath)) {
+    return {
+      command: process.execPath,
+      args: [npmExecPath, 'run', script, '--silent'],
+    };
+  }
+
+  const bundledNpmCli = path.join(
+    path.dirname(process.execPath),
+    'node_modules',
+    'npm',
+    'bin',
+    'npm-cli.js',
+  );
+  if (existsSync(bundledNpmCli)) {
+    return {
+      command: process.execPath,
+      args: [bundledNpmCli, 'run', script, '--silent'],
+    };
+  }
+
+  if (process.platform === 'win32') {
+    return {
+      command: process.env.ComSpec || process.env.COMSPEC || 'cmd.exe',
+      args: ['/d', '/s', '/c', 'npm.cmd', 'run', script, '--silent'],
+    };
+  }
+
+  return { command: 'npm', args: ['run', script, '--silent'] };
+}
+
+function harnessQaEnv() {
+  const env = {
+    ...process.env,
+    VIBE_SKIP_AGENT_SESSION_START: '1',
+  };
+  delete env.CLAUDE_PROJECT_DIR;
+  return env;
+}
+
 function runHarnessQa(repoRoot) {
   const scripts = ['vibe:typecheck', 'vibe:self-test'];
   const stdout = [];
@@ -282,12 +324,15 @@ function runHarnessQa(repoRoot) {
   let error = null;
 
   for (const script of scripts) {
-    const result = spawnSync('npm', ['run', script, '--silent'], {
+    const invocation = npmInvocation(script);
+    const result = spawnSync(invocation.command, invocation.args, {
       cwd: repoRoot,
+      env: harnessQaEnv(),
       encoding: 'utf8',
       maxBuffer: 20 * 1024 * 1024,
-      shell: true,
+      shell: false,
       stdio: ['ignore', 'pipe', 'pipe'],
+      windowsHide: true,
     });
     stdout.push(`## npm run ${script}\n${result.stdout ?? ''}`);
     stderr.push(`## npm run ${script}\n${result.stderr ?? ''}`);

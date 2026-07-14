@@ -40,15 +40,26 @@ function processAlive(pid) {
 
 function appendSessionStarted(root) {
   const scriptDir = path.dirname(fileURLToPath(import.meta.url));
+  const payload = { cwd: root };
+  if (process.env.VIBE_SESSION_ID) {
+    payload.sessionId = process.env.VIBE_SESSION_ID;
+  }
+  if (process.env.VIBE_SESSION_SOURCE) {
+    payload.source = process.env.VIBE_SESSION_SOURCE;
+  }
+  if (process.env.VIBE_SESSION_INVOCATION) {
+    payload.invocation = process.env.VIBE_SESSION_INVOCATION;
+  }
   spawnSync(process.execPath, [
     path.join(scriptDir, 'vibe-daily-log.mjs'),
     'session-started',
     '--payload',
-    JSON.stringify({ cwd: root }),
+    JSON.stringify(payload),
   ], {
     cwd: root,
     env: { ...process.env, VIBE_ROOT: root },
     stdio: 'ignore',
+    windowsHide: true,
   });
 }
 
@@ -70,6 +81,7 @@ function maybeStartDashboard(root) {
     env: { ...process.env, VIBE_ROOT: root },
     detached: true,
     stdio: 'ignore',
+    windowsHide: true,
   });
   child.unref();
 }
