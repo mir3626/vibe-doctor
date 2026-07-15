@@ -1,0 +1,234 @@
+{
+  "$ref": "#/definitions/ProBridgeGoalSource",
+  "definitions": {
+    "ProBridgeGoalSource": {
+      "type": "object",
+      "properties": {
+        "schemaVersion": {
+          "type": "string",
+          "const": "vibe-goal-source-v1"
+        },
+        "repository": {
+          "type": "object",
+          "properties": {
+            "root": {
+              "type": "string"
+            },
+            "remoteUrl": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "fullName": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "root",
+            "remoteUrl",
+            "fullName"
+          ],
+          "additionalProperties": false
+        },
+        "source": {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": [
+                "codex-goal",
+                "vibe-goal-iterate",
+                "handoff-reconstruction",
+                "git-reconstruction"
+              ]
+            },
+            "confidence": {
+              "type": "string",
+              "enum": [
+                "exact",
+                "high",
+                "reconstructed"
+              ]
+            },
+            "threadId": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "iterationId": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "goalText": {
+              "type": "string",
+              "minLength": 1
+            },
+            "goalStatus": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "kind",
+            "confidence",
+            "threadId",
+            "iterationId",
+            "goalText",
+            "goalStatus"
+          ],
+          "additionalProperties": false
+        },
+        "designRefs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "implementationRefs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "baseSha": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$"
+        },
+        "headSha": {
+          "$ref": "#/definitions/ProBridgeGoalSource/properties/baseSha"
+        },
+        "commitShas": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/ProBridgeGoalSource/properties/baseSha"
+          }
+        },
+        "scope": {
+          "type": "object",
+          "properties": {
+            "changedFiles": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "codeFiles": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "testFiles": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "migrationFiles": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "docsFiles": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "scopeGlobs": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "required": [
+            "changedFiles",
+            "codeFiles",
+            "testFiles",
+            "migrationFiles",
+            "docsFiles",
+            "scopeGlobs"
+          ],
+          "additionalProperties": false
+        },
+        "dirtyState": {
+          "type": "object",
+          "properties": {
+            "staged": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "unstaged": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "untracked": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "patchSha256": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "staged",
+            "unstaged",
+            "untracked",
+            "patchSha256"
+          ],
+          "additionalProperties": false
+        },
+        "unresolved": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "payloadSha256": {
+          "$ref": "#/definitions/ProBridgeGoalSource/properties/dirtyState/properties/patchSha256/anyOf/0"
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "repository",
+        "source",
+        "designRefs",
+        "implementationRefs",
+        "baseSha",
+        "headSha",
+        "commitShas",
+        "scope",
+        "dirtyState",
+        "unresolved",
+        "payloadSha256"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}

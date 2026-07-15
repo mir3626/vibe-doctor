@@ -20,6 +20,7 @@
   "include": [
     "src/commands/**/*.ts",
     "src/lib/**/*.ts",
+    "src/pro-bridge/**/*.ts",
     "src/providers/**/*.ts",
     "test/**/*.ts"
   ],

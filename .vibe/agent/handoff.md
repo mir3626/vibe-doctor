@@ -1,37 +1,22 @@
 # Orchestrator Handoff
 
-PROJECT NOT INITIALIZED.
-
-This file is project-owned runtime state. Downstream projects must run `/vibe-init` before product work; init rewrites this placeholder with the current project's handoff.
+ACTIVE UPSTREAM ITERATION — web-pro-bridge (iteration 1). 종료 시 이 파일을 pristine 템플릿 상태(project-not-initialized 마커 문구 포함 — git 이력 f2491be 이전 버전 참조)로 복원할 것 (roadmap 종료 조건 2).
 
 ## 1. Identity
 
-- repo: `vibe-doctor`
-- status: template placeholder
-- harnessVersion: `1.7.30`
+- repo: `vibe-doctor` (upstream template — maintenance mode)
+- iteration: 1 — web-pro-bridge (user /goal directive, soft freeze user-directive 진입)
+- harnessVersion: `1.7.30` (iteration 종료 시 minor bump + release tag 예정)
+- 모델 역할: Orchestrator=fable / Planner=fable / Generator=codex gpt-5.6-sol xhigh / Evaluator=fable (user directive 2026-07-15)
+- 정본 설계: `docs/plans/web-pro-bridge/design.md` (Hybrid v2) + `vibe-pro-bridge-design/` 참조 패키지
 
 ## 2. Status
 
-The checked-in upstream template intentionally does not ship active project handoff state.
-
-Maintenance checkpoint: release metadata is set for `v1.7.30`. The harness keeps `docs/plans/sprint-roadmap.md` as an active, current-iteration roadmap and archives completed or inactive iteration sections under `docs/plans/archive/roadmaps/`. Checkpoint enforces a compact `.vibe/agent/handoff.md` budget so downstream handoffs stay current-focused instead of accumulating sprint history.
-
-Latest maintenance work (v1.7.30): SessionStart now atomically suppresses duplicate deliveries of the same `session_id + source` for 60 seconds while preserving lifecycle source transitions, and daily events include session/source/invocation provenance. Stop harness QA runs nested npm without `shell: true`, keeps Windows child processes hidden, clears `CLAUDE_PROJECT_DIR`, and forces `VIBE_SKIP_AGENT_SESSION_START=1`; only dedicated lifecycle tests opt back in. This prevents the detached self-test from opening repeated foreground consoles or appending real-project SessionStart events. Verification passed 22 focused tests, two full 473-test runs (472 pass, 1 skip), typecheck, build, sync audit, checkpoint, and a live detached Stop smoke (144 ms hook return, zero stdout/stderr, zero real-project daily-log growth).
-
-Previous maintenance work (v1.7.29): Stop foreground now detects only sync-manifest harness/hybrid changes, atomically schedules one detached hidden worker, and returns hook-silently without waiting for QA. The worker runs only `vibe:typecheck` plus `vibe:self-test`; project-only changes and downstream product QA are out of scope. It clears the parent hook's `CLAUDE_PROJECT_DIR` before nested tests so fixture cwd resolution stays isolated. A schema-v2 SHA-256 result receipt and stale-safe exclusive lease deduplicate identical/concurrent work, while a background failure is retained and reported once as nonblocking JSON on the next Stop.
-
-Previous maintenance work (v1.7.28): Stop QA writes an atomic success-only SHA-256 receipt under ignored `.vibe/runs/`, bound to HEAD, changed code contents, Node platform/version, and supported dependency lockfiles. Repeated Stop events on the same successful state return immediately with empty hook stdout; any relevant state change invalidates the receipt, while failures stay uncached and retryable. v1.7.29 supersedes its synchronous first-state execution path.
-
-Previous maintenance work (v1.7.27): all five Claude harness entrypoints auto-detect their event from stdin in addition to accepting explicit hook flags. This keeps legacy, cached, or partially synced commands inside hook mode, binds runtime roots through `CLAUDE_PROJECT_DIR` or the hook input `cwd`, and prevents manual diagnostics from leaking into provider stdout. PreCompact success is empty stdout, PreCompact validation failure remains stderr/exit 2, and Stop QA failure remains nonblocking with one JSON `systemMessage` and exit 0.
-
-Previous maintenance work (v1.7.26): every Claude harness hook command and runtime root is bound to `${CLAUDE_PROJECT_DIR}`. Hook-mode success/skip paths keep stdout empty, reportable nonblocking outcomes use one JSON `systemMessage`, and PreCompact validation failure uses stderr/exit 2. Stop remains nonblocking on QA failure (exit 0 + log-backed JSON notice); PostToolUse uses the verified npm option order so `--hook` reaches config-audit.
-
-Previous maintenance work (v1.7.25): harness hook kill-switch + legacy-model override shard. Setting `VIBE_HARNESS_HOOKS=off` (also `0`/`false`) in a session's environment makes all five hook entry points (Stop QA gate, SessionStart, Notification, PostToolUse config-audit, PreCompact checkpoint) exit 0 immediately, so harness-unrelated headless agents spawned by downstream product code no longer run `vibe:qa` on every Stop or rewrite the handoff on compaction. Separately, the model-compensation rules moved from CLAUDE.md `HARNESS:mechanical-overrides` into `docs/context/legacy-model-overrides.md` (sync manifest harness list); SOTA-tier sessions skip the shard, only sub-SOTA Orchestrator/Generator models read it. The three tier-independent rules stay in CLAUDE.md.
-
-Previous maintenance work (v1.7.24): `vibe-checkpoint.mjs` gained a `docs.integrity` check after a downstream incident truncated a project CLAUDE.md to 0 bytes and the checkpoint stayed green. Targets fixed first-read docs plus `docs/context/*.md`, tracked-and-exists only, fails on empty/under-64-byte content, report-only in both modes. The `maintain-context` runbook gained native-edit-tools-only and pre-commit `git diff --stat` gate rules.
-
-Previous maintenance work (v1.7.23): `vibe-checkpoint.mjs` opt-in `--auto-refresh` mode wired into the Claude Code `PreCompact` hook; upserts a bounded idempotent `<!-- vibe:auto-state:* -->` git-snapshot block when the handoff is stale or work-outdated, otherwise writes nothing.
+- roadmap: `sprint-vpb-01~05` (docs/plans/sprint-roadmap.md Iteration 1 섹션). 종료 조건 = Orchestrator 전체 workflow audit 반복 + 업스트림 릴리즈 마무리(상태 문서 pristine 복원, sync-manifest 등재, vibe:sync-audit 통과, 버전 bump + tag).
+- sprint-vpb-01 (계약 스키마 + goal-source discovery): Generator 구현 완료. 검증 현황 — typecheck/gen-schemas(write+check)/build 통과, self-test는 template-hygiene 게이트가 활성 작업 상태와 충돌해 handoff 마커 전환으로 해소 중. 다음: self-test 재실행 → self-QA grep → Evaluator(Must, 신규 파일>5) → sprint-complete/commit.
+- 알려진 회귀 (hotfix 대기): `vibe-agent-session-start.mjs`가 비-TTY stdin을 무조건 drain → run-codex.sh 파이프 프롬프트 소실. 우회 = Generator 호출 env `VIBE_SKIP_AGENT_SESSION_START=1` (모든 후속 Codex 호출에 필수). 근본 수정은 vpb-03 wiring Sprint에 편입 예정.
+- Generator 호출 형식: `cat docs/prompts/<id>.md | VIBE_SKIP_AGENT_SESSION_START=1 VIBE_SPRINT_ID=<id> CODEX_MODEL=gpt-5.6-sol CODEX_EXTRA_CONFIG='-c model_reasoning_effort="xhigh"' ./.vibe/harness/scripts/run-codex.sh -`
 
 ## 3. Next Action
 
-Run `/vibe-init` in a new downstream project. Existing downstream projects can sync to `v1.7.30`; agent-mode one-liner initialization should not begin MVP work until `npm run vibe:init-ready` passes. Initialized projects should keep product verification in root `test`/`typecheck`/`lint`/`build` scripts and use explicit `vibe:*` commands for harness verification. Stop no longer substitutes for explicit product verification.
+sprint-vpb-01 검증 마무리 → Evaluator → `vibe-sprint-complete.mjs sprint-vpb-01-contracts-discovery passed` → `vibe-sprint-commit.mjs`. 이후 vpb-02(composer+importer) Planner 소환부터 동일 루프 반복. 압축 복원 시 이 파일 + session-log + sprint-status 먼저 읽을 것.

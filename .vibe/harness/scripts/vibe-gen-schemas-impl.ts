@@ -23,6 +23,9 @@ const outputs: Record<StateFileName, string> = {
 const artifactOutputs = {
   'sidecar-input.json': '.vibe/harness/schemas/sidecar-input.schema.json',
   'sidecar-artifact.json': '.vibe/harness/schemas/sidecar-artifact.schema.json',
+  'pro-bridge-goal-source.json': '.vibe/harness/schemas/pro-bridge-goal-source.schema.json',
+  'pro-bridge-review-request.json': '.vibe/harness/schemas/pro-bridge-review-request.schema.json',
+  'pro-bridge-review-result.json': '.vibe/harness/schemas/pro-bridge-review-result.schema.json',
 } as const;
 
 const allOutputs = {

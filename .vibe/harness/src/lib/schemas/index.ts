@@ -5,6 +5,11 @@ import { SprintApiContractsSchema } from './sprint-api-contracts.js';
 import { IterationHistorySchema } from './iteration-history.js';
 import { ModelRegistrySchema } from './model-registry.js';
 import { SidecarArtifactSchema, SidecarInputPacketSchema } from './sidecar.js';
+import {
+  GoalSourceManifestSchema,
+  ReviewRequestSchema,
+  ReviewResultManifestSchema,
+} from './pro-bridge.js';
 
 export const STATE_FILE_SCHEMAS = {
   'sprint-status.json': SprintStatusSchema,
@@ -17,6 +22,9 @@ export const STATE_FILE_SCHEMAS = {
 export const GENERATED_ARTIFACT_SCHEMAS = {
   'sidecar-input.json': SidecarInputPacketSchema,
   'sidecar-artifact.json': SidecarArtifactSchema,
+  'pro-bridge-goal-source.json': GoalSourceManifestSchema,
+  'pro-bridge-review-request.json': ReviewRequestSchema,
+  'pro-bridge-review-result.json': ReviewResultManifestSchema,
 } as const;
 
 export type StateFileName = keyof typeof STATE_FILE_SCHEMAS;
@@ -95,3 +103,35 @@ export {
   type SidecarProvider,
   type SidecarReviewerOutput,
 } from './sidecar.js';
+export {
+  FOLDER_NAME_PATTERN,
+  GitShaSchema,
+  GoalSourceConfidenceSchema,
+  GoalSourceDirtyStateSchema,
+  GoalSourceKindSchema,
+  GoalSourceManifestSchema,
+  GoalSourceScopeSchema,
+  ReviewDispositionSchema,
+  ReviewKindSchema,
+  ReviewOriginSchema,
+  ReviewOutputContractSchema,
+  ReviewRequestSchema,
+  ReviewResultFileSchema,
+  ReviewResultKindSchema,
+  ReviewResultManifestSchema,
+  Sha256HexSchema,
+  isSafeRelativePath,
+  type GoalSourceConfidence,
+  type GoalSourceDirtyState,
+  type GoalSourceKind,
+  type GoalSourceManifest,
+  type GoalSourceScope,
+  type ReviewDisposition,
+  type ReviewKind,
+  type ReviewOrigin,
+  type ReviewOutputContract,
+  type ReviewRequest,
+  type ReviewResultFile,
+  type ReviewResultKind,
+  type ReviewResultManifest,
+} from './pro-bridge.js';

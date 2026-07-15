@@ -1,0 +1,389 @@
+{
+  "$ref": "#/definitions/ProBridgeReviewRequest",
+  "definitions": {
+    "ProBridgeReviewRequest": {
+      "type": "object",
+      "properties": {
+        "schemaVersion": {
+          "type": "string",
+          "const": "vibe-pro-review-request-v1"
+        },
+        "requestId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "goal_audit",
+            "feature_design",
+            "architecture_review",
+            "implementation_review"
+          ]
+        },
+        "origin": {
+          "type": "string",
+          "enum": [
+            "cli",
+            "web",
+            "workspace-agent",
+            "api"
+          ]
+        },
+        "repository": {
+          "type": "object",
+          "properties": {
+            "fullName": {
+              "type": "string"
+            },
+            "remoteUrl": {
+              "type": "string"
+            },
+            "defaultBranch": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "fullName",
+            "remoteUrl",
+            "defaultBranch"
+          ],
+          "additionalProperties": false
+        },
+        "git": {
+          "type": "object",
+          "properties": {
+            "baseSha": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{40}$"
+            },
+            "headSha": {
+              "$ref": "#/definitions/ProBridgeReviewRequest/properties/git/properties/baseSha"
+            },
+            "branch": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "headVisibleOnGitHub": {
+              "type": "boolean"
+            },
+            "compareUrlHint": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "patchAttachmentSha256": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "baseSha",
+            "headSha",
+            "branch",
+            "headVisibleOnGitHub",
+            "compareUrlHint",
+            "patchAttachmentSha256"
+          ],
+          "additionalProperties": false
+        },
+        "goalSource": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "schemaVersion": {
+                  "type": "string",
+                  "const": "vibe-goal-source-v1"
+                },
+                "repository": {
+                  "type": "object",
+                  "properties": {
+                    "root": {
+                      "type": "string"
+                    },
+                    "remoteUrl": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "fullName": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "root",
+                    "remoteUrl",
+                    "fullName"
+                  ],
+                  "additionalProperties": false
+                },
+                "source": {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "codex-goal",
+                        "vibe-goal-iterate",
+                        "handoff-reconstruction",
+                        "git-reconstruction"
+                      ]
+                    },
+                    "confidence": {
+                      "type": "string",
+                      "enum": [
+                        "exact",
+                        "high",
+                        "reconstructed"
+                      ]
+                    },
+                    "threadId": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "iterationId": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "goalText": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "goalStatus": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "confidence",
+                    "threadId",
+                    "iterationId",
+                    "goalText",
+                    "goalStatus"
+                  ],
+                  "additionalProperties": false
+                },
+                "designRefs": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "implementationRefs": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "baseSha": {
+                  "$ref": "#/definitions/ProBridgeReviewRequest/properties/git/properties/baseSha"
+                },
+                "headSha": {
+                  "$ref": "#/definitions/ProBridgeReviewRequest/properties/git/properties/baseSha"
+                },
+                "commitShas": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/definitions/ProBridgeReviewRequest/properties/git/properties/baseSha"
+                  }
+                },
+                "scope": {
+                  "type": "object",
+                  "properties": {
+                    "changedFiles": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "codeFiles": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "testFiles": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "migrationFiles": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "docsFiles": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "scopeGlobs": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "required": [
+                    "changedFiles",
+                    "codeFiles",
+                    "testFiles",
+                    "migrationFiles",
+                    "docsFiles",
+                    "scopeGlobs"
+                  ],
+                  "additionalProperties": false
+                },
+                "dirtyState": {
+                  "type": "object",
+                  "properties": {
+                    "staged": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "unstaged": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "untracked": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "patchSha256": {
+                      "anyOf": [
+                        {
+                          "$ref": "#/definitions/ProBridgeReviewRequest/properties/git/properties/patchAttachmentSha256/anyOf/0"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "staged",
+                    "unstaged",
+                    "untracked",
+                    "patchSha256"
+                  ],
+                  "additionalProperties": false
+                },
+                "unresolved": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "payloadSha256": {
+                  "$ref": "#/definitions/ProBridgeReviewRequest/properties/git/properties/patchAttachmentSha256/anyOf/0"
+                }
+              },
+              "required": [
+                "schemaVersion",
+                "repository",
+                "source",
+                "designRefs",
+                "implementationRefs",
+                "baseSha",
+                "headSha",
+                "commitShas",
+                "scope",
+                "dirtyState",
+                "unresolved",
+                "payloadSha256"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "userGoal": {
+          "type": "string"
+        },
+        "reviewPrompt": {
+          "type": "string"
+        },
+        "outputContract": {
+          "type": "object",
+          "properties": {
+            "requiredFiles": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "minItems": 1
+            }
+          },
+          "required": [
+            "requiredFiles"
+          ],
+          "additionalProperties": false
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "expiresAt": {
+          "$ref": "#/definitions/ProBridgeReviewRequest/properties/createdAt"
+        },
+        "payloadSha256": {
+          "$ref": "#/definitions/ProBridgeReviewRequest/properties/git/properties/patchAttachmentSha256/anyOf/0"
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "requestId",
+        "kind",
+        "origin",
+        "repository",
+        "git",
+        "goalSource",
+        "userGoal",
+        "reviewPrompt",
+        "outputContract",
+        "createdAt",
+        "expiresAt",
+        "payloadSha256"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}

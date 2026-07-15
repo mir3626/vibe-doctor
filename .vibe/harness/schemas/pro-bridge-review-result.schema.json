@@ -1,0 +1,173 @@
+{
+  "$ref": "#/definitions/ProBridgeReviewResult",
+  "definitions": {
+    "ProBridgeReviewResult": {
+      "type": "object",
+      "properties": {
+        "schemaVersion": {
+          "type": "string",
+          "const": "vibe-pro-review-result-v1"
+        },
+        "requestId": {
+          "type": "string"
+        },
+        "requestPayloadSha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "repositoryFullName": {
+          "type": "string"
+        },
+        "reviewedBaseSha": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$"
+        },
+        "reviewedHeadSha": {
+          "$ref": "#/definitions/ProBridgeReviewResult/properties/reviewedBaseSha"
+        },
+        "resultKind": {
+          "type": "string",
+          "enum": [
+            "audit",
+            "design"
+          ]
+        },
+        "proposedFolder": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9-]{2,79}$"
+        },
+        "disposition": {
+          "type": "string",
+          "enum": [
+            "approved",
+            "approved-with-remediation",
+            "remediation-required",
+            "blocked"
+          ]
+        },
+        "files": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string"
+              },
+              "mediaType": {
+                "type": "string",
+                "enum": [
+                  "text/markdown",
+                  "application/json"
+                ]
+              },
+              "byteLength": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "sha256": {
+                "$ref": "#/definitions/ProBridgeReviewResult/properties/requestPayloadSha256"
+              }
+            },
+            "required": [
+              "path",
+              "mediaType",
+              "byteLength",
+              "sha256"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "findingsSummary": {
+          "type": "object",
+          "properties": {
+            "p0": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "p1": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "p2": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "p3": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "required": [
+            "p0",
+            "p1",
+            "p2",
+            "p3"
+          ],
+          "additionalProperties": false
+        },
+        "reviewerDeclaration": {
+          "type": "object",
+          "properties": {
+            "surface": {
+              "type": "string",
+              "enum": [
+                "chatgpt-web",
+                "workspace-agent",
+                "responses-api"
+              ]
+            },
+            "requestedMode": {
+              "type": "string",
+              "enum": [
+                "pro",
+                "frontier",
+                "unspecified"
+              ]
+            },
+            "githubConnectorUsed": {
+              "type": "boolean"
+            },
+            "limitations": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "required": [
+            "surface",
+            "requestedMode",
+            "githubConnectorUsed",
+            "limitations"
+          ],
+          "additionalProperties": false
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "payloadSha256": {
+          "$ref": "#/definitions/ProBridgeReviewResult/properties/requestPayloadSha256"
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "requestId",
+        "requestPayloadSha256",
+        "repositoryFullName",
+        "reviewedBaseSha",
+        "reviewedHeadSha",
+        "resultKind",
+        "proposedFolder",
+        "disposition",
+        "files",
+        "findingsSummary",
+        "reviewerDeclaration",
+        "createdAt",
+        "payloadSha256"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}
