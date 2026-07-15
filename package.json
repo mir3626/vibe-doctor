@@ -34,6 +34,7 @@
     "vibe:pro-sync": "node .vibe/harness/scripts/vibe-pro-bridge.mjs sync",
     "vibe:pro-status": "node .vibe/harness/scripts/vibe-pro-bridge.mjs status",
     "vibe:pro-mcp": "node .vibe/harness/scripts/vibe-pro-bridge.mjs mcp",
+    "vibe:pro-apply": "node .vibe/harness/scripts/vibe-pro-bridge.mjs apply",
     "vibe:sync": "npx tsx .vibe/harness/src/commands/sync.ts",
     "vibe:gen-schemas": "node .vibe/harness/scripts/vibe-gen-schemas.mjs",
     "vibe:audit-lightweight": "node .vibe/harness/scripts/vibe-audit-lightweight.mjs",

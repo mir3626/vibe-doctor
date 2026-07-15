@@ -380,3 +380,116 @@ describe('pro bridge mcp mailbox round trip', () => {
     }
   });
 });
+
+describe('pro bridge web origin round trip', () => {
+  it('installs a web created design package through sync latest', async () => {
+    const repoRoot = await mkdtemp(path.join(tmpdir(), 'vibe-pro-web-origin-e2e-'));
+    try {
+      const transport = new McpMailboxTransport({ repoRoot, now: () => NOW });
+      const tools = new Map(createMailboxTools(transport.store, {
+        now: () => NOW,
+        requestTtlHours: 72,
+      }).map((tool) => [tool.name, tool]));
+      const created = await tools.get('create_design_request')!.invoke({
+        repositoryFullName: 'owner/repo',
+        headSha: HEAD_SHA,
+        branch: 'main',
+        goal: 'Design a web-origin package round trip.',
+      }) as { requestId: string; created: boolean };
+      assert.equal(created.created, true);
+      await tools.get('claim_request')!.invoke({ requestId: created.requestId });
+      await tools.get('begin_result')!.invoke({ requestId: created.requestId });
+
+      const request = await transport.readRequest(created.requestId) as ReviewRequest;
+      const files = [
+        { path: 'README.md', content: '# Web-origin design\n' },
+        { path: 'DESIGN.md', content: '# Design\n\nUse one shared importer.\n' },
+        { path: 'FINDINGS.json', content: '{"disposition":"approved","findings":[]}\n' },
+        {
+          path: 'prompt/CLI_MAIN_SESSION_PROMPT.md',
+          content: '# Implement\n\nWait for explicit approval.\n',
+        },
+      ];
+      for (const file of files) {
+        await tools.get('put_result_file')!.invoke({
+          requestId: request.requestId,
+          filePath: file.path,
+          chunkIndex: 0,
+          chunkCount: 1,
+          content: file.content,
+          chunkSha256: createHash('sha256').update(file.content).digest('hex'),
+        });
+      }
+      const draft: ReviewResultManifest = {
+        schemaVersion: 'vibe-pro-review-result-v1',
+        requestId: request.requestId,
+        requestPayloadSha256: request.payloadSha256,
+        repositoryFullName: request.repository.fullName,
+        reviewedBaseSha: request.git.baseSha,
+        reviewedHeadSha: request.git.headSha,
+        resultKind: 'design',
+        proposedFolder: '2026-07-15-web-origin-design',
+        disposition: 'approved',
+        files: files.map((file) => {
+          const bytes = Buffer.from(file.content, 'utf8');
+          return {
+            path: file.path,
+            mediaType: file.path.endsWith('.json') ? 'application/json' : 'text/markdown',
+            byteLength: bytes.byteLength,
+            sha256: createHash('sha256').update(bytes).digest('hex'),
+          };
+        }),
+        findingsSummary: { p0: 0, p1: 0, p2: 0, p3: 0 },
+        reviewerDeclaration: {
+          surface: 'chatgpt-web',
+          requestedMode: 'pro',
+          githubConnectorUsed: true,
+          limitations: [],
+        },
+        createdAt: NOW.toISOString(),
+        payloadSha256: '0'.repeat(64),
+      };
+      const manifest = { ...draft, payloadSha256: computePayloadSha256(draft) };
+      await tools.get('finalize_result')!.invoke({ requestId: request.requestId, manifest });
+
+      const git: GitPort = {
+        async run(args) {
+          if (args[0] === 'remote') {
+            return { ok: true, stdout: 'https://github.com/owner/repo.git\n', stderr: '', code: 0 };
+          }
+          if (args[0] === 'rev-parse') {
+            return { ok: true, stdout: `${HEAD_SHA}\n`, stderr: '', code: 0 };
+          }
+          return { ok: false, stdout: '', stderr: `unexpected ${args.join(' ')}`, code: 1 };
+        },
+      };
+      const captured = captureIo();
+      const exit = await runProBridge(['sync', '--latest'], {
+        repoRoot,
+        config: {
+          ...DEFAULT_PRO_BRIDGE_CONFIG,
+          enabled: true,
+          transport: 'mcp-mailbox',
+          resultRoot: 'installed-results',
+        },
+        io: captured.io,
+        git,
+        stdin: { isTTY: false },
+        now: () => NOW,
+      });
+      assert.equal(exit, 0, captured.err.join('\n'));
+      const installedPath = path.join(repoRoot, 'installed-results', manifest.proposedFolder);
+      for (const file of files) {
+        await access(path.join(installedPath, file.path));
+      }
+      const provenance = JSON.parse(await readFile(
+        path.join(installedPath, '.bridge/provenance.json'),
+        'utf8',
+      )) as { reviewerDeclaration: { surface: string } };
+      assert.equal(provenance.reviewerDeclaration.surface, 'chatgpt-web');
+      assert.equal((await transport.getRequestStatus(request.requestId)).state, 'imported');
+    } finally {
+      await rm(repoRoot, { recursive: true, force: true });
+    }
+  });
+});

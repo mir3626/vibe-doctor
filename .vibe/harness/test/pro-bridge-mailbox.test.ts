@@ -399,11 +399,11 @@ describe('mcp mailbox store', () => {
 });
 
 describe('mcp mailbox tools', () => {
-  it('exposes eleven tools with injection defense descriptions and read only hints', async () => {
+  it('exposes twelve tools with injection defense descriptions and read only hints', async () => {
     await withRoot(async (root) => {
       const tools = createMailboxTools(new MailboxStore({ repoRoot: root, now: () => NOW }));
       assert.deepEqual(tools.map((tool) => tool.name), [
-        'create_request', 'list_pending_requests', 'get_request', 'claim_request',
+        'create_request', 'create_design_request', 'list_pending_requests', 'get_request', 'claim_request',
         'begin_result', 'put_result_file', 'finalize_result', 'get_result_manifest',
         'get_result_file', 'acknowledge_import', 'cancel_request',
       ]);
@@ -425,6 +425,57 @@ describe('mcp mailbox tools', () => {
       await assert.rejects(begin.invoke({ requestId: input.requestId }),
         (error: unknown) => error instanceof MailboxStoreError && error.code === 'lifecycle-violation');
       await assert.rejects(begin.invoke({ requestId: 42 }), (error: unknown) => error instanceof ZodError);
+    });
+  });
+});
+
+describe('web origin design requests', () => {
+  const input = {
+    repositoryFullName: 'owner/repo',
+    headSha: 'c'.repeat(40),
+    branch: 'main',
+    goal: 'Design the web-origin bridge flow.',
+  };
+
+  it('creates a web origin design request with origin web and a deterministic id', async () => {
+    await withRoot(async (root) => {
+      const store = new MailboxStore({ repoRoot: root, now: () => NOW });
+      const tools = createMailboxTools(store, { now: () => NOW, requestTtlHours: 24 });
+      const create = tools.find((tool) => tool.name === 'create_design_request')!;
+      const created = await create.invoke(input) as { requestId: string; created: boolean };
+      const saved = await store.getRequest(created.requestId);
+      assert.match(created.requestId, /^web-[0-9a-f]{12}$/);
+      assert.equal(created.created, true);
+      assert.equal(saved?.origin, 'web');
+      assert.equal(saved?.kind, 'feature_design');
+      assert.equal(saved?.expiresAt, new Date(NOW.getTime() + 24 * 60 * 60 * 1_000).toISOString());
+      assert.equal((await create.invoke(input) as { requestId: string }).requestId, created.requestId);
+    });
+  });
+
+  it('returns the existing request when the same web design request is repeated', async () => {
+    await withRoot(async (root) => {
+      let clock = NOW;
+      const store = new MailboxStore({ repoRoot: root, now: () => clock });
+      const tools = createMailboxTools(store, { now: () => clock });
+      const create = tools.find((tool) => tool.name === 'create_design_request')!;
+      const first = await create.invoke(input) as { requestId: string; created: boolean };
+      clock = new Date(NOW.getTime() + 10_000);
+      const second = await create.invoke(input) as { requestId: string; created: boolean };
+      assert.equal(first.requestId, second.requestId);
+      assert.equal(second.created, false);
+      assert.equal((await store.listRequests()).length, 1);
+    });
+  });
+
+  it('rejects web origin input with an invalid head sha', async () => {
+    await withRoot(async (root) => {
+      const tools = createMailboxTools(new MailboxStore({ repoRoot: root, now: () => NOW }));
+      const create = tools.find((tool) => tool.name === 'create_design_request')!;
+      await assert.rejects(
+        create.invoke({ ...input, headSha: 'not-a-sha' }),
+        (error: unknown) => error instanceof ZodError,
+      );
     });
   });
 });

@@ -38,6 +38,7 @@ export interface ImportContext {
   resultManifest?: ReviewResultManifest | null;
   expectedRepositoryFullName?: string | null;
   approveRevision?: boolean;
+  acknowledgedValidations?: string[];
   transport?: string;
   now?: () => Date;
   limits?: {
@@ -341,6 +342,9 @@ export async function importReviewResult(
   const provisionalStaging = path.join(installRoot, `.tmp-${normalized.folder}`);
   const errors: Array<{ code: ImportValidationErrorCode; path?: string; message: string }> = [];
   const skipped = new Set<string>();
+  for (const validation of context.acknowledgedValidations ?? []) {
+    addSkipped(skipped, validation);
+  }
   const limits = {
     maxFiles: normalizeLimit(context.limits?.maxFiles, DEFAULT_LIMITS.maxFiles),
     maxTotalBytes: normalizeLimit(context.limits?.maxTotalBytes, DEFAULT_LIMITS.maxTotalBytes),

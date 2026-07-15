@@ -56,6 +56,25 @@ export interface ProBridgeMcpConfig {
   tunnel: string;
 }
 
+export interface ProBridgeWorkspaceAgentConfig {
+  enabled: boolean;
+  triggerCommand: string[];
+}
+
+export interface ProBridgeApiConfig {
+  enabled: boolean;
+  model: string;
+  effort: string;
+  maxInputTokens: number;
+  priceInputPerMTok: number;
+  priceOutputPerMTok: number;
+  pollIntervalMs: number;
+}
+
+export interface ProBridgeApplyConfig {
+  envId: string | null;
+}
+
 export interface ProBridgeConfig {
   enabled: boolean;
   transport: string;
@@ -66,15 +85,42 @@ export interface ProBridgeConfig {
   copyInvocation: boolean;
   githubRequired: boolean;
   mcp: ProBridgeMcpConfig;
+  workspaceAgent: ProBridgeWorkspaceAgentConfig;
+  api: ProBridgeApiConfig;
+  apply: ProBridgeApplyConfig;
 }
 
-export type ProBridgeConfigInput = Partial<Omit<ProBridgeConfig, 'mcp'>> & {
+export type ProBridgeConfigInput = Partial<
+  Omit<ProBridgeConfig, 'mcp' | 'workspaceAgent' | 'api' | 'apply'>
+> & {
   mcp?: Partial<ProBridgeMcpConfig>;
+  workspaceAgent?: Partial<ProBridgeWorkspaceAgentConfig>;
+  api?: Partial<ProBridgeApiConfig>;
+  apply?: Partial<ProBridgeApplyConfig>;
 };
 
 export const DEFAULT_PRO_BRIDGE_MCP_CONFIG: ProBridgeMcpConfig = {
-  port: 8848,
+  port: 18488,
   tunnel: 'none',
+};
+
+export const DEFAULT_PRO_BRIDGE_WORKSPACE_AGENT_CONFIG: ProBridgeWorkspaceAgentConfig = {
+  enabled: false,
+  triggerCommand: [],
+};
+
+export const DEFAULT_PRO_BRIDGE_API_CONFIG: ProBridgeApiConfig = {
+  enabled: false,
+  model: '',
+  effort: 'high',
+  maxInputTokens: 200_000,
+  priceInputPerMTok: 0,
+  priceOutputPerMTok: 0,
+  pollIntervalMs: 5_000,
+};
+
+export const DEFAULT_PRO_BRIDGE_APPLY_CONFIG: ProBridgeApplyConfig = {
+  envId: null,
 };
 
 export const DEFAULT_PRO_BRIDGE_CONFIG: ProBridgeConfig = {
@@ -87,6 +133,9 @@ export const DEFAULT_PRO_BRIDGE_CONFIG: ProBridgeConfig = {
   copyInvocation: true,
   githubRequired: true,
   mcp: DEFAULT_PRO_BRIDGE_MCP_CONFIG,
+  workspaceAgent: DEFAULT_PRO_BRIDGE_WORKSPACE_AGENT_CONFIG,
+  api: DEFAULT_PRO_BRIDGE_API_CONFIG,
+  apply: DEFAULT_PRO_BRIDGE_APPLY_CONFIG,
 };
 
 export function resolveProBridgeConfig(
@@ -118,6 +167,42 @@ export function resolveProBridgeConfig(
       port: override?.mcp?.port ?? base?.mcp?.port ?? DEFAULT_PRO_BRIDGE_MCP_CONFIG.port,
       tunnel:
         override?.mcp?.tunnel ?? base?.mcp?.tunnel ?? DEFAULT_PRO_BRIDGE_MCP_CONFIG.tunnel,
+    },
+    workspaceAgent: {
+      enabled:
+        override?.workspaceAgent?.enabled
+        ?? base?.workspaceAgent?.enabled
+        ?? DEFAULT_PRO_BRIDGE_WORKSPACE_AGENT_CONFIG.enabled,
+      triggerCommand:
+        override?.workspaceAgent?.triggerCommand
+        ?? base?.workspaceAgent?.triggerCommand
+        ?? DEFAULT_PRO_BRIDGE_WORKSPACE_AGENT_CONFIG.triggerCommand,
+    },
+    api: {
+      enabled:
+        override?.api?.enabled ?? base?.api?.enabled ?? DEFAULT_PRO_BRIDGE_API_CONFIG.enabled,
+      model: override?.api?.model ?? base?.api?.model ?? DEFAULT_PRO_BRIDGE_API_CONFIG.model,
+      effort: override?.api?.effort ?? base?.api?.effort ?? DEFAULT_PRO_BRIDGE_API_CONFIG.effort,
+      maxInputTokens:
+        override?.api?.maxInputTokens
+        ?? base?.api?.maxInputTokens
+        ?? DEFAULT_PRO_BRIDGE_API_CONFIG.maxInputTokens,
+      priceInputPerMTok:
+        override?.api?.priceInputPerMTok
+        ?? base?.api?.priceInputPerMTok
+        ?? DEFAULT_PRO_BRIDGE_API_CONFIG.priceInputPerMTok,
+      priceOutputPerMTok:
+        override?.api?.priceOutputPerMTok
+        ?? base?.api?.priceOutputPerMTok
+        ?? DEFAULT_PRO_BRIDGE_API_CONFIG.priceOutputPerMTok,
+      pollIntervalMs:
+        override?.api?.pollIntervalMs
+        ?? base?.api?.pollIntervalMs
+        ?? DEFAULT_PRO_BRIDGE_API_CONFIG.pollIntervalMs,
+    },
+    apply: {
+      envId:
+        override?.apply?.envId ?? base?.apply?.envId ?? DEFAULT_PRO_BRIDGE_APPLY_CONFIG.envId,
     },
   };
 }

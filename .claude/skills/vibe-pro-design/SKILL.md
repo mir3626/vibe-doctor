@@ -23,7 +23,7 @@ vibe-bundle을 검증된 계획 패키지로 설치한다. Goal discovery는 하
 4. 응답의 vibe-bundle 한 블록 전체를 복사해 `npm run vibe:pro-sync`로 설치한다. 파일 대안은 `npm run vibe:pro-sync -- --from <file>`이다.
 5. 취소/목록은 `node .vibe/harness/scripts/vibe-pro-bridge.mjs cancel <id>`와 `node .vibe/harness/scripts/vibe-pro-bridge.mjs list`다.
 
-웹에서 먼저 시작하는 web-origin 설계는 Phase 3 예정이다. 현재는 클립보드 또는 `--from` 파일을 통한 manual sync만 지원한다.
+웹에서 먼저 시작하는 web-origin 설계는 Phase 3 경로로 지원하며, 서버를 사용할 수 없을 때는 클립보드 또는 `--from` 파일 manual sync로 돌아간다.
 
 ## 실패 모드와 안전 경계
 
@@ -40,3 +40,9 @@ vibe-bundle을 검증된 계획 패키지로 설치한다. Goal discovery는 하
 `proBridge.enabled: true`와 `transport: "mcp-mailbox"`를 설정하고 `npm run vibe:pro-mcp`로 세션 서버를 먼저 기동한다. ChatGPT Developer Mode의 1회 connector 등록과 터널·토큰 경계는 `docs/context/pro-bridge-setup.md`를 따른다.
 
 발행 후 웹 대화에 `@Vibe Pro Bridge review <request-id>` invocation을 보내면 웹이 mailbox에서 요청 전문을 읽는다. 결과가 도착한 뒤 `npm run vibe:pro-sync`를 실행하면 클립보드 없이 설치된다. 서버나 터널을 사용할 수 없으면 위 Phase 1 manual 경로가 그대로 fallback이다.
+
+## Web-origin 경로 (Phase 3)
+
+웹에서 설계를 시작하기 전에 `npm run vibe:pro-mcp`를 기동하고 현재 세션 connector URL을 활성화한다. 웹은 `create_design_request`에 repository/branch/goal/실제 GitHub headSha를 전달한 뒤, 반환된 request id로 `claim_request` → `begin_result` → `put_result_file` 반복 → `finalize_result` 순서를 수행한다.
+
+로컬의 `npm run vibe:pro-sync -- --latest`는 현재 repo fullName·unimported result-ready·선택적 kind·최신 생성 시각으로 매칭한다. web-origin reviewed HEAD가 로컬과 다르면 설치를 중단하며, 검토 후 `--accept-head-mismatch`로 명시 승인한다. 서버가 없으면 `requestId: web-origin` vibe-bundle과 `npm run vibe:pro-sync -- --from <file>` 경로를 사용한다. 등록, 토큰, 포트, 옵션 어댑터 상세는 `docs/context/pro-bridge-setup.md`를 따른다.

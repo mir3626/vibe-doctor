@@ -1,4 +1,5 @@
 import { randomBytes } from 'node:crypto';
+import { spawn } from 'node:child_process';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
@@ -11,7 +12,11 @@ import {
   type ProBridgeConfig,
 } from '../lib/config.js';
 import { logger } from '../lib/logger.js';
-import type { ReviewRequest } from '../pro-bridge/contract.js';
+import {
+  FOLDER_NAME_PATTERN,
+  type ReviewKind,
+  type ReviewRequest,
+} from '../pro-bridge/contract.js';
 import { resolveGoalSource } from '../pro-bridge/goal-source/resolver.js';
 import {
   createDefaultGitPort,
@@ -25,7 +30,10 @@ import {
   type TunnelKind,
 } from '../pro-bridge/mailbox/tunnel.js';
 import { buildReviewRequest, ScopeBlockedError } from '../pro-bridge/prompt-composer.js';
-import { resolveGitHubScope } from '../pro-bridge/scope-resolver.js';
+import {
+  parseGitHubFullName,
+  resolveGitHubScope,
+} from '../pro-bridge/scope-resolver.js';
 import {
   copyFileToClipboard,
   ManualDirectoryTransport,
@@ -34,10 +42,20 @@ import {
 } from '../pro-bridge/transports/manual.js';
 import { McpMailboxTransport } from '../pro-bridge/transports/mcp-mailbox.js';
 import {
+  estimateReviewCost,
+  ResponsesApiExecutionError,
+  ResponsesApiTransport,
+} from '../pro-bridge/transports/responses-api.js';
+import {
   resolveTransportName,
   type RequestStatus,
+  type SupportedTransportName,
   type VibeProBridgeTransport,
 } from '../pro-bridge/transports/types.js';
+import {
+  WorkspaceAgentTransport,
+  type WorkspaceAgentTriggerPort,
+} from '../pro-bridge/transports/workspace-agent.js';
 import { parseVibeBundle } from '../pro-bridge/vibe-bundle.js';
 
 const CHATGPT_URL = 'https://chatgpt.com/';
@@ -51,6 +69,7 @@ type BridgeCliTransport = VibeProBridgeTransport & {
   listRequests(): Promise<RequestStatus[]>;
   cancelRequest(requestId: string): Promise<void>;
   readRequest(requestId: string): Promise<ReviewRequest | null>;
+  listResultReady?(): Promise<RequestStatus[]>;
 };
 
 export interface ProBridgeIo {
@@ -76,6 +95,17 @@ export interface ProBridgeDeps {
   tunnel?: { start: typeof startTunnel };
   waitForShutdown?: () => Promise<void>;
   randomToken?: () => string;
+  agentTrigger?: WorkspaceAgentTriggerPort;
+  fetchPort?: typeof fetch;
+  sleep?: (ms: number) => Promise<void>;
+  env?: Record<string, string | undefined>;
+  codexExec?: {
+    run(args: string[], stdinText: string): Promise<{
+      code: number | null;
+      stdout: string;
+      stderr: string;
+    }>;
+  };
 }
 
 function createDefaultIo(): ProBridgeIo {
@@ -170,6 +200,55 @@ function createGit(repoRoot: string, supplied?: GitPort): GitPort {
   return factory(repoRoot);
 }
 
+function createDefaultCodexExec(repoRoot: string): NonNullable<ProBridgeDeps['codexExec']> {
+  return {
+    run(args, stdinText) {
+      return new Promise((resolve, reject) => {
+        const child = spawn('codex', args, {
+          cwd: repoRoot,
+          shell: false,
+          windowsHide: true,
+          stdio: ['pipe', 'pipe', 'pipe'],
+        });
+        let stdout = '';
+        let stderr = '';
+        child.stdout.setEncoding('utf8');
+        child.stderr.setEncoding('utf8');
+        child.stdout.on('data', (chunk: string) => { stdout += chunk; });
+        child.stderr.on('data', (chunk: string) => { stderr += chunk; });
+        child.once('error', reject);
+        child.once('close', (code) => resolve({ code, stdout, stderr }));
+        child.stdin.end(stdinText, 'utf8');
+      });
+    },
+  };
+}
+
+const REVIEW_KINDS = new Set<ReviewKind>([
+  'goal_audit',
+  'feature_design',
+  'architecture_review',
+  'implementation_review',
+]);
+
+function resolveKindFlag(args: ReturnType<typeof parseArgs>): ReviewKind | null {
+  const value = getStringFlag(args, 'kind');
+  if (value === undefined) {
+    return null;
+  }
+  if (!REVIEW_KINDS.has(value as ReviewKind)) {
+    throw new Error(`Invalid --kind value "${value}". Expected ${[...REVIEW_KINDS].join(', ')}.`);
+  }
+  return value as ReviewKind;
+}
+
+function errorCode(error: unknown): string | null {
+  return error !== null && typeof error === 'object' && 'code' in error
+    && typeof error.code === 'string'
+    ? error.code
+    : null;
+}
+
 async function gitHead(git: GitPort): Promise<string> {
   const port = git as unknown as Record<string, unknown>;
   const method = typeof port.run === 'function'
@@ -197,7 +276,7 @@ function deepLink(transportName: 'manual' | 'mcp-mailbox'): string {
   return Buffer.byteLength(candidate, 'utf8') <= 2048 ? candidate : CHATGPT_URL;
 }
 
-function publicationSummary(scope: unknown): string[] {
+function publicationSummary(scope: unknown, destination = 'OpenAI(ChatGPT 웹)'): string[] {
   const included = arrayAt(scope, 'patch', 'files');
   const fallbackIncluded = arrayAt(scope, 'patch', 'included');
   const roster = included.length > 0 ? included : fallbackIncluded;
@@ -216,7 +295,7 @@ function publicationSummary(scope: unknown): string[] {
     }
   }
   return [
-    '외부 발행 고지: 요청 메타데이터, 리뷰 프롬프트, 아래 patch가 OpenAI(ChatGPT 웹)로 전송됩니다.',
+    `외부 발행 고지: 요청 메타데이터, 리뷰 프롬프트, 아래 patch가 ${destination}로 전송됩니다.`,
     `patch 파일: ${roster.length > 0 ? roster.map((item) => stringAt(item, 'path') ?? String(item)).join(', ') : '없음'}`,
     `제외 요약: 보안 필터 제외 ${protectedCount}, 비텍스트 제외 ${nonTextCount}, 기타 제외 ${otherCount}`,
   ];
@@ -250,14 +329,32 @@ async function createAndPublish(
     config: ProBridgeConfig;
     io: ProBridgeIo;
     transport: BridgeCliTransport;
-    transportName: 'manual' | 'mcp-mailbox';
+    transportName: SupportedTransportName;
     clipboard: NonNullable<ProBridgeDeps['clipboard']>;
     browser: NonNullable<ProBridgeDeps['browser']>;
     stdin: NonNullable<ProBridgeDeps['stdin']>;
   },
 ): Promise<number> {
-  for (const line of publicationSummary(scope)) {
+  const destination = options.transportName === 'responses-api'
+    ? 'OpenAI Responses API'
+    : 'OpenAI(ChatGPT 웹)';
+  for (const line of publicationSummary(scope, destination)) {
     options.io.out(line);
+  }
+  if (options.transportName === 'responses-api') {
+    const estimate = estimateReviewCost(request, options.config.api);
+    options.io.out([
+      `Responses API 비용 추정 — model=${options.config.api.model}`,
+      `inputTokens=${estimate.inputTokens}`,
+      `outputTokens=${estimate.outputTokens}`,
+      `usd=${estimate.usd.toFixed(4)}`,
+    ].join(', '));
+    if (estimate.exceedsLimit) {
+      options.io.err(
+        `예상 입력 ${estimate.inputTokens} tokens가 maxInputTokens ${options.config.api.maxInputTokens}를 초과해 발행을 중단했습니다.`,
+      );
+      return 1;
+    }
   }
   if (!options.yes) {
     if (!options.stdin.isTTY) {
@@ -271,6 +368,29 @@ async function createAndPublish(
   }
 
   const handle = await options.transport.createRequest(request);
+  if (options.transportName === 'workspace-agent') {
+    const triggered = await (options.transport as WorkspaceAgentTransport).trigger(handle.requestId);
+    options.io.out(`requestId: ${handle.requestId}`);
+    options.io.out(`triggered: ${triggered.triggered} (${triggered.reason})`);
+    options.io.out('trigger 응답은 접수 확인일 뿐입니다. completion은 npm run vibe:pro-status 폴링과 npm run vibe:pro-sync로만 확인하세요.');
+    return 0;
+  }
+  if (options.transportName === 'responses-api') {
+    try {
+      const executed = await (options.transport as ResponsesApiTransport).execute(handle.requestId);
+      options.io.out(`requestId: ${handle.requestId}`);
+      options.io.out(`Responses API attempts: ${executed.attempts}`);
+      options.io.out('결과 업로드 완료 — npm run vibe:pro-sync 로 설치하세요.');
+      return executed.resultReady ? 0 : 1;
+    } catch (error) {
+      const attempts = error instanceof ResponsesApiExecutionError ? error.attempts : 0;
+      options.io.err(
+        `Responses API 리뷰 실패 (attempts=${attempts}): ${error instanceof Error ? error.message : String(error)}`,
+      );
+      options.io.err(`요청을 정리하려면 vibe-pro-bridge cancel ${handle.requestId} 를 실행하세요.`);
+      return 1;
+    }
+  }
   if (options.config.copyInvocation) {
     const copyPath = options.transportName === 'mcp-mailbox'
       ? path.join(handle.requestDir, 'invocation.txt')
@@ -527,12 +647,36 @@ async function runMailboxSync(
     repoRoot: string;
     config: ProBridgeConfig;
     io: ProBridgeIo;
-    transport: McpMailboxTransport;
+    transport: BridgeCliTransport & { listResultReady(): Promise<RequestStatus[]> };
+    transportName: SupportedTransportName;
+    git: GitPort;
+    stdin: NonNullable<ProBridgeDeps['stdin']>;
     now: () => Date;
   },
 ): Promise<number> {
-  const ready = await context.transport.listResultReady();
+  let ready = await context.transport.listResultReady();
   const positional = args.positionals[1];
+  const kind = resolveKindFlag(args);
+  if (!positional) {
+    if (kind !== null) {
+      ready = ready.filter((status) => status.kind === kind);
+    }
+    const remote = await context.git.run(['remote', 'get-url', 'origin']);
+    const repositoryFullName = parseGitHubFullName(remote.ok ? remote.stdout.trim() : null);
+    if (repositoryFullName === null) {
+      // The mailbox is repository-local, so unresolved identity degrades to an explicit warning.
+      context.io.err('현재 GitHub origin fullName을 해석하지 못해 mailbox repository 필터를 생략합니다.');
+    } else {
+      const matching: RequestStatus[] = [];
+      for (const status of ready) {
+        const candidate = await context.transport.readRequest(status.requestId);
+        if (candidate?.repository.fullName === repositoryFullName) {
+          matching.push(status);
+        }
+      }
+      ready = matching;
+    }
+  }
   let requestId: string | null = null;
   if (positional) {
     const status = await context.transport.getRequestStatus(positional).catch(() => null);
@@ -563,6 +707,36 @@ async function runMailboxSync(
     context.io.err(`mailbox request/result manifest를 읽을 수 없습니다: ${requestId}`);
     return 1;
   }
+  if (kind !== null && request.kind !== kind) {
+    context.io.err(`요청 kind ${request.kind}가 --kind ${kind}와 일치하지 않습니다.`);
+    return 1;
+  }
+  const acknowledgedValidations: string[] = [];
+  if (request.origin === 'web') {
+    let localHead: string | null = null;
+    let headFailure: string | null = null;
+    try {
+      localHead = await gitHead(context.git);
+    } catch (error) {
+      headFailure = error instanceof Error ? error.message : String(error);
+    }
+    if (localHead !== manifest.reviewedHeadSha) {
+      context.io.err([
+        'web-origin HEAD 불일치 경고:',
+        `local=${localHead ?? `unavailable (${headFailure ?? 'unknown'})`}`,
+        `reviewed=${manifest.reviewedHeadSha}`,
+      ].join(' '));
+      let accepted = getBooleanFlag(args, 'accept-head-mismatch');
+      if (!accepted && context.stdin.isTTY) {
+        accepted = await context.io.confirm('HEAD 불일치를 승인하고 결과를 설치할까요?');
+      }
+      if (!accepted) {
+        context.io.err('설치를 중단했습니다. 비대화 환경에서는 --accept-head-mismatch가 필요합니다.');
+        return 1;
+      }
+      acknowledgedValidations.push('local-head-mismatch-acknowledged');
+    }
+  }
   const files = await Promise.all(manifest.files.map(async (file) => ({
     path: file.path,
     content: await context.transport.getResultFile(requestId, file.path),
@@ -572,8 +746,9 @@ async function runMailboxSync(
     request,
     resultManifest: manifest,
     expectedRepositoryFullName: request.repository.fullName,
-    transport: 'mcp-mailbox',
+    transport: context.transportName,
     now: context.now,
+    ...(acknowledgedValidations.length === 0 ? {} : { acknowledgedValidations }),
     ...(context.config.resultRoot === 'docs/plans'
       ? {}
       : { installRoot: path.join(context.repoRoot, context.config.resultRoot) }),
@@ -618,8 +793,10 @@ async function runSync(
     config: ProBridgeConfig;
     io: ProBridgeIo;
     transport: BridgeCliTransport;
-    transportName: 'manual' | 'mcp-mailbox';
+    transportName: SupportedTransportName;
     clipboard: NonNullable<ProBridgeDeps['clipboard']>;
+    git: GitPort;
+    stdin: NonNullable<ProBridgeDeps['stdin']>;
     now: () => Date;
   },
 ): Promise<number> {
@@ -628,8 +805,55 @@ async function runSync(
   }
   return runMailboxSync(args, {
     ...context,
-    transport: context.transport as McpMailboxTransport,
+    transport: context.transport as BridgeCliTransport & {
+      listResultReady(): Promise<RequestStatus[]>;
+    },
   });
+}
+
+async function runApply(
+  args: ReturnType<typeof parseArgs>,
+  context: {
+    repoRoot: string;
+    config: ProBridgeConfig;
+    io: ProBridgeIo;
+    codexExec: NonNullable<ProBridgeDeps['codexExec']>;
+  },
+): Promise<number> {
+  const folder = args.positionals[1];
+  if (!folder || !FOLDER_NAME_PATTERN.test(folder)) {
+    context.io.err('usage: vibe-pro-bridge apply <folder>');
+    return 1;
+  }
+  const promptPath = path.join(
+    context.repoRoot,
+    context.config.resultRoot,
+    folder,
+    'prompt',
+    'CLI_MAIN_SESSION_PROMPT.md',
+  );
+  let prompt: string;
+  try {
+    prompt = await readFile(promptPath, 'utf8');
+  } catch {
+    context.io.err(`설치된 구현 프롬프트를 찾을 수 없습니다: ${promptPath}`);
+    return 1;
+  }
+  const envId = context.config.apply.envId?.trim() ?? '';
+  if (envId.length === 0) {
+    context.io.out('codex cloud 환경 id가 설정되지 않았습니다. codex cloud의 환경 목록에서 envId를 확인하세요.');
+    context.io.out('.vibe/config.local.json에 proBridge.apply.envId를 설정한 뒤 다시 실행하세요.');
+    return 0;
+  }
+  const result = await context.codexExec.run(['cloud', 'exec', '--env', envId], prompt);
+  if (result.stdout.length > 0) {
+    context.io.out(result.stdout);
+  }
+  if (result.stderr.length > 0) {
+    context.io.err(result.stderr);
+  }
+  context.io.out('다음: codex cloud status / codex cloud diff 로 확인하세요 — 자동 merge/apply는 하지 않습니다.');
+  return result.code ?? 1;
 }
 
 function resolveTunnelKind(value: string): TunnelKind {
@@ -675,12 +899,27 @@ async function runMcpServer(
   );
   const token = context.deps.randomToken?.() ?? randomBytes(32).toString('base64url');
   const mailbox = new McpMailboxTransport({ repoRoot: context.repoRoot, now: context.now });
-  const server = await (context.deps.mcpServer?.start ?? startMcpServer)({
-    tools: createMailboxTools(mailbox.store),
-    token,
-    port,
-    log: (line) => context.io.out(`[mcp] ${line}`),
-  });
+  let server: Awaited<ReturnType<typeof startMcpServer>>;
+  try {
+    server = await (context.deps.mcpServer?.start ?? startMcpServer)({
+      tools: createMailboxTools(mailbox.store, {
+        now: context.now,
+        requestTtlHours: context.config.requestTtlHours,
+      }),
+      token,
+      port,
+      log: (line) => context.io.out(`[mcp] ${line}`),
+    });
+  } catch (error) {
+    const code = errorCode(error);
+    if (code === 'EACCES' || code === 'EADDRINUSE') {
+      context.io.err(`MCP port ${port} listen 실패 (${code}).`);
+      context.io.err('Windows WinNAT excluded port range 충돌 가능 (실측 예: 8827–8926) — netsh interface ipv4 show excludedportrange protocol=tcp 로 확인하세요.');
+      context.io.err('--port <n> 또는 .vibe/config.local.json의 proBridge.mcp.port로 오버라이드하세요.');
+      return 1;
+    }
+    throw error;
+  }
   let tunnelHandle: Awaited<ReturnType<typeof startTunnel>> | null = null;
   try {
     tunnelHandle = await (context.deps.tunnel?.start ?? startTunnel)(tunnelKind, server.port);
@@ -718,7 +957,7 @@ export async function runProBridge(argv: string[], deps: ProBridgeDeps = {}): Pr
   const browser = deps.browser ?? { open: openInBrowser };
   const stdin = deps.stdin ?? { isTTY: process.stdin.isTTY === true };
 
-  let transportName: 'manual' | 'mcp-mailbox';
+  let transportName: SupportedTransportName;
   try {
     transportName = resolveTransportName({
       cliOption: getStringFlag(args, 'transport'),
@@ -728,9 +967,52 @@ export async function runProBridge(argv: string[], deps: ProBridgeDeps = {}): Pr
     io.err(error instanceof Error ? error.message : String(error));
     return 1;
   }
-  const transport: BridgeCliTransport = transportName === 'mcp-mailbox'
-    ? new McpMailboxTransport({ repoRoot, now })
-    : new ManualDirectoryTransport({ repoRoot, now });
+  let transport: BridgeCliTransport;
+  try {
+    if (transportName === 'workspace-agent') {
+      if (!config.workspaceAgent.enabled || config.workspaceAgent.triggerCommand.length === 0) {
+        io.err('workspace-agent transport는 proBridge.workspaceAgent.enabled=true와 비어 있지 않은 triggerCommand가 필요합니다.');
+        return 1;
+      }
+      transport = new WorkspaceAgentTransport({
+        repoRoot,
+        now,
+        triggerCommand: config.workspaceAgent.triggerCommand,
+        ...(deps.agentTrigger === undefined ? {} : { trigger: deps.agentTrigger }),
+      });
+    } else if (transportName === 'responses-api') {
+      if (!config.api.enabled) {
+        io.err('responses-api transport는 proBridge.api.enabled=true 명시 opt-in이 필요합니다.');
+        return 1;
+      }
+      const apiKey = deps.env?.OPENAI_API_KEY ?? process.env.OPENAI_API_KEY;
+      if (!apiKey?.trim()) {
+        io.err('OPENAI_API_KEY 환경변수 전용 — API key를 config에 넣지 마세요.');
+        return 1;
+      }
+      if (config.api.model.trim().length === 0) {
+        io.err('responses-api model은 config에 직접 지정하세요 (model-registry 확장 범위 밖).');
+        return 1;
+      }
+      transport = new ResponsesApiTransport({
+        repoRoot,
+        now,
+        apiKey,
+        api: config.api,
+        ports: {
+          ...(deps.fetchPort === undefined ? {} : { fetch: deps.fetchPort }),
+          ...(deps.sleep === undefined ? {} : { sleep: deps.sleep }),
+        },
+      });
+    } else if (transportName === 'mcp-mailbox') {
+      transport = new McpMailboxTransport({ repoRoot, now });
+    } else {
+      transport = new ManualDirectoryTransport({ repoRoot, now });
+    }
+  } catch (error) {
+    io.err(error instanceof Error ? error.message : String(error));
+    return 1;
+  }
 
   if (!command) {
     const pending = (await transport.listRequests()).filter(
@@ -738,11 +1020,13 @@ export async function runProBridge(argv: string[], deps: ProBridgeDeps = {}): Pr
     );
     if (pending.length > 0) {
       printStatuses(pending, io);
-      if (transportName === 'mcp-mailbox') {
+      if (transportName !== 'manual') {
         if (pending.some((status) => status.state === 'result-ready')) {
           io.out('결과 도착 — npm run vibe:pro-sync 로 설치하세요.');
-        } else {
+        } else if (transportName === 'mcp-mailbox') {
           io.out('웹이 요청을 읽으려면 npm run vibe:pro-mcp 서버가 떠 있어야 합니다.');
+        } else {
+          io.out('완료 여부는 npm run vibe:pro-status의 mailbox 상태로 확인하세요.');
         }
       } else {
         io.out('Manual transport는 원격 result-ready를 자동 감지하지 않습니다. 결과가 준비되면 npm run vibe:pro-sync 를 실행하세요.');
@@ -758,7 +1042,17 @@ export async function runProBridge(argv: string[], deps: ProBridgeDeps = {}): Pr
   }
 
   if (command === 'status' || command === 'list') {
-    printStatuses(await transport.listRequests(), io);
+    try {
+      const kind = resolveKindFlag(args);
+      const statuses = await transport.listRequests();
+      printStatuses(
+        kind === null ? statuses : statuses.filter((status) => status.kind === kind),
+        io,
+      );
+    } catch (error) {
+      io.err(error instanceof Error ? error.message : String(error));
+      return 1;
+    }
     return 0;
   }
   if (command === 'cancel') {
@@ -777,7 +1071,30 @@ export async function runProBridge(argv: string[], deps: ProBridgeDeps = {}): Pr
     }
   }
   if (command === 'sync') {
-    return runSync(args, { repoRoot, config, io, transport, transportName, clipboard, now });
+    try {
+      return await runSync(args, {
+        repoRoot,
+        config,
+        io,
+        transport,
+        transportName,
+        clipboard,
+        git: createGit(repoRoot, deps.git),
+        stdin,
+        now,
+      });
+    } catch (error) {
+      io.err(error instanceof Error ? error.message : String(error));
+      return 1;
+    }
+  }
+  if (command === 'apply') {
+    return runApply(args, {
+      repoRoot,
+      config,
+      io,
+      codexExec: deps.codexExec ?? createDefaultCodexExec(repoRoot),
+    });
   }
   if (command === 'mcp') {
     try {
@@ -789,7 +1106,7 @@ export async function runProBridge(argv: string[], deps: ProBridgeDeps = {}): Pr
   }
 
   if (command !== 'audit' && command !== 'design') {
-    io.err('usage: vibe-pro-bridge [audit|design|status|sync|cancel|list|mcp]');
+    io.err('usage: vibe-pro-bridge [audit|design|status|sync|cancel|list|mcp|apply]');
     return 1;
   }
 

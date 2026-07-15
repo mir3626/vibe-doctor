@@ -547,7 +547,7 @@ describe('pro bridge command', () => {
 
   it('resolves mcp mailbox config defaults when the section is absent', () => {
     const resolved = resolveProBridgeConfig({ enabled: true, transport: 'mcp-mailbox' });
-    assert.deepEqual(resolved.mcp, { port: 8848, tunnel: 'none' });
+    assert.deepEqual(resolved.mcp, { port: 18488, tunnel: 'none' });
   });
 
   it('sync pulls a result ready mailbox request through the shared importer', async () => {
@@ -644,6 +644,295 @@ describe('pro bridge command', () => {
       assert.equal(exit, 0);
       assert.match(capture.err.join('\n'), /로컬 URL.*ENOENT/);
       assert.match(capture.out.join('\n'), /http:\/\/127\.0\.0\.1:8848\/mcp\?token=/);
+    } finally { await rm(repoRoot, { recursive: true, force: true }); }
+  });
+});
+
+describe('pro bridge web origin and adapters', () => {
+  function designRequest(input: {
+    requestId: string;
+    repositoryFullName?: string;
+    kind?: 'goal_audit' | 'feature_design';
+    origin?: 'cli' | 'web';
+    headSha?: string;
+    createdOffset?: number;
+  }): ReviewRequest {
+    const kind = input.kind ?? 'feature_design';
+    const draft: ReviewRequest = {
+      schemaVersion: 'vibe-pro-review-request-v1',
+      requestId: input.requestId,
+      kind,
+      origin: input.origin ?? 'web',
+      repository: {
+        fullName: input.repositoryFullName ?? 'owner/repo',
+        remoteUrl: `https://github.com/${input.repositoryFullName ?? 'owner/repo'}`,
+        defaultBranch: 'main',
+      },
+      git: {
+        baseSha: input.headSha ?? HEAD_SHA,
+        headSha: input.headSha ?? HEAD_SHA,
+        branch: 'main',
+        headVisibleOnGitHub: true,
+        compareUrlHint: null,
+        patchAttachmentSha256: null,
+      },
+      goalSource: null,
+      userGoal: 'Design web-origin sync.',
+      reviewPrompt: '# Web-origin design',
+      outputContract: {
+        requiredFiles: kind === 'goal_audit'
+          ? ['README.md', 'REVIEW.md', 'FINDINGS.json', 'prompt/CLI_MAIN_SESSION_PROMPT.md']
+          : ['README.md', 'DESIGN.md', 'FINDINGS.json', 'prompt/CLI_MAIN_SESSION_PROMPT.md'],
+      },
+      createdAt: new Date(NOW.getTime() + (input.createdOffset ?? 0)).toISOString(),
+      expiresAt: new Date(NOW.getTime() + 3_600_000).toISOString(),
+      payloadSha256: '0'.repeat(64),
+    };
+    return { ...draft, payloadSha256: computePayloadSha256(draft) };
+  }
+
+  async function seedReadyResult(
+    repoRoot: string,
+    input: ReviewRequest,
+    folder: string,
+  ): Promise<ReviewResultManifest> {
+    const store = new MailboxStore({ repoRoot, now: () => NOW });
+    const primary = input.kind === 'goal_audit' ? 'REVIEW.md' : 'DESIGN.md';
+    const files = [
+      { path: 'README.md', content: '# Web-origin result\n' },
+      { path: primary, content: '# Result\n\nRepository-bound package.\n' },
+      { path: 'FINDINGS.json', content: '{"findings":[]}\n' },
+      { path: 'prompt/CLI_MAIN_SESSION_PROMPT.md', content: '# Implement\n\nWait for approval.\n' },
+    ];
+    const draft: ReviewResultManifest = {
+      schemaVersion: 'vibe-pro-review-result-v1',
+      requestId: input.requestId,
+      requestPayloadSha256: input.payloadSha256,
+      repositoryFullName: input.repository.fullName,
+      reviewedBaseSha: input.git.baseSha,
+      reviewedHeadSha: input.git.headSha,
+      resultKind: input.kind === 'goal_audit' ? 'audit' : 'design',
+      proposedFolder: folder,
+      disposition: 'approved',
+      files: files.map((file) => {
+        const bytes = Buffer.from(file.content, 'utf8');
+        return {
+          path: file.path,
+          mediaType: file.path.endsWith('.json') ? 'application/json' : 'text/markdown',
+          byteLength: bytes.byteLength,
+          sha256: createHash('sha256').update(bytes).digest('hex'),
+        };
+      }),
+      findingsSummary: { p0: 0, p1: 0, p2: 0, p3: 0 },
+      reviewerDeclaration: {
+        surface: 'chatgpt-web',
+        requestedMode: 'pro',
+        githubConnectorUsed: true,
+        limitations: [],
+      },
+      createdAt: NOW.toISOString(),
+      payloadSha256: '0'.repeat(64),
+    };
+    const manifest = { ...draft, payloadSha256: computePayloadSha256(draft) };
+    await store.createRequest(input);
+    await store.claimRequest(input.requestId);
+    await store.beginResult(input.requestId);
+    for (const file of files) {
+      await store.putResultFile(input.requestId, {
+        filePath: file.path,
+        chunkIndex: 0,
+        chunkCount: 1,
+        content: file.content,
+        chunkSha256: createHash('sha256').update(file.content).digest('hex'),
+      });
+    }
+    await store.finalizeResult(input.requestId, manifest);
+    return manifest;
+  }
+
+  function repositoryGit(localHead = HEAD_SHA): GitPort {
+    return {
+      async run(args) {
+        if (args[0] === 'remote') {
+          return { ok: true, stdout: 'https://github.com/owner/repo.git\n', stderr: '', code: 0 };
+        }
+        if (args[0] === 'rev-parse') {
+          return { ok: true, stdout: `${localHead}\n`, stderr: '', code: 0 };
+        }
+        return { ok: false, stdout: '', stderr: `unexpected ${args.join(' ')}`, code: 1 };
+      },
+    };
+  }
+
+  async function writeInstalledPrompt(repoRoot: string, folder: string, prompt: string): Promise<void> {
+    const { mkdir, writeFile } = await import('node:fs/promises');
+    const promptDir = path.join(repoRoot, 'plans', folder, 'prompt');
+    await mkdir(promptDir, { recursive: true });
+    await writeFile(path.join(promptDir, 'CLI_MAIN_SESSION_PROMPT.md'), prompt, 'utf8');
+  }
+
+  it('resolves adapter config defaults when the sections are absent', () => {
+    const resolved = resolveProBridgeConfig({ enabled: true });
+    assert.equal(resolved.mcp.port, 18488);
+    assert.deepEqual(resolved.workspaceAgent, { enabled: false, triggerCommand: [] });
+    assert.deepEqual(resolved.api, {
+      enabled: false,
+      model: '',
+      effort: 'high',
+      maxInputTokens: 200_000,
+      priceInputPerMTok: 0,
+      priceOutputPerMTok: 0,
+      pollIntervalMs: 5_000,
+    });
+    assert.deepEqual(resolved.apply, { envId: null });
+  });
+
+  it('sync latest matches only result ready requests for the current repository and kind', async () => {
+    const repoRoot = await makeRoot();
+    try {
+      const selected = designRequest({ requestId: 'web-current-design', createdOffset: 1_000 });
+      const otherKind = designRequest({
+        requestId: 'web-current-audit',
+        kind: 'goal_audit',
+        createdOffset: 2_000,
+      });
+      const otherRepo = designRequest({
+        requestId: 'web-other-design',
+        repositoryFullName: 'other/repo',
+        createdOffset: 3_000,
+      });
+      const selectedManifest = await seedReadyResult(repoRoot, selected, '2026-07-15-current-design');
+      await seedReadyResult(repoRoot, otherKind, '2026-07-15-current-audit');
+      await seedReadyResult(repoRoot, otherRepo, '2026-07-15-other-design');
+      const capture = captureIo();
+      const exit = await runProBridge(['sync', '--latest', '--kind', 'feature_design'], {
+        repoRoot,
+        config: enabledConfig({ transport: 'mcp-mailbox', resultRoot: 'plans' }),
+        io: capture.io,
+        git: repositoryGit(),
+        stdin: { isTTY: false },
+        now: () => NOW,
+      });
+      assert.equal(exit, 0, capture.err.join('\n'));
+      await access(path.join(repoRoot, 'plans', selectedManifest.proposedFolder, 'README.md'));
+      const store = new MailboxStore({ repoRoot, now: () => NOW });
+      assert.equal((await store.getStatus(selected.requestId)).state, 'imported');
+      assert.equal((await store.getStatus(otherKind.requestId)).state, 'result-ready');
+      assert.equal((await store.getStatus(otherRepo.requestId)).state, 'result-ready');
+    } finally { await rm(repoRoot, { recursive: true, force: true }); }
+  });
+
+  it('sync gates a web origin head mismatch behind explicit approval', async () => {
+    const repoRoot = await makeRoot();
+    try {
+      const input = designRequest({ requestId: 'web-head-mismatch' });
+      const manifest = await seedReadyResult(repoRoot, input, '2026-07-15-head-mismatch');
+      const rejected = captureIo();
+      const rejectedExit = await runProBridge(['sync', '--latest'], {
+        repoRoot,
+        config: enabledConfig({ transport: 'mcp-mailbox', resultRoot: 'plans' }),
+        io: rejected.io,
+        git: repositoryGit('c'.repeat(40)),
+        stdin: { isTTY: false },
+        now: () => NOW,
+      });
+      assert.equal(rejectedExit, 1);
+      assert.match(rejected.err.join('\n'), /HEAD 불일치/);
+
+      const approved = captureIo();
+      const approvedExit = await runProBridge(['sync', '--latest', '--accept-head-mismatch'], {
+        repoRoot,
+        config: enabledConfig({ transport: 'mcp-mailbox', resultRoot: 'plans' }),
+        io: approved.io,
+        git: repositoryGit('c'.repeat(40)),
+        stdin: { isTTY: false },
+        now: () => NOW,
+      });
+      assert.equal(approvedExit, 0, approved.err.join('\n'));
+      const provenance = JSON.parse(await readFile(
+        path.join(repoRoot, 'plans', manifest.proposedFolder, '.bridge', 'provenance.json'),
+        'utf8',
+      )) as { skippedValidations: string[] };
+      assert.deepEqual(provenance.skippedValidations, ['local-head-mismatch-acknowledged']);
+    } finally { await rm(repoRoot, { recursive: true, force: true }); }
+  });
+
+  it('apply refuses to run without an installed prompt file', async () => {
+    const repoRoot = await makeRoot();
+    try {
+      const capture = captureIo();
+      const exit = await runProBridge(['apply', '2026-07-15-missing-design'], {
+        repoRoot,
+        config: enabledConfig({ resultRoot: 'plans' }),
+        io: capture.io,
+      });
+      assert.equal(exit, 1);
+      assert.match(capture.err.join('\n'), /프롬프트를 찾을 수 없습니다/);
+    } finally { await rm(repoRoot, { recursive: true, force: true }); }
+  });
+
+  it('apply prints environment setup guidance and exits zero when envId is missing', async () => {
+    const repoRoot = await makeRoot();
+    try {
+      const folder = '2026-07-15-apply-guidance';
+      await writeInstalledPrompt(repoRoot, folder, '# Apply prompt\n');
+      let calls = 0;
+      const capture = captureIo();
+      const exit = await runProBridge(['apply', folder], {
+        repoRoot,
+        config: enabledConfig({ resultRoot: 'plans', apply: { envId: null } }),
+        io: capture.io,
+        codexExec: { async run() { calls += 1; return { code: 0, stdout: '', stderr: '' }; } },
+      });
+      assert.equal(exit, 0);
+      assert.equal(calls, 0);
+      assert.match(capture.out.join('\n'), /proBridge\.apply\.envId/);
+    } finally { await rm(repoRoot, { recursive: true, force: true }); }
+  });
+
+  it('apply submits the installed prompt through the codex cloud exec port', async () => {
+    const repoRoot = await makeRoot();
+    try {
+      const folder = '2026-07-15-apply-submit';
+      const prompt = '# Apply prompt\n\nImplement only after review.\n';
+      await writeInstalledPrompt(repoRoot, folder, prompt);
+      const calls: Array<{ args: string[]; stdinText: string }> = [];
+      const capture = captureIo();
+      const exit = await runProBridge(['apply', folder], {
+        repoRoot,
+        config: enabledConfig({ resultRoot: 'plans', apply: { envId: 'env-test' } }),
+        io: capture.io,
+        codexExec: {
+          async run(args, stdinText) {
+            calls.push({ args, stdinText });
+            return { code: 0, stdout: 'submitted', stderr: '' };
+          },
+        },
+      });
+      assert.equal(exit, 0, capture.err.join('\n'));
+      assert.deepEqual(calls, [{ args: ['cloud', 'exec', '--env', 'env-test'], stdinText: prompt }]);
+      assert.equal(calls[0]!.args.some((arg) => /merge|apply/.test(arg)), false);
+      assert.match(capture.out.join('\n'), /cloud status.*cloud diff/);
+    } finally { await rm(repoRoot, { recursive: true, force: true }); }
+  });
+
+  it('mcp subcommand explains windows excluded port ranges on listen errors', async () => {
+    const repoRoot = await makeRoot();
+    try {
+      const capture = captureIo();
+      const exit = await runProBridge(['mcp'], {
+        repoRoot,
+        config: enabledConfig(),
+        io: capture.io,
+        mcpServer: {
+          async start() {
+            throw Object.assign(new Error('permission denied'), { code: 'EACCES' });
+          },
+        },
+      });
+      assert.equal(exit, 1);
+      assert.match(capture.err.join('\n'), /excludedportrange/);
+      assert.match(capture.err.join('\n'), /--port/);
     } finally { await rm(repoRoot, { recursive: true, force: true }); }
   });
 });

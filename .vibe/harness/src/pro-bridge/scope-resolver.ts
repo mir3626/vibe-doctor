@@ -65,7 +65,7 @@ function normalizeRepoPath(filePath: string): string {
   return filePath.trim().replaceAll('\\', '/').replace(/^\.\//, '');
 }
 
-function parseGitHubFullName(remoteUrl: string | null): string | null {
+export function parseGitHubFullName(remoteUrl: string | null): string | null {
   if (remoteUrl === null) {
     return null;
   }

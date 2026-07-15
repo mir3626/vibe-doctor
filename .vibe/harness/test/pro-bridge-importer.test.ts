@@ -620,4 +620,34 @@ describe('result importer', () => {
       await rm(root, { recursive: true, force: true });
     }
   });
+
+  it('records acknowledged validations in the provenance receipt', async () => {
+    const root = await makeRoot();
+    try {
+      const outcome = await importReviewResult(
+        { kind: 'bundle', bundle: bundle() },
+        context(root, {
+          acknowledgedValidations: [
+            'local-head-mismatch-acknowledged',
+            'explicit-review-override',
+          ],
+        }),
+      );
+      assert.equal(outcome.status, 'installed');
+      if (outcome.status === 'installed') {
+        const provenance = JSON.parse(await readFile(
+          path.join(outcome.installedPath, '.bridge/provenance.json'),
+          'utf8',
+        )) as { skippedValidations: string[] };
+        assert.equal(outcome.skippedValidations.includes('local-head-mismatch-acknowledged'), true);
+        assert.deepEqual(
+          outcome.skippedValidations,
+          [...outcome.skippedValidations].sort(),
+        );
+        assert.deepEqual(provenance.skippedValidations, outcome.skippedValidations);
+      }
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
 });

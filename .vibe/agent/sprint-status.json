@@ -55,18 +55,41 @@
         "net": 2874,
         "filesChanged": 29
       }
+    },
+    {
+      "id": "sprint-vpb-05-web-origin-optional",
+      "name": "sprint-vpb-05-web-origin-optional",
+      "status": "passed",
+      "completedAt": "2026-07-15T10:24:05.171Z",
+      "actualLoc": {
+        "added": 3596,
+        "deleted": 36,
+        "net": 3560,
+        "filesChanged": 26
+      }
     }
   ],
   "verificationCommands": [],
   "handoff": {
     "currentSprintId": "idle",
-    "lastActionSummary": "Sprint sprint-vpb-04-mcp-mailbox completed with passed",
+    "lastActionSummary": "Sprint sprint-vpb-05-web-origin-optional completed with passed",
     "orchestratorContextBudget": "medium",
     "preferencesActive": [],
     "handoffDocPath": ".vibe/agent/handoff.md",
-    "updatedAt": "2026-07-15T09:05:24.241Z"
+    "updatedAt": "2026-07-15T10:24:05.171Z"
   },
-  "pendingRisks": [],
+  "pendingRisks": [
+    {
+      "id": "audit-after-sprint-vpb-05-web-origin-optional",
+      "raisedBy": "vibe-sprint-complete",
+      "targetSprint": "*",
+      "text": "Evaluator audit due (sprintsSinceLastAudit=5, everyN=5).",
+      "status": "resolved",
+      "createdAt": "2026-07-15T10:24:05.171Z",
+      "resolvedAt": "2026-07-15T10:24:32.586Z",
+      "statusUpdatedAt": "2026-07-15T10:24:32.586Z"
+    }
+  ],
   "lastSprintScope": [
     ".vibe/agent/iteration-history.json",
     ".vibe/harness/scripts/vibe-gen-schemas-impl.ts",
@@ -125,10 +148,15 @@
     ".vibe/harness/src/pro-bridge/transports/mcp-mailbox.ts",
     ".vibe/harness/test/pro-bridge-mailbox.test.ts",
     ".vibe/harness/test/pro-bridge-mcp-server.test.ts",
-    "docs/context/pro-bridge-setup.md"
+    "docs/context/pro-bridge-setup.md",
+    ".vibe/harness/src/pro-bridge/transports/responses-api.ts",
+    ".vibe/harness/src/pro-bridge/transports/workspace-agent.ts",
+    ".vibe/harness/test/pro-bridge-adapters.test.ts",
+    "docs/plans/archive/roadmaps/iter-1-20260715102405-1.md",
+    "docs/reports/project-report.html"
   ],
   "lastSprintScopeGlob": [],
-  "sprintsSinceLastAudit": 4,
-  "stateUpdatedAt": "2026-07-15T09:05:24.241Z",
+  "sprintsSinceLastAudit": 0,
+  "stateUpdatedAt": "2026-07-15T10:24:32.585Z",
   "verifiedAt": null
 }

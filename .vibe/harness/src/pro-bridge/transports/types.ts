@@ -39,7 +39,12 @@ export interface VibeProBridgeTransport {
   acknowledgeImport(requestId: string, receipt: ImportReceipt): Promise<void>;
 }
 
-export const SUPPORTED_TRANSPORTS = ['manual', 'mcp-mailbox'] as const;
+export const SUPPORTED_TRANSPORTS = [
+  'manual',
+  'mcp-mailbox',
+  'workspace-agent',
+  'responses-api',
+] as const;
 export type SupportedTransportName = (typeof SUPPORTED_TRANSPORTS)[number];
 
 export function resolveTransportName(input: {

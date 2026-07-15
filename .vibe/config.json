@@ -70,8 +70,24 @@
     "copyInvocation": true,
     "githubRequired": true,
     "mcp": {
-      "port": 8848,
+      "port": 18488,
       "tunnel": "none"
+    },
+    "workspaceAgent": {
+      "enabled": false,
+      "triggerCommand": []
+    },
+    "api": {
+      "enabled": false,
+      "model": "",
+      "effort": "high",
+      "maxInputTokens": 200000,
+      "priceInputPerMTok": 0,
+      "priceOutputPerMTok": 0,
+      "pollIntervalMs": 5000
+    },
+    "apply": {
+      "envId": null
     }
   },
   "mode": "human",
