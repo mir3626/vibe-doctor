@@ -29,6 +29,9 @@ export interface ImportReceipt {
   installedPath: string;
   resultFilesSha256: string;
   importedAt: string;
+  repositoryFullName?: string | undefined;
+  resultManifestSha256?: string | undefined;
+  verification?: 'out-of-band' | undefined;
 }
 
 export interface VibeProBridgeTransport {

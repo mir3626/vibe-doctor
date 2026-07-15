@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
+import { rmSync } from 'node:fs';
 import { access, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -606,7 +607,7 @@ describe('pro bridge manual trust and transport seams', () => {
     }
   });
 
-  it('prints install success before mailbox post-processing and downgrades ack failure to a warning', async () => {
+  it('prints install success before out-of-band acknowledgement completes the request', async () => {
     const repoRoot = await makeRoot();
     const input = request({ requestId: 'AUD-seam-a-mailbox-ack' });
     const folder = '2026-07-15-seam-a-success-first';
@@ -623,12 +624,53 @@ describe('pro bridge manual trust and transport seams', () => {
         git: repositoryGit(),
         now: () => NOW,
       });
-      assert.equal(exit, 0);
+      assert.equal(exit, 0, capture.err.join('\n'));
+      assert.match(capture.out.join('\n'), /설치 완료/);
+      assert.match(capture.out.join('\n'), /nextAction:/);
+      assert.doesNotMatch(capture.err.join('\n'), /후처리\(ack\) 실패/);
+      const receipt = JSON.parse(await readFile(
+        path.join(store.requestsRoot, input.requestId, 'imported.json'),
+        'utf8',
+      )) as { verification?: string };
+      assert.equal((await store.getStatus(input.requestId)).state, 'imported');
+      assert.equal(receipt.verification, 'out-of-band');
+      await access(path.join(repoRoot, 'plans', folder, 'README.md'));
+    } finally {
+      await rm(repoRoot, { recursive: true, force: true });
+    }
+  });
+
+  it('downgrades a genuine ack failure to a warning after successful install', async () => {
+    const repoRoot = await makeRoot();
+    const input = request({ requestId: 'AUD-seam-a-mailbox-ack-failure' });
+    const folder = '2026-07-15-seam-a-ack-warning';
+    const bundlePath = path.join(repoRoot, 'result.vibe');
+    try {
+      const store = new MailboxStore({ repoRoot, now: () => NOW });
+      await store.createRequest(input);
+      await writeFile(bundlePath, bundle(input.requestId, folder), 'utf8');
+      const capture = captureIo();
+      const io: ProBridgeIo = {
+        ...capture.io,
+        out(line) {
+          capture.io.out(line);
+          if (/설치 완료/.test(line)) {
+            rmSync(path.join(store.requestsRoot, input.requestId), { recursive: true, force: true });
+          }
+        },
+      };
+      const exit = await runProBridge(['sync', '--from', 'result.vibe'], {
+        repoRoot,
+        config: config('mcp-mailbox'),
+        io,
+        git: repositoryGit(),
+        now: () => NOW,
+      });
+      assert.equal(exit, 0, capture.err.join('\n'));
       const successIndex = capture.events.findIndex((event) => /설치 완료/.test(event.line));
       const warningIndex = capture.events.findIndex((event) => /후처리\(ack\) 실패/.test(event.line));
       assert.equal(successIndex >= 0 && warningIndex > successIndex, true);
-      assert.match(capture.out.join('\n'), /nextAction:/);
-      assert.match(capture.err.join('\n'), /설치는 완료됨.*종결되지 않은 상태/s);
+      assert.match(capture.err.join('\n'), /다음 sync가 동일 provenance를 검증해 다시 종결합니다/);
       await access(path.join(repoRoot, 'plans', folder, 'README.md'));
     } finally {
       await rm(repoRoot, { recursive: true, force: true });
@@ -659,6 +701,12 @@ describe('pro bridge manual trust and transport seams', () => {
       assert.equal(provenance.requestPayloadSha256, input.payloadSha256);
       assert.equal(provenance.requestRepositoryFullName, CURRENT_REPOSITORY);
       assert.equal(provenance.unboundAcceptance, null);
+      const receipt = JSON.parse(await readFile(
+        path.join(store.requestsRoot, input.requestId, 'imported.json'),
+        'utf8',
+      )) as { verification?: string };
+      assert.equal(receipt.verification, 'out-of-band');
+      assert.equal((await store.getStatus(input.requestId)).state, 'imported');
     } finally {
       await rm(repoRoot, { recursive: true, force: true });
     }

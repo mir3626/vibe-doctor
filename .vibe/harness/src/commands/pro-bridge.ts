@@ -23,6 +23,7 @@ import {
   type GitPort,
 } from '../pro-bridge/goal-source/types.js';
 import { importReviewResult, type ImportContext } from '../pro-bridge/importer.js';
+import type { MailboxHealth } from '../pro-bridge/mailbox/store.js';
 import { startMcpServer } from '../pro-bridge/mailbox/server.js';
 import { createMailboxTools } from '../pro-bridge/mailbox/tools.js';
 import {
@@ -94,6 +95,8 @@ type BridgeCliTransport = VibeProBridgeTransport & {
   cancelRequest(requestId: string): Promise<void>;
   readRequest(requestId: string): Promise<ReviewRequest | null>;
   listResultReady?(): Promise<RequestStatus[]>;
+  inspectMailboxHealth?(): Promise<MailboxHealth>;
+  getCurrentResultFilesSha256?(requestId: string): Promise<string | null>;
 };
 
 export interface ProBridgeIo {
@@ -276,9 +279,12 @@ async function acknowledgeAfterInstall(input: {
   folder: string;
   installedPath: string;
   resultFilesSha256: string;
+  repositoryFullName: string;
+  resultManifestSha256?: string;
+  verification?: 'out-of-band';
   now: () => Date;
   io: ProBridgeIo;
-}): Promise<void> {
+}): Promise<boolean> {
   try {
     await input.transport.acknowledgeImport(input.requestId, {
       requestId: input.requestId,
@@ -286,10 +292,19 @@ async function acknowledgeAfterInstall(input: {
       installedPath: input.installedPath,
       resultFilesSha256: input.resultFilesSha256,
       importedAt: input.now().toISOString(),
+      repositoryFullName: input.repositoryFullName,
+      ...(input.resultManifestSha256 === undefined
+        ? {}
+        : { resultManifestSha256: input.resultManifestSha256 }),
+      ...(input.verification === undefined
+        ? {}
+        : { verification: input.verification }),
     });
+    return true;
   } catch (error) {
     const reason = error instanceof Error ? error.message : String(error);
-    input.io.err(`경고: 요청 후처리(ack) 실패: ${reason} — 설치는 완료됨, mailbox 요청은 종결되지 않은 상태로 남습니다 (ack 의미론은 vpb-08에서 처리).`);
+    input.io.err(`경고: 요청 후처리(ack) 실패: ${reason} — 설치는 완료됐으며 다음 sync가 동일 provenance를 검증해 다시 종결합니다.`);
+    return false;
   }
 }
 
@@ -787,7 +802,7 @@ async function runBundleSync(
       context.io.out(`skippedValidations: ${skipped.map(String).join(', ')}`);
     }
     context.io.out('구현은 자동 시작하지 않습니다. 다음 goal 투입 여부를 사용자가 결정하세요.');
-    if (boundRequestId && acknowledgementTransport) {
+    if (boundRequestId && acknowledgementTransport && request) {
       const resultFilesSha256 = stringAt(outcome, 'resultFilesSha256');
       if (!resultFilesSha256) {
         context.io.err('경고: importer 결과에 resultFilesSha256가 없어 요청 후처리(ack)를 생략했습니다. 설치는 완료되었습니다.');
@@ -798,6 +813,8 @@ async function runBundleSync(
           folder,
           installedPath,
           resultFilesSha256,
+          repositoryFullName: request.repository.fullName,
+          verification: 'out-of-band',
           now: context.now,
           io: context.io,
         });
@@ -809,6 +826,32 @@ async function runBundleSync(
     context.io.out('동일한 결과 패키지가 이미 설치되어 변경이 없습니다.');
     if (booleanAt(outcome, 'legacyRepositoryIdentity') === true) {
       warnLegacyNoOp(context.io);
+    }
+    if (boundRequestId && acknowledgementTransport && request) {
+      const resultFilesSha256 = stringAt(outcome, 'resultFilesSha256');
+      const installedRepository = stringAt(outcome, 'repositoryFullName');
+      const installedPath = stringAt(outcome, 'installedPath');
+      const folder = stringAt(outcome, 'folder');
+      if (
+        !resultFilesSha256
+        || !installedPath
+        || !folder
+        || installedRepository !== request.repository.fullName
+      ) {
+        context.io.err('설치 provenance의 결과 SHA 또는 저장소 바인딩을 정확히 확인할 수 없어 ack하지 않았습니다.');
+        return 1;
+      }
+      await acknowledgeAfterInstall({
+        transport: acknowledgementTransport,
+        requestId: boundRequestId,
+        folder,
+        installedPath,
+        resultFilesSha256,
+        repositoryFullName: request.repository.fullName,
+        verification: 'out-of-band',
+        now: context.now,
+        io: context.io,
+      });
     }
     return 0;
   }
@@ -967,6 +1010,8 @@ async function runMailboxSync(
       folder: outcome.folder,
       installedPath: outcome.installedPath,
       resultFilesSha256: outcome.resultFilesSha256,
+      repositoryFullName: request.repository.fullName,
+      resultManifestSha256: manifest.payloadSha256,
       now: context.now,
       io: context.io,
     });
@@ -976,6 +1021,51 @@ async function runMailboxSync(
     context.io.out('동일한 결과 패키지가 이미 설치되어 변경이 없습니다.');
     if (outcome.legacyRepositoryIdentity === true) {
       warnLegacyNoOp(context.io);
+    }
+    const currentResultFilesSha256 = await context.transport.getCurrentResultFilesSha256?.(requestId)
+      ?? null;
+    const installedResultFilesSha256 = outcome.resultFilesSha256;
+    const installedRepositoryFullName = outcome.repositoryFullName;
+    const installedPath = outcome.installedPath;
+    if (
+      currentResultFilesSha256 === null
+      || installedResultFilesSha256 === undefined
+      || installedPath === undefined
+      || installedResultFilesSha256 !== currentResultFilesSha256
+      || installedRepositoryFullName !== request.repository.fullName
+    ) {
+      context.io.err([
+        '설치 provenance가 mailbox 현재 결과와 일치하지 않아 ack하지 않았습니다.',
+        `installedSha=${installedResultFilesSha256 ?? 'unavailable'}`,
+        `currentSha=${currentResultFilesSha256 ?? 'unavailable'}`,
+        `installedRepository=${installedRepositoryFullName ?? 'unbound'}`,
+      ].join(' '));
+      return 1;
+    }
+    const acknowledged = await acknowledgeAfterInstall({
+      transport: context.transport,
+      requestId,
+      folder: outcome.folder,
+      installedPath,
+      resultFilesSha256: installedResultFilesSha256,
+      repositoryFullName: request.repository.fullName,
+      resultManifestSha256: manifest.payloadSha256,
+      now: context.now,
+      io: context.io,
+    });
+    if (!acknowledged) {
+      return 1;
+    }
+    context.io.out(
+      `복구 수렴: result-ready → provenance 검증(${installedResultFilesSha256}) → imported`,
+    );
+    if (getBooleanFlag(args, 'latest')) {
+      const remaining = (await context.transport.listResultReady()).filter(
+        (candidate) => candidate.requestId !== requestId,
+      );
+      if (remaining.length > 0) {
+        context.io.out(`남은 result-ready 요청 ${remaining.length}건 — 다음 sync를 실행하세요.`);
+      }
     }
     return 0;
   }
@@ -1257,6 +1347,25 @@ export async function runProBridge(argv: string[], deps: ProBridgeDeps = {}): Pr
     } catch (error) {
       io.err(error instanceof Error ? error.message : String(error));
       return 1;
+    }
+    if (transportName === 'mcp-mailbox' && transport.inspectMailboxHealth) {
+      try {
+        const health = await transport.inspectMailboxHealth();
+        io.out(`mailbox health: ${health.state}`);
+        for (const entry of health.entries) {
+          if (
+            entry.problem !== 'recovery-pending'
+            && (
+              health.state === 'quarantined-corrupt-entry'
+              || health.state === 'migration-required'
+            )
+          ) {
+            io.out(`  ${entry.requestId}: ${entry.problem} — ${entry.detail}`);
+          }
+        }
+      } catch (error) {
+        io.err(`경고: mailbox health 조회 실패: ${error instanceof Error ? error.message : String(error)}`);
+      }
     }
     return 0;
   }

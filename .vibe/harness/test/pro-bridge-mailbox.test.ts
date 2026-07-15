@@ -472,7 +472,7 @@ describe('mcp mailbox tools', () => {
 
   it('rejects incorrect finalize hashes when the reviewer supplies them', async () => {
     await withRoot(async (root) => {
-      const { input, resultManifest, finalize } = await openToolUpload(root);
+      const { store, input, resultManifest, finalize } = await openToolUpload(root);
       const wrongHash = resultManifest.payloadSha256 === 'f'.repeat(64)
         ? 'e'.repeat(64)
         : 'f'.repeat(64);
@@ -501,6 +501,7 @@ describe('mcp mailbox tools', () => {
           && error.code === 'finalize-invalid'
           && error.message.includes('result-hash-mismatch'),
       );
+      assert.equal((await store.getStatus(input.requestId)).state, 'result-uploading');
     });
   });
 

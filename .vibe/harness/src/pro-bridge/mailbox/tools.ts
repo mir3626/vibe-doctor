@@ -75,6 +75,9 @@ const ImportReceiptSchema: z.ZodType<MailboxImportReceipt> = z
     installedPath: z.string().min(1),
     resultFilesSha256: z.string().regex(/^[0-9a-f]{64}$/),
     importedAt: z.string().datetime({ offset: true }),
+    repositoryFullName: z.string().regex(/^[^/\s]+\/[^/\s]+$/).optional(),
+    resultManifestSha256: z.string().regex(/^[0-9a-f]{64}$/).optional(),
+    verification: z.literal('out-of-band').optional(),
   })
   .strict();
 const AcknowledgeImportInput = z

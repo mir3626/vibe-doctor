@@ -52,6 +52,13 @@ export interface ImportContext {
   acknowledgedValidations?: string[];
   transport?: string;
   now?: () => Date;
+  onAfterDurableOp?: (event: {
+    scope: string;
+    step: string;
+    requestId?: string;
+    path?: string;
+  }) => void | Promise<void>;
+  assertDurableLease?: () => Promise<void>;
   limits?: {
     maxFiles?: number;
     maxTotalBytes?: number;
@@ -93,7 +100,14 @@ export type ImportOutcome =
       nextAction: string;
       skippedValidations: string[];
     }
-  | { status: 'no-op'; folder: string; legacyRepositoryIdentity?: true }
+  | {
+      status: 'no-op';
+      folder: string;
+      installedPath?: string;
+      resultFilesSha256?: string;
+      repositoryFullName?: string | null;
+      legacyRepositoryIdentity?: true;
+    }
   | {
       status: 'refused';
       code: 'existing-folder-conflict' | 'revision-slot-occupied';
@@ -144,6 +158,7 @@ interface ProvenanceReceipt {
 
 interface ExistingProvenance {
   resultIdentity: string | null;
+  resultFilesSha256: string | null;
   repositoryFullName: string | null;
   hasRepositoryIdentityFields: boolean;
 }
@@ -325,10 +340,14 @@ async function existingProvenance(
       await readFile(path.join(folderPath, RESERVED_PROVENANCE_PATH), 'utf8'),
     ) as Record<string, unknown>;
     const field = preferResultPayload ? value.resultPayloadSha256 : value.resultFilesSha256;
+    const resultFilesSha256 = value.resultFilesSha256;
     const requestRepository = value.requestRepositoryFullName;
     const currentRepository = value.currentRepositoryFullName;
     return {
       resultIdentity: typeof field === 'string' && /^[0-9a-f]{64}$/.test(field) ? field : null,
+      resultFilesSha256: typeof resultFilesSha256 === 'string' && /^[0-9a-f]{64}$/.test(resultFilesSha256)
+        ? resultFilesSha256
+        : null,
       repositoryFullName: typeof requestRepository === 'string'
         ? requestRepository
         : typeof currentRepository === 'string'
@@ -348,15 +367,29 @@ function noOpOutcome(
   resultIdentity: string,
   expectedRepositoryFullName: string | null,
   folder: string,
+  installedPath: string,
 ): ImportOutcome | null {
-  if (existing?.resultIdentity !== resultIdentity) {
+  if (existing?.resultIdentity !== resultIdentity || existing.resultFilesSha256 === null) {
     return null;
   }
+  const outcome = {
+    status: 'no-op' as const,
+    folder,
+    installedPath,
+    resultFilesSha256: existing.resultFilesSha256,
+    repositoryFullName: existing.repositoryFullName,
+  };
   if (expectedRepositoryFullName === null) {
     return { status: 'no-op', folder };
   }
   if (!existing.hasRepositoryIdentityFields) {
-    return { status: 'no-op', folder, legacyRepositoryIdentity: true };
+    return {
+      ...outcome,
+      // Legacy provenance still binds the exact result manifest payload; the caller
+      // independently binds that manifest to the current request repository.
+      repositoryFullName: expectedRepositoryFullName,
+      legacyRepositoryIdentity: true,
+    };
   }
   if (existing.repositoryFullName !== expectedRepositoryFullName) {
     return {
@@ -367,7 +400,25 @@ function noOpOutcome(
       }],
     };
   }
-  return { status: 'no-op', folder };
+  return outcome;
+}
+
+async function afterDurableOp(
+  context: ImportContext,
+  step: string,
+  requestId: string,
+  targetPath: string,
+): Promise<void> {
+  await context.onAfterDurableOp?.({
+    scope: 'importer',
+    step,
+    requestId,
+    path: targetPath,
+  });
+}
+
+async function beforeDurableOp(context: ImportContext): Promise<void> {
+  await context.assertDurableLease?.();
 }
 
 async function syncBestEffort(targetPath: string): Promise<void> {
@@ -644,6 +695,7 @@ export async function importReviewResult(
       resultIdentity,
       context.expectedRepositoryFullName ?? null,
       targetFolder,
+      finalPath,
     );
     if (noOp) {
       return noOp;
@@ -675,6 +727,7 @@ export async function importReviewResult(
         resultIdentity,
         context.expectedRepositoryFullName ?? null,
         targetFolder,
+        finalPath,
       );
       if (noOp) {
         return noOp;
@@ -688,7 +741,9 @@ export async function importReviewResult(
   }
 
   const stagingPath = path.join(installRoot, `.tmp-${targetFolder}`);
+  await beforeDurableOp(context);
   await rm(stagingPath, { recursive: true, force: true });
+  await afterDurableOp(context, 'stale-staging-removed', normalized.requestId, stagingPath);
   let renamed = false;
   try {
     await mkdir(stagingPath);
@@ -702,7 +757,9 @@ export async function importReviewResult(
       }
       await mkdir(path.dirname(targetPath), { recursive: true });
       await assertFilesystemContainment(stagingPath, targetPath);
+      await beforeDurableOp(context);
       await writeFile(targetPath, file.bytes, { flag: 'wx' });
+      await afterDurableOp(context, 'result-file-written', normalized.requestId, targetPath);
       writtenPaths.push(targetPath);
     }
 
@@ -727,17 +784,21 @@ export async function importReviewResult(
     const provenancePath = path.join(stagingPath, RESERVED_PROVENANCE_PATH);
     await mkdir(path.dirname(provenancePath), { recursive: true });
     await assertFilesystemContainment(stagingPath, provenancePath);
+    await beforeDurableOp(context);
     await writeFile(provenancePath, `${JSON.stringify(receipt, null, 2)}\n`, {
       encoding: 'utf8',
       flag: 'wx',
     });
+    await afterDurableOp(context, 'provenance-written', normalized.requestId, provenancePath);
     writtenPaths.push(provenancePath);
 
     await Promise.all(writtenPaths.map(syncBestEffort));
     await syncBestEffort(stagingPath);
     try {
+      await beforeDurableOp(context);
       await rename(stagingPath, finalPath);
       renamed = true;
+      await afterDurableOp(context, 'installation-renamed', normalized.requestId, finalPath);
     } catch (error) {
       if (['EEXIST', 'ENOTEMPTY'].includes(errorCode(error) ?? '')) {
         return {

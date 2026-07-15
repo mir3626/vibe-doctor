@@ -1,6 +1,9 @@
 import path from 'node:path';
 import type { ReviewRequest, ReviewResultManifest } from '../contract.js';
-import { MailboxStore } from '../mailbox/store.js';
+import {
+  MailboxStore,
+  type MailboxHealth,
+} from '../mailbox/store.js';
 import type {
   ImportReceipt,
   RequestHandle,
@@ -61,6 +64,14 @@ export class McpMailboxTransport implements VibeProBridgeTransport {
 
   readRequest(requestId: string): Promise<ReviewRequest | null> {
     return this.store.getRequest(requestId);
+  }
+
+  inspectMailboxHealth(): Promise<MailboxHealth> {
+    return this.store.inspectMailboxHealth();
+  }
+
+  getCurrentResultFilesSha256(requestId: string): Promise<string | null> {
+    return this.store.getCurrentResultFilesSha256(requestId);
   }
 
   async listResultReady(): Promise<RequestStatus[]> {

@@ -1,9 +1,9 @@
 # Sprint Roadmap
 
 <!-- BEGIN:VIBE:CURRENT-SPRINT -->
-> **Current**: sprint-vpb-08-lifecycle-durability
-> **Completed**: sprint-vpb-07-authority-binding
-> **Pending**: sprint-vpb-09-contract-polish
+> **Current**: sprint-vpb-09-contract-polish
+> **Completed**: sprint-vpb-07-authority-binding, sprint-vpb-08-lifecycle-durability
+> **Pending**: -
 <!-- END:VIBE:CURRENT-SPRINT -->
 
 > Active file: current iteration only. Archived iteration roadmaps live under `docs/plans/archive/roadmaps/`.
