@@ -1,0 +1,39 @@
+{
+  "schemaVersion": "vibe-pro-review-result-v1",
+  "requestId": "AUD-20260715-abc123",
+  "requestPayloadSha256": "2222222222222222222222222222222222222222222222222222222222222222",
+  "repositoryFullName": "owner/repo",
+  "reviewedBaseSha": "0000000000000000000000000000000000000000",
+  "reviewedHeadSha": "1111111111111111111111111111111111111111",
+  "resultKind": "audit",
+  "proposedFolder": "2026-07-15-example-goal-pro-review",
+  "disposition": "remediation-required",
+  "files": [
+    {
+      "path": "README.md",
+      "mediaType": "text/markdown",
+      "byteLength": 100,
+      "sha256": "3333333333333333333333333333333333333333333333333333333333333333"
+    },
+    {
+      "path": "prompt/CLI_MAIN_SESSION_PROMPT.md",
+      "mediaType": "text/markdown",
+      "byteLength": 100,
+      "sha256": "4444444444444444444444444444444444444444444444444444444444444444"
+    }
+  ],
+  "findingsSummary": {
+    "p0": 1,
+    "p1": 2,
+    "p2": 0,
+    "p3": 0
+  },
+  "reviewerDeclaration": {
+    "surface": "chatgpt-web",
+    "requestedMode": "pro",
+    "githubConnectorUsed": true,
+    "limitations": []
+  },
+  "createdAt": "2026-07-15T01:00:00.000Z",
+  "payloadSha256": "5555555555555555555555555555555555555555555555555555555555555555"
+}

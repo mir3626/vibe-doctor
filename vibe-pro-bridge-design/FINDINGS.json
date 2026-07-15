@@ -1,0 +1,27 @@
+{
+  "schemaVersion": "vibe-pro-bridge-design-findings-v1",
+  "upstreamRepository": "mir3626/vibe-doctor",
+  "upstreamHead": "f2f9512aeee62f0d13537e8b5fe99c8947a4bdd5",
+  "decisions": [
+    {
+      "id": "VPB-D001",
+      "decision": "Use ChatGPT Developer Mode remote MCP as the personal Pro bridge.",
+      "reason": "Officially supports read/write tools on Pro web."
+    },
+    {
+      "id": "VPB-D002",
+      "decision": "Use ChatGPT GitHub app for repository reads and a separate mailbox for result writes.",
+      "reason": "The GitHub app is read-only; this avoids repository write credentials."
+    },
+    {
+      "id": "VPB-D003",
+      "decision": "Keep one manual Web invocation in the default personal Pro flow.",
+      "reason": "No confirmed official API for creating, selecting Pro mode, and retrieving a normal personal Web conversation."
+    },
+    {
+      "id": "VPB-D004",
+      "decision": "Make transport pluggable.",
+      "reason": "Workspace Agent and Responses API can automate later without changing skills/importer."
+    }
+  ]
+}

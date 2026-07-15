@@ -1,0 +1,40 @@
+{
+  "schemaVersion": "vibe-pro-review-request-v1",
+  "requestId": "AUD-20260715-abc123",
+  "kind": "goal_audit",
+  "origin": "cli",
+  "repository": {
+    "fullName": "owner/repo",
+    "remoteUrl": "https://github.com/owner/repo",
+    "defaultBranch": "main"
+  },
+  "git": {
+    "baseSha": "0000000000000000000000000000000000000000",
+    "headSha": "1111111111111111111111111111111111111111",
+    "branch": "main",
+    "headVisibleOnGitHub": true,
+    "compareUrlHint": null,
+    "patchAttachmentSha256": null
+  },
+  "goalSource": {
+    "schemaVersion": "vibe-goal-source-v1",
+    "source": {
+      "kind": "codex-goal",
+      "confidence": "exact"
+    },
+    "goalText": "Example goal"
+  },
+  "userGoal": "Review the last implemented goal.",
+  "reviewPrompt": "Use the connected GitHub repository and review the exact range.",
+  "outputContract": {
+    "requiredFiles": [
+      "README.md",
+      "REVIEW.md",
+      "FINDINGS.json",
+      "prompt/CLI_MAIN_SESSION_PROMPT.md"
+    ]
+  },
+  "createdAt": "2026-07-15T00:00:00.000Z",
+  "expiresAt": "2026-07-18T00:00:00.000Z",
+  "payloadSha256": "2222222222222222222222222222222222222222222222222222222222222222"
+}
