@@ -156,6 +156,7 @@ Orchestrator는 Phase 0 네이티브 인터뷰 (`.vibe/harness/scripts/vibe-inte
 | Rule audit | `node .vibe/harness/scripts/vibe-rule-audit.mjs` | Compares CLAUDE.md imperative rules with harness-gaps coverage and retrospective transcript tiering |
 | Context dependency audit | `node .vibe/harness/scripts/vibe-context-audit.mjs` | Report-only scan of skill/runbook path dependencies, hard/soft/ambiguous strength, missing references, and context byte overhead. Never gates preflight, commits, push, or tags. |
 | Audit skip directive | `node .vibe/harness/scripts/vibe-audit-skip-set.mjs` | Sets or clears `.vibe/config.local.json` userDirectives.auditSkippedMode and records a session-log `[decision]` |
+| Web Pro 브릿지 | `node .vibe/harness/scripts/vibe-pro-bridge.mjs` | `audit`/`design`/`status`/`sync`/`cancel`/`list` 서브커맨드 (`vibe:pro-audit`, `vibe:pro-design`, `vibe:pro-sync`, `vibe:pro-status`). goal-source 해석 → ReviewRequest 조립 → manual transport(outbox+클립보드+브라우저) → vibe-bundle 검증 설치. 자동 push·브라우저 자동화 없음, `proBridge.enabled` opt-in |
 | Codex 호출 실패 시 | `.vibe/harness/scripts/run-codex.sh` + `.vibe/agent/codex-unavailable.flag` | 3회 retry 소진 시 flag touch + stderr CODEX_UNAVAILABLE 블록 출력. Orchestrator 는 flag 존재 시 Generator 위임 대신 사용자 승인 분기 진입. 다음 성공 호출 시 flag auto-remove. |
 
 **원칙**: 스크립트가 FAIL을 반환하면 다음 단계로 진행하지 않는다. Claude Code 훅 명령은 `${CLAUDE_PROJECT_DIR}`에 절대 결합하고 hook mode를 사용한다. hook mode의 정상·skip 결과는 stdout을 비우며, 사용자에게 알려야 하는 비차단 결과만 단일 JSON `systemMessage`로 출력한다. PreCompact 검증 실패는 stdout 없이 exit 2 + stderr로 압축을 막는다. Stop foreground는 하네스 소유 변경 판정과 detached worker 예약만 수행하고 즉시 exit 0 한다. worker는 제품 `vibe:qa` 대신 하네스 `vibe:typecheck`와 `vibe:self-test`만 실행하고, `CLAUDE_PROJECT_DIR`를 제거하며 `VIBE_SKIP_AGENT_SESSION_START=1`을 강제한 hidden child에서 수행한다. 실패 결과는 다음 Stop에서 단 한 번 JSON 알림으로 전달한다. 동일 상태·동시 Stop은 원자적 잠금과 SHA-256 결과 receipt로 중복 제거한다. 동일 SessionStart lifecycle 전달은 `session_id + source` 기준 60초 동안 중복 제거하되 startup/resume/clear/compact 전환은 별도 이벤트로 보존한다. 하네스와 무관한 세션(예: 프로젝트 API/CLI가 같은 repo에서 spawn하는 헤드리스 에이전트)은 spawn 환경에 `VIBE_HARNESS_HOOKS=off`를 설정하면 모든 하네스 훅 진입점(Stop QA·SessionStart·Notification·PostToolUse config-audit·PreCompact checkpoint)이 즉시 exit 0으로 skip된다.
@@ -236,7 +237,10 @@ Sprint 프롬프트 **본문은 Planner가 작성**한다 (매 Sprint 소환 시
 상태/핸드오프/재인스턴스화 프로토콜 + Sprint 프롬프트 공용 조각. 파일별 역할은 `.vibe/agent/README.md` 참조. 압축 직후 최우선 읽기 대상은 `handoff.md` + `session-log.md` + `sprint-status.json`.
 
 ## 관련 스킬
-`/vibe-init`, `/vibe-interview`, `/vibe-iterate`, `/vibe-sync`, `/vibe-sprint-mode`, `/vibe-review`, `/goal-to-plan`, `/self-qa`, `/write-report`, `/maintain-context`.
+`/vibe-init`, `/vibe-interview`, `/vibe-iterate`, `/vibe-sync`, `/vibe-sprint-mode`, `/vibe-review`, `/goal-to-plan`, `/self-qa`, `/write-report`, `/maintain-context`, `/vibe-goal-audit`, `/vibe-pro-design`.
+
+- `/vibe-goal-audit`: 마지막 goal 구현을 웹 ChatGPT Pro 세션 리뷰로 보내고(`vibe:pro-audit`), 응답 vibe-bundle을 `vibe:pro-sync`로 `docs/plans/<folder>/`에 설치. 정본 설계: `docs/plans/web-pro-bridge/design.md`.
+- `/vibe-pro-design`: 신규 기능 목표를 동일 브릿지(kind=feature_design)로 웹 Pro 설계 요청 후 결과 패키지 설치 (`vibe:pro-design` / `vibe:pro-sync`).
 
 - `/vibe-iterate`: 최초 Sprint 로드맵 소진 후 재개. handoff + report.html + iteration-history.json 기반 차등 인터뷰 → 새 iteration sprint roadmap append → Sprint 사이클 재돌입. context isolation 유지(Planner 는 여전히 fresh), 사용자는 report.html 의 iteration 타임라인으로 전체 build-up follow-up.
 - `/vibe-review`: 4-tier rubric (🔴/🟡/🟢/🔵) + regression 검증 (이전 리뷰 이슈 3-signal 커버리지) + priority_score 공식 `10·agent + 5·token + 1·user`, recommended_approach `script-wrapper > md-rule > config-default > user-action`.

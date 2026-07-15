@@ -31,16 +31,28 @@
         "net": 3295,
         "filesChanged": 26
       }
+    },
+    {
+      "id": "sprint-vpb-03-manual-transport-skills",
+      "name": "sprint-vpb-03-manual-transport-skills",
+      "status": "passed",
+      "completedAt": "2026-07-15T08:08:01.424Z",
+      "actualLoc": {
+        "added": 2960,
+        "deleted": 14,
+        "net": 2946,
+        "filesChanged": 16
+      }
     }
   ],
   "verificationCommands": [],
   "handoff": {
     "currentSprintId": "idle",
-    "lastActionSummary": "Sprint sprint-vpb-02-composer-importer completed with passed",
+    "lastActionSummary": "Sprint sprint-vpb-03-manual-transport-skills completed with passed",
     "orchestratorContextBudget": "medium",
     "preferencesActive": [],
     "handoffDocPath": ".vibe/agent/handoff.md",
-    "updatedAt": "2026-07-15T06:51:11.547Z"
+    "updatedAt": "2026-07-15T08:08:01.424Z"
   },
   "pendingRisks": [],
   "lastSprintScope": [
@@ -71,10 +83,32 @@
     ".vibe/harness/src/pro-bridge/scope-resolver.ts",
     ".vibe/harness/test/pro-bridge-composer.test.ts",
     ".vibe/harness/test/pro-bridge-importer.test.ts",
-    ".vibe/harness/test/pro-bridge-scope-resolver.test.ts"
+    ".vibe/harness/test/pro-bridge-scope-resolver.test.ts",
+    ".gitignore",
+    ".vibe/config.json",
+    ".vibe/harness/scripts/run-codex.sh",
+    ".vibe/harness/scripts/vibe-agent-session-start.mjs",
+    ".vibe/harness/src/lib/config.ts",
+    ".vibe/harness/test/agent-session-start.test.ts",
+    ".vibe/harness/test/run-codex-wrapper.test.ts",
+    ".vibe/sync-manifest.json",
+    "CLAUDE.md",
+    "docs/context/harness-gaps.md",
+    "package.json",
+    ".claude/skills/vibe-goal-audit/SKILL.md",
+    ".claude/skills/vibe-pro-design/SKILL.md",
+    ".codex/skills/vibe-goal-audit/SKILL.md",
+    ".codex/skills/vibe-pro-design/SKILL.md",
+    ".vibe/harness/scripts/vibe-pro-bridge.mjs",
+    ".vibe/harness/src/commands/pro-bridge.ts",
+    ".vibe/harness/src/pro-bridge/transports/manual.ts",
+    ".vibe/harness/src/pro-bridge/transports/types.ts",
+    ".vibe/harness/test/pro-bridge-command.test.ts",
+    ".vibe/harness/test/pro-bridge-e2e.test.ts",
+    ".vibe/harness/test/pro-bridge-transport.test.ts"
   ],
   "lastSprintScopeGlob": [],
-  "sprintsSinceLastAudit": 2,
-  "stateUpdatedAt": "2026-07-15T06:51:11.547Z",
+  "sprintsSinceLastAudit": 3,
+  "stateUpdatedAt": "2026-07-15T08:08:01.424Z",
   "verifiedAt": null
 }

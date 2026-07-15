@@ -52,11 +52,11 @@ class FakeGit implements GitPort {
     if (args[0] === 'status') {
       return this.success(this.options.status ?? '');
     }
-    if (args[0] === 'diff' && args[1] === '--numstat') {
+    if (args[0] === 'diff' && args.includes('--numstat')) {
       return this.success(this.options.numstat ?? '');
     }
-    if (args[0] === 'diff' && args[2] === '--') {
-      const filePath = args[3]!;
+    if (args[0] === 'diff' && args.includes('--')) {
+      const filePath = args[args.indexOf('--') + 1]!;
       return this.success(
         this.options.diffs?.[filePath] ??
           `diff --git a/${filePath} b/${filePath}\n--- a/${filePath}\n+++ b/${filePath}\n@@ -1 +1 @@\n-old\n+new\n`,
@@ -253,6 +253,32 @@ describe('github scope resolver', () => {
     assert.equal(
       result.patch?.sha256,
       createHash('sha256').update(result.patch?.diffText ?? '', 'utf8').digest('hex'),
+    );
+  });
+
+  it('disables rename detection so renamed files stay in the patch roster', async () => {
+    const git = new FakeGit({
+      status: ' R src/old.ts -> src/new.ts\n',
+      numstat: '1\t0\tsrc/new.ts\n0\t1\tsrc/old.ts\n',
+      diffs: {
+        'src/new.ts': 'diff --git a/src/new.ts b/src/new.ts\nnew file mode 100644\n--- /dev/null\n+++ b/src/new.ts\n@@ -0,0 +1 @@\n+renamed\n',
+        'src/old.ts': 'diff --git a/src/old.ts b/src/old.ts\ndeleted file mode 100644\n--- a/src/old.ts\n+++ /dev/null\n@@ -1 +0,0 @@\n-renamed\n',
+      },
+    });
+    const result = await resolve(git);
+
+    assert.deepEqual(
+      result.patch?.files,
+      [
+        { path: 'src/new.ts', kind: 'tracked' },
+        { path: 'src/old.ts', kind: 'tracked' },
+      ],
+    );
+    assert.match(result.patch?.diffText ?? '', /new file mode 100644/);
+    assert.match(result.patch?.diffText ?? '', /deleted file mode 100644/);
+    assert.equal(
+      git.calls.filter((args) => args[0] === 'diff').every((args) => args.includes('--no-renames')),
+      true,
     );
   });
 

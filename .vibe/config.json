@@ -60,6 +60,16 @@
   "audit": {
     "everyN": 5
   },
+  "proBridge": {
+    "enabled": false,
+    "transport": "manual",
+    "resultRoot": "docs/plans",
+    "requestTtlHours": 72,
+    "maxPatchBytes": 1048576,
+    "openBrowser": true,
+    "copyInvocation": true,
+    "githubRequired": true
+  },
   "mode": "human",
   "harnessVersionInstalled": "1.7.30"
 }

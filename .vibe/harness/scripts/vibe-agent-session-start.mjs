@@ -17,8 +17,15 @@ import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 
 const SESSION_START_DEDUPE_MS = 60_000;
+const CLAUDE_HOOK_CONTEXT = process.argv.includes('--hook')
+  || Object.keys(process.env).some((key) => key.startsWith('CLAUDE'));
 
 function readHookInput() {
+  // Non-Claude provider wrappers must never drain a prompt inherited on stdin.
+  if (!CLAUDE_HOOK_CONTEXT) {
+    return null;
+  }
+
   if (process.stdin.isTTY) {
     return null;
   }

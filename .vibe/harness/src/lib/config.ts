@@ -51,6 +51,56 @@ export interface AuditConfig {
   prototypeLocThreshold?: number;
 }
 
+export interface ProBridgeConfig {
+  enabled: boolean;
+  transport: string;
+  resultRoot: string;
+  requestTtlHours: number;
+  maxPatchBytes: number;
+  openBrowser: boolean;
+  copyInvocation: boolean;
+  githubRequired: boolean;
+}
+
+export const DEFAULT_PRO_BRIDGE_CONFIG: ProBridgeConfig = {
+  enabled: false,
+  transport: 'manual',
+  resultRoot: 'docs/plans',
+  requestTtlHours: 72,
+  maxPatchBytes: 1_048_576,
+  openBrowser: true,
+  copyInvocation: true,
+  githubRequired: true,
+};
+
+export function resolveProBridgeConfig(
+  base?: Partial<ProBridgeConfig>,
+  override?: Partial<ProBridgeConfig>,
+): ProBridgeConfig {
+  return {
+    enabled: override?.enabled ?? base?.enabled ?? DEFAULT_PRO_BRIDGE_CONFIG.enabled,
+    transport: override?.transport ?? base?.transport ?? DEFAULT_PRO_BRIDGE_CONFIG.transport,
+    resultRoot: override?.resultRoot ?? base?.resultRoot ?? DEFAULT_PRO_BRIDGE_CONFIG.resultRoot,
+    requestTtlHours:
+      override?.requestTtlHours
+      ?? base?.requestTtlHours
+      ?? DEFAULT_PRO_BRIDGE_CONFIG.requestTtlHours,
+    maxPatchBytes:
+      override?.maxPatchBytes ?? base?.maxPatchBytes ?? DEFAULT_PRO_BRIDGE_CONFIG.maxPatchBytes,
+    openBrowser:
+      override?.openBrowser ?? base?.openBrowser ?? DEFAULT_PRO_BRIDGE_CONFIG.openBrowser,
+    copyInvocation:
+      override?.copyInvocation
+      ?? base?.copyInvocation
+      ?? DEFAULT_PRO_BRIDGE_CONFIG.copyInvocation,
+    // Phase 1 always uses scope-resolver as the GitHub visibility authority.
+    githubRequired:
+      override?.githubRequired
+      ?? base?.githubRequired
+      ?? DEFAULT_PRO_BRIDGE_CONFIG.githubRequired,
+  };
+}
+
 export interface VibeConfig {
   orchestrator: string;
   harnessVersion?: string;
@@ -71,10 +121,14 @@ export interface VibeConfig {
   bundle?: BundleConfig;
   browserSmoke?: BrowserSmokeConfig;
   audit?: AuditConfig;
+  proBridge?: ProBridgeConfig;
 }
 
 export type VibeConfigOverride = Partial<
-  Omit<VibeConfig, 'sprintRoles' | 'sprint' | 'providers' | 'qa' | 'bundle' | 'browserSmoke' | 'audit'>
+  Omit<
+    VibeConfig,
+    'sprintRoles' | 'sprint' | 'providers' | 'qa' | 'bundle' | 'browserSmoke' | 'audit' | 'proBridge'
+  >
 > & {
   sprintRoles?: Partial<SprintRoles>;
   sprint?: Partial<SprintConfig>;
@@ -83,6 +137,7 @@ export type VibeConfigOverride = Partial<
   bundle?: Partial<BundleConfig>;
   browserSmoke?: Partial<BrowserSmokeConfig>;
   audit?: Partial<AuditConfig>;
+  proBridge?: Partial<ProBridgeConfig>;
 };
 
 function resolveBundleConfig(
@@ -140,6 +195,7 @@ function mergeConfig(base: VibeConfig, override: VibeConfigOverride): VibeConfig
     bundle,
     browserSmoke,
     audit,
+    proBridge,
     ...overrideRest
   } = override;
   const merged: VibeConfig = {
@@ -176,6 +232,10 @@ function mergeConfig(base: VibeConfig, override: VibeConfigOverride): VibeConfig
       ...(base.audit ?? {}),
       ...(audit ?? {}),
     };
+  }
+
+  if (base.proBridge || proBridge) {
+    merged.proBridge = resolveProBridgeConfig(base.proBridge, proBridge);
   }
 
   return merged;

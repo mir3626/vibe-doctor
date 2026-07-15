@@ -370,6 +370,26 @@ describe('run-codex.sh wrapper', { skip: bashCommand === null }, () => {
     assert.match(child.stdout, new RegExp(firstRuleLine.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
   });
 
+  it('preserves piped prompt when session start is enabled', async () => {
+    const binDir = await createShellStubBin('stdin');
+    const cwd = await makeTempDir('run-codex-session-stdin-');
+    await mkdir(path.join(cwd, '.vibe'), { recursive: true });
+    await writeFile(path.join(cwd, '.vibe', 'config.json'), '{}\n', 'utf8');
+    const child = spawnSync(bashCommand ?? 'bash', [bashScriptPath, '-'], {
+      cwd,
+      env: shellEnv(binDir, {
+        CODEX_RETRY: '1',
+        VIBE_SKIP_AGENT_SESSION_START: '0',
+        CLAUDECODE: '1',
+      }),
+      input: 'hello from stdin',
+      encoding: 'utf8',
+    });
+
+    assert.equal(child.status, 0, child.stderr);
+    assert.match(child.stdout, /hello from stdin/);
+  });
+
   it('runs provider-neutral session-start before non-health codex execution', async () => {
     const binDir = await createShellStubBin('ok');
     const cwd = await makeTempDir('run-codex-session-start-');

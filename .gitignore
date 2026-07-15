@@ -31,3 +31,5 @@ scripts/tmp-*.mjs
 .vibe/agent/codex-unavailable.flag
 # sidecar advisory artifacts (non-durable runtime output)
 .vibe/sidecars/
+# pro-bridge runtime mailbox (durable provenance lives in installed packages)
+.vibe/pro-bridge/

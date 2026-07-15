@@ -67,7 +67,7 @@ describe('vibe-agent-session-start', () => {
     await mkdir(path.join(root, '.vibe'), { recursive: true });
     await writeFile(path.join(root, '.vibe', 'config.json'), '{}\n', 'utf8');
 
-    const env = sessionStartEnv();
+    const env = sessionStartEnv({ CLAUDECODE: '1' });
     delete env.CLAUDE_PROJECT_DIR;
     const result = spawnSync(process.execPath, [scriptPath], {
       cwd: strayCwd,
@@ -101,7 +101,7 @@ describe('vibe-agent-session-start', () => {
     const strayCwd = await makeTempDir('agent-session-start-dedupe-stray-');
     await mkdir(path.join(root, '.vibe'), { recursive: true });
     await writeFile(path.join(root, '.vibe', 'config.json'), '{}\n', 'utf8');
-    const env = sessionStartEnv();
+    const env = sessionStartEnv({ CLAUDECODE: '1' });
     delete env.CLAUDE_PROJECT_DIR;
 
     const invoke = (source: string) => spawnSync(process.execPath, [scriptPath], {
@@ -130,6 +130,42 @@ describe('vibe-agent-session-start', () => {
     });
     assert.deepEqual(events.map((event) => event.payload?.source), ['startup', 'resume']);
     assert.ok(events.every((event) => event.payload?.sessionId === 'same-session'));
+  });
+
+  it('ignores piped stdin when invoked outside a hook context', async () => {
+    const root = await makeTempDir('agent-session-start-non-hook-input-');
+    const pipedRoot = await makeTempDir('agent-session-start-piped-root-');
+    await mkdir(path.join(root, '.vibe'), { recursive: true });
+    await mkdir(path.join(pipedRoot, '.vibe'), { recursive: true });
+    await writeFile(path.join(root, '.vibe', 'config.json'), '{}\n', 'utf8');
+    await writeFile(path.join(pipedRoot, '.vibe', 'config.json'), '{}\n', 'utf8');
+
+    const env = sessionStartEnv();
+    delete env.VIBE_ROOT;
+    for (const key of Object.keys(env)) {
+      if (key.startsWith('CLAUDE')) {
+        delete env[key];
+      }
+    }
+    const result = spawnSync(process.execPath, [scriptPath], {
+      cwd: root,
+      env,
+      encoding: 'utf8',
+      input: JSON.stringify({ hook_event_name: 'SessionStart', cwd: pipedRoot }),
+    });
+
+    assert.equal(result.status, 0, result.stderr);
+    const dailyDir = path.join(root, '.vibe', 'agent', 'daily');
+    const [dailyFile] = await readdir(dailyDir);
+    const raw = await readFile(path.join(dailyDir, dailyFile ?? ''), 'utf8');
+    const event = JSON.parse(raw.trim()) as {
+      payload?: { cwd?: string; invocation?: string };
+    };
+    assert.equal(event.payload?.cwd, root);
+    assert.equal(event.payload?.invocation, 'provider-wrapper');
+    await assert.rejects(readdir(path.join(pipedRoot, '.vibe', 'agent', 'daily')), {
+      code: 'ENOENT',
+    });
   });
 
   it('keeps hook stdout empty when harness hooks are disabled', async () => {

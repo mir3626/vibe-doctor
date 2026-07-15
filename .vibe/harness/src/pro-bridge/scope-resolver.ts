@@ -198,7 +198,7 @@ async function createPatch(
   maxPatchBytes: number,
   warnings: string[],
 ): Promise<{ patch: PatchAttachment | null; oversized: boolean }> {
-  const numstat = await ctx.git.run(['diff', '--numstat', anchor]);
+  const numstat = await ctx.git.run(['diff', '--no-renames', '--numstat', anchor]);
   const trackedPaths: string[] = [];
   const excluded = new Map<string, 'secret' | 'binary'>();
 
@@ -223,7 +223,7 @@ async function createPatch(
   const diffParts: string[] = [];
   const files: PatchAttachment['files'] = [];
   for (const filePath of [...new Set(trackedPaths)].sort(compareStringsByCodePoint)) {
-    const result = await ctx.git.run(['diff', anchor, '--', filePath]);
+    const result = await ctx.git.run(['diff', '--no-renames', anchor, '--', filePath]);
     if (!result.ok) {
       warnings.push(`patch-diff-unavailable:${filePath}`);
       continue;

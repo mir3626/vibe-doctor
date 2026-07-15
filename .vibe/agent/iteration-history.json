@@ -17,7 +17,8 @@
       ],
       "completedSprints": [
         "sprint-vpb-01-contracts-discovery",
-        "sprint-vpb-02-composer-importer"
+        "sprint-vpb-02-composer-importer",
+        "sprint-vpb-03-manual-transport-skills"
       ],
       "milestoneProgress": {
         "phase1-core": 0.4,
