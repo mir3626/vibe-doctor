@@ -1,34 +1,5 @@
 {
   "$schema": "./iteration-history.schema.json",
   "currentIteration": null,
-  "iterations": [
-    {
-      "id": "iter-1",
-      "label": "web-pro-bridge",
-      "startedAt": "2026-07-15T05:09:00.000Z",
-      "completedAt": "2026-07-15T10:24:05.568Z",
-      "goal": "웹 GPT Pro 세션 ↔ CLI 연동 브릿지 구현 (docs/plans/web-pro-bridge/design.md Hybrid v2). 종료 조건: Orchestrator 전체 workflow audit 반복 통과 + 업스트림 릴리즈 마무리(pristine 복원, sync-manifest, 버전 bump + tag).",
-      "plannedSprints": [
-        "sprint-vpb-01-contracts-discovery",
-        "sprint-vpb-02-composer-importer",
-        "sprint-vpb-03-manual-transport-skills",
-        "sprint-vpb-04-mcp-mailbox",
-        "sprint-vpb-05-web-origin-optional"
-      ],
-      "completedSprints": [
-        "sprint-vpb-01-contracts-discovery",
-        "sprint-vpb-02-composer-importer",
-        "sprint-vpb-03-manual-transport-skills",
-        "sprint-vpb-04-mcp-mailbox",
-        "sprint-vpb-05-web-origin-optional"
-      ],
-      "milestoneProgress": {
-        "phase1-core": 0.4,
-        "phase2-mailbox": 0,
-        "phase3-web-origin": 0,
-        "phase4-optional": 0
-      },
-      "summary": "user /goal directive로 시작한 upstream harness iteration. 모델 역할: Orchestrator/Planner/Evaluator=fable, Generator=gpt-5.6-sol xhigh."
-    }
-  ]
+  "iterations": []
 }

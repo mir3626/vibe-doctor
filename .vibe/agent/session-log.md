@@ -6,6 +6,7 @@ This file is project-owned runtime state. Downstream `/vibe-init` rewrites it be
 
 ## Entries
 
+- 2026-07-15T10:56:00.000Z [checkpoint] upstream harness maintenance: release metadata updated for v1.8.0 web-pro-bridge. iter-1(vpb-01~06) 완료 — Planner/Evaluator=fable + Generator=gpt-5.6-sol xhigh 역할 분담, per-sprint Evaluator 6회(FAIL 1회 재작업 재판정 포함), Orchestrator whole-workflow audit에서 라이브 E2E 왕복 2종 완주 및 발견 3건(클립보드 PowerShell $args 바인딩, manual transport --latest 조용한 무시, finalize 해시 웹 리뷰어 계산 불가) 수정. 상태 문서 pristine 복원 + 포트 18488 이동 + stdin drain 회귀 수정 포함. 사용자 확인 대기: 실 ChatGPT 웹 왕복 3종(design.md §12.1).
 
 
 

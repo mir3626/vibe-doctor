@@ -1,6 +1,0 @@
-{
-  "schemaVersion": "synthetic-1",
-  "findings": [
-    { "id": "P2-clipboard-args", "priority": "P2", "summary": "Windows copyFileToClipboard가 -Command + $args 바인딩 오류로 항상 실패" }
-  ]
-}
