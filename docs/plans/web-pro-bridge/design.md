@@ -145,7 +145,7 @@ interface VibeProBridgeTransport {
 
 Pro 패키지는 원격 호스팅(+OAuth tenant model + 암호화 object storage)을 권장하지만, 단일 사용자 dogfood에는 운영 비용·장애점 과잉이다. **프로토콜은 Pro의 11-tool을 그대로, 배치만 로컬로**:
 
-- `vibe:pro-mcp` — 로컬 streamable-HTTP MCP 서버(왕복 세션 동안만 기동) + cloudflared/ngrok 터널 → ChatGPT Developer Mode 앱 1회 등록.
+- `vibe:pro-mcp` — 로컬 streamable-HTTP MCP 서버(왕복 세션 동안만 기동, 기본 포트 **18488** — 8848은 Windows WinNAT excluded range와 충돌해 이동, 2026-07-15 실측) + cloudflared/ngrok 터널 → ChatGPT Developer Mode 앱 1회 등록.
 - 툴: `create_request / list_pending_requests / get_request / claim_request / begin_result / put_result_file(chunked+sha) / finalize_result / get_result_manifest / get_result_file / acknowledge_import / cancel_request`.
 - 인증 축소: OAuth tenant 대신 single-tenant bearer 토큰(터널 URL 쿼리) + request당 1 finalize + TTL. storage는 `.vibe/pro-bridge/` 로컬 파일(암호화 스토리지 불요 — 자기 디스크).
 - 웹 UX: `@Vibe Pro Bridge review <request-id>` 한 줄 invocation (Pro `02` A5).
@@ -247,6 +247,15 @@ kind=feature_design, CLI-origin과 Web-origin(§6.4) 모두 동일 프로토콜.
 | local-first의 web-origin 제약 | 제출 순간 서버 필요 | 사전 기동 안내 + vibe-bundle fallback. 필요 실증 시 원격 승격 |
 | 번들 복사 잘림 (P1) | 긴 응답 Copy 누락 | `VIBE:END` 센티널 + `--from <file>` |
 | `?q=` 정책 변경 | 비공식 파라미터 | 편의 기능 — 실패 무해 |
+
+### 12.1 구현 실측 추기 (2026-07-15, iteration 1 whole-workflow audit)
+
+- **구현 완료**: vpb-01~05 (계약/discovery → composer/importer → manual transport/스킬 → local MCP mailbox → web-origin/옵션 어댑터). 전 Sprint per-sprint Evaluator 통과, 자체 테스트 623개.
+- **라이브 E2E 실측 (실 저장소)**: manual 왕복(§7.1) 완주 — visibility gate가 base 미푸시를 정확히 차단(실패 모드 3), happy path에서 goal manifest가 실제 iteration(커밋 로스터·변경 파일 전체)을 confidence high로 재구성, 발행 고지→outbox→sync 설치→정직한 skippedValidations 8종. mailbox 왕복(§6.3~6.4) 완주 — 12-tool, 무인증 401, chunked put + SHA 검증, finalize revision, `sync --latest` 설치, provenance 해시 바인딩 완전형.
+- **audit 발견·수정** (sprint-vpb-06-audit-fix-1): ① Windows 클립보드 복사가 PowerShell `-Command`+`$args` 바인딩 오류로 항상 실패 → 리터럴 경로 임베드로 수정. ② manual transport에서 `sync --latest` 조용한 무시 → 명시 에러로 수정. ③ finalize_result가 웹 리뷰어가 계산 불가능한 canonical 해시 2종을 필수 요구 → server-fill + verify-if-present로 완화.
+- **기본 포트 변경**: 8848 → 18488 (WinNAT excluded range 8827–8926 실측 충돌). EACCES/EADDRINUSE 시 netsh 확인법 + 오버라이드 안내 추가.
+- **Codex App Server goal provider**: JSON-RPC 표면 미실측 — 명시적 unavailable stub 유지, provider 체인 2~4번이 실동작 (이 repo에서 vibe-goal-iterate provider가 confidence high로 동작 확인).
+- **사용자 확인 대기 항목**: 실 ChatGPT 웹 왕복 3종 — Pro 모드 챗의 GitHub 커넥터 가용성, Developer Mode MCP write tool의 Pro 모드 동작(불가 시 §5.3 모델 전환 fallback), 터널 경유 실 제출. 실측 후 본 절에 추기할 것.
 
 ## 13. 기각·철회 기록
 

@@ -324,14 +324,14 @@ export async function copyFileToClipboard(
 ): Promise<{ ok: boolean; method: string | null; error: string | null }> {
   const platform = ports.platform ?? process.platform;
   if (platform === 'win32') {
+    const literalPath = `'${filePath.replaceAll("'", "''")}'`;
     const result = await execute(
       'powershell.exe',
       [
         '-NoProfile',
         '-NonInteractive',
         '-Command',
-        'Get-Content -Raw -Encoding utf8 -LiteralPath $args[0] | Set-Clipboard',
-        filePath,
+        `Get-Content -Raw -Encoding utf8 -LiteralPath ${literalPath} | Set-Clipboard`,
       ],
       ports,
     );

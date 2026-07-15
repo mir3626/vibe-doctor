@@ -2,7 +2,7 @@
 
 <!-- BEGIN:VIBE:CURRENT-SPRINT -->
 > **Current**: idle (not started, started 2026-07-15)
-> **Completed**: sprint-vpb-05-web-origin-optional, sprint-vpb-04-mcp-mailbox, sprint-vpb-03-manual-transport-skills, sprint-vpb-02-composer-importer, sprint-vpb-01-contracts-discovery
+> **Completed**: sprint-vpb-06-audit-fix-1, sprint-vpb-05-web-origin-optional, sprint-vpb-04-mcp-mailbox, sprint-vpb-03-manual-transport-skills, sprint-vpb-02-composer-importer, sprint-vpb-01-contracts-discovery
 > **Pending**: —
 <!-- END:VIBE:CURRENT-SPRINT -->
 
@@ -11,4 +11,5 @@
 ## No Active Iteration
 
 Start the next iteration with `/vibe-iterate`.
+
 

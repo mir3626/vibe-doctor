@@ -1,0 +1,23 @@
+{
+  "schemaVersion": "vibe-pro-bridge-provenance-v1",
+  "requestId": "AUD-20260715-ygqz7n",
+  "requestPayloadSha256": "75585114a0c612c48f07c57d346ccc24276abb2fc39b40151bd1f1e38c74739b",
+  "resultPayloadSha256": null,
+  "resultFilesSha256": "0c1a34edbab01ef84ddf4bc9c257dcbbc4d2c7401d0cc489415c3175116302e0",
+  "reviewedBaseSha": "64ffad48e01eeab1b0c73389cc809c008b11fe32",
+  "reviewedHeadSha": "9b002fe3235185a9a27dddec51bfc4248f768549",
+  "importedAt": "2026-07-15T10:27:39.625Z",
+  "transport": "manual",
+  "reviewerDeclaration": null,
+  "skippedValidations": [
+    "file-roster-binding-skipped",
+    "file-sha-binding-skipped",
+    "repository-binding-skipped",
+    "request-hash-binding-skipped",
+    "result-hash-binding-skipped",
+    "result-manifest-unavailable",
+    "reviewed-head-binding-skipped",
+    "reviewer-declaration-unavailable"
+  ],
+  "folder": "2026-07-15-web-pro-bridge-pro-review"
+}

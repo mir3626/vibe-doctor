@@ -48,6 +48,8 @@ npm run vibe:pro-mcp
 4. 웹 리뷰어가 request를 claim하고 결과 파일을 chunk upload한 뒤 finalize하도록 둔다.
 5. 결과가 도착하면 로컬에서 `npm run vibe:pro-sync`를 실행한다. 클립보드 복사는 필요 없다.
 
+`finalize_result` 호출에서 manifest의 `requestPayloadSha256`와 `payloadSha256`는 생략할 수 있다. 서버가 저장된 request와 canonical manifest를 기준으로 두 값을 채우며, 리뷰어가 값을 제공한 경우에는 일치 여부를 검증한다. 따라서 웹 리뷰어가 채팅에서 canonical SHA-256을 직접 계산할 필요가 없다.
+
 Pro 모드 대화에서 connector write tool이 호출되지 않으면 Pro로 추론을 마친 뒤 같은 대화에서 모델을 전환해 제출 턴(`begin_result`, `put_result_file`, `finalize_result`)만 실행한다. 그래도 불가능하면 vibe-bundle을 출력하고 `npm run vibe:pro-sync -- --from <file>` Phase 1 경로로 돌아간다.
 
 ## 5. 보안·수명 경계

@@ -67,16 +67,28 @@
         "net": 3560,
         "filesChanged": 26
       }
+    },
+    {
+      "id": "sprint-vpb-06-audit-fix-1",
+      "name": "sprint-vpb-06-audit-fix-1",
+      "status": "passed",
+      "completedAt": "2026-07-15T10:49:36.798Z",
+      "actualLoc": {
+        "added": 2742,
+        "deleted": 90,
+        "net": 2652,
+        "filesChanged": 26
+      }
     }
   ],
   "verificationCommands": [],
   "handoff": {
     "currentSprintId": "idle",
-    "lastActionSummary": "Sprint sprint-vpb-05-web-origin-optional completed with passed",
+    "lastActionSummary": "Sprint sprint-vpb-06-audit-fix-1 completed with passed",
     "orchestratorContextBudget": "medium",
     "preferencesActive": [],
     "handoffDocPath": ".vibe/agent/handoff.md",
-    "updatedAt": "2026-07-15T10:24:05.171Z"
+    "updatedAt": "2026-07-15T10:49:36.798Z"
   },
   "pendingRisks": [
     {
@@ -153,10 +165,21 @@
     ".vibe/harness/src/pro-bridge/transports/workspace-agent.ts",
     ".vibe/harness/test/pro-bridge-adapters.test.ts",
     "docs/plans/archive/roadmaps/iter-1-20260715102405-1.md",
-    "docs/reports/project-report.html"
+    "docs/reports/project-report.html",
+    "docs/plans/web-pro-bridge/design.md",
+    "docs/plans/2026-07-15-web-origin-live-design/.bridge/provenance.json",
+    "docs/plans/2026-07-15-web-origin-live-design/DESIGN.md",
+    "docs/plans/2026-07-15-web-origin-live-design/FINDINGS.json",
+    "docs/plans/2026-07-15-web-origin-live-design/README.md",
+    "docs/plans/2026-07-15-web-origin-live-design/prompt/CLI_MAIN_SESSION_PROMPT.md",
+    "docs/plans/2026-07-15-web-pro-bridge-pro-review/.bridge/provenance.json",
+    "docs/plans/2026-07-15-web-pro-bridge-pro-review/FINDINGS.json",
+    "docs/plans/2026-07-15-web-pro-bridge-pro-review/README.md",
+    "docs/plans/2026-07-15-web-pro-bridge-pro-review/REVIEW.md",
+    "docs/plans/2026-07-15-web-pro-bridge-pro-review/prompt/CLI_MAIN_SESSION_PROMPT.md"
   ],
   "lastSprintScopeGlob": [],
-  "sprintsSinceLastAudit": 0,
-  "stateUpdatedAt": "2026-07-15T10:24:32.585Z",
+  "sprintsSinceLastAudit": 1,
+  "stateUpdatedAt": "2026-07-15T10:49:36.798Z",
   "verifiedAt": null
 }

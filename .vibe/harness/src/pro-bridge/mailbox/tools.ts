@@ -56,8 +56,14 @@ const PutResultFileInput = z
   .refine((value) => (value.content === undefined) !== (value.contentBase64 === undefined), {
     message: 'Exactly one of content or contentBase64 is required',
   });
+const FinalizeResultManifestInput = ReviewResultManifestSchema
+  .omit({ requestPayloadSha256: true, payloadSha256: true })
+  .extend({
+    requestPayloadSha256: ReviewResultManifestSchema.shape.requestPayloadSha256.optional(),
+    payloadSha256: ReviewResultManifestSchema.shape.payloadSha256.optional(),
+  });
 const FinalizeResultInput = z
-  .object({ requestId: z.string().min(1), manifest: ReviewResultManifestSchema })
+  .object({ requestId: z.string().min(1), manifest: FinalizeResultManifestInput })
   .strict();
 const GetResultFileInput = z
   .object({ requestId: z.string().min(1), path: z.string().min(1) })
@@ -275,10 +281,24 @@ export function createMailboxTools(
     }),
     definition({
       name: 'finalize_result',
-      summary: 'Validate and finalize one immutable result manifest and package.',
+      summary: 'Validate and finalize one immutable result manifest and package. The requestPayloadSha256 and payloadSha256 fields may be omitted; the server fills and verifies both hashes.',
       schema: FinalizeResultInput,
       async invoke(input: z.infer<typeof FinalizeResultInput>) {
-        return store.finalizeResult(input.requestId, input.manifest);
+        const request = requireValue(
+          await store.getRequest(input.requestId),
+          'not-found',
+          `Mailbox request not found: ${input.requestId}`,
+        );
+        const manifestWithoutPayloadSha = {
+          ...input.manifest,
+          requestPayloadSha256: input.manifest.requestPayloadSha256 ?? request.payloadSha256,
+        };
+        const manifest = ReviewResultManifestSchema.parse({
+          ...manifestWithoutPayloadSha,
+          payloadSha256: input.manifest.payloadSha256
+            ?? computePayloadSha256(manifestWithoutPayloadSha),
+        });
+        return store.finalizeResult(input.requestId, manifest);
       },
     }),
     definition({

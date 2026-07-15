@@ -800,6 +800,10 @@ async function runSync(
     now: () => Date;
   },
 ): Promise<number> {
+  if (context.transportName !== 'mcp-mailbox' && getBooleanFlag(args, 'latest')) {
+    context.io.err('--latest는 mcp-mailbox transport 전용입니다. .vibe/config.local.json에서 proBridge.transport를 설정하거나 --from/클립보드 sync를 사용하세요.');
+    return 1;
+  }
   if (getStringFlag(args, 'from') || context.transportName === 'manual') {
     return runBundleSync(args, context);
   }

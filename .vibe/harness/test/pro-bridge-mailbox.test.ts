@@ -150,6 +150,19 @@ async function finalizedStore(root: string, label = 'initial'): Promise<{
   return { store, input, files, resultManifest, finalized };
 }
 
+async function openToolUpload(root: string, requestId = REQUEST_ID) {
+  const store = new MailboxStore({ repoRoot: root, now: () => NOW });
+  const input = request(requestId);
+  const files = resultFiles();
+  const resultManifest = manifest(input, files);
+  await store.createRequest(input);
+  await store.claimRequest(input.requestId);
+  await store.beginResult(input.requestId);
+  await uploadFiles(store, input.requestId, files);
+  const finalize = createMailboxTools(store).find((tool) => tool.name === 'finalize_result')!;
+  return { store, input, resultManifest, finalize };
+}
+
 async function withRoot(run: (root: string) => Promise<void>): Promise<void> {
   const root = await mkdtemp(path.join(tmpdir(), 'vibe-mcp-mailbox-'));
   try {
@@ -425,6 +438,77 @@ describe('mcp mailbox tools', () => {
       await assert.rejects(begin.invoke({ requestId: input.requestId }),
         (error: unknown) => error instanceof MailboxStoreError && error.code === 'lifecycle-violation');
       await assert.rejects(begin.invoke({ requestId: 42 }), (error: unknown) => error instanceof ZodError);
+    });
+  });
+
+  it('fills omitted finalize hashes and stores a complete manifest', async () => {
+    await withRoot(async (root) => {
+      const { store, input, resultManifest, finalize } = await openToolUpload(root);
+      const manifestWithoutHashes = Object.fromEntries(
+        Object.entries(resultManifest).filter(
+          ([key]) => key !== 'requestPayloadSha256' && key !== 'payloadSha256',
+        ),
+      );
+
+      const finalized = await finalize.invoke({
+        requestId: input.requestId,
+        manifest: manifestWithoutHashes,
+      }) as { manifestSha256: string };
+      const stored = await store.getResultManifest(input.requestId);
+      assert.ok(stored);
+      assert.equal(stored.requestPayloadSha256, input.payloadSha256);
+      assert.equal(stored.payloadSha256, computePayloadSha256(stored));
+      assert.equal(finalized.manifestSha256, stored.payloadSha256);
+      assert.match(
+        finalize.description,
+        /requestPayloadSha256 and payloadSha256 fields may be omitted.*server fills and verifies/i,
+      );
+      const inputProperties = finalize.inputSchema.properties as Record<string, unknown>;
+      const manifestInputSchema = inputProperties.manifest as { required?: string[] };
+      assert.equal(manifestInputSchema.required?.includes('requestPayloadSha256'), false);
+      assert.equal(manifestInputSchema.required?.includes('payloadSha256'), false);
+    });
+  });
+
+  it('rejects incorrect finalize hashes when the reviewer supplies them', async () => {
+    await withRoot(async (root) => {
+      const { input, resultManifest, finalize } = await openToolUpload(root);
+      const wrongHash = resultManifest.payloadSha256 === 'f'.repeat(64)
+        ? 'e'.repeat(64)
+        : 'f'.repeat(64);
+      const wrongRequestDraft = {
+        ...resultManifest,
+        requestPayloadSha256: wrongHash,
+        payloadSha256: '0'.repeat(64),
+      };
+      const wrongRequestManifest = {
+        ...wrongRequestDraft,
+        payloadSha256: computePayloadSha256(wrongRequestDraft),
+      };
+
+      await assert.rejects(
+        finalize.invoke({ requestId: input.requestId, manifest: wrongRequestManifest }),
+        (error: unknown) => error instanceof MailboxStoreError
+          && error.code === 'finalize-invalid'
+          && error.message.includes('request-hash-mismatch'),
+      );
+      await assert.rejects(
+        finalize.invoke({
+          requestId: input.requestId,
+          manifest: { ...resultManifest, payloadSha256: wrongHash },
+        }),
+        (error: unknown) => error instanceof MailboxStoreError
+          && error.code === 'finalize-invalid'
+          && error.message.includes('result-hash-mismatch'),
+      );
+    });
+  });
+
+  it('preserves a complete reviewer-supplied manifest during finalize', async () => {
+    await withRoot(async (root) => {
+      const { store, input, resultManifest, finalize } = await openToolUpload(root);
+      await finalize.invoke({ requestId: input.requestId, manifest: resultManifest });
+      assert.deepEqual(await store.getResultManifest(input.requestId), resultManifest);
     });
   });
 });

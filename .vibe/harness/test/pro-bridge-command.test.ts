@@ -493,6 +493,37 @@ describe('pro bridge command', () => {
     }
   });
 
+  it('rejects --latest on manual transport before reading the clipboard', async () => {
+    const repoRoot = await makeRoot();
+    let clipboardReads = 0;
+    try {
+      const capture = captureIo();
+      const exit = await runProBridge(['sync', '--latest'], {
+        repoRoot,
+        config: enabledConfig({ transport: 'manual' }),
+        io: capture.io,
+        clipboard: {
+          async copyFile() {
+            return { ok: true, method: 'fake', error: null };
+          },
+          async readText() {
+            clipboardReads += 1;
+            return { ok: true, text: '', error: null };
+          },
+        },
+        stdin: { isTTY: false },
+      });
+      assert.equal(exit, 1);
+      assert.equal(clipboardReads, 0);
+      assert.equal(
+        capture.err.join('\n'),
+        '--latest는 mcp-mailbox transport 전용입니다. .vibe/config.local.json에서 proBridge.transport를 설정하거나 --from/클립보드 sync를 사용하세요.',
+      );
+    } finally {
+      await rm(repoRoot, { recursive: true, force: true });
+    }
+  });
+
   it('omits compare url output when the head is not visible on github', async () => {
     const repoRoot = await makeRoot();
     try {

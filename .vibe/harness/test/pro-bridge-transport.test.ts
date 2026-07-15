@@ -162,8 +162,20 @@ describe('manual directory transport', () => {
       });
       assert.deepEqual(windows, { ok: true, method: 'powershell', error: null });
       assert.equal(windowsCalls[0]?.command, 'powershell.exe');
-      assert.equal(windowsCalls[0]?.args.at(-1), promptPath);
+      const windowsCommand = windowsCalls[0]?.args.at(-1) ?? '';
+      assert.equal(windowsCommand.includes(promptPath), true);
+      assert.doesNotMatch(windowsCommand, /\$args/);
       assert.equal(windowsCalls[0]?.input, null);
+
+      const quotedPath = String.raw`C:\bridge\reviewer's prompt.md`;
+      const quotedCalls: ExecCall[] = [];
+      await copyFileToClipboard(quotedPath, {
+        platform: 'win32',
+        execFile: fakeExecFile([{ ok: true }], quotedCalls),
+      });
+      const quotedCommand = quotedCalls[0]?.args.at(-1) ?? '';
+      assert.equal(quotedCommand.includes(String.raw`C:\bridge\reviewer''s prompt.md`), true);
+      assert.doesNotMatch(quotedCommand, /\$args/);
 
       const macCalls: ExecCall[] = [];
       const mac = await copyFileToClipboard(promptPath, {
