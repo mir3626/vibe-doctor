@@ -1,9 +1,9 @@
 # Sprint Roadmap
 
 <!-- BEGIN:VIBE:CURRENT-SPRINT -->
-> **Current**: sprint-vpb-02-composer-importer
-> **Completed**: sprint-vpb-01-contracts-discovery
-> **Pending**: sprint-vpb-03-manual-transport-skills, sprint-vpb-04-mcp-mailbox, sprint-vpb-05-web-origin-optional
+> **Current**: sprint-vpb-03-manual-transport-skills
+> **Completed**: sprint-vpb-01-contracts-discovery, sprint-vpb-02-composer-importer
+> **Pending**: sprint-vpb-04-mcp-mailbox, sprint-vpb-05-web-origin-optional
 <!-- END:VIBE:CURRENT-SPRINT -->
 
 > Active file: current iteration only. Archived iteration roadmaps live under `docs/plans/archive/roadmaps/`.

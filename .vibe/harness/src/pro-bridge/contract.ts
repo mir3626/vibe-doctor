@@ -45,6 +45,24 @@ export const REQUIRED_RESULT_FILES = {
   design: ['README.md', 'DESIGN.md', 'FINDINGS.json', 'prompt/CLI_MAIN_SESSION_PROMPT.md'],
 } as const satisfies Record<ReviewResultKind, readonly string[]>;
 
+export function compareStringsByCodePoint(left: string, right: string): number {
+  const leftCodePoints = left[Symbol.iterator]();
+  const rightCodePoints = right[Symbol.iterator]();
+
+  while (true) {
+    const leftNext = leftCodePoints.next();
+    const rightNext = rightCodePoints.next();
+    if (leftNext.done || rightNext.done) {
+      return leftNext.done === rightNext.done ? 0 : leftNext.done ? -1 : 1;
+    }
+
+    const difference = leftNext.value.codePointAt(0)! - rightNext.value.codePointAt(0)!;
+    if (difference !== 0) {
+      return difference;
+    }
+  }
+}
+
 function stableStringify(value: unknown, seen: WeakSet<object>): string | undefined {
   if (value === null || typeof value === 'string' || typeof value === 'boolean') {
     return JSON.stringify(value);

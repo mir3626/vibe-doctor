@@ -7,6 +7,8 @@ This file is project-owned runtime state. Downstream `/vibe-init` rewrites it be
 ## Entries
 
 
+
+- 2026-07-15T06:51:11.547Z [sprint-complete] sprint-vpb-02-composer-importer -> passed. Sprint sprint-vpb-02-composer-importer completed with passed LOC +3340/-45 (net +3295)
 - 2026-07-15T06:35:00.000Z [decision] evaluator도 fable로 변경 (user directive). sprint-vpb-01 Evaluator는 변경 전 opus로 수행됨(PASS-WITH-NOTES) — vpb-02부터 fable 적용.
 - 2026-07-15T06:03:56.479Z [sprint-complete] sprint-vpb-01-contracts-discovery -> passed. Sprint sprint-vpb-01-contracts-discovery completed with passed LOC +3173/-0 (net +3173)
 - 2026-07-15T05:40:00.000Z [decision] regression 발견: vibe-agent-session-start.mjs의 readHookInput()이 비-TTY stdin을 무조건 drain → run-codex.sh 파이프 프롬프트 소실 (v1.7.26~27 hook stdin fallback 회귀). 임시 우회 = Generator 호출에 VIBE_SKIP_AGENT_SESSION_START=1. 근본 수정(비-hook 경로 stdin 소비 금지 또는 wrapper의 </dev/null 리다이렉트)은 iteration 1 내 Generator 위임 hotfix로 처리 예정.

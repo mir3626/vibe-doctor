@@ -18,7 +18,7 @@ export function isSafeRelativePath(filePath: string): boolean {
   }
 
   const segments = filePath.split('/');
-  return segments.every((segment) => segment.length > 0 && segment !== '..');
+  return segments.every((segment) => segment.length > 0 && segment !== '.' && segment !== '..');
 }
 
 const RepositoryIdentitySchema = z

@@ -415,4 +415,8 @@ describe('goal source discovery', () => {
       await rm(root, { recursive: true, force: true });
     }
   });
+
+  it('sorts rosters by code point independent of locale', () => {
+    assert.deepEqual(classifyScope(['a', 'B']).changedFiles, ['B', 'a']);
+  });
 });

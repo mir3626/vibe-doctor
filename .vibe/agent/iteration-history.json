@@ -16,7 +16,8 @@
         "sprint-vpb-05-web-origin-optional"
       ],
       "completedSprints": [
-        "sprint-vpb-01-contracts-discovery"
+        "sprint-vpb-01-contracts-discovery",
+        "sprint-vpb-02-composer-importer"
       ],
       "milestoneProgress": {
         "phase1-core": 0.4,

@@ -1,7 +1,8 @@
 import type { GoalSourceManifest } from '../../lib/schemas/pro-bridge.js';
+import { compareStringsByCodePoint } from '../contract.js';
 
 function uniqueSorted(values: string[]): string[] {
-  return [...new Set(values)].sort((left, right) => left.localeCompare(right));
+  return [...new Set(values)].sort(compareStringsByCodePoint);
 }
 
 function scopeGlob(filePath: string): string {

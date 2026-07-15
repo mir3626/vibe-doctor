@@ -6,6 +6,7 @@ import type {
   GoalSourceKind,
   GoalSourceManifest,
 } from '../../lib/schemas/pro-bridge.js';
+import { compareStringsByCodePoint } from '../contract.js';
 import { classifyScope } from './scope.js';
 
 export interface GitPort {
@@ -124,7 +125,7 @@ export async function listRepoFiles(ctx: GoalSourceContext, relativeDir: string)
   return entries
     .filter((entry) => entry.isFile())
     .map((entry) => `${relativeDir.replaceAll('\\', '/').replace(/\/$/, '')}/${entry.name}`)
-    .sort((left, right) => left.localeCompare(right));
+    .sort(compareStringsByCodePoint);
 }
 
 export async function readGitCommits(ctx: GoalSourceContext, maxCount = 50): Promise<GitCommit[]> {
@@ -168,7 +169,7 @@ export function extractReferencedPaths(text: string, prefix?: string): string[] 
 }
 
 export function uniqueSorted(values: string[]): string[] {
-  return [...new Set(values)].sort((left, right) => left.localeCompare(right));
+  return [...new Set(values)].sort(compareStringsByCodePoint);
 }
 
 function parseRemoteFullName(remoteUrl: string | null): string | null {
@@ -301,7 +302,7 @@ export async function buildGitBackedManifest(
     commitShas: [...new Set(input.commitShas.filter((sha) => GIT_SHA_PATTERN.test(sha)))],
     scope: classifyScope([...diffFiles, ...dirty.changed]),
     dirtyState: dirty.dirtyState,
-    unresolved: [...unresolved].sort((left, right) => left.localeCompare(right)),
+    unresolved: [...unresolved].sort(compareStringsByCodePoint),
     payloadSha256: '0'.repeat(64),
   };
 }
