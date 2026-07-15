@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import { describe, it } from 'node:test';
 import {
+  CLI_PROMPT_CONTRACT_REQUIREMENTS,
+  FindingsFileSchema,
   GoalSourceManifestSchema,
   ReviewRequestSchema,
   ReviewResultManifestSchema,
@@ -159,6 +162,33 @@ describe('pro-bridge schemas', () => {
       ...reviewResultFixture(),
       files: [{ ...reviewResultFixture().files[0], path: '../escape.md' }],
     });
+  });
+
+  it('accepts the checked-in remediation package under the versioned findings contract', async () => {
+    const packageRoot = 'docs/plans/2026-07-15-web-pro-bridge-goal-audit-pro-review';
+    const findings = FindingsFileSchema.parse(JSON.parse(await readFile(
+      `${packageRoot}/FINDINGS.json`,
+      'utf8',
+    )) as unknown);
+    const prompt = await readFile(`${packageRoot}/prompt/CLI_MAIN_SESSION_PROMPT.md`, 'utf8');
+    const normalized = prompt
+      .normalize('NFKC')
+      .toLowerCase()
+      .replace(/[`*_>#~[\]()]/g, ' ')
+      .replace(/[\u2013\u2014:|/\\-]+/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    assert.equal(prompt.includes(findings.repository.fullName), true);
+    assert.equal(prompt.includes(findings.snapshot.headSha), true);
+    for (const requirement of CLI_PROMPT_CONTRACT_REQUIREMENTS) {
+      for (const group of requirement.groups) {
+        assert.equal(
+          group.patterns.some((pattern) => pattern.test(normalized)),
+          true,
+          `${requirement.key}:${group.label}`,
+        );
+      }
+    }
   });
 
   it('computes a deterministic payload hash independent of key order and the hash field', () => {

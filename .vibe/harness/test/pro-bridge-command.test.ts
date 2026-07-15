@@ -25,6 +25,7 @@ import type { GitPort } from '../src/pro-bridge/goal-source/types.js';
 import { MailboxStore } from '../src/pro-bridge/mailbox/store.js';
 import { ManualDirectoryTransport } from '../src/pro-bridge/transports/manual.js';
 import { serializeVibeBundle } from '../src/pro-bridge/vibe-bundle.js';
+import { buildCompliantResultBundle } from './helpers/pro-bridge-result-fixture.js';
 
 const BASE_SHA = 'a'.repeat(40);
 const HEAD_SHA = 'b'.repeat(40);
@@ -200,19 +201,16 @@ function goalResolver(repoRoot: string): typeof resolveGoalSource {
 }
 
 function auditBundle(readme: string): string {
-  return serializeVibeBundle({
+  return serializeVibeBundle(buildCompliantResultBundle({
     requestId: 'web-origin',
     folder: RESULT_FOLDER,
-    files: [
-      { path: 'README.md', content: readme },
-      { path: 'REVIEW.md', content: '# Review\n\nCommand behavior verified.' },
-      { path: 'FINDINGS.json', content: '{"findings":[]}' },
-      {
-        path: 'prompt/CLI_MAIN_SESSION_PROMPT.md',
-        content: '# Next goal\n\nWait for explicit user approval before implementation.',
-      },
-    ],
-  });
+    repositoryFullName: 'owner/repo',
+    baseSha: BASE_SHA,
+    headSha: HEAD_SHA,
+    title: 'Command behavior review',
+    readmeContent: readme,
+    primaryContent: '# Review\n\nCommand behavior verified.',
+  }).bundle);
 }
 
 async function makeRoot(): Promise<string> {
@@ -235,13 +233,17 @@ function mailboxRequest(requestId = 'AUD-20260715-commandmcp'): ReviewRequest {
   return { ...draft, payloadSha256: computePayloadSha256(draft) };
 }
 
-function mailboxFiles(): Array<{ path: string; content: string }> {
-  return [
-    { path: 'README.md', content: '# Command mailbox result\n' },
-    { path: 'REVIEW.md', content: '# Review\n\nCommand sync passed.\n' },
-    { path: 'FINDINGS.json', content: '{"findings":[]}\n' },
-    { path: 'prompt/CLI_MAIN_SESSION_PROMPT.md', content: '# Next\n\nWait for approval.\n' },
-  ];
+function mailboxFiles(requestId = 'AUD-20260715-commandmcp'): Array<{ path: string; content: string }> {
+  return buildCompliantResultBundle({
+    requestId,
+    folder: '2026-07-15-command-mailbox-pro-review',
+    repositoryFullName: 'owner/repo',
+    baseSha: BASE_SHA,
+    headSha: HEAD_SHA,
+    title: 'Command mailbox result',
+    readmeContent: '# Command mailbox result\n',
+    primaryContent: '# Review\n\nCommand sync passed.\n',
+  }).bundle.files;
 }
 
 function mailboxManifest(input: ReviewRequest): ReviewResultManifest {
@@ -250,7 +252,7 @@ function mailboxManifest(input: ReviewRequest): ReviewResultManifest {
     requestPayloadSha256: input.payloadSha256, repositoryFullName: input.repository.fullName,
     reviewedBaseSha: input.git.baseSha, reviewedHeadSha: input.git.headSha, resultKind: 'audit',
     proposedFolder: '2026-07-15-command-mailbox-pro-review', disposition: 'approved',
-    files: mailboxFiles().map((file) => {
+    files: mailboxFiles(input.requestId).map((file) => {
       const bytes = Buffer.from(file.content, 'utf8');
       return {
         path: file.path,
@@ -278,7 +280,7 @@ async function seedMailboxResult(repoRoot: string): Promise<{
   await store.createRequest(input);
   await store.claimRequest(input.requestId);
   await store.beginResult(input.requestId);
-  for (const file of mailboxFiles()) {
+  for (const file of mailboxFiles(input.requestId)) {
     await store.putResultFile(input.requestId, {
       filePath: file.path, chunkIndex: 0, chunkCount: 1, content: file.content,
       chunkSha256: createHash('sha256').update(file.content).digest('hex'),
@@ -551,6 +553,12 @@ describe('pro bridge command', () => {
       });
       assert.equal(exit, 0, capture.err.join('\n'));
       assert.doesNotMatch(capture.out.join('\n'), /(?:compare:|github\.com\/owner\/repo\/compare)/);
+      const requestId = capture.out.find((line) => line.startsWith('requestId: '))?.slice('requestId: '.length);
+      assert.notEqual(requestId, undefined);
+      const requestDir = path.join(repoRoot, '.vibe', 'pro-bridge', 'outbox', requestId!);
+      await access(path.join(requestDir, 'patch.diff'));
+      assert.match(await readFile(path.join(requestDir, 'prompt.md'), 'utf8'), /Authoritative local-only delta/);
+      assert.match(capture.out.join('\n'), /patch artifact/);
     } finally {
       await rm(repoRoot, { recursive: true, force: true });
     }
@@ -617,7 +625,7 @@ describe('pro bridge command', () => {
       const bundle = serializeVibeBundle({
         requestId: input.requestId,
         folder: RESULT_FOLDER,
-        files: mailboxFiles(),
+        files: mailboxFiles(input.requestId),
       });
       const capture = captureIo();
       const exit = await runProBridge(['sync'], {
@@ -633,18 +641,24 @@ describe('pro bridge command', () => {
     } finally { await rm(repoRoot, { recursive: true, force: true }); }
   });
 
-  it('mcp subcommand starts the server and prints the connector url with the token once', async () => {
+  it('mcp subcommand starts the server and prints the connector url with the connect code once', async () => {
     const repoRoot = await makeRoot();
     const capture = captureIo();
-    const token = 'one-time-command-token';
+    const connectCode = 'one-time-command-code';
     let closed = false;
     let stopped = false;
     try {
       const exit = await runProBridge(['mcp'], {
-        repoRoot, config: enabledConfig(), io: capture.io, randomToken: () => token,
+        repoRoot, config: enabledConfig(), io: capture.io, randomToken: () => connectCode,
         mcpServer: {
           async start() {
-            return { port: 8848, url: 'http://127.0.0.1:8848', async close() { closed = true; } };
+            return {
+              port: 8848,
+              url: 'http://127.0.0.1:8848',
+              revoke() {},
+              getSessionTokenForTesting() { return null; },
+              async close() { closed = true; },
+            };
           },
         },
         tunnel: {
@@ -655,7 +669,8 @@ describe('pro bridge command', () => {
         async waitForShutdown() {},
       });
       assert.equal(exit, 0, capture.err.join('\n'));
-      assert.equal(capture.out.join('\n').split(token).length - 1, 1);
+      assert.equal(capture.out.join('\n').split(connectCode).length - 1, 1);
+      assert.match(capture.out.join('\n'), /\/mcp\?code=/);
       assert.equal(closed, true);
       assert.equal(stopped, true);
       await assert.rejects(access(path.join(repoRoot, '.vibe')));
@@ -670,7 +685,13 @@ describe('pro bridge command', () => {
         repoRoot, config: enabledConfig(), io: capture.io, randomToken: () => 'fallback-token',
         mcpServer: {
           async start() {
-            return { port: 8848, url: 'http://127.0.0.1:8848', async close() {} };
+            return {
+              port: 8848,
+              url: 'http://127.0.0.1:8848',
+              revoke() {},
+              getSessionTokenForTesting() { return null; },
+              async close() {},
+            };
           },
         },
         tunnel: {
@@ -682,7 +703,7 @@ describe('pro bridge command', () => {
       });
       assert.equal(exit, 0);
       assert.match(capture.err.join('\n'), /로컬 URL.*ENOENT/);
-      assert.match(capture.out.join('\n'), /http:\/\/127\.0\.0\.1:8848\/mcp\?token=/);
+      assert.match(capture.out.join('\n'), /http:\/\/127\.0\.0\.1:8848\/mcp\?code=/);
     } finally { await rm(repoRoot, { recursive: true, force: true }); }
   });
 });
@@ -736,13 +757,18 @@ describe('pro bridge web origin and adapters', () => {
     folder: string,
   ): Promise<ReviewResultManifest> {
     const store = new MailboxStore({ repoRoot, now: () => NOW });
-    const primary = input.kind === 'goal_audit' ? 'REVIEW.md' : 'DESIGN.md';
-    const files = [
-      { path: 'README.md', content: '# Web-origin result\n' },
-      { path: primary, content: '# Result\n\nRepository-bound package.\n' },
-      { path: 'FINDINGS.json', content: '{"findings":[]}\n' },
-      { path: 'prompt/CLI_MAIN_SESSION_PROMPT.md', content: '# Implement\n\nWait for approval.\n' },
-    ];
+    const fixture = buildCompliantResultBundle({
+      requestId: input.requestId,
+      folder,
+      repositoryFullName: input.repository.fullName,
+      baseSha: input.git.baseSha,
+      headSha: input.git.headSha,
+      resultKind: input.kind === 'goal_audit' ? 'audit' : 'design',
+      title: 'Web-origin result',
+      readmeContent: '# Web-origin result\n',
+      primaryContent: '# Result\n\nRepository-bound package.\n',
+    });
+    const files = fixture.bundle.files;
     const draft: ReviewResultManifest = {
       schemaVersion: 'vibe-pro-review-result-v1',
       requestId: input.requestId,
@@ -762,13 +788,8 @@ describe('pro bridge web origin and adapters', () => {
           sha256: createHash('sha256').update(bytes).digest('hex'),
         };
       }),
-      findingsSummary: { p0: 0, p1: 0, p2: 0, p3: 0 },
-      reviewerDeclaration: {
-        surface: 'chatgpt-web',
-        requestedMode: 'pro',
-        githubConnectorUsed: true,
-        limitations: [],
-      },
+      findingsSummary: fixture.findingsSummary,
+      reviewerDeclaration: fixture.reviewerDeclaration,
       createdAt: NOW.toISOString(),
       payloadSha256: '0'.repeat(64),
     };

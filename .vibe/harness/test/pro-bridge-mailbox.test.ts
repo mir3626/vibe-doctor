@@ -15,6 +15,7 @@ import {
   MailboxStoreError,
 } from '../src/pro-bridge/mailbox/store.js';
 import { createMailboxTools } from '../src/pro-bridge/mailbox/tools.js';
+import { buildCompliantResultBundle } from './helpers/pro-bridge-result-fixture.js';
 
 const NOW = new Date('2026-07-15T08:00:00.000Z');
 const REQUEST_ID = 'AUD-20260715-mailbox1';
@@ -65,16 +66,17 @@ function request(
   return { ...draft, payloadSha256: computePayloadSha256(draft) };
 }
 
-function resultFiles(label = 'initial'): ResultFile[] {
-  return [
-    { path: 'README.md', content: `# ${label} mailbox result\n` },
-    { path: 'REVIEW.md', content: `# Review\n\n${label} review.\n` },
-    { path: 'FINDINGS.json', content: '{"p0":[],"p1":[],"p2":[],"p3":[]}\n' },
-    {
-      path: 'prompt/CLI_MAIN_SESSION_PROMPT.md',
-      content: `# ${label} follow-up\n\nWait for explicit approval.\n`,
-    },
-  ];
+function resultFiles(input: ReviewRequest, label = 'initial'): ResultFile[] {
+  return buildCompliantResultBundle({
+    requestId: input.requestId,
+    folder: FOLDER,
+    repositoryFullName: input.repository.fullName,
+    baseSha: input.git.baseSha,
+    headSha: input.git.headSha,
+    title: `${label} mailbox result`,
+    readmeContent: `# ${label} mailbox result\n`,
+    primaryContent: `# Review\n\n${label} review.\n`,
+  }).bundle.files;
 }
 
 function manifest(
@@ -140,7 +142,7 @@ async function finalizedStore(root: string, label = 'initial'): Promise<{
 }> {
   const store = new MailboxStore({ repoRoot: root, now: () => NOW });
   const input = request();
-  const files = resultFiles(label);
+  const files = resultFiles(input, label);
   const resultManifest = manifest(input, files);
   await store.createRequest(input);
   await store.claimRequest(input.requestId);
@@ -153,7 +155,7 @@ async function finalizedStore(root: string, label = 'initial'): Promise<{
 async function openToolUpload(root: string, requestId = REQUEST_ID) {
   const store = new MailboxStore({ repoRoot: root, now: () => NOW });
   const input = request(requestId);
-  const files = resultFiles();
+  const files = resultFiles(input);
   const resultManifest = manifest(input, files);
   await store.createRequest(input);
   await store.claimRequest(input.requestId);
@@ -228,7 +230,7 @@ describe('mcp mailbox store', () => {
         filePath: 'README.md', chunkIndex: 1, chunkCount: 2, content: 'two', chunkSha256: chunkSha('two'),
       });
       assert.equal(replay.receivedChunks, 2);
-      const files = resultFiles().map((file) =>
+      const files = resultFiles(input).map((file) =>
         file.path === 'README.md' ? { ...file, content: 'onetwo' } : file);
       await uploadFiles(store, input.requestId, files.filter((file) => file.path !== 'README.md'));
       await store.finalizeResult(input.requestId, manifest(input, files));
@@ -256,7 +258,7 @@ describe('mcp mailbox store', () => {
     await withRoot(async (root) => {
       const store = new MailboxStore({ repoRoot: root, now: () => NOW });
       const input = request();
-      const files = resultFiles();
+      const files = resultFiles(input);
       await store.createRequest(input);
       await store.claimRequest(input.requestId);
       await store.beginResult(input.requestId);
@@ -298,7 +300,7 @@ describe('mcp mailbox store', () => {
         const input = request(`AUD-20260715-invalid${index}`);
         const files = expectedCode === 'missing-required-file'
           ? [{ path: 'README.md', content: '# incomplete\n' }]
-          : resultFiles();
+          : resultFiles(input);
         let invalidManifest = manifest(input, files);
         if (expectedCode === 'file-roster-mismatch') {
           invalidManifest = {
@@ -356,7 +358,7 @@ describe('mcp mailbox store', () => {
   it('records a revision chain linked to the predecessor manifest', async () => {
     await withRoot(async (root) => {
       const result = await finalizedStore(root);
-      const revisedFiles = resultFiles('revised');
+      const revisedFiles = resultFiles(result.input, 'revised');
       const revisedManifest = manifest(result.input, revisedFiles);
       assert.deepEqual(
         await result.store.beginResult(result.input.requestId, result.finalized.manifestSha256),

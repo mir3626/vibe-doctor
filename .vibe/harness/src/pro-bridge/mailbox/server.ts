@@ -1,4 +1,4 @@
-import { timingSafeEqual } from 'node:crypto';
+import { randomBytes, timingSafeEqual } from 'node:crypto';
 import http, { type IncomingMessage, type ServerResponse } from 'node:http';
 import { ZodError } from 'zod';
 import { MailboxStoreError } from './store.js';
@@ -6,19 +6,27 @@ import type { McpToolDefinition } from './tools.js';
 
 const MAX_BODY_BYTES = 4 * 1024 * 1024;
 const SUPPORTED_PROTOCOL_VERSIONS = ['2025-06-18', '2025-03-26'] as const;
+const DEFAULT_EXCHANGE_TTL_MS = 15 * 60 * 1000;
+const DEFAULT_SESSION_TTL_MS = 12 * 60 * 60 * 1000;
 
 export interface McpServerOptions {
   tools: McpToolDefinition[];
-  token: string;
+  connectCode: string;
   port: number;
   host?: string;
   log?: (line: string) => void;
   serverInfo?: { name: string; version: string };
+  now?: () => Date;
+  exchangeTtlMs?: number;
+  sessionTtlMs?: number;
+  randomSessionToken?: () => string;
 }
 
 export interface RunningMcpServer {
   port: number;
   url: string;
+  revoke(): void;
+  getSessionTokenForTesting(): string | null;
   close(): Promise<void>;
 }
 
@@ -50,23 +58,88 @@ function sendRpcError(
   sendJson(response, 200, { jsonrpc: '2.0', id, error });
 }
 
-function suppliedToken(request: IncomingMessage): string | null {
+interface SessionAuth {
+  authorize(request: IncomingMessage, requestUrl: URL): boolean;
+  revoke(): void;
+  getSessionTokenForTesting(): string | null;
+}
+
+function suppliedBearer(request: IncomingMessage): string | null {
   const authorization = request.headers.authorization;
   if (authorization?.startsWith('Bearer ')) {
     return authorization.slice('Bearer '.length);
   }
-  const url = new URL(request.url ?? '/', 'http://127.0.0.1');
-  return url.searchParams.get('token');
+  return null;
 }
 
-function tokenMatches(expected: string, supplied: string | null): boolean {
-  if (supplied === null) {
+function credentialMatches(expected: string | null, supplied: string | null): boolean {
+  if (expected === null || supplied === null) {
     return false;
   }
   const expectedBytes = Buffer.from(expected, 'utf8');
   const suppliedBytes = Buffer.from(supplied, 'utf8');
   return expectedBytes.byteLength === suppliedBytes.byteLength
     && timingSafeEqual(expectedBytes, suppliedBytes);
+}
+
+function normalizeTtl(value: number | undefined, fallback: number, name: string): number {
+  const ttl = value ?? fallback;
+  if (!Number.isSafeInteger(ttl) || ttl < 0) {
+    throw new Error(`${name} must be a non-negative safe integer`);
+  }
+  return ttl;
+}
+
+function createSessionAuth(options: McpServerOptions): SessionAuth {
+  const now = options.now ?? (() => new Date());
+  const exchangeTtlMs = normalizeTtl(
+    options.exchangeTtlMs,
+    DEFAULT_EXCHANGE_TTL_MS,
+    'exchangeTtlMs',
+  );
+  const sessionTtlMs = normalizeTtl(
+    options.sessionTtlMs,
+    DEFAULT_SESSION_TTL_MS,
+    'sessionTtlMs',
+  );
+  const randomSessionToken = options.randomSessionToken
+    ?? (() => randomBytes(32).toString('base64url'));
+  const startedAt = now().getTime();
+  let connectCode: string | null = options.connectCode;
+  let sessionToken: string | null = null;
+  let exchangedAt: number | null = null;
+
+  return {
+    authorize(request, requestUrl) {
+      if (requestUrl.searchParams.has('token') || connectCode === null) {
+        return false;
+      }
+      const currentTime = now().getTime();
+      const bearer = suppliedBearer(request);
+      const supplied = bearer ?? requestUrl.searchParams.get('code');
+      if (credentialMatches(connectCode, supplied)) {
+        if (exchangedAt === null) {
+          if (currentTime - startedAt > exchangeTtlMs) {
+            return false;
+          }
+          exchangedAt = currentTime;
+          sessionToken = randomSessionToken();
+        }
+        return currentTime - exchangedAt <= sessionTtlMs;
+      }
+      return exchangedAt !== null
+        && currentTime - exchangedAt <= sessionTtlMs
+        && credentialMatches(sessionToken, supplied);
+    },
+    revoke() {
+      connectCode = null;
+      sessionToken = null;
+      exchangedAt = null;
+    },
+    getSessionTokenForTesting() {
+      return sessionToken;
+    },
+  };
 }
 
 async function readBody(request: IncomingMessage): Promise<Uint8Array | null> {
@@ -118,7 +191,10 @@ function object(value: unknown): Record<string, unknown> | null {
     : null;
 }
 
-export function createMcpRequestListener(options: McpServerOptions): http.RequestListener {
+function createAuthenticatedMcpRequestListener(
+  options: McpServerOptions,
+  auth: SessionAuth,
+): http.RequestListener {
   const tools = new Map(options.tools.map((tool) => [tool.name, tool]));
   const log = options.log ?? (() => undefined);
   const serverInfo = options.serverInfo ?? { name: 'vibe-pro-bridge', version: '1' };
@@ -140,7 +216,7 @@ export function createMcpRequestListener(options: McpServerOptions): http.Reques
       sendJson(response, 403, { error: 'origin-forbidden' });
       return;
     }
-    if (!tokenMatches(options.token, suppliedToken(request))) {
+    if (!auth.authorize(request, requestUrl)) {
       response.setHeader('WWW-Authenticate', 'Bearer');
       sendJson(response, 401, { error: 'unauthorized' });
       return;
@@ -249,9 +325,14 @@ export function createMcpRequestListener(options: McpServerOptions): http.Reques
   };
 }
 
+export function createMcpRequestListener(options: McpServerOptions): http.RequestListener {
+  return createAuthenticatedMcpRequestListener(options, createSessionAuth(options));
+}
+
 export async function startMcpServer(options: McpServerOptions): Promise<RunningMcpServer> {
   const host = options.host ?? '127.0.0.1';
-  const server = http.createServer(createMcpRequestListener(options));
+  const auth = createSessionAuth(options);
+  const server = http.createServer(createAuthenticatedMcpRequestListener(options, auth));
   await new Promise<void>((resolve, reject) => {
     const onError = (error: Error): void => reject(error);
     server.once('error', onError);
@@ -268,11 +349,17 @@ export async function startMcpServer(options: McpServerOptions): Promise<Running
   return {
     port: address.port,
     url: `http://${host}:${address.port}`,
+    revoke(): void {
+      auth.revoke();
+    },
+    getSessionTokenForTesting(): string | null {
+      return auth.getSessionTokenForTesting();
+    },
     async close(): Promise<void> {
+      auth.revoke();
       await new Promise<void>((resolve, reject) => {
         server.close((error) => error ? reject(error) : resolve());
       });
     },
   };
 }
-

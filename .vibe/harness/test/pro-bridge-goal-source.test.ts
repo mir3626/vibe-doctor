@@ -360,6 +360,42 @@ describe('goal source discovery', () => {
     assert.equal(git.calls.length, 0);
   });
 
+  it('never labels a non-app-server goal source as exact', async () => {
+    const iterateRoot = await makeRoot();
+    const handoffRoot = await makeRoot();
+    const gitRoot = await makeRoot();
+    try {
+      await writeCoherentState(iterateRoot);
+      await writeText(
+        handoffRoot,
+        '.vibe/agent/handoff.md',
+        '# Handoff\n\n## 2. Status\nBridge work is active.\n\n## 3. Next Action\nReview the bridge.\n',
+      );
+      const results = [
+        await resolveGoalSource({ repoRoot: iterateRoot, git: coherentGit() }),
+        await resolveGoalSource({ repoRoot: handoffRoot, git: coherentGit() }),
+        await resolveGoalSource({
+          repoRoot: gitRoot,
+          git: new FakeGitPort({
+            commits: [commit(HEAD_SHA, BASE_SHA, 'feat(bridge): reconstruct goal')],
+            diffFiles: ['src/reconstructed.ts'],
+          }),
+        }),
+      ];
+      assert.deepEqual(
+        results.map((result) => result.selected?.source.kind),
+        ['vibe-goal-iterate', 'handoff-reconstruction', 'git-reconstruction'],
+      );
+      assert.equal(
+        results.every((result) => result.selected?.source.confidence !== 'exact'),
+        true,
+      );
+    } finally {
+      await Promise.all([iterateRoot, handoffRoot, gitRoot].map((root) =>
+        rm(root, { recursive: true, force: true })));
+    }
+  });
+
   it('classifies code, tests, migrations, and docs deterministically', () => {
     assert.deepEqual(
       classifyScope([

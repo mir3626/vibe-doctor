@@ -218,6 +218,55 @@ describe('vibe-stop-qa-gate', () => {
     assert.match(log, /ISOLATED_HARNESS_QA/);
   });
 
+  it('detaches the background worker with a hidden window on every platform', async () => {
+    const probeSource = [
+      "import { pathToFileURL } from 'node:url';",
+      `const module = await import(pathToFileURL(${JSON.stringify(scriptPath)}).href);`,
+      "const options = module.workerSpawnOptions('C:\\\\fixture', {});",
+      'console.log(JSON.stringify(options));',
+      '',
+    ].join('\n');
+    const probe = spawnSync(process.execPath, ['--input-type=module', '-e', probeSource], {
+      encoding: 'utf8',
+      windowsHide: true,
+    });
+    assert.equal(probe.status, 0, probe.stderr || probe.stdout);
+    const options = JSON.parse(probe.stdout) as Record<string, unknown>;
+
+    assert.equal(options.detached, true);
+    assert.equal(options.windowsHide, true);
+    assert.equal(options.stdio, 'ignore');
+  });
+
+  it('invokes an installed npm-cli.js through node without a cmd.exe layer', async () => {
+    const runtimeRoot = await makeTempDir('stop-qa-gate-node-runtime-');
+    const execPath = path.join(runtimeRoot, 'node.exe');
+    const npmCli = path.join(runtimeRoot, 'node_modules', 'npm', 'bin', 'npm-cli.js');
+    await writeText(npmCli, '// npm CLI fixture\n');
+
+    const probeSource = [
+      "import { pathToFileURL } from 'node:url';",
+      `const module = await import(pathToFileURL(${JSON.stringify(scriptPath)}).href);`,
+      "const invocation = module.npmInvocation('vibe:typecheck', {",
+      '  execPath: process.env.VIBE_TEST_EXEC_PATH,',
+      "  platform: 'win32',",
+      '  env: {},',
+      '});',
+      'console.log(JSON.stringify(invocation));',
+      '',
+    ].join('\n');
+    const probe = spawnSync(process.execPath, ['--input-type=module', '-e', probeSource], {
+      encoding: 'utf8',
+      windowsHide: true,
+      env: { ...process.env, VIBE_TEST_EXEC_PATH: execPath },
+    });
+    assert.equal(probe.status, 0, probe.stderr || probe.stdout);
+    const invocation = JSON.parse(probe.stdout) as { command: string; args: string[] };
+
+    assert.equal(invocation.command, execPath);
+    assert.deepEqual(invocation.args, [npmCli, 'run', 'vibe:typecheck', '--silent']);
+  });
+
   it('does not schedule harness QA for product-only changes', async () => {
     const root = await makeTempDir('stop-qa-gate-product-only-');
     await prepareFixture(root, 'process.exit(9);\n');

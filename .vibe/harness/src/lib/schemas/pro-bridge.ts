@@ -4,6 +4,128 @@ import { IsoDateTimeSchema } from './datetime.js';
 export const GitShaSchema = z.string().regex(/^[0-9a-f]{40}$/);
 export const Sha256HexSchema = z.string().regex(/^[0-9a-f]{64}$/);
 
+export const FindingSeveritySchema = z.enum(['P0', 'P1', 'P2', 'P3']);
+
+const FindingSchema = z
+  .object({
+    id: z.string().min(1),
+    severity: FindingSeveritySchema,
+    title: z.string().min(1),
+  })
+  .passthrough();
+
+export const FindingsFileSchema = z
+  .object({
+    schemaVersion: z.literal('vibe-goal-audit-findings-v1'),
+    requestId: z.string().min(1),
+    repository: z
+      .object({
+        fullName: z.string().regex(/^[^/\s]+\/[^/\s]+$/),
+      })
+      .passthrough(),
+    snapshot: z
+      .object({
+        baseSha: GitShaSchema,
+        headSha: GitShaSchema,
+      })
+      .passthrough(),
+    disposition: z.string().min(1),
+    summary: z
+      .object({
+        P0: z.number().int().min(0),
+        P1: z.number().int().min(0),
+        P2: z.number().int().min(0),
+        P3: z.number().int().min(0),
+      })
+      .passthrough(),
+    reviewerDeclaration: z
+      .object({
+        surface: z.string(),
+        requestedMode: z.string(),
+        githubConnectorUsed: z.boolean(),
+        limitations: z.array(z.string()),
+      })
+      .passthrough(),
+    P0: z.array(FindingSchema),
+    P1: z.array(FindingSchema),
+    P2: z.array(FindingSchema),
+    P3: z.array(FindingSchema),
+  })
+  .passthrough();
+
+export const CLI_PROMPT_CONTRACT_REQUIREMENTS = [
+  {
+    key: 'repository-identity',
+    label: 'reviewed repository identity',
+    groups: [{
+      label: 'repository identity',
+      patterns: [/\breviewed repository\b/, /\brepository identity\b/, /\brepository and exact refs\b/],
+    }],
+  },
+  {
+    key: 'reviewed-sha',
+    label: 'reviewed SHA',
+    groups: [{
+      label: 'reviewed SHA',
+      patterns: [/\breviewed (?:head|sha)\b/, /\bexact refs\b/, /\breview authority\b/],
+    }],
+  },
+  {
+    key: 'mandatory-reading',
+    label: 'mandatory reading before implementation',
+    groups: [{
+      label: 'mandatory reading',
+      patterns: [/\bmandatory reading\b/, /\brequired reading\b/, /\bmust read\b/],
+    }],
+  },
+  {
+    key: 'implementation-order',
+    label: 'implementation order',
+    groups: [{
+      label: 'implementation order',
+      patterns: [/\bimplementation order\b/, /\bimplementation sequence\b/, /\bimplementation phases?\b/],
+    }],
+  },
+  {
+    key: 'immutable-boundaries',
+    label: 'immutable boundaries',
+    groups: [{
+      label: 'immutable boundaries',
+      patterns: [/\bimmutable boundar(?:y|ies)\b/, /\binvariants?\b/, /\bmust remain unchanged\b/],
+    }],
+  },
+  {
+    key: 'prohibited-operations',
+    label: 'prohibited operations',
+    groups: [{
+      label: 'prohibited operations',
+      patterns: [/\bprohibited operations?\b/, /\bforbidden operations?\b/, /\bdo not\b/],
+    }],
+  },
+  {
+    key: 'verification-commands',
+    label: 'exact verification commands',
+    groups: [{
+      label: 'verification commands',
+      patterns: [/\bverification commands?\b/, /\bexact verification\b/, /\bverification steps?\b/],
+    }],
+  },
+  {
+    key: 'completion-requirements',
+    label: 'stop conditions and final report requirements',
+    groups: [
+      {
+        label: 'stop conditions',
+        patterns: [/\bstop conditions?\b/, /\bconditions? to stop\b/, /\bstop and report\b/],
+      },
+      {
+        label: 'final report requirements',
+        patterns: [/\bfinal report requirements?\b/, /\bimplementation report\b/, /\bcompletion report\b/],
+      },
+    ],
+  },
+] as const;
+
 export const FOLDER_NAME_PATTERN = /^[a-z0-9][a-z0-9-]{2,79}$/;
 
 export function isSafeRelativePath(filePath: string): boolean {
@@ -197,3 +319,5 @@ export type ReviewResultKind = z.infer<typeof ReviewResultKindSchema>;
 export type ReviewDisposition = z.infer<typeof ReviewDispositionSchema>;
 export type ReviewResultFile = z.infer<typeof ReviewResultFileSchema>;
 export type ReviewResultManifest = z.infer<typeof ReviewResultManifestSchema>;
+export type FindingSeverity = z.infer<typeof FindingSeveritySchema>;
+export type FindingsFile = z.infer<typeof FindingsFileSchema>;

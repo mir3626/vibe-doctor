@@ -151,8 +151,19 @@ function findingsMetadata(files: VibeBundle['files']): {
       ? rawDisposition as ReviewDisposition
       : fallback.disposition;
     const summary = { p0: 0, p1: 0, p2: 0, p3: 0 };
+    const p0Findings = parsed?.P0;
+    const p1Findings = parsed?.P1;
+    const p2Findings = parsed?.P2;
+    const p3Findings = parsed?.P3;
+    const hasV1Findings = [p0Findings, p1Findings, p2Findings, p3Findings].some(
+      Array.isArray,
+    );
+    if (Array.isArray(p0Findings)) summary.p0 = p0Findings.length;
+    if (Array.isArray(p1Findings)) summary.p1 = p1Findings.length;
+    if (Array.isArray(p2Findings)) summary.p2 = p2Findings.length;
+    if (Array.isArray(p3Findings)) summary.p3 = p3Findings.length;
     const findings = parsed?.findings;
-    if (Array.isArray(findings)) {
+    if (!hasV1Findings && Array.isArray(findings)) {
       for (const finding of findings) {
         const priority = record(finding)?.priority;
         if (priority === 'P0') summary.p0 += 1;

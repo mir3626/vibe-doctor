@@ -12,8 +12,10 @@ import {
 import { startMcpServer, type RunningMcpServer } from '../src/pro-bridge/mailbox/server.js';
 import { MailboxStore } from '../src/pro-bridge/mailbox/store.js';
 import { createMailboxTools } from '../src/pro-bridge/mailbox/tools.js';
+import { buildCompliantResultBundle } from './helpers/pro-bridge-result-fixture.js';
 
-const TOKEN = 'server-test-token';
+const CONNECT_CODE = 'server-test-connect-code';
+const SESSION_TOKEN = 'server-test-session-token';
 const NOW = new Date('2026-07-15T08:00:00.000Z');
 const REQUEST_ID = 'AUD-20260715-server01';
 const FOLDER = '2026-07-15-server-round-trip-pro-review';
@@ -41,17 +43,21 @@ function reviewRequest(): ReviewRequest {
   return { ...draft, payloadSha256: computePayloadSha256(draft) };
 }
 
-function packageFiles(): Array<{ path: string; content: string }> {
-  return [
-    { path: 'README.md', content: '# MCP server result\n' },
-    { path: 'REVIEW.md', content: '# Review\n\nServer round trip passed.\n' },
-    { path: 'FINDINGS.json', content: '{"findings":[]}\n' },
-    { path: 'prompt/CLI_MAIN_SESSION_PROMPT.md', content: '# Next\n\nWait for approval.\n' },
-  ];
+function packageFiles(request: ReviewRequest): Array<{ path: string; content: string }> {
+  return buildCompliantResultBundle({
+    requestId: request.requestId,
+    folder: FOLDER,
+    repositoryFullName: request.repository.fullName,
+    baseSha: request.git.baseSha,
+    headSha: request.git.headSha,
+    title: 'MCP server result',
+    readmeContent: '# MCP server result\n',
+    primaryContent: '# Review\n\nServer round trip passed.\n',
+  }).bundle.files;
 }
 
 function resultManifest(request: ReviewRequest): ReviewResultManifest {
-  const files = packageFiles();
+  const files = packageFiles(request);
   const draft: ReviewResultManifest = {
     schemaVersion: 'vibe-pro-review-result-v1', requestId: request.requestId,
     requestPayloadSha256: request.payloadSha256, repositoryFullName: request.repository.fullName,
@@ -73,7 +79,13 @@ function resultManifest(request: ReviewRequest): ReviewResultManifest {
   return { ...draft, payloadSha256: computePayloadSha256(draft) };
 }
 
-async function fixture(log?: (line: string) => void): Promise<{
+async function fixture(options: {
+  log?: (line: string) => void;
+  connectCode?: string;
+  now?: () => Date;
+  exchangeTtlMs?: number;
+  sessionTtlMs?: number;
+} = {}): Promise<{
   root: string;
   store: MailboxStore;
   server: RunningMcpServer;
@@ -81,8 +93,15 @@ async function fixture(log?: (line: string) => void): Promise<{
   const root = await mkdtemp(path.join(tmpdir(), 'vibe-mcp-server-'));
   const store = new MailboxStore({ repoRoot: root, now: () => NOW });
   const server = await startMcpServer({
-    tools: createMailboxTools(store), token: TOKEN, port: 0, host: '127.0.0.1',
-    ...(log === undefined ? {} : { log }),
+    tools: createMailboxTools(store),
+    connectCode: options.connectCode ?? CONNECT_CODE,
+    port: 0,
+    host: '127.0.0.1',
+    randomSessionToken: () => SESSION_TOKEN,
+    ...(options.log === undefined ? {} : { log: options.log }),
+    ...(options.now === undefined ? {} : { now: options.now }),
+    ...(options.exchangeTtlMs === undefined ? {} : { exchangeTtlMs: options.exchangeTtlMs }),
+    ...(options.sessionTtlMs === undefined ? {} : { sessionTtlMs: options.sessionTtlMs }),
   });
   return { root, store, server };
 }
@@ -95,16 +114,23 @@ async function cleanup(value: Awaited<ReturnType<typeof fixture>>): Promise<void
 async function rpc(
   server: RunningMcpServer,
   body: unknown,
-  options: { token?: string; query?: boolean; origin?: string } = {},
+  options: {
+    credential?: string;
+    query?: 'code' | 'token';
+    origin?: string;
+  } = {},
 ): Promise<{ response: Response; value: RpcResponse | null }> {
-  const token = options.token ?? TOKEN;
+  const credential = options.credential ?? CONNECT_CODE;
+  const query = options.query === undefined
+    ? ''
+    : `?${options.query}=${encodeURIComponent(credential)}`;
   const response = await fetch(
-    `${server.url}/mcp${options.query ? `?token=${encodeURIComponent(token)}` : ''}`,
+    `${server.url}/mcp${query}`,
     {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        ...(options.query ? {} : { Authorization: `Bearer ${token}` }),
+        ...(options.query === undefined ? { Authorization: `Bearer ${credential}` } : {}),
         ...(options.origin === undefined ? {} : { Origin: options.origin }),
       },
       body: JSON.stringify(body),
@@ -159,12 +185,126 @@ describe('mcp mailbox http server', () => {
     } finally { await cleanup(value); }
   });
 
-  it('accepts the token from the authorization header or the query string', async () => {
+  it('exchanges the one-time connect code and continues the session on the fixed URL', async () => {
     const value = await fixture();
     try {
-      const body = { jsonrpc: '2.0', id: 1, method: 'ping' };
-      assert.equal((await rpc(value.server, body)).value?.error, undefined);
-      assert.equal((await rpc(value.server, body, { query: true })).value?.error, undefined);
+      const initialize = await rpc(value.server, {
+        jsonrpc: '2.0', id: 1, method: 'initialize',
+        params: { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'test', version: '1' } },
+      }, { query: 'code' });
+      const followup = await rpc(
+        value.server,
+        { jsonrpc: '2.0', id: 2, method: 'tools/list' },
+        { query: 'code' },
+      );
+      assert.equal(initialize.response.status, 200);
+      assert.equal(initialize.value?.error, undefined);
+      assert.equal(followup.response.status, 200);
+      assert.equal(followup.value?.error, undefined);
+    } finally { await cleanup(value); }
+  });
+
+  it('rejects the removed token query parameter', async () => {
+    const value = await fixture();
+    try {
+      const response = await rpc(
+        value.server,
+        { jsonrpc: '2.0', id: 1, method: 'ping' },
+        { query: 'token' },
+      );
+      assert.equal(response.response.status, 401);
+    } finally { await cleanup(value); }
+  });
+
+  it('rejects a connect code from a previous server instance', async () => {
+    const previous = await fixture({ connectCode: 'previous-instance-code' });
+    await rpc(
+      previous.server,
+      { jsonrpc: '2.0', id: 1, method: 'ping' },
+      { credential: 'previous-instance-code', query: 'code' },
+    );
+    await cleanup(previous);
+    const current = await fixture({ connectCode: 'current-instance-code' });
+    try {
+      const response = await rpc(
+        current.server,
+        { jsonrpc: '2.0', id: 1, method: 'ping' },
+        { credential: 'previous-instance-code', query: 'code' },
+      );
+      assert.equal(response.response.status, 401);
+    } finally { await cleanup(current); }
+  });
+
+  it('rejects an unexchanged connect code after the exchange window', async () => {
+    let nowMs = NOW.getTime();
+    const value = await fixture({ now: () => new Date(nowMs), exchangeTtlMs: 1_000 });
+    try {
+      nowMs += 1_001;
+      const response = await rpc(
+        value.server,
+        { jsonrpc: '2.0', id: 1, method: 'ping' },
+        { query: 'code' },
+      );
+      assert.equal(response.response.status, 401);
+      assert.equal(value.server.getSessionTokenForTesting(), null);
+    } finally { await cleanup(value); }
+  });
+
+  it('revokes all session credentials on shutdown', async () => {
+    const value = await fixture();
+    try {
+      await rpc(
+        value.server,
+        { jsonrpc: '2.0', id: 1, method: 'ping' },
+        { query: 'code' },
+      );
+      const sessionToken = value.server.getSessionTokenForTesting();
+      assert.equal(sessionToken, SESSION_TOKEN);
+      value.server.revoke();
+      const codeResponse = await rpc(
+        value.server,
+        { jsonrpc: '2.0', id: 2, method: 'ping' },
+        { query: 'code' },
+      );
+      const sessionResponse = await rpc(
+        value.server,
+        { jsonrpc: '2.0', id: 3, method: 'ping' },
+        { credential: sessionToken!, },
+      );
+      assert.equal(codeResponse.response.status, 401);
+      assert.equal(sessionResponse.response.status, 401);
+    } finally { await cleanup(value); }
+  });
+
+  it('authorizes concurrent first requests during the initial exchange', async () => {
+    const value = await fixture();
+    try {
+      const responses = await Promise.all(Array.from({ length: 8 }, (_, index) =>
+        rpc(
+          value.server,
+          { jsonrpc: '2.0', id: index + 1, method: 'ping' },
+          { query: 'code' },
+        )));
+      assert.equal(responses.every((response) => response.response.status === 200), true);
+      assert.equal(responses.every((response) => response.value?.error === undefined), true);
+    } finally { await cleanup(value); }
+  });
+
+  it('accepts the session credential from the authorization header', async () => {
+    const value = await fixture();
+    try {
+      await rpc(
+        value.server,
+        { jsonrpc: '2.0', id: 1, method: 'ping' },
+        { query: 'code' },
+      );
+      const response = await rpc(
+        value.server,
+        { jsonrpc: '2.0', id: 2, method: 'ping' },
+        { credential: SESSION_TOKEN },
+      );
+      assert.equal(response.response.status, 200);
+      assert.equal(response.value?.error, undefined);
     } finally { await cleanup(value); }
   });
 
@@ -200,7 +340,7 @@ describe('mcp mailbox http server', () => {
   it('rejects non post methods on the mcp endpoint', async () => {
     const value = await fixture();
     try {
-      const response = await fetch(`${value.server.url}/mcp?token=${TOKEN}`);
+      const response = await fetch(`${value.server.url}/mcp?code=${CONNECT_CODE}`);
       assert.equal(response.status, 405);
       assert.equal(response.headers.get('allow'), 'POST');
     } finally { await cleanup(value); }
@@ -222,7 +362,7 @@ describe('mcp mailbox http server', () => {
     const value = await fixture();
     try {
       const request = reviewRequest();
-      const files = packageFiles();
+      const files = packageFiles(request);
       const manifest = resultManifest(request);
       await callTool(value.server, 1, 'create_request', { request });
       await callTool(value.server, 2, 'claim_request', { requestId: request.requestId });
@@ -253,12 +393,19 @@ describe('mcp mailbox http server', () => {
     } finally { await cleanup(value); }
   });
 
-  it('masks the token in server logs', async () => {
+  it('masks the connect code and session token in server logs', async () => {
     const lines: string[] = [];
-    const value = await fixture((line) => lines.push(line));
+    const value = await fixture({ log: (line) => lines.push(line) });
     try {
-      await rpc(value.server, { jsonrpc: '2.0', id: 1, method: 'ping' }, { query: true });
-      assert.equal(lines.some((line) => line.includes(TOKEN)), false);
+      await rpc(value.server, { jsonrpc: '2.0', id: 1, method: 'ping' }, { query: 'code' });
+      await rpc(
+        value.server,
+        { jsonrpc: '2.0', id: 2, method: 'ping' },
+        { credential: SESSION_TOKEN },
+      );
+      assert.equal(lines.some((line) => line.includes(CONNECT_CODE)), false);
+      assert.equal(lines.some((line) => line.includes(SESSION_TOKEN)), false);
+      assert.equal(lines.some((line) => line.includes('?code=')), false);
       assert.equal(lines.some((line) => line.includes('?token=')), false);
     } finally { await cleanup(value); }
   });

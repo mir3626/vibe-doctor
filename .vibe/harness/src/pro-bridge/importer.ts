@@ -1,9 +1,9 @@
 import { createHash } from 'node:crypto';
 import {
-  lstat,
   mkdir,
   open,
   readFile,
+  readdir,
   realpath,
   rename,
   rm,
@@ -11,13 +11,16 @@ import {
 } from 'node:fs/promises';
 import path from 'node:path';
 import {
+  CLI_PROMPT_CONTRACT_REQUIREMENTS,
   FOLDER_NAME_PATTERN,
+  FindingsFileSchema,
   compareStringsByCodePoint,
   computePayloadSha256,
   isSafeRelativePath,
   type ReviewRequest,
   type ReviewResultKind,
   type ReviewResultManifest,
+  type FindingsFile,
 } from './contract.js';
 import {
   checkRequiredFiles,
@@ -83,6 +86,11 @@ export type ImportValidationErrorCode =
   | 'missing-required-file'
   | 'empty-prompt'
   | 'findings-parse-error'
+  | 'findings-schema-violation'
+  | 'findings-severity-mismatch'
+  | 'findings-summary-mismatch'
+  | 'findings-binding-mismatch'
+  | 'prompt-contract-violation'
   | 'request-id-mismatch'
   | 'request-hash-mismatch'
   | 'result-hash-mismatch'
@@ -154,13 +162,24 @@ interface ProvenanceReceipt {
     flag: 'accept-unbound-web-origin';
     acknowledgedAt: string;
   } | null;
+  revision?: number;
+  revisionOf?: string | null;
+  predecessorResultSha256?: string | null;
 }
 
 interface ExistingProvenance {
   resultIdentity: string | null;
+  resultPayloadSha256: string | null;
   resultFilesSha256: string | null;
   repositoryFullName: string | null;
   hasRepositoryIdentityFields: boolean;
+}
+
+interface RevisionSlot {
+  folder: string;
+  folderPath: string;
+  revision: number;
+  provenance: ExistingProvenance | null;
 }
 
 const DEFAULT_LIMITS = {
@@ -171,6 +190,13 @@ const DEFAULT_LIMITS = {
 
 const RESERVED_PROVENANCE_PATH = '.bridge/provenance.json';
 const UTF8_DECODER = new TextDecoder('utf-8', { fatal: true });
+const CONTRACT_ERROR_CODES = new Set<ImportValidationErrorCode>([
+  'findings-schema-violation',
+  'findings-severity-mismatch',
+  'findings-summary-mismatch',
+  'findings-binding-mismatch',
+  'prompt-contract-violation',
+]);
 
 function normalizeLimit(value: number | undefined, fallback: number): number {
   return value !== undefined && Number.isSafeInteger(value) && value >= 0 ? value : fallback;
@@ -319,18 +345,6 @@ function errorCode(error: unknown): string | null {
     : null;
 }
 
-async function pathExists(targetPath: string): Promise<boolean> {
-  try {
-    await lstat(targetPath);
-    return true;
-  } catch (error) {
-    if (errorCode(error) === 'ENOENT') {
-      return false;
-    }
-    throw error;
-  }
-}
-
 async function existingProvenance(
   folderPath: string,
   preferResultPayload: boolean,
@@ -339,12 +353,17 @@ async function existingProvenance(
     const value = JSON.parse(
       await readFile(path.join(folderPath, RESERVED_PROVENANCE_PATH), 'utf8'),
     ) as Record<string, unknown>;
-    const field = preferResultPayload ? value.resultPayloadSha256 : value.resultFilesSha256;
+    const resultPayloadSha256 = value.resultPayloadSha256;
     const resultFilesSha256 = value.resultFilesSha256;
+    const field = preferResultPayload ? resultPayloadSha256 : resultFilesSha256;
     const requestRepository = value.requestRepositoryFullName;
     const currentRepository = value.currentRepositoryFullName;
     return {
       resultIdentity: typeof field === 'string' && /^[0-9a-f]{64}$/.test(field) ? field : null,
+      resultPayloadSha256: typeof resultPayloadSha256 === 'string'
+        && /^[0-9a-f]{64}$/.test(resultPayloadSha256)
+        ? resultPayloadSha256
+        : null,
       resultFilesSha256: typeof resultFilesSha256 === 'string' && /^[0-9a-f]{64}$/.test(resultFilesSha256)
         ? resultFilesSha256
         : null,
@@ -401,6 +420,204 @@ function noOpOutcome(
     };
   }
   return outcome;
+}
+
+function normalizePromptText(value: string): string {
+  return value
+    .normalize('NFKC')
+    .toLowerCase()
+    .replace(/[`*_>#~[\]()]/g, ' ')
+    .replace(/[\u2013\u2014:|/\\-]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function validatePromptContract(
+  prompt: DecodedFile,
+  expectedRepository: string | null,
+  expectedHeadSha: string | null,
+  errors: Array<{ code: ImportValidationErrorCode; path?: string; message: string }>,
+  skipped: Set<string>,
+): void {
+  if (prompt.content === null || prompt.content.trim().length === 0) {
+    return;
+  }
+  const nonEmptyLines = prompt.content
+    .split(/\r?\n/)
+    .filter((line) => line.trim().length > 0);
+  if (nonEmptyLines.length <= 1) {
+    addError(
+      errors,
+      'prompt-contract-violation',
+      '구현 프롬프트는 비어 있지 않은 여러 줄의 실행 계약을 포함해야 합니다',
+      prompt.path,
+    );
+  }
+
+  const normalized = normalizePromptText(prompt.content);
+  for (const requirement of CLI_PROMPT_CONTRACT_REQUIREMENTS) {
+    let bindingMissing = false;
+    if (requirement.key === 'repository-identity') {
+      if (expectedRepository === null) {
+        addSkipped(skipped, 'prompt-repository-binding-skipped');
+        continue;
+      }
+      bindingMissing = !prompt.content.includes(expectedRepository);
+    } else if (requirement.key === 'reviewed-sha') {
+      if (expectedHeadSha === null) {
+        addSkipped(skipped, 'prompt-reviewed-head-binding-skipped');
+        continue;
+      }
+      bindingMissing = !prompt.content.includes(expectedHeadSha);
+    }
+
+    for (const group of requirement.groups) {
+      const semanticMissing = !group.patterns.some((pattern) => pattern.test(normalized));
+      if (bindingMissing || semanticMissing) {
+        addError(
+          errors,
+          'prompt-contract-violation',
+          `구현 프롬프트에 필수 요소가 없습니다: ${group.label}`,
+          prompt.path,
+        );
+      }
+    }
+  }
+}
+
+function validateFindingsContract(
+  findings: FindingsFile,
+  request: ReviewRequest | null,
+  resultManifest: ReviewResultManifest | null,
+  errors: Array<{ code: ImportValidationErrorCode; path?: string; message: string }>,
+  skipped: Set<string>,
+  filePath: string,
+): void {
+  const severities = ['P0', 'P1', 'P2', 'P3'] as const;
+  for (const severity of severities) {
+    if (findings[severity].some((finding) => finding.severity !== severity)) {
+      addError(
+        errors,
+        'findings-severity-mismatch',
+        `${severity} 배열에 다른 severity의 finding이 포함되어 있습니다`,
+        filePath,
+      );
+    }
+    if (findings.summary[severity] !== findings[severity].length) {
+      addError(
+        errors,
+        'findings-summary-mismatch',
+        `FINDINGS summary ${severity}=${findings.summary[severity]}가 배열 길이 ${findings[severity].length}와 일치하지 않습니다`,
+        filePath,
+      );
+    }
+    if (
+      resultManifest !== null
+      && resultManifest.findingsSummary[severity.toLowerCase() as 'p0' | 'p1' | 'p2' | 'p3']
+        !== findings.summary[severity]
+    ) {
+      addError(
+        errors,
+        'findings-summary-mismatch',
+        `FINDINGS summary ${severity}가 result manifest와 일치하지 않습니다`,
+        filePath,
+      );
+    }
+  }
+
+  if (request === null) {
+    addSkipped(skipped, 'findings-request-binding-skipped');
+  } else if (findings.requestId !== request.requestId) {
+    addError(
+      errors,
+      'findings-binding-mismatch',
+      `FINDINGS requestId ${findings.requestId}가 요청 ${request.requestId}와 일치하지 않습니다`,
+      filePath,
+    );
+  }
+  if (
+    resultManifest !== null
+    && (
+      findings.repository.fullName !== resultManifest.repositoryFullName
+      || findings.snapshot.headSha !== resultManifest.reviewedHeadSha
+    )
+  ) {
+    addError(
+      errors,
+      'findings-binding-mismatch',
+      'FINDINGS repository 또는 reviewed head가 result manifest와 일치하지 않습니다',
+      filePath,
+    );
+  }
+}
+
+function parseRevisionNumber(baseFolder: string, candidate: string): number | null {
+  if (candidate === baseFolder) {
+    return 1;
+  }
+  const prefix = `${baseFolder}-rev`;
+  if (!candidate.startsWith(prefix)) {
+    return null;
+  }
+  const suffix = candidate.slice(prefix.length);
+  if (!/^(?:[2-9]|[1-9][0-9])$/.test(suffix)) {
+    return null;
+  }
+  const revision = Number(suffix);
+  return revision <= 99 ? revision : null;
+}
+
+async function scanRevisionSlots(
+  installRoot: string,
+  baseFolder: string,
+  preferResultPayload: boolean,
+): Promise<RevisionSlot[]> {
+  let entries: string[];
+  try {
+    entries = await readdir(installRoot);
+  } catch (error) {
+    if (errorCode(error) === 'ENOENT') {
+      return [];
+    }
+    throw error;
+  }
+  const candidates = entries
+    .map((folder) => ({ folder, revision: parseRevisionNumber(baseFolder, folder) }))
+    .filter((entry): entry is { folder: string; revision: number } => entry.revision !== null)
+    .sort((left, right) => left.revision - right.revision);
+  return Promise.all(candidates.map(async ({ folder, revision }) => {
+    const folderPath = path.join(installRoot, folder);
+    return {
+      folder,
+      folderPath,
+      revision,
+      provenance: await existingProvenance(folderPath, preferResultPayload),
+    };
+  }));
+}
+
+function findExistingNoOp(
+  slots: RevisionSlot[],
+  resultIdentity: string,
+  expectedRepositoryFullName: string | null,
+): ImportOutcome | null {
+  let bindingError: ImportOutcome | null = null;
+  for (const slot of slots) {
+    const outcome = noOpOutcome(
+      slot.provenance,
+      resultIdentity,
+      expectedRepositoryFullName,
+      slot.folder,
+      slot.folderPath,
+    );
+    if (outcome?.status === 'no-op') {
+      return outcome;
+    }
+    if (outcome?.status === 'invalid') {
+      bindingError ??= outcome;
+    }
+  }
+  return bindingError;
 }
 
 async function afterDurableOp(
@@ -573,11 +790,37 @@ export async function importReviewResult(
       'prompt/CLI_MAIN_SESSION_PROMPT.md must not be empty',
       promptFile.path,
     );
+  } else if (promptFile !== undefined) {
+    validatePromptContract(
+      promptFile,
+      resultManifest?.repositoryFullName ?? request?.repository.fullName ?? null,
+      resultManifest?.reviewedHeadSha ?? request?.git.headSha ?? null,
+      errors,
+      skipped,
+    );
   }
   const findingsFile = byPath.get('FINDINGS.json');
   if (findingsFile?.content !== null && findingsFile !== undefined) {
     try {
-      JSON.parse(findingsFile.content);
+      const parsedJson = JSON.parse(findingsFile.content) as unknown;
+      const parsedFindings = FindingsFileSchema.safeParse(parsedJson);
+      if (!parsedFindings.success) {
+        addError(
+          errors,
+          'findings-schema-violation',
+          `FINDINGS.json이 vibe-goal-audit-findings-v1 계약을 위반했습니다: ${parsedFindings.error.issues.map((issue) => issue.path.join('.') || '<root>').join(', ')}`,
+          findingsFile.path,
+        );
+      } else {
+        validateFindingsContract(
+          parsedFindings.data,
+          request,
+          resultManifest,
+          errors,
+          skipped,
+          findingsFile.path,
+        );
+      }
     } catch {
       addError(errors, 'findings-parse-error', 'FINDINGS.json is not valid JSON', findingsFile.path);
     }
@@ -678,28 +921,38 @@ export async function importReviewResult(
     }
   }
 
+  const resultFilesSha256 = computeResultFilesSha256(normalized.files);
+  const resultIdentity = resultManifest?.payloadSha256 ?? resultFilesSha256;
+  const preferResultPayload = resultManifest !== null;
+  const structuralErrors = errors.filter((error) => !CONTRACT_ERROR_CODES.has(error.code));
+  if (structuralErrors.length > 0) {
+    return { status: 'invalid', errors };
+  }
+
+  const revisionSlots = await scanRevisionSlots(
+    installRoot,
+    normalized.folder,
+    preferResultPayload,
+  );
+  const existingNoOp = findExistingNoOp(
+    revisionSlots,
+    resultIdentity,
+    context.expectedRepositoryFullName ?? null,
+  );
+  if (existingNoOp !== null) {
+    return existingNoOp;
+  }
   if (errors.length > 0) {
     return { status: 'invalid', errors };
   }
 
-  const resultFilesSha256 = computeResultFilesSha256(normalized.files);
-  const resultIdentity = resultManifest?.payloadSha256 ?? resultFilesSha256;
-  const preferResultPayload = resultManifest !== null;
-  await mkdir(installRoot, { recursive: true });
-
   let targetFolder = normalized.folder;
+  let targetRevision = 1;
+  let revisionOf: string | null = null;
+  let predecessorResultSha256: string | null = null;
   let finalPath = path.join(installRoot, targetFolder);
-  if (await pathExists(finalPath)) {
-    const noOp = noOpOutcome(
-      await existingProvenance(finalPath, preferResultPayload),
-      resultIdentity,
-      context.expectedRepositoryFullName ?? null,
-      targetFolder,
-      finalPath,
-    );
-    if (noOp) {
-      return noOp;
-    }
+  const occupiedRevisions = new Set(revisionSlots.map((slot) => slot.revision));
+  if (occupiedRevisions.has(1)) {
     if (context.approveRevision !== true) {
       return {
         status: 'refused',
@@ -708,38 +961,43 @@ export async function importReviewResult(
       };
     }
 
-    targetFolder = `${normalized.folder}-rev2`;
-    if (!FOLDER_NAME_PATTERN.test(targetFolder)) {
-      return {
-        status: 'invalid',
-        errors: [
-          {
-            code: 'invalid-folder',
-            message: `Revision folder exceeds the folder contract: ${targetFolder}`,
-          },
-        ],
-      };
-    }
-    finalPath = path.join(installRoot, targetFolder);
-    if (await pathExists(finalPath)) {
-      const noOp = noOpOutcome(
-        await existingProvenance(finalPath, preferResultPayload),
-        resultIdentity,
-        context.expectedRepositoryFullName ?? null,
-        targetFolder,
-        finalPath,
-      );
-      if (noOp) {
-        return noOp;
+    let selectedRevision: number | null = null;
+    for (let revision = 2; revision <= 99; revision += 1) {
+      const candidate = `${normalized.folder}-rev${revision}`;
+      if (!FOLDER_NAME_PATTERN.test(candidate)) {
+        return {
+          status: 'invalid',
+          errors: [
+            {
+              code: 'invalid-folder',
+              message: `Revision folder exceeds the folder contract: ${candidate}`,
+            },
+          ],
+        };
       }
+      if (!occupiedRevisions.has(revision)) {
+        selectedRevision = revision;
+        targetFolder = candidate;
+        break;
+      }
+    }
+    if (selectedRevision === null) {
       return {
         status: 'refused',
         code: 'revision-slot-occupied',
-        message: `Revision folder already exists with different provenance: ${targetFolder}`,
+        message: `All revision folders are occupied for ${normalized.folder}`,
       };
     }
+    targetRevision = selectedRevision;
+    const predecessor = revisionSlots.at(-1) ?? null;
+    revisionOf = predecessor?.folder ?? null;
+    predecessorResultSha256 = predecessor?.provenance?.resultPayloadSha256
+      ?? predecessor?.provenance?.resultFilesSha256
+      ?? null;
+    finalPath = path.join(installRoot, targetFolder);
   }
 
+  await mkdir(installRoot, { recursive: true });
   const stagingPath = path.join(installRoot, `.tmp-${targetFolder}`);
   await beforeDurableOp(context);
   await rm(stagingPath, { recursive: true, force: true });
@@ -780,6 +1038,9 @@ export async function importReviewResult(
       requestRepositoryFullName: context.requestRepositoryFullName ?? null,
       repositoryIdentityOverride: context.repositoryIdentityOverride ?? null,
       unboundAcceptance: context.unboundAcceptance ?? null,
+      revision: targetRevision,
+      revisionOf,
+      predecessorResultSha256,
     };
     const provenancePath = path.join(stagingPath, RESERVED_PROVENANCE_PATH);
     await mkdir(path.dirname(provenancePath), { recursive: true });

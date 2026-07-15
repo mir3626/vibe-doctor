@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import type { ChildProcess } from 'node:child_process';
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
+import { mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { describe, it } from 'node:test';
@@ -142,6 +143,53 @@ describe('manual directory transport', () => {
         JSON.parse(await readFile(path.join(handle.requestDir, 'imported.json'), 'utf8')),
         receipt,
       );
+      assert.equal((await transport.getRequestStatus(input.requestId)).state, 'imported');
+    } finally {
+      await rm(repoRoot, { recursive: true, force: true });
+    }
+  });
+
+  it('writes the patch artifact next to the manual request prompt', async () => {
+    const repoRoot = await mkdtemp(path.join(tmpdir(), 'vibe-pro-transport-patch-'));
+    try {
+      const transport = new ManualDirectoryTransport({ repoRoot, now: () => NOW });
+      const handle = await transport.createRequest(request());
+      const diffText = 'diff --git a/src/a.ts b/src/a.ts\n-old\n+new\n';
+      const sha256 = createHash('sha256').update(diffText).digest('hex');
+      const patchPath = await transport.writePatchArtifact(handle.requestId, {
+        diffText,
+        sha256,
+        byteLength: Buffer.byteLength(diffText, 'utf8'),
+      });
+      assert.equal(patchPath, path.join(handle.requestDir, 'patch.diff'));
+      const written = await readFile(patchPath);
+      assert.equal(written.toString('utf8'), diffText);
+      assert.equal(createHash('sha256').update(written).digest('hex'), sha256);
+    } finally {
+      await rm(repoRoot, { recursive: true, force: true });
+    }
+  });
+
+  it('uses pid plus nonce temporary names for manual transport writes', async () => {
+    const repoRoot = await mkdtemp(path.join(tmpdir(), 'vibe-pro-transport-nonce-'));
+    try {
+      const transport = new ManualDirectoryTransport({ repoRoot, now: () => NOW });
+      const input = request('AUD-20260715-nonce01');
+      const handle = await transport.createRequest(input);
+      const receipt = (suffix: string) => ({
+        requestId: input.requestId,
+        folder: `2026-07-15-nonce-${suffix}`,
+        installedPath: path.join(repoRoot, 'installed', suffix),
+        resultFilesSha256: suffix.repeat(64).slice(0, 64),
+        importedAt: NOW.toISOString(),
+      });
+      await Promise.all([
+        transport.acknowledgeImport(input.requestId, receipt('a')),
+        transport.acknowledgeImport(input.requestId, receipt('b')),
+      ]);
+      const entries = await readdir(handle.requestDir);
+      assert.equal(entries.some((entry) => /\.\d+\.[0-9a-f]{32}\.tmp$/.test(entry)), false);
+      assert.equal(entries.includes('imported.json'), true);
       assert.equal((await transport.getRequestStatus(input.requestId)).state, 'imported');
     } finally {
       await rm(repoRoot, { recursive: true, force: true });

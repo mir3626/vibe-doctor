@@ -29,16 +29,16 @@ ChatGPT GitHub 앱도 연결하고 대상 repository를 승인한다. Private re
 npm run vibe:pro-mcp
 ```
 
-커맨드는 로컬 URL, 가능한 경우 터널 공개 URL, 그리고 토큰이 포함된 connector URL을 출력한다. connector URL은 현재 서버 세션에서만 사용한다. 파일, 설정, 채팅 외부 메모, session-log에 저장하거나 공유하지 않는다. 서버를 재시작하면 토큰이 다시 발급된다.
+커맨드는 로컬 URL, 가능한 경우 터널 공개 URL, 그리고 one-time connect code가 포함된 connector URL을 한 번 출력한다. code는 첫 유효 연결에서 현재 서버 인스턴스의 메모리 세션에 바인딩되며, 같은 고정 URL로 이어지는 initialize와 tool 호출을 승인한다. connector URL은 현재 서버 세션에서만 사용하고 파일, 설정, 채팅 외부 메모, session-log에 저장하거나 공유하지 않는다. 서버를 재시작하면 기존 code와 세션 자격은 모두 무효가 된다.
 
 ## 3. ChatGPT Developer Mode 1회 등록
 
 1. ChatGPT Settings → Connectors(Apps) → Advanced에서 Developer mode를 활성화한다.
 2. 새 커넥터를 만들고 `vibe:pro-mcp`가 출력한 터널 connector URL 전체를 입력한다.
-3. 인증은 `None`을 선택한다. 세션 토큰은 URL query로 전달된다.
+3. 인증은 `None`을 선택한다. URL의 값은 재사용 bearer가 아니라 현재 서버 인스턴스에 세션을 바인딩하는 교환용 one-time code다.
 4. GitHub 앱 연결과 repository 승인은 Phase 1과 동일하게 유지한다.
 
-서버 재시작으로 URL 또는 토큰이 바뀌면 해당 세션의 connector URL을 갱신한다.
+서버 재시작으로 code가 바뀌면 해당 세션의 connector URL을 갱신한다.
 
 ## 4. 리뷰 왕복
 
@@ -52,9 +52,12 @@ npm run vibe:pro-mcp
 
 Pro 모드 대화에서 connector write tool이 호출되지 않으면 Pro로 추론을 마친 뒤 같은 대화에서 모델을 전환해 제출 턴(`begin_result`, `put_result_file`, `finalize_result`)만 실행한다. 그래도 불가능하면 vibe-bundle을 출력하고 `npm run vibe:pro-sync -- --from <file>` Phase 1 경로로 돌아간다.
 
+CLI-origin 요청에 로컬 patch가 있으면 상한 내 patch는 manual과 mailbox 양쪽의 review prompt에 fenced diff로 포함된다. manual outbox에는 크기와 무관하게 `<requestDir>/patch.diff`도 생성된다. 인라인 상한을 넘으면 CLI가 해당 파일을 리뷰 대화에 직접 첨부하라고 안내한다. mailbox wire는 상한 초과 patch를 별도로 가져오는 도구가 아직 없으므로, 이 경우 manual artifact 첨부 경로를 사용한다.
+
 ## 5. 보안·수명 경계
 
-- 토큰과 터널 URL은 비영속이며 서버 재시작 시 폐기·재발급된다. 서버 로그는 query와 인증 값을 기록하지 않는다.
+- connect code, 내부 세션 자격, 터널 URL은 비영속이며 서버 인스턴스에만 존재한다. 첫 연결의 code 교환은 멱등 세션 바인딩이고, 교환 전 code와 바인딩된 세션에는 각각 만료 시간이 적용된다. Ctrl+C 또는 `close()`는 code와 세션 자격을 즉시 전량 revoke한다.
+- connector URL 외의 출력과 서버 로그에는 재사용 가능한 capability 값이 나타나지 않는다. 서버 로그는 pathname만 기록하고 query와 Authorization 값을 기록하지 않는다. 다만 외부 터널 제공자·프록시의 URL 보존 정책은 로컬 서버가 통제할 수 없으므로 provider access log를 끄거나 세션 종료 직후 폐기되는지 확인한다.
 - 성공한 finalize는 불변이다. 동일 manifest replay만 idempotent하고, 수정 결과는 predecessor manifest SHA에 연결된 revision으로 올린다.
 - 웹 write scope는 bridge mailbox namespace뿐이다. GitHub write, commit/push, 기존 result 변경, 임의 로컬 파일 접근 권한은 없다.
 - 서버와 터널은 명시적으로 `vibe:pro-mcp`를 실행한 왕복 세션 동안만 존재하며 hook, Stop QA, PreCompact, Sprint gate와 연결되지 않는다.
@@ -77,6 +80,20 @@ netsh interface ipv4 show excludedportrange protocol=tcp
 로컬에서는 `npm run vibe:pro-sync -- --latest`가 현재 repository fullName, 아직 import되지 않은 result-ready 상태, 선택적 `--kind`, 최신 생성 시각을 기준으로 결과를 고른다. web-origin manifest의 reviewed HEAD가 로컬 HEAD와 다르면 설치가 중단되며, 검토 후 `--accept-head-mismatch`로 명시 승인할 수 있다.
 
 서버나 터널을 사용할 수 없으면 웹 응답을 vibe-bundle로 출력하되 `requestId: web-origin`을 사용하고, `npm run vibe:pro-sync -- --from <file>` manual fallback으로 반입한다.
+
+## Codex App Server goal source — unavailable (확정)
+
+현재 지원 기준에서 Codex App Server goal source는 `unavailable`로 확정한다. 2026-07 Orchestrator 실측 환경의 Codex CLI는 v0.144.3이지만 `codex app-server`의 안정된 JSON-RPC 표면을 검증하지 못했으므로, 하네스는 `codex-app-server-api-unverified`를 반환하고 결정적 fallback(`vibe-goal-iterate` → handoff/history → git reconstruction)을 사용한다. fallback 결과는 `high` 또는 `reconstructed`로만 라벨하며 `exact`로 표시하지 않는다.
+
+별도 Sprint에서 어댑터를 구현하기 전 다음 순서로 공개 API를 실측한다.
+
+1. `codex --version`으로 대상 CLI 버전을 기록한다.
+2. `codex app-server` 서브커맨드 존재 여부와 `codex app-server --help`의 공개 표면을 확인한다.
+3. 문서화된 JSON-RPC handshake로 `initialize` → repository cwd/git metadata를 포함한 thread 목록 → 선택 thread의 명시적 goal 조회를 검증한다.
+4. 성공 판정은 repository가 다른 thread를 배제하고, 활성·완료 goal을 결정적으로 순위화하며, 명시적 goal metadata만으로 동일 결과를 재현하는 것이다.
+5. private model reasoning에는 접근하지 않는다. 허용 입력은 사용자 메시지, 명시적 goal metadata, tool 결과, committed artifact뿐이다.
+
+위 handshake와 필드 의미가 안정적으로 검증된 뒤에만 실제 어댑터 구현 Sprint로 진입한다. 그 전에는 reconstruction 한계를 사용자에게 표시하고 fallback을 정상 지원 경로로 취급한다.
 
 ## 옵션 어댑터 (Phase 4, 명시 opt-in)
 

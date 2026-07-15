@@ -5,7 +5,9 @@ import {
   mkdtemp,
   readFile,
   readdir,
+  rename,
   rm,
+  writeFile,
 } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -29,6 +31,7 @@ import {
   serializeVibeBundle,
   type VibeBundle,
 } from '../src/pro-bridge/vibe-bundle.js';
+import { buildCompliantResultBundle } from './helpers/pro-bridge-result-fixture.js';
 
 const BASE_SHA = 'a'.repeat(40);
 const HEAD_SHA = 'b'.repeat(40);
@@ -41,15 +44,33 @@ async function makeRoot(): Promise<string> {
 }
 
 function auditFiles(readme = '# Imported review\n'): ImporterFileInput[] {
-  return [
-    { path: 'README.md', content: readme },
-    { path: 'REVIEW.md', content: '# Review\n\nNo critical findings.\n' },
-    { path: 'FINDINGS.json', content: '{"findings":[]}\n' },
-    {
-      path: 'prompt/CLI_MAIN_SESSION_PROMPT.md',
-      content: '# Implement\n\nRead the review, verify HEAD, implement in order, and stop on mismatch.\n',
+  return buildCompliantResultBundle({
+    requestId: 'AUD-20260715-abc123',
+    folder: FOLDER,
+    repositoryFullName: 'owner/repo',
+    baseSha: BASE_SHA,
+    headSha: HEAD_SHA,
+    disposition: 'approved-with-remediation',
+    readmeContent: readme,
+    primaryContent: '# Review\n\nNo critical findings.\n',
+    findings: {
+      P2: [{ id: 'VPB-TEST-P2-001', severity: 'P2', title: 'Fixture remediation' }],
     },
-  ];
+  }).bundle.files;
+}
+
+function replaceFileContent(
+  files: ImporterFileInput[],
+  filePath: string,
+  content: string,
+): ImporterFileInput[] {
+  return files.map((file) => file.path === filePath ? { ...file, content } : file);
+}
+
+function findingsFrom(files: ImporterFileInput[]): Record<string, unknown> {
+  const file = files.find((candidate) => candidate.path === 'FINDINGS.json');
+  assert.equal(typeof file?.content, 'string');
+  return JSON.parse(file!.content as string) as Record<string, unknown>;
 }
 
 function bundle(files = auditFiles(), requestId = 'web-origin', folder = FOLDER): VibeBundle {
@@ -488,6 +509,164 @@ describe('result importer', () => {
     }
   });
 
+  it('rejects FINDINGS.json missing the P0-P3 arrays', async () => {
+    const root = await makeRoot();
+    try {
+      const files = auditFiles();
+      const findings = findingsFrom(files);
+      delete findings.P3;
+      const outcome = await importReviewResult(
+        {
+          kind: 'files',
+          requestId: 'web-origin',
+          folder: FOLDER,
+          files: replaceFileContent(files, 'FINDINGS.json', JSON.stringify(findings)),
+        },
+        context(root),
+      );
+      assert.equal(errorCodes(outcome).includes('findings-schema-violation'), true);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it('rejects a finding whose severity does not match its array', async () => {
+    const root = await makeRoot();
+    try {
+      const files = auditFiles();
+      const findings = findingsFrom(files);
+      const p2 = findings.P2 as Array<Record<string, unknown>>;
+      p2[0]!.severity = 'P1';
+      const outcome = await importReviewResult(
+        {
+          kind: 'files',
+          requestId: 'web-origin',
+          folder: FOLDER,
+          files: replaceFileContent(files, 'FINDINGS.json', JSON.stringify(findings)),
+        },
+        context(root),
+      );
+      assert.equal(errorCodes(outcome).includes('findings-severity-mismatch'), true);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it('rejects a findings file whose counts disagree with the manifest summary', async () => {
+    const root = await makeRoot();
+    try {
+      const request = reviewRequest();
+      const files = auditFiles();
+      const findings = findingsFrom(files);
+      findings.P2 = [];
+      (findings.summary as Record<string, unknown>).P2 = 0;
+      const changedFiles = replaceFileContent(files, 'FINDINGS.json', JSON.stringify(findings));
+      const outcome = await importReviewResult(
+        { kind: 'bundle', bundle: bundle(changedFiles, request.requestId) },
+        context(root, {
+          request,
+          resultManifest: resultManifest(changedFiles, request),
+          expectedRepositoryFullName: request.repository.fullName,
+        }),
+      );
+      assert.equal(errorCodes(outcome).includes('findings-summary-mismatch'), true);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it('rejects an empty or one-line implementation prompt', async () => {
+    const root = await makeRoot();
+    try {
+      const files = replaceFileContent(
+        auditFiles(),
+        'prompt/CLI_MAIN_SESSION_PROMPT.md',
+        '# Implement everything after review',
+      );
+      const outcome = await importReviewResult(
+        { kind: 'files', requestId: 'web-origin', folder: FOLDER, files },
+        context(root),
+      );
+      assert.equal(errorCodes(outcome).includes('prompt-contract-violation'), true);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it('rejects a prompt missing the repository identity', async () => {
+    const root = await makeRoot();
+    try {
+      const request = reviewRequest();
+      const original = auditFiles();
+      const prompt = original.find((file) => file.path === 'prompt/CLI_MAIN_SESSION_PROMPT.md')!.content as string;
+      const files = replaceFileContent(original, 'prompt/CLI_MAIN_SESSION_PROMPT.md', prompt.replace('owner/repo', 'repository-withheld'));
+      const outcome = await importReviewResult(
+        { kind: 'bundle', bundle: bundle(files, request.requestId) },
+        context(root, { request, resultManifest: resultManifest(files, request) }),
+      );
+      assert.equal(errorCodes(outcome).includes('prompt-contract-violation'), true);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it('rejects a prompt missing the reviewed SHA', async () => {
+    const root = await makeRoot();
+    try {
+      const request = reviewRequest();
+      const original = auditFiles();
+      const prompt = original.find((file) => file.path === 'prompt/CLI_MAIN_SESSION_PROMPT.md')!.content as string;
+      const files = replaceFileContent(original, 'prompt/CLI_MAIN_SESSION_PROMPT.md', prompt.replace(HEAD_SHA, 'reviewed-head-withheld'));
+      const outcome = await importReviewResult(
+        { kind: 'bundle', bundle: bundle(files, request.requestId) },
+        context(root, { request, resultManifest: resultManifest(files, request) }),
+      );
+      assert.equal(errorCodes(outcome).includes('prompt-contract-violation'), true);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it('rejects a prompt missing verification commands', async () => {
+    const root = await makeRoot();
+    try {
+      const original = auditFiles();
+      const prompt = original.find((file) => file.path === 'prompt/CLI_MAIN_SESSION_PROMPT.md')!.content as string;
+      const files = replaceFileContent(
+        original,
+        'prompt/CLI_MAIN_SESSION_PROMPT.md',
+        prompt.replace('## Exact verification commands\nRun npm run vibe:typecheck.\n', ''),
+      );
+      const outcome = await importReviewResult(
+        { kind: 'files', requestId: 'web-origin', folder: FOLDER, files },
+        context(root),
+      );
+      assert.equal(errorCodes(outcome).includes('prompt-contract-violation'), true);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it('rejects a prompt missing a stop condition', async () => {
+    const root = await makeRoot();
+    try {
+      const original = auditFiles();
+      const prompt = original.find((file) => file.path === 'prompt/CLI_MAIN_SESSION_PROMPT.md')!.content as string;
+      const files = replaceFileContent(
+        original,
+        'prompt/CLI_MAIN_SESSION_PROMPT.md',
+        prompt.replace('## Stop conditions\nStop and report on any mismatch.\n', ''),
+      );
+      const outcome = await importReviewResult(
+        { kind: 'files', requestId: 'web-origin', folder: FOLDER, files },
+        context(root),
+      );
+      assert.equal(errorCodes(outcome).includes('prompt-contract-violation'), true);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
   it('enforces size and count limits', async () => {
     const root = await makeRoot();
     try {
@@ -524,6 +703,64 @@ describe('result importer', () => {
     }
   });
 
+  it('returns no-op for an installed legacy package despite new contract violations', async () => {
+    const root = await makeRoot();
+    try {
+      const legacyFiles = replaceFileContent(
+        replaceFileContent(auditFiles(), 'FINDINGS.json', '{"findings":[]}\n'),
+        'prompt/CLI_MAIN_SESSION_PROMPT.md',
+        '# Legacy implementation prompt\n\nContinue carefully.\n',
+      );
+      const installedPath = path.join(root, 'plans', FOLDER);
+      await mkdir(path.join(installedPath, '.bridge'), { recursive: true });
+      await writeFile(
+        path.join(installedPath, '.bridge', 'provenance.json'),
+        `${JSON.stringify({
+          schemaVersion: 'vibe-pro-bridge-provenance-v1',
+          resultFilesSha256: computeResultFilesSha256(legacyFiles),
+        })}\n`,
+        'utf8',
+      );
+      const outcome = await importReviewResult(
+        { kind: 'files', requestId: 'web-origin', folder: FOLDER, files: legacyFiles },
+        context(root),
+      );
+      assert.deepEqual(outcome, { status: 'no-op', folder: FOLDER });
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it('keeps structural validation fatal even when a same-identity folder exists', async () => {
+    const root = await makeRoot();
+    try {
+      const request = reviewRequest();
+      const files = auditFiles();
+      const manifest = resultManifest(files, request);
+      const first = await importReviewResult(
+        { kind: 'bundle', bundle: bundle(files, request.requestId) },
+        context(root, {
+          request,
+          resultManifest: manifest,
+          expectedRepositoryFullName: request.repository.fullName,
+        }),
+      );
+      assert.equal(first.status, 'installed');
+      const changedFiles = auditFiles('# Structurally mismatched bytes\n');
+      const outcome = await importReviewResult(
+        { kind: 'bundle', bundle: bundle(changedFiles, request.requestId) },
+        context(root, {
+          request,
+          resultManifest: manifest,
+          expectedRepositoryFullName: request.repository.fullName,
+        }),
+      );
+      assert.equal(errorCodes(outcome).includes('file-sha-mismatch'), true);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
   it('refuses different result hash without approval and installs rev2 with approval', async () => {
     const root = await makeRoot();
     try {
@@ -542,6 +779,137 @@ describe('result importer', () => {
       if (approved.status === 'installed') {
         assert.equal(approved.folder, `${FOLDER}-rev2`);
       }
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it('installs a third corrected result into the lowest available rev3 folder', async () => {
+    const root = await makeRoot();
+    try {
+      await importReviewResult({ kind: 'bundle', bundle: bundle(auditFiles('# Revision one\n')) }, context(root));
+      await importReviewResult(
+        { kind: 'bundle', bundle: bundle(auditFiles('# Revision two\n')) },
+        context(root, { approveRevision: true }),
+      );
+      const third = await importReviewResult(
+        { kind: 'bundle', bundle: bundle(auditFiles('# Revision three\n')) },
+        context(root, { approveRevision: true }),
+      );
+      assert.equal(third.status, 'installed');
+      if (third.status === 'installed') {
+        assert.equal(third.folder, `${FOLDER}-rev3`);
+      }
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it('fills a revision gap with the lowest available revision slot', async () => {
+    const root = await makeRoot();
+    try {
+      await importReviewResult({ kind: 'bundle', bundle: bundle(auditFiles('# Revision one\n')) }, context(root));
+      const second = await importReviewResult(
+        { kind: 'bundle', bundle: bundle(auditFiles('# Revision two\n')) },
+        context(root, { approveRevision: true }),
+      );
+      assert.equal(second.status, 'installed');
+      const rev2Path = path.join(root, 'plans', `${FOLDER}-rev2`);
+      const rev3Path = path.join(root, 'plans', `${FOLDER}-rev3`);
+      await rename(rev2Path, rev3Path);
+      const predecessorBefore = await readFile(path.join(rev3Path, '.bridge', 'provenance.json'), 'utf8');
+      const filled = await importReviewResult(
+        { kind: 'bundle', bundle: bundle(auditFiles('# Gap fill\n')) },
+        context(root, { approveRevision: true }),
+      );
+      assert.equal(filled.status, 'installed');
+      if (filled.status === 'installed') {
+        assert.equal(filled.folder, `${FOLDER}-rev2`);
+        const provenance = JSON.parse(await readFile(
+          path.join(filled.installedPath, '.bridge', 'provenance.json'),
+          'utf8',
+        )) as { revisionOf: string };
+        assert.equal(provenance.revisionOf, `${FOLDER}-rev3`);
+      }
+      assert.equal(
+        await readFile(path.join(rev3Path, '.bridge', 'provenance.json'), 'utf8'),
+        predecessorBefore,
+      );
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it('returns no-op when any revision folder already holds the same result', async () => {
+    const root = await makeRoot();
+    try {
+      await importReviewResult({ kind: 'bundle', bundle: bundle(auditFiles('# Revision one\n')) }, context(root));
+      await importReviewResult(
+        { kind: 'bundle', bundle: bundle(auditFiles('# Duplicate target\n')) },
+        context(root, { approveRevision: true }),
+      );
+      await rename(
+        path.join(root, 'plans', `${FOLDER}-rev2`),
+        path.join(root, 'plans', `${FOLDER}-rev3`),
+      );
+      const duplicate = await importReviewResult(
+        { kind: 'bundle', bundle: bundle(auditFiles('# Duplicate target\n')) },
+        context(root),
+      );
+      assert.equal(duplicate.status, 'no-op');
+      if (duplicate.status === 'no-op') {
+        assert.equal(duplicate.folder, `${FOLDER}-rev3`);
+      }
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it('records the revision number and predecessor result hash in provenance', async () => {
+    const root = await makeRoot();
+    try {
+      await importReviewResult({ kind: 'bundle', bundle: bundle(auditFiles('# Revision one\n')) }, context(root));
+      const second = await importReviewResult(
+        { kind: 'bundle', bundle: bundle(auditFiles('# Revision two\n')) },
+        context(root, { approveRevision: true }),
+      );
+      assert.equal(second.status, 'installed');
+      const secondProvenancePath = path.join(root, 'plans', `${FOLDER}-rev2`, '.bridge', 'provenance.json');
+      const predecessorBefore = await readFile(secondProvenancePath, 'utf8');
+      const predecessor = JSON.parse(predecessorBefore) as { resultFilesSha256: string };
+      const third = await importReviewResult(
+        { kind: 'bundle', bundle: bundle(auditFiles('# Revision three\n')) },
+        context(root, { approveRevision: true }),
+      );
+      assert.equal(third.status, 'installed');
+      if (third.status === 'installed') {
+        const provenance = JSON.parse(await readFile(
+          path.join(third.installedPath, '.bridge', 'provenance.json'),
+          'utf8',
+        )) as { revision: number; revisionOf: string; predecessorResultSha256: string };
+        assert.equal(provenance.revision, 3);
+        assert.equal(provenance.revisionOf, `${FOLDER}-rev2`);
+        assert.equal(provenance.predecessorResultSha256, predecessor.resultFilesSha256);
+      }
+      assert.equal(await readFile(secondProvenancePath, 'utf8'), predecessorBefore);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it('rejects a revision folder that exceeds the folder name contract', async () => {
+    const root = await makeRoot();
+    const longFolder = 'a'.repeat(80);
+    try {
+      await importReviewResult(
+        { kind: 'files', requestId: 'web-origin', folder: longFolder, files: auditFiles('# Long base\n') },
+        context(root),
+      );
+      const outcome = await importReviewResult(
+        { kind: 'files', requestId: 'web-origin', folder: longFolder, files: auditFiles('# Long revision\n') },
+        context(root, { approveRevision: true }),
+      );
+      assert.equal(errorCodes(outcome).includes('invalid-folder'), true);
     } finally {
       await rm(root, { recursive: true, force: true });
     }

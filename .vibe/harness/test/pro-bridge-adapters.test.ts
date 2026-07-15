@@ -19,6 +19,7 @@ import {
 } from '../src/pro-bridge/transports/responses-api.js';
 import { WorkspaceAgentTransport } from '../src/pro-bridge/transports/workspace-agent.js';
 import { serializeVibeBundle } from '../src/pro-bridge/vibe-bundle.js';
+import { buildCompliantResultBundle } from './helpers/pro-bridge-result-fixture.js';
 
 const NOW = new Date('2026-07-15T08:00:00.000Z');
 const HEAD_SHA = 'b'.repeat(40);
@@ -73,25 +74,24 @@ function apiConfig(overrides: Partial<ProBridgeApiConfig> = {}): ProBridgeApiCon
 }
 
 function resultBundle(requestId: string): string {
-  return serializeVibeBundle({
+  return serializeVibeBundle(buildCompliantResultBundle({
     requestId,
     folder: '2026-07-15-optional-automation-design',
-    files: [
-      { path: 'README.md', content: '# Optional automation\n' },
-      { path: 'DESIGN.md', content: '# Design\n\nUse the shared mailbox.\n' },
-      {
-        path: 'FINDINGS.json',
-        content: JSON.stringify({
-          disposition: 'approved',
-          findings: [{ priority: 'P2', summary: 'Keep status authoritative.' }],
-        }),
-      },
-      {
-        path: 'prompt/CLI_MAIN_SESSION_PROMPT.md',
-        content: '# Implement\n\nPreserve mailbox lifecycle invariants.\n',
-      },
-    ],
-  });
+    repositoryFullName: 'owner/repo',
+    baseSha: HEAD_SHA,
+    headSha: HEAD_SHA,
+    resultKind: 'design',
+    title: 'Optional automation',
+    readmeContent: '# Optional automation\n',
+    primaryContent: '# Design\n\nUse the shared mailbox.\n',
+    findings: {
+      P2: [{
+        id: 'VPB-ADAPTER-P2-001',
+        severity: 'P2',
+        title: 'Keep status authoritative.',
+      }],
+    },
+  }).bundle);
 }
 
 async function withRoot(run: (root: string) => Promise<void>): Promise<void> {

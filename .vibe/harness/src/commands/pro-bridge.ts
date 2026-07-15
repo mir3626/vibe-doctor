@@ -30,7 +30,11 @@ import {
   startTunnel,
   type TunnelKind,
 } from '../pro-bridge/mailbox/tunnel.js';
-import { buildReviewRequest, ScopeBlockedError } from '../pro-bridge/prompt-composer.js';
+import {
+  DEFAULT_INLINE_PATCH_BYTES,
+  buildReviewRequest,
+  ScopeBlockedError,
+} from '../pro-bridge/prompt-composer.js';
 import {
   parseGitHubFullName,
   resolveGitHubScope,
@@ -180,6 +184,11 @@ function stringAt(value: unknown, ...keys: string[]): string | null {
 function booleanAt(value: unknown, ...keys: string[]): boolean | null {
   const found = nested(value, ...keys);
   return typeof found === 'boolean' ? found : null;
+}
+
+function numberAt(value: unknown, ...keys: string[]): number | null {
+  const found = nested(value, ...keys);
+  return typeof found === 'number' ? found : null;
 }
 
 function arrayAt(value: unknown, ...keys: string[]): unknown[] {
@@ -516,6 +525,20 @@ async function createAndPublish(
   }
 
   const handle = await options.transport.createRequest(request);
+  if (options.transportName === 'manual') {
+    const diffText = stringAt(scope, 'patch', 'diffText');
+    const sha256 = stringAt(scope, 'patch', 'sha256');
+    const byteLength = numberAt(scope, 'patch', 'byteLength');
+    if (diffText !== null && sha256 !== null && byteLength !== null) {
+      const patchPath = await (options.transport as ManualDirectoryTransport).writePatchArtifact(
+        handle.requestId,
+        { diffText, sha256, byteLength },
+      );
+      options.io.out(byteLength > DEFAULT_INLINE_PATCH_BYTES
+        ? `patch artifact: ${patchPath} — 인라인 예산을 초과했습니다. 이 파일을 리뷰 대화에 직접 첨부하세요.`
+        : `patch artifact (참고): ${patchPath} — 동일 delta가 프롬프트에도 인라인되었습니다.`);
+    }
+  }
   if (options.transportName === 'workspace-agent') {
     const triggered = await (options.transport as WorkspaceAgentTransport).trigger(handle.requestId);
     options.io.out(`requestId: ${handle.requestId}`);
@@ -1072,7 +1095,7 @@ async function runMailboxSync(
   context.io.err(
     outcome.status === 'refused'
       ? `결과 반입 refused: ${outcome.message}`
-      : `결과 반입 invalid: ${outcome.errors.map((error) => error.message).join('; ')}`,
+      : `결과 반입 invalid: ${outcome.errors.map((error) => `[${error.code}] ${error.message}`).join('; ')}`,
   );
   return 1;
 }
@@ -1192,7 +1215,7 @@ async function runMcpServer(
   const tunnelKind = resolveTunnelKind(
     getStringFlag(args, 'tunnel') ?? context.config.mcp.tunnel,
   );
-  const token = context.deps.randomToken?.() ?? randomBytes(32).toString('base64url');
+  const connectCode = context.deps.randomToken?.() ?? randomBytes(32).toString('base64url');
   const mailbox = new McpMailboxTransport({ repoRoot: context.repoRoot, now: context.now });
   let server: Awaited<ReturnType<typeof startMcpServer>>;
   try {
@@ -1201,8 +1224,9 @@ async function runMcpServer(
         now: context.now,
         requestTtlHours: context.config.requestTtlHours,
       }),
-      token,
+      connectCode,
       port,
+      now: context.now,
       log: (line) => context.io.out(`[mcp] ${line}`),
     });
   } catch (error) {
@@ -1226,8 +1250,8 @@ async function runMcpServer(
     if (tunnelHandle.publicUrl) {
       context.io.out(`public URL: ${tunnelHandle.publicUrl}`);
     }
-    context.io.out(`connector URL: ${baseUrl}/mcp?token=${encodeURIComponent(token)}`);
-    context.io.out('이 URL에는 토큰이 포함됩니다 — 세션 밖에 저장·공유하지 마세요. 서버 재시작 시 토큰이 재발급됩니다.');
+    context.io.out(`connector URL: ${baseUrl}/mcp?code=${encodeURIComponent(connectCode)}`);
+    context.io.out('URL의 code는 1회 교환용입니다 — 첫 연결에서 이 서버 인스턴스에 바인딩되고 서버 재시작 시 무효화됩니다. 세션 밖에 저장·공유하지 마세요.');
     context.io.out('Developer Mode 등록: docs/context/pro-bridge-setup.md 를 참조하세요.');
     context.io.out('종료: Ctrl+C');
     await (context.deps.waitForShutdown ?? waitForShutdownSignal)();

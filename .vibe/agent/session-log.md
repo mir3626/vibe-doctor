@@ -8,6 +8,8 @@ This file is project-owned runtime state. Downstream `/vibe-init` rewrites it be
 
 
 
+
+- 2026-07-15T18:48:56.989Z [sprint-complete] sprint-vpb-09-contract-polish -> passed. Sprint sprint-vpb-09-contract-polish completed with passed LOC +2906/-107 (net +2799)
 - 2026-07-15T16:18:38.598Z [sprint-complete] sprint-vpb-08-lifecycle-durability -> passed. Sprint sprint-vpb-08-lifecycle-durability completed with passed LOC +3641/-110 (net +3531)
 - 2026-07-15T14:41:49.805Z [sprint-complete] sprint-vpb-07-authority-binding -> passed. Sprint sprint-vpb-07-authority-binding completed with passed LOC +69/-2683 (net -2614)
 - 2026-07-15T13:12:00.000Z [decision] iteration 2 착수 (user 선택 1): 실 웹 Pro 리뷰 AUD-20260715-tlo6jc remediation. 실측 확정 — Pro 챗에서 GitHub 커넥터·MCP write tool 미가용(모델이 public repo 열람으로 대체, 제출은 vibe-bundle fallback 성공), 터널/등록은 정상. 리뷰 verdict remediation-required (P1×5). Sprint vpb-07~09 + 독립 audit + v1.8.1 릴리즈 예정. 정본: docs/plans/2026-07-15-web-pro-bridge-goal-audit-pro-review/prompt/CLI_MAIN_SESSION_PROMPT.md.

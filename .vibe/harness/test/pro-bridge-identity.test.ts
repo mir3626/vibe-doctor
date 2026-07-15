@@ -23,6 +23,7 @@ import { importReviewResult } from '../src/pro-bridge/importer.js';
 import { MailboxStore } from '../src/pro-bridge/mailbox/store.js';
 import { ManualDirectoryTransport } from '../src/pro-bridge/transports/manual.js';
 import { serializeVibeBundle } from '../src/pro-bridge/vibe-bundle.js';
+import { buildCompliantResultBundle } from './helpers/pro-bridge-result-fixture.js';
 
 const BASE_SHA = 'a'.repeat(40);
 const HEAD_SHA = 'b'.repeat(40);
@@ -142,20 +143,36 @@ function request(input: {
   return { ...draft, payloadSha256: computePayloadSha256(draft) };
 }
 
-function resultFiles(): Array<{ path: string; content: string }> {
-  return [
-    { path: 'README.md', content: '# Identity result\n' },
-    { path: 'REVIEW.md', content: '# Review\n\nRepository authority verified.\n' },
-    { path: 'FINDINGS.json', content: '{"findings":[]}\n' },
-    {
-      path: 'prompt/CLI_MAIN_SESSION_PROMPT.md',
-      content: '# Implement\n\nWait for explicit user approval.\n',
-    },
-  ];
+function resultFiles(input: ReviewRequest, folder: string): Array<{ path: string; content: string }> {
+  return buildCompliantResultBundle({
+    requestId: input.requestId,
+    folder,
+    repositoryFullName: input.repository.fullName,
+    baseSha: input.git.baseSha,
+    headSha: input.git.headSha,
+    title: 'Identity result',
+    readmeContent: '# Identity result\n',
+    primaryContent: '# Review\n\nRepository authority verified.\n',
+  }).bundle.files;
 }
 
-function bundle(requestId: string, folder: string): string {
-  return serializeVibeBundle({ requestId, folder, files: resultFiles() });
+function bundle(
+  requestId: string,
+  folder: string,
+  repositoryFullName = CURRENT_REPOSITORY,
+  findingsRequestId = requestId,
+): string {
+  const fixture = buildCompliantResultBundle({
+    requestId: findingsRequestId,
+    folder,
+    repositoryFullName,
+    baseSha: BASE_SHA,
+    headSha: HEAD_SHA,
+    title: 'Identity result',
+    readmeContent: '# Identity result\n',
+    primaryContent: '# Review\n\nRepository authority verified.\n',
+  });
+  return serializeVibeBundle({ ...fixture.bundle, requestId });
 }
 
 function manifest(input: ReviewRequest, folder: string): ReviewResultManifest {
@@ -169,7 +186,7 @@ function manifest(input: ReviewRequest, folder: string): ReviewResultManifest {
     resultKind: 'audit',
     proposedFolder: folder,
     disposition: 'approved',
-    files: resultFiles().map((file) => {
+    files: resultFiles(input, folder).map((file) => {
       const bytes = Buffer.from(file.content, 'utf8');
       return {
         path: file.path,
@@ -201,7 +218,7 @@ async function seedReadyResult(
   await store.createRequest(input);
   await store.claimRequest(input.requestId);
   await store.beginResult(input.requestId);
-  for (const file of resultFiles()) {
+  for (const file of resultFiles(input, folder)) {
     await store.putResultFile(input.requestId, {
       filePath: file.path,
       chunkIndex: 0,
@@ -392,7 +409,7 @@ describe('pro bridge repository identity', () => {
     const parsedBundle = {
       requestId: input.requestId,
       folder,
-      files: resultFiles(),
+      files: resultFiles(input, folder),
     };
     try {
       const first = await importReviewResult(
@@ -446,7 +463,9 @@ describe('pro bridge repository identity', () => {
           git: repositoryGit(),
           clipboard: {
             async copyFile() { return { ok: true, method: 'test', error: null }; },
-            async readText() { return { ok: true, text: bundle(input.requestId, folder), error: null }; },
+            async readText() {
+              return { ok: true, text: bundle(input.requestId, folder, input.repository.fullName), error: null };
+            },
           },
           now: () => NOW,
         },
@@ -543,7 +562,11 @@ describe('pro bridge manual trust and transport seams', () => {
     try {
       const store = new MailboxStore({ repoRoot, now: () => NOW });
       await store.createRequest(input);
-      await writeFile(path.join(repoRoot, 'result.vibe'), bundle('web-origin', folder), 'utf8');
+      await writeFile(
+        path.join(repoRoot, 'result.vibe'),
+        bundle('web-origin', folder, input.repository.fullName, input.requestId),
+        'utf8',
+      );
       const capture = captureIo();
       const exit = await runProBridge(['sync', '--latest', '--from', 'result.vibe'], {
         repoRoot,
@@ -615,7 +638,7 @@ describe('pro bridge manual trust and transport seams', () => {
     try {
       const store = new MailboxStore({ repoRoot, now: () => NOW });
       await store.createRequest(input);
-      await writeFile(bundlePath, bundle(input.requestId, folder), 'utf8');
+      await writeFile(bundlePath, bundle(input.requestId, folder, input.repository.fullName), 'utf8');
       const capture = captureIo();
       const exit = await runProBridge(['sync', '--from', 'result.vibe'], {
         repoRoot,
@@ -648,7 +671,7 @@ describe('pro bridge manual trust and transport seams', () => {
     try {
       const store = new MailboxStore({ repoRoot, now: () => NOW });
       await store.createRequest(input);
-      await writeFile(bundlePath, bundle(input.requestId, folder), 'utf8');
+      await writeFile(bundlePath, bundle(input.requestId, folder, input.repository.fullName), 'utf8');
       const capture = captureIo();
       const io: ProBridgeIo = {
         ...capture.io,
@@ -692,7 +715,9 @@ describe('pro bridge manual trust and transport seams', () => {
         git: repositoryGit(),
         clipboard: {
           async copyFile() { return { ok: true, method: 'test', error: null }; },
-          async readText() { return { ok: true, text: bundle(input.requestId, folder), error: null }; },
+          async readText() {
+            return { ok: true, text: bundle(input.requestId, folder, input.repository.fullName), error: null };
+          },
         },
         now: () => NOW,
       });

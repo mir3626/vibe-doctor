@@ -24,6 +24,7 @@ import {
   MailboxStoreError,
   type DurableOpEvent,
 } from '../src/pro-bridge/mailbox/store.js';
+import { buildCompliantResultBundle } from './helpers/pro-bridge-result-fixture.js';
 
 const NOW = new Date('2026-07-15T08:00:00.000Z');
 const REPOSITORY = 'owner/repo';
@@ -78,16 +79,17 @@ function reviewRequest(
   return { ...draft, payloadSha256: computePayloadSha256(draft) };
 }
 
-function resultFiles(label = 'initial'): ResultFile[] {
-  return [
-    { path: 'README.md', content: `# ${label} result\n` },
-    { path: 'REVIEW.md', content: `# Review\n\n${label} lifecycle review.\n` },
-    { path: 'FINDINGS.json', content: '{"findings":[]}\n' },
-    {
-      path: 'prompt/CLI_MAIN_SESSION_PROMPT.md',
-      content: `# ${label} next step\n\nWait for explicit approval.\n`,
-    },
-  ];
+function resultFiles(request: ReviewRequest, label = 'initial'): ResultFile[] {
+  return buildCompliantResultBundle({
+    requestId: request.requestId,
+    folder: folder(label),
+    repositoryFullName: request.repository.fullName,
+    baseSha: request.git.baseSha,
+    headSha: request.git.headSha,
+    title: `${label} result`,
+    readmeContent: `# ${label} result\n`,
+    primaryContent: `# Review\n\n${label} lifecycle review.\n`,
+  }).bundle.files;
 }
 
 function resultManifest(
@@ -168,7 +170,7 @@ async function seedUpload(
 }> {
   const store = new MailboxStore({ repoRoot: root, now: () => NOW });
   const request = reviewRequest(requestId);
-  const files = resultFiles(label);
+  const files = resultFiles(request, label);
   const manifest = resultManifest(request, files, folder(label));
   await store.createRequest(request);
   await store.claimRequest(requestId);
@@ -191,7 +193,7 @@ async function seedReady(
 }> {
   const store = new MailboxStore({ repoRoot: root, now: () => NOW });
   const request = reviewRequest(requestId, createdOffset);
-  const files = resultFiles(label);
+  const files = resultFiles(request, label);
   const manifest = resultManifest(request, files, folder(label));
   await store.createRequest(request);
   await store.claimRequest(requestId);
@@ -534,7 +536,7 @@ describe('mailbox crash recovery', () => {
   it('converges importReviewResult after a crash and a stale staging directory', async () => {
     await withRoot(async (root) => {
       const request = reviewRequest('AUD-20260715-importer-crash');
-      const files = resultFiles('importer-crash');
+      const files = resultFiles(request, 'importer-crash');
       const manifest = resultManifest(request, files, folder('importer-crash'));
       const installRoot = path.join(root, 'plans');
       const stale = path.join(installRoot, `.tmp-${manifest.proposedFolder}`);

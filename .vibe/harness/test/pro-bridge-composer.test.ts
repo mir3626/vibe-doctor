@@ -188,6 +188,42 @@ describe('review prompt composer', () => {
     );
   });
 
+  it('inlines a bounded patch into the review prompt with a safe fence', () => {
+    const patchedScope = scope(true);
+    assert.notEqual(patchedScope.patch, null);
+    patchedScope.patch!.diffText = [
+      'diff --git a/src/a.ts b/src/a.ts',
+      '@@ -1 +1 @@',
+      '-const oldValue = "`````";',
+      '+const newValue = "safe";',
+    ].join('\n');
+    patchedScope.patch!.byteLength = Buffer.byteLength(patchedScope.patch!.diffText, 'utf8');
+    const prompt = composeReviewPrompt(input({ scope: patchedScope }));
+    assert.equal(prompt.includes(patchedScope.patch!.diffText), true);
+    assert.match(prompt, /Authoritative local-only delta/);
+    assert.equal(prompt.includes(`${'`'.repeat(6)}diff`), true);
+    assert.equal(prompt.includes(`\n${'`'.repeat(6)}\n`), true);
+  });
+
+  it('omits the inline patch and directs to the patch artifact when over budget', () => {
+    const patchedScope = scope(true);
+    const prompt = composeReviewPrompt(input({
+      scope: patchedScope,
+      inlinePatchBudgetBytes: 1,
+    }));
+    assert.equal(prompt.includes(patchedScope.patch!.diffText), false);
+    assert.match(prompt, /not inlined/);
+    assert.match(prompt, /patch\.diff/);
+    assert.match(prompt, /attach.*directly/i);
+  });
+
+  it('announces the versioned findings contract in the output package section', () => {
+    const prompt = composeReviewPrompt(input());
+    assert.match(prompt, /vibe-goal-audit-findings-v1/);
+    assert.match(prompt, /finding severity must equal the P0\/P1\/P2\/P3 array/);
+    assert.match(prompt, /summary count must equal its array length.*findingsSummary/);
+  });
+
   it('surfaces goal source ambiguities in the manifest section', () => {
     const ambiguous = goalSource();
     ambiguous.source.confidence = 'reconstructed';

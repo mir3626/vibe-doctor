@@ -14,7 +14,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const WORKER_FLAG = '--background-worker';
 const WORKER_MODE = process.argv.includes(WORKER_FLAG);
@@ -274,32 +274,34 @@ function relativeLogPath(repoRoot, absolutePath) {
   return path.relative(repoRoot, absolutePath).replaceAll('\\', '/');
 }
 
-function npmInvocation(script) {
-  const npmExecPath = process.env.npm_execpath?.trim();
-  if (npmExecPath && existsSync(npmExecPath)) {
-    return {
-      command: process.execPath,
-      args: [npmExecPath, 'run', script, '--silent'],
-    };
-  }
-
+export function npmInvocation(script, options = {}) {
+  const execPath = options.execPath ?? process.execPath;
+  const platform = options.platform ?? process.platform;
+  const env = options.env ?? process.env;
+  const fileExists = options.fileExists ?? existsSync;
+  const npmExecPath = env.npm_execpath?.trim();
   const bundledNpmCli = path.join(
-    path.dirname(process.execPath),
+    path.dirname(execPath),
     'node_modules',
     'npm',
     'bin',
     'npm-cli.js',
   );
-  if (existsSync(bundledNpmCli)) {
+  const npmCli = [npmExecPath, bundledNpmCli].find(
+    (candidate) => candidate
+      && path.basename(candidate).toLowerCase() === 'npm-cli.js'
+      && fileExists(candidate),
+  );
+  if (npmCli) {
     return {
-      command: process.execPath,
-      args: [bundledNpmCli, 'run', script, '--silent'],
+      command: execPath,
+      args: [npmCli, 'run', script, '--silent'],
     };
   }
 
-  if (process.platform === 'win32') {
+  if (platform === 'win32') {
     return {
-      command: process.env.ComSpec || process.env.COMSPEC || 'cmd.exe',
+      command: env.ComSpec || env.COMSPEC || 'cmd.exe',
       args: ['/d', '/s', '/c', 'npm.cmd', 'run', script, '--silent'],
     };
   }
@@ -412,6 +414,18 @@ function runWorker(repoRoot, fingerprint) {
   }
 }
 
+export function workerSpawnOptions(repoRoot, workerEnv) {
+  // win32에서 non-detached 자식은 부모 Job Object(kill-on-close)에 묶여 hook 종료와 함께
+  // 강제 종료된다. detach + windowsHide(콘솔 미할당)가 fire-and-forget 워커의 유일한 형태다.
+  return {
+    cwd: repoRoot,
+    stdio: 'ignore',
+    windowsHide: true,
+    env: workerEnv,
+    detached: true,
+  };
+}
+
 function scheduleWorker(repoRoot, fingerprint) {
   if (!acquireLease(repoRoot, fingerprint)) {
     return false;
@@ -424,13 +438,7 @@ function scheduleWorker(repoRoot, fingerprint) {
       WORKER_FLAG,
       repoRoot,
       fingerprint,
-    ], {
-      cwd: repoRoot,
-      detached: true,
-      stdio: 'ignore',
-      windowsHide: true,
-      env: workerEnv,
-    });
+    ], workerSpawnOptions(repoRoot, workerEnv));
     child.on('error', () => releaseLease(repoRoot, fingerprint));
     child.unref();
     return true;
@@ -459,6 +467,8 @@ function resolveRepoRoot() {
 
 function main() {
   if (WORKER_MODE) {
+    process.on('SIGINT', () => undefined);
+    process.on('SIGHUP', () => undefined);
     const index = process.argv.indexOf(WORKER_FLAG);
     const repoRoot = process.argv[index + 1];
     const fingerprint = process.argv[index + 2];
@@ -538,4 +548,6 @@ function main() {
   }
 }
 
-main();
+if (import.meta.url === pathToFileURL(path.resolve(process.argv[1] ?? '')).href) {
+  main();
+}

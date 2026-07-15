@@ -19,6 +19,7 @@ import {
 } from '../src/pro-bridge/contract.js';
 import { importReviewResult } from '../src/pro-bridge/importer.js';
 import { MailboxStore } from '../src/pro-bridge/mailbox/store.js';
+import { buildCompliantResultBundle } from './helpers/pro-bridge-result-fixture.js';
 
 const NOW = new Date('2026-07-15T08:00:00.000Z');
 const REPOSITORY = 'owner/repo';
@@ -69,13 +70,17 @@ function request(requestId: string): ReviewRequest {
   return { ...draft, payloadSha256: computePayloadSha256(draft) };
 }
 
-function files(label: string): ResultFile[] {
-  return [
-    { path: 'README.md', content: `# ${label}\n` },
-    { path: 'REVIEW.md', content: `# Review\n\n${label}.\n` },
-    { path: 'FINDINGS.json', content: '{"findings":[]}\n' },
-    { path: 'prompt/CLI_MAIN_SESSION_PROMPT.md', content: `# ${label} prompt\n\nWait.\n` },
-  ];
+function files(input: ReviewRequest, label: string): ResultFile[] {
+  return buildCompliantResultBundle({
+    requestId: input.requestId,
+    folder: `2026-07-15-${label}-pro-review`,
+    repositoryFullName: input.repository.fullName,
+    baseSha: input.git.baseSha,
+    headSha: input.git.headSha,
+    title: label,
+    readmeContent: `# ${label}\n`,
+    primaryContent: `# Review\n\n${label}.\n`,
+  }).bundle.files;
 }
 
 function manifest(
@@ -150,7 +155,7 @@ async function ready(
 }> {
   const store = new MailboxStore({ repoRoot: root, now: () => NOW });
   const input = request(requestId);
-  const resultFiles = files(label);
+  const resultFiles = files(input, label);
   const resultManifest = manifest(input, resultFiles, label);
   await store.createRequest(input);
   await store.claimRequest(requestId);
@@ -171,7 +176,7 @@ async function finalizeRevision(
   seeded: Awaited<ReturnType<typeof ready>>,
   revision: number,
 ): Promise<{ manifestSha256: string; resultFilesSha256: string }> {
-  const revisedFiles = files(`revision-${revision}`);
+  const revisedFiles = files(seeded.request, `revision-${revision}`);
   const revisedManifest = manifest(seeded.request, revisedFiles, `revision-${revision}`);
   await seeded.store.beginResult(seeded.request.requestId, seeded.manifestSha256);
   await upload(seeded.store, seeded.request.requestId, revisedFiles);

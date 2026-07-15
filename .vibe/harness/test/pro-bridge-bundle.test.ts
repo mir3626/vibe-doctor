@@ -8,20 +8,16 @@ import {
   type VibeBundle,
   type VibeBundleParseErrorCode,
 } from '../src/pro-bridge/vibe-bundle.js';
+import { buildCompliantResultBundle } from './helpers/pro-bridge-result-fixture.js';
 
-const bundleFixture: VibeBundle = {
+const bundleFixture: VibeBundle = buildCompliantResultBundle({
   requestId: 'AUD-20260715-abc123',
   folder: '2026-07-15-example-goal-pro-review',
-  files: [
-    { path: 'README.md', content: '# Review package' },
-    { path: 'REVIEW.md', content: '# Review\n\nNo critical findings.' },
-    { path: 'FINDINGS.json', content: '{"findings":[]}' },
-    {
-      path: 'prompt/CLI_MAIN_SESSION_PROMPT.md',
-      content: '# Follow-up\nImplement the approved remediation.\n',
-    },
-  ],
-};
+  repositoryFullName: 'owner/repo',
+  title: 'Review package',
+  readmeContent: '# Review package',
+  primaryContent: '# Review\n\nNo critical findings.',
+}).bundle;
 
 function textBundle(overrides: {
   requestId?: string;

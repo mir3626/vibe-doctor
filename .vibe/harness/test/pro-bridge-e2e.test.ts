@@ -23,6 +23,7 @@ import type { ScopeResolution } from '../src/pro-bridge/scope-resolver.js';
 import { ManualDirectoryTransport } from '../src/pro-bridge/transports/manual.js';
 import { McpMailboxTransport } from '../src/pro-bridge/transports/mcp-mailbox.js';
 import { serializeVibeBundle } from '../src/pro-bridge/vibe-bundle.js';
+import { buildCompliantResultBundle } from './helpers/pro-bridge-result-fixture.js';
 
 const BASE_SHA = 'a'.repeat(40);
 const HEAD_SHA = 'b'.repeat(40);
@@ -112,19 +113,16 @@ function goalProvider(repoRoot: string): GoalSourceProvider {
 }
 
 function resultBundleText(requestId: string): string {
-  return serializeVibeBundle({
+  return serializeVibeBundle(buildCompliantResultBundle({
     requestId,
     folder: RESULT_FOLDER,
-    files: [
-      { path: 'README.md', content: '# Manual round trip' },
-      { path: 'REVIEW.md', content: '# Review\n\nThe manual transport is coherent.' },
-      { path: 'FINDINGS.json', content: '{"p0":[],"p1":[],"p2":[],"p3":[]}' },
-      {
-        path: 'prompt/CLI_MAIN_SESSION_PROMPT.md',
-        content: '# Next goal\n\nApply the approved follow-up only after user confirmation.',
-      },
-    ],
-  });
+    repositoryFullName: 'owner/repo',
+    baseSha: BASE_SHA,
+    headSha: HEAD_SHA,
+    title: 'Manual round trip',
+    readmeContent: '# Manual round trip',
+    primaryContent: '# Review\n\nThe manual transport is coherent.',
+  }).bundle);
 }
 
 function captureIo(): { io: ProBridgeIo; out: string[]; err: string[] } {
@@ -318,12 +316,17 @@ describe('pro bridge mcp mailbox round trip', () => {
       await tools.get('begin_result')!.invoke({ requestId });
 
       const request = await transport.readRequest(requestId) as ReviewRequest;
-      const files = [
-        { path: 'README.md', content: '# MCP E2E result\n' },
-        { path: 'REVIEW.md', content: '# Review\n\nMailbox E2E passed.\n' },
-        { path: 'FINDINGS.json', content: '{"findings":[]}\n' },
-        { path: 'prompt/CLI_MAIN_SESSION_PROMPT.md', content: '# Next\n\nWait for user approval.\n' },
-      ];
+      const fixture = buildCompliantResultBundle({
+        requestId,
+        folder: '2026-07-15-mcp-round-trip-pro-review',
+        repositoryFullName: request.repository.fullName,
+        baseSha: request.git.baseSha,
+        headSha: request.git.headSha,
+        title: 'MCP E2E result',
+        readmeContent: '# MCP E2E result\n',
+        primaryContent: '# Review\n\nMailbox E2E passed.\n',
+      });
+      const files = fixture.bundle.files;
       for (const file of files) {
         await tools.get('put_result_file')!.invoke({
           requestId,
@@ -348,8 +351,8 @@ describe('pro bridge mcp mailbox round trip', () => {
             sha256: createHash('sha256').update(bytes).digest('hex'),
           };
         }),
-        findingsSummary: { p0: 0, p1: 0, p2: 0, p3: 0 },
-        reviewerDeclaration: { surface: 'chatgpt-web', requestedMode: 'pro', githubConnectorUsed: true, limitations: [] },
+        findingsSummary: fixture.findingsSummary,
+        reviewerDeclaration: fixture.reviewerDeclaration,
         createdAt: NOW.toISOString(), payloadSha256: '0'.repeat(64),
       };
       const manifest = { ...draft, payloadSha256: computePayloadSha256(draft) };
@@ -409,15 +412,18 @@ describe('pro bridge web origin round trip', () => {
       await tools.get('begin_result')!.invoke({ requestId: created.requestId });
 
       const request = await transport.readRequest(created.requestId) as ReviewRequest;
-      const files = [
-        { path: 'README.md', content: '# Web-origin design\n' },
-        { path: 'DESIGN.md', content: '# Design\n\nUse one shared importer.\n' },
-        { path: 'FINDINGS.json', content: '{"disposition":"approved","findings":[]}\n' },
-        {
-          path: 'prompt/CLI_MAIN_SESSION_PROMPT.md',
-          content: '# Implement\n\nWait for explicit approval.\n',
-        },
-      ];
+      const fixture = buildCompliantResultBundle({
+        requestId: request.requestId,
+        folder: '2026-07-15-web-origin-design',
+        repositoryFullName: request.repository.fullName,
+        baseSha: request.git.baseSha,
+        headSha: request.git.headSha,
+        resultKind: 'design',
+        title: 'Web-origin design',
+        readmeContent: '# Web-origin design\n',
+        primaryContent: '# Design\n\nUse one shared importer.\n',
+      });
+      const files = fixture.bundle.files;
       for (const file of files) {
         await tools.get('put_result_file')!.invoke({
           requestId: request.requestId,
@@ -447,13 +453,8 @@ describe('pro bridge web origin round trip', () => {
             sha256: createHash('sha256').update(bytes).digest('hex'),
           };
         }),
-        findingsSummary: { p0: 0, p1: 0, p2: 0, p3: 0 },
-        reviewerDeclaration: {
-          surface: 'chatgpt-web',
-          requestedMode: 'pro',
-          githubConnectorUsed: true,
-          limitations: [],
-        },
+        findingsSummary: fixture.findingsSummary,
+        reviewerDeclaration: fixture.reviewerDeclaration,
         createdAt: NOW.toISOString(),
         payloadSha256: '0'.repeat(64),
       };

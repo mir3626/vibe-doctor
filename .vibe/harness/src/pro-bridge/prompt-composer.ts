@@ -1,5 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import {
+  CLI_PROMPT_CONTRACT_REQUIREMENTS,
   FOLDER_NAME_PATTERN,
   REQUIRED_RESULT_FILES,
   ReviewRequestSchema,
@@ -24,6 +25,7 @@ export interface ComposerInput {
   now?: () => Date;
   random?: () => string;
   ttlDays?: number;
+  inlinePatchBudgetBytes?: number;
 }
 
 export class ScopeBlockedError extends Error {
@@ -93,16 +95,7 @@ const ALLOWED_RESULT_PATHS = [
   '.bridge/**',
 ] as const;
 
-const CLI_PROMPT_REQUIREMENTS = [
-  'reviewed repository and SHA',
-  'mandatory reading before implementation',
-  'implementation order',
-  'immutable boundaries',
-  'prohibited operations',
-  'exact verification commands',
-  'stop conditions',
-  'final report requirements',
-] as const;
+export const DEFAULT_INLINE_PATCH_BYTES = 64 * 1024;
 
 function bulletList(values: readonly string[]): string {
   return values.map((value) => `- ${value}`).join('\n');
@@ -198,6 +191,45 @@ function renderPatchDetails(scope: ScopeResolution): string[] {
   ];
 }
 
+function inlinePatchBudget(input: ComposerInput): number {
+  const budget = input.inlinePatchBudgetBytes ?? DEFAULT_INLINE_PATCH_BYTES;
+  if (!Number.isSafeInteger(budget) || budget < 0) {
+    throw new Error('inlinePatchBudgetBytes must be a non-negative safe integer');
+  }
+  return budget;
+}
+
+function safeDiffFence(diffText: string): string {
+  const longestRun = Math.max(
+    0,
+    ...[...diffText.matchAll(/`+/g)].map((match) => match[0].length),
+  );
+  return '`'.repeat(Math.max(4, longestRun + 1));
+}
+
+function renderInlinePatch(scope: ScopeResolution, budget: number): string[] {
+  if (scope.patch === null) {
+    return [];
+  }
+  if (scope.patch.byteLength > budget) {
+    return [
+      '## Authoritative local-only delta',
+      `Patch SHA-256: ${scope.patch.sha256}`,
+      `Patch byte length: ${scope.patch.byteLength}`,
+      `The patch is not inlined because it exceeds the ${budget}-byte prompt budget. Attach the manual outbox patch.diff file directly to the review conversation.`,
+    ];
+  }
+  const fence = safeDiffFence(scope.patch.diffText);
+  return [
+    '## Authoritative local-only delta — conceptually apply over the GitHub base',
+    `Patch SHA-256: ${scope.patch.sha256}`,
+    `Patch byte length: ${scope.patch.byteLength}`,
+    `${fence}diff`,
+    scope.patch.diffText,
+    fence,
+  ];
+}
+
 function renderOutputContract(kind: ComposableReviewKind, requestId: string): string {
   const resultKind = kindToResultKind(kind);
   const suffix = resultKind === 'audit' ? 'pro-review' : 'design';
@@ -217,10 +249,27 @@ function renderOutputContract(kind: ComposableReviewKind, requestId: string): st
     'Required files:',
     bulletList(REQUIRED_RESULT_FILES[resultKind]),
     'The required prompt/CLI_MAIN_SESSION_PROMPT.md must include all of:',
-    bulletList(CLI_PROMPT_REQUIREMENTS),
+    bulletList(CLI_PROMPT_CONTRACT_REQUIREMENTS.map((requirement) => requirement.label)),
     'Allowed paths (the importer rejects every other path):',
     bulletList(ALLOWED_RESULT_PATHS),
-    'FINDINGS.json must be parseable JSON with structured P0, P1, P2, and P3 findings.',
+    'FINDINGS.json must follow this versioned skeleton (additional fields are allowed):',
+    '```json',
+    '{',
+    '  "schemaVersion": "vibe-goal-audit-findings-v1",',
+    `  "requestId": "${requestId}",`,
+    '  "repository": { "fullName": "owner/repository" },',
+    '  "snapshot": { "baseSha": "<40-char git sha>", "headSha": "<40-char git sha>" },',
+    '  "disposition": "<review disposition>",',
+    '  "summary": { "P0": 0, "P1": 0, "P2": 0, "P3": 0 },',
+    '  "reviewerDeclaration": {',
+    '    "surface": "chatgpt-web", "requestedMode": "pro",',
+    '    "githubConnectorUsed": true, "limitations": []',
+    '  },',
+    '  "P0": [], "P1": [], "P2": [], "P3": []',
+    '}',
+    '```',
+    'Each finding severity must equal the P0/P1/P2/P3 array that contains it.',
+    'Each summary count must equal its array length and the finalize manifest findingsSummary count.',
   ].join('\n');
 }
 
@@ -263,6 +312,8 @@ function renderPrompt(input: ComposerInput, requestId: string): string {
     '## F. Review dimensions',
     bulletList(dimensions),
     'For every material finding, include repository path, symbol/module, relevant commit SHA, and the reasoning connection to the original goal.',
+    '',
+    ...renderInlinePatch(scope, inlinePatchBudget(input)),
     '',
     '## G. Required output package',
     renderOutputContract(input.kind, requestId),

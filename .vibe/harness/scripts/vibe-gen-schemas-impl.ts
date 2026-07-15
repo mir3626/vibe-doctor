@@ -8,6 +8,7 @@ import {
   STATE_FILE_SCHEMAS,
   type StateFileName,
 } from '../src/lib/schemas/index.js';
+import { FindingsFileSchema } from '../src/lib/schemas/pro-bridge.js';
 
 const modeArg = process.argv.find((arg) => arg.startsWith('--mode='));
 const mode = modeArg?.slice('--mode='.length) === 'write' ? 'write' : 'check';
@@ -26,6 +27,7 @@ const artifactOutputs = {
   'pro-bridge-goal-source.json': '.vibe/harness/schemas/pro-bridge-goal-source.schema.json',
   'pro-bridge-review-request.json': '.vibe/harness/schemas/pro-bridge-review-request.schema.json',
   'pro-bridge-review-result.json': '.vibe/harness/schemas/pro-bridge-review-result.schema.json',
+  'pro-bridge-findings.json': '.vibe/harness/schemas/pro-bridge-findings.schema.json',
 } as const;
 
 const allOutputs = {
@@ -36,6 +38,7 @@ const allOutputs = {
 const allSchemas = {
   ...STATE_FILE_SCHEMAS,
   ...GENERATED_ARTIFACT_SCHEMAS,
+  'pro-bridge-findings.json': FindingsFileSchema,
 } as const;
 
 type SchemaOutputName = keyof typeof allOutputs;

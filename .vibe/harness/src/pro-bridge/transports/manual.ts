@@ -3,6 +3,7 @@ import {
   spawn as defaultSpawn,
   type ChildProcess,
 } from 'node:child_process';
+import { createHash, randomBytes } from 'node:crypto';
 import {
   access,
   mkdir,
@@ -86,10 +87,16 @@ async function bestEffortFsync(filePath: string): Promise<void> {
 }
 
 async function writeJson(filePath: string, value: unknown): Promise<void> {
-  const temporaryPath = `${filePath}.${process.pid}.tmp`;
+  const temporaryPath = `${filePath}.${process.pid}.${randomBytes(16).toString('hex')}.tmp`;
   await writeFile(temporaryPath, `${JSON.stringify(value, null, 2)}\n`, 'utf8');
   await bestEffortFsync(temporaryPath);
   await rename(temporaryPath, filePath);
+}
+
+export interface ManualPatchArtifact {
+  diffText: string;
+  sha256: string;
+  byteLength: number;
 }
 
 async function readJson(filePath: string): Promise<unknown> {
@@ -158,6 +165,23 @@ export class ManualDirectoryTransport implements VibeProBridgeTransport {
       requestPath,
       promptPath,
     };
+  }
+
+  async writePatchArtifact(requestId: string, patch: ManualPatchArtifact): Promise<string> {
+    await this.requireRequest(requestId);
+    const bytes = Buffer.from(patch.diffText, 'utf8');
+    if (bytes.byteLength !== patch.byteLength) {
+      throw new Error(`Patch byte length mismatch for ${requestId}`);
+    }
+    if (createHash('sha256').update(bytes).digest('hex') !== patch.sha256) {
+      throw new Error(`Patch SHA-256 mismatch for ${requestId}`);
+    }
+    const patchPath = path.join(this.requestDir(requestId), 'patch.diff');
+    const temporaryPath = `${patchPath}.${process.pid}.${randomBytes(16).toString('hex')}.tmp`;
+    await writeFile(temporaryPath, bytes);
+    await bestEffortFsync(temporaryPath);
+    await rename(temporaryPath, patchPath);
+    return patchPath;
   }
 
   async getRequestStatus(requestId: string): Promise<RequestStatus> {
