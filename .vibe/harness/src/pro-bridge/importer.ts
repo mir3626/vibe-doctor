@@ -77,6 +77,7 @@ export type ImportOutcome =
       status: 'installed';
       folder: string;
       installedPath: string;
+      resultFilesSha256: string;
       nextAction: string;
       skippedValidations: string[];
     }
@@ -661,6 +662,7 @@ export async function importReviewResult(
       status: 'installed',
       folder: targetFolder,
       installedPath: finalPath,
+      resultFilesSha256,
       nextAction: nextAction(targetFolder),
       skippedValidations: [...skipped].sort(compareStringsByCodePoint),
     };

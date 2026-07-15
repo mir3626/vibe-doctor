@@ -36,6 +36,7 @@
       "docs/context/codex-wrapper-injection-audit.md",
       "docs/context/md-injection-guarantees.md",
       "docs/context/orchestration.md",
+      "docs/context/pro-bridge-setup.md",
       "docs/context/sidecars.md",
       "docs/context/harness-gaps.md",
       "docs/context/legacy-model-overrides.md",

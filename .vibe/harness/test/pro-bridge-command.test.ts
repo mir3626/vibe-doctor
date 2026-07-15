@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { access, mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -10,11 +11,19 @@ import {
 } from '../src/commands/pro-bridge.js';
 import {
   DEFAULT_PRO_BRIDGE_CONFIG,
+  resolveProBridgeConfig,
   type ProBridgeConfig,
 } from '../src/lib/config.js';
-import type { GoalSourceManifest } from '../src/pro-bridge/contract.js';
+import {
+  computePayloadSha256,
+  type GoalSourceManifest,
+  type ReviewRequest,
+  type ReviewResultManifest,
+} from '../src/pro-bridge/contract.js';
 import { resolveGoalSource } from '../src/pro-bridge/goal-source/resolver.js';
 import type { GitPort } from '../src/pro-bridge/goal-source/types.js';
+import { MailboxStore } from '../src/pro-bridge/mailbox/store.js';
+import { ManualDirectoryTransport } from '../src/pro-bridge/transports/manual.js';
 import { serializeVibeBundle } from '../src/pro-bridge/vibe-bundle.js';
 
 const BASE_SHA = 'a'.repeat(40);
@@ -203,6 +212,75 @@ function auditBundle(readme: string): string {
 
 async function makeRoot(): Promise<string> {
   return mkdtemp(path.join(tmpdir(), 'vibe-pro-command-'));
+}
+
+function mailboxRequest(requestId = 'AUD-20260715-commandmcp'): ReviewRequest {
+  const draft: ReviewRequest = {
+    schemaVersion: 'vibe-pro-review-request-v1', requestId, kind: 'goal_audit', origin: 'cli',
+    repository: { fullName: 'owner/repo', remoteUrl: 'https://github.com/owner/repo.git', defaultBranch: 'main' },
+    git: {
+      baseSha: BASE_SHA, headSha: HEAD_SHA, branch: 'main', headVisibleOnGitHub: true,
+      compareUrlHint: null, patchAttachmentSha256: null,
+    },
+    goalSource: null, userGoal: 'Audit command mailbox sync.', reviewPrompt: '# Command mailbox audit',
+    outputContract: { requiredFiles: ['README.md', 'REVIEW.md', 'FINDINGS.json', 'prompt/CLI_MAIN_SESSION_PROMPT.md'] },
+    createdAt: NOW.toISOString(), expiresAt: new Date(NOW.getTime() + 3_600_000).toISOString(),
+    payloadSha256: '0'.repeat(64),
+  };
+  return { ...draft, payloadSha256: computePayloadSha256(draft) };
+}
+
+function mailboxFiles(): Array<{ path: string; content: string }> {
+  return [
+    { path: 'README.md', content: '# Command mailbox result\n' },
+    { path: 'REVIEW.md', content: '# Review\n\nCommand sync passed.\n' },
+    { path: 'FINDINGS.json', content: '{"findings":[]}\n' },
+    { path: 'prompt/CLI_MAIN_SESSION_PROMPT.md', content: '# Next\n\nWait for approval.\n' },
+  ];
+}
+
+function mailboxManifest(input: ReviewRequest): ReviewResultManifest {
+  const draft: ReviewResultManifest = {
+    schemaVersion: 'vibe-pro-review-result-v1', requestId: input.requestId,
+    requestPayloadSha256: input.payloadSha256, repositoryFullName: input.repository.fullName,
+    reviewedBaseSha: input.git.baseSha, reviewedHeadSha: input.git.headSha, resultKind: 'audit',
+    proposedFolder: '2026-07-15-command-mailbox-pro-review', disposition: 'approved',
+    files: mailboxFiles().map((file) => {
+      const bytes = Buffer.from(file.content, 'utf8');
+      return {
+        path: file.path,
+        mediaType: file.path.endsWith('.json') ? 'application/json' : 'text/markdown',
+        byteLength: bytes.byteLength,
+        sha256: createHash('sha256').update(bytes).digest('hex'),
+      };
+    }),
+    findingsSummary: { p0: 0, p1: 0, p2: 0, p3: 0 },
+    reviewerDeclaration: { surface: 'chatgpt-web', requestedMode: 'pro', githubConnectorUsed: true, limitations: [] },
+    createdAt: NOW.toISOString(), payloadSha256: '0'.repeat(64),
+  };
+  return { ...draft, payloadSha256: computePayloadSha256(draft) };
+}
+
+async function seedMailboxResult(repoRoot: string): Promise<{
+  store: MailboxStore;
+  input: ReviewRequest;
+  manifest: ReviewResultManifest;
+  resultFilesSha256: string;
+}> {
+  const store = new MailboxStore({ repoRoot, now: () => NOW });
+  const input = mailboxRequest();
+  const manifest = mailboxManifest(input);
+  await store.createRequest(input);
+  await store.claimRequest(input.requestId);
+  await store.beginResult(input.requestId);
+  for (const file of mailboxFiles()) {
+    await store.putResultFile(input.requestId, {
+      filePath: file.path, chunkIndex: 0, chunkCount: 1, content: file.content,
+      chunkSha256: createHash('sha256').update(file.content).digest('hex'),
+    });
+  }
+  const finalized = await store.finalizeResult(input.requestId, manifest);
+  return { store, input, manifest, resultFilesSha256: finalized.resultFilesSha256 };
 }
 
 describe('pro bridge command', () => {
@@ -465,5 +543,107 @@ describe('pro bridge command', () => {
     } finally {
       await rm(repoRoot, { recursive: true, force: true });
     }
+  });
+
+  it('resolves mcp mailbox config defaults when the section is absent', () => {
+    const resolved = resolveProBridgeConfig({ enabled: true, transport: 'mcp-mailbox' });
+    assert.deepEqual(resolved.mcp, { port: 8848, tunnel: 'none' });
+  });
+
+  it('sync pulls a result ready mailbox request through the shared importer', async () => {
+    const repoRoot = await makeRoot();
+    try {
+      const seeded = await seedMailboxResult(repoRoot);
+      const capture = captureIo();
+      const exit = await runProBridge(['sync'], {
+        repoRoot,
+        config: enabledConfig({ transport: 'mcp-mailbox', resultRoot: 'plans' }),
+        io: capture.io,
+        clipboard: fakeClipboard(),
+        browser: fakeBrowser(),
+        now: () => NOW,
+      });
+      assert.equal(exit, 0, capture.err.join('\n'));
+      await access(path.join(repoRoot, 'plans', seeded.manifest.proposedFolder, 'README.md'));
+      assert.equal((await seeded.store.getStatus(seeded.input.requestId)).state, 'imported');
+    } finally { await rm(repoRoot, { recursive: true, force: true }); }
+  });
+
+  it('sync ack receipt carries the importer result files sha', async () => {
+    const repoRoot = await makeRoot();
+    try {
+      const input = mailboxRequest('AUD-20260715-manualack');
+      const transport = new ManualDirectoryTransport({ repoRoot, now: () => NOW });
+      const handle = await transport.createRequest(input);
+      const bundle = serializeVibeBundle({
+        requestId: input.requestId,
+        folder: RESULT_FOLDER,
+        files: mailboxFiles(),
+      });
+      const capture = captureIo();
+      const exit = await runProBridge(['sync'], {
+        repoRoot, config: enabledConfig({ resultRoot: 'plans' }), io: capture.io,
+        clipboard: fakeClipboard(bundle), browser: fakeBrowser(), now: () => NOW,
+      });
+      assert.equal(exit, 0, capture.err.join('\n'));
+      const receipt = JSON.parse(await readFile(path.join(handle.requestDir, 'imported.json'), 'utf8')) as {
+        resultFilesSha256: string;
+      };
+      assert.match(receipt.resultFilesSha256, /^[0-9a-f]{64}$/);
+      assert.notEqual(receipt.resultFilesSha256, 'recorded-by-importer');
+    } finally { await rm(repoRoot, { recursive: true, force: true }); }
+  });
+
+  it('mcp subcommand starts the server and prints the connector url with the token once', async () => {
+    const repoRoot = await makeRoot();
+    const capture = captureIo();
+    const token = 'one-time-command-token';
+    let closed = false;
+    let stopped = false;
+    try {
+      const exit = await runProBridge(['mcp'], {
+        repoRoot, config: enabledConfig(), io: capture.io, randomToken: () => token,
+        mcpServer: {
+          async start() {
+            return { port: 8848, url: 'http://127.0.0.1:8848', async close() { closed = true; } };
+          },
+        },
+        tunnel: {
+          async start() {
+            return { kind: 'cloudflared', publicUrl: 'https://unit.trycloudflare.com', async stop() { stopped = true; } };
+          },
+        },
+        async waitForShutdown() {},
+      });
+      assert.equal(exit, 0, capture.err.join('\n'));
+      assert.equal(capture.out.join('\n').split(token).length - 1, 1);
+      assert.equal(closed, true);
+      assert.equal(stopped, true);
+      await assert.rejects(access(path.join(repoRoot, '.vibe')));
+    } finally { await rm(repoRoot, { recursive: true, force: true }); }
+  });
+
+  it('mcp subcommand falls back to a local url when the tunnel binary is missing', async () => {
+    const repoRoot = await makeRoot();
+    const capture = captureIo();
+    try {
+      const exit = await runProBridge(['mcp', '--tunnel', 'cloudflared'], {
+        repoRoot, config: enabledConfig(), io: capture.io, randomToken: () => 'fallback-token',
+        mcpServer: {
+          async start() {
+            return { port: 8848, url: 'http://127.0.0.1:8848', async close() {} };
+          },
+        },
+        tunnel: {
+          async start() {
+            return { kind: 'cloudflared', publicUrl: null, reason: 'ENOENT', async stop() {} };
+          },
+        },
+        async waitForShutdown() {},
+      });
+      assert.equal(exit, 0);
+      assert.match(capture.err.join('\n'), /로컬 URL.*ENOENT/);
+      assert.match(capture.out.join('\n'), /http:\/\/127\.0\.0\.1:8848\/mcp\?token=/);
+    } finally { await rm(repoRoot, { recursive: true, force: true }); }
   });
 });

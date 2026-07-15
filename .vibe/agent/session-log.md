@@ -9,6 +9,8 @@ This file is project-owned runtime state. Downstream `/vibe-init` rewrites it be
 
 
 
+
+- 2026-07-15T09:05:24.241Z [sprint-complete] sprint-vpb-04-mcp-mailbox -> passed. Sprint sprint-vpb-04-mcp-mailbox completed with passed LOC +2894/-20 (net +2874)
 - 2026-07-15T08:08:01.424Z [sprint-complete] sprint-vpb-03-manual-transport-skills -> passed. Sprint sprint-vpb-03-manual-transport-skills completed with passed LOC +2960/-14 (net +2946)
 - 2026-07-15T06:51:11.547Z [sprint-complete] sprint-vpb-02-composer-importer -> passed. Sprint sprint-vpb-02-composer-importer completed with passed LOC +3340/-45 (net +3295)
 - 2026-07-15T06:35:00.000Z [decision] evaluator도 fable로 변경 (user directive). sprint-vpb-01 Evaluator는 변경 전 opus로 수행됨(PASS-WITH-NOTES) — vpb-02부터 fable 적용.

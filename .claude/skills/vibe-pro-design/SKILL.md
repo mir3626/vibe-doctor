@@ -34,3 +34,9 @@ vibe-bundle을 검증된 계획 패키지로 설치한다. Goal discovery는 하
 - 브라우저 지원은 chatgpt.com 열기, 클립보드, 실패 무해한 짧은 `?q=` 프리필뿐이다. DOM 자동화, 자동 제출, 모델 선택 자동화는 하지 않는다.
 
 잘린 응답은 `VIBE:END` 부재로 거부된다. 설치 후 구현은 자동 시작하지 않으며, 설치된 `CLI_MAIN_SESSION_PROMPT.md`를 사용할지는 사용자가 결정한다. Dogfood 시 GitHub 커넥터 관찰을 session-log의 비결정 노트로 남기고 `reviewerDeclaration`을 확인한다.
+
+## MCP mailbox 경로 (Phase 2)
+
+`proBridge.enabled: true`와 `transport: "mcp-mailbox"`를 설정하고 `npm run vibe:pro-mcp`로 세션 서버를 먼저 기동한다. ChatGPT Developer Mode의 1회 connector 등록과 터널·토큰 경계는 `docs/context/pro-bridge-setup.md`를 따른다.
+
+발행 후 웹 대화에 `@Vibe Pro Bridge review <request-id>` invocation을 보내면 웹이 mailbox에서 요청 전문을 읽는다. 결과가 도착한 뒤 `npm run vibe:pro-sync`를 실행하면 클립보드 없이 설치된다. 서버나 터널을 사용할 수 없으면 위 Phase 1 manual 경로가 그대로 fallback이다.

@@ -598,4 +598,26 @@ describe('result importer', () => {
       await rm(root, { recursive: true, force: true });
     }
   });
+
+  it('exposes the result files sha in the installed outcome', async () => {
+    const root = await makeRoot();
+    try {
+      const files = auditFiles();
+      const outcome = await importReviewResult(
+        { kind: 'files', requestId: 'web-origin', folder: FOLDER, files },
+        context(root),
+      );
+      assert.equal(outcome.status, 'installed');
+      if (outcome.status === 'installed') {
+        assert.match(outcome.resultFilesSha256, /^[0-9a-f]{64}$/);
+        const provenance = JSON.parse(await readFile(
+          path.join(outcome.installedPath, '.bridge/provenance.json'),
+          'utf8',
+        )) as { resultFilesSha256: string };
+        assert.equal(outcome.resultFilesSha256, provenance.resultFilesSha256);
+      }
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
 });

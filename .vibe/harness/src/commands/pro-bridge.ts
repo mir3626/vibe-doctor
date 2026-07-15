@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
@@ -17,6 +18,12 @@ import {
   type GitPort,
 } from '../pro-bridge/goal-source/types.js';
 import { importReviewResult } from '../pro-bridge/importer.js';
+import { startMcpServer } from '../pro-bridge/mailbox/server.js';
+import { createMailboxTools } from '../pro-bridge/mailbox/tools.js';
+import {
+  startTunnel,
+  type TunnelKind,
+} from '../pro-bridge/mailbox/tunnel.js';
 import { buildReviewRequest, ScopeBlockedError } from '../pro-bridge/prompt-composer.js';
 import { resolveGitHubScope } from '../pro-bridge/scope-resolver.js';
 import {
@@ -25,13 +32,26 @@ import {
   openInBrowser,
   readClipboardText,
 } from '../pro-bridge/transports/manual.js';
-import { resolveTransportName } from '../pro-bridge/transports/types.js';
+import { McpMailboxTransport } from '../pro-bridge/transports/mcp-mailbox.js';
+import {
+  resolveTransportName,
+  type RequestStatus,
+  type VibeProBridgeTransport,
+} from '../pro-bridge/transports/types.js';
 import { parseVibeBundle } from '../pro-bridge/vibe-bundle.js';
 
 const CHATGPT_URL = 'https://chatgpt.com/';
 const CHATGPT_BOOTSTRAP =
   '클립보드의 Vibe Pro Bridge 리뷰 요청 프롬프트를 붙여넣고, Pro 모델을 직접 선택해 진행하세요.';
+const CHATGPT_MCP_BOOTSTRAP =
+  '클립보드의 Vibe Pro Bridge request invocation을 붙여넣고, Pro 모델과 연결된 mailbox 도구로 진행하세요.';
 const TERMINAL_STATES = new Set(['imported', 'cancelled', 'expired', 'failed']);
+
+type BridgeCliTransport = VibeProBridgeTransport & {
+  listRequests(): Promise<RequestStatus[]>;
+  cancelRequest(requestId: string): Promise<void>;
+  readRequest(requestId: string): Promise<ReviewRequest | null>;
+};
 
 export interface ProBridgeIo {
   out(line: string): void;
@@ -52,6 +72,10 @@ export interface ProBridgeDeps {
   stdin?: { isTTY: boolean };
   goalResolver?: typeof resolveGoalSource;
   now?: () => Date;
+  mcpServer?: { start: typeof startMcpServer };
+  tunnel?: { start: typeof startTunnel };
+  waitForShutdown?: () => Promise<void>;
+  randomToken?: () => string;
 }
 
 function createDefaultIo(): ProBridgeIo {
@@ -167,8 +191,9 @@ async function gitHead(git: GitPort): Promise<string> {
   return stdout.trim();
 }
 
-function deepLink(): string {
-  const candidate = `${CHATGPT_URL}?q=${encodeURIComponent(CHATGPT_BOOTSTRAP)}`;
+function deepLink(transportName: 'manual' | 'mcp-mailbox'): string {
+  const bootstrap = transportName === 'mcp-mailbox' ? CHATGPT_MCP_BOOTSTRAP : CHATGPT_BOOTSTRAP;
+  const candidate = `${CHATGPT_URL}?q=${encodeURIComponent(bootstrap)}`;
   return Buffer.byteLength(candidate, 'utf8') <= 2048 ? candidate : CHATGPT_URL;
 }
 
@@ -198,7 +223,7 @@ function publicationSummary(scope: unknown): string[] {
 }
 
 function printStatuses(
-  statuses: Awaited<ReturnType<ManualDirectoryTransport['listRequests']>>,
+  statuses: RequestStatus[],
   io: ProBridgeIo,
 ): void {
   if (statuses.length === 0) {
@@ -224,7 +249,8 @@ async function createAndPublish(
     yes: boolean;
     config: ProBridgeConfig;
     io: ProBridgeIo;
-    transport: ManualDirectoryTransport;
+    transport: BridgeCliTransport;
+    transportName: 'manual' | 'mcp-mailbox';
     clipboard: NonNullable<ProBridgeDeps['clipboard']>;
     browser: NonNullable<ProBridgeDeps['browser']>;
     stdin: NonNullable<ProBridgeDeps['stdin']>;
@@ -246,13 +272,16 @@ async function createAndPublish(
 
   const handle = await options.transport.createRequest(request);
   if (options.config.copyInvocation) {
-    const copied = await options.clipboard.copyFile(handle.promptPath);
+    const copyPath = options.transportName === 'mcp-mailbox'
+      ? path.join(handle.requestDir, 'invocation.txt')
+      : handle.promptPath;
+    const copied = await options.clipboard.copyFile(copyPath);
     if (!copied.ok) {
-      options.io.err(`클립보드 복사 실패. 다음 파일을 수동 복사하세요: ${handle.promptPath}`);
+      options.io.err(`클립보드 복사 실패. 다음 파일을 수동 복사하세요: ${copyPath}`);
     }
   }
   if (options.config.openBrowser) {
-    const opened = await options.browser.open(deepLink());
+    const opened = await options.browser.open(deepLink(options.transportName));
     if (!opened.ok) {
       options.io.err(`브라우저 열기 실패(요청은 보존됨): ${opened.error ?? 'unknown error'}`);
     }
@@ -261,7 +290,13 @@ async function createAndPublish(
   options.io.out(`requestId: ${handle.requestId}`);
   options.io.out(`prompt: ${handle.promptPath}`);
   options.io.out('Pro 모델은 사용자가 웹에서 직접 선택하세요.');
-  options.io.out('응답의 vibe-bundle 한 블록을 복사한 뒤 npm run vibe:pro-sync 를 실행하세요.');
+  if (options.transportName === 'mcp-mailbox') {
+    options.io.out(`@Vibe Pro Bridge review ${handle.requestId}`);
+    options.io.out('npm run vibe:pro-mcp 로 서버를 켜두세요. 결과 도착 후 npm run vibe:pro-sync 를 실행하면 클립보드 없이 설치됩니다.');
+    options.io.out(`수동 fallback prompt: ${handle.promptPath}`);
+  } else {
+    options.io.out('응답의 vibe-bundle 한 블록을 복사한 뒤 npm run vibe:pro-sync 를 실행하세요.');
+  }
   if (booleanAt(scope, 'git', 'headVisibleOnGitHub') === true) {
     const compareUrl = stringAt(scope, 'compareUrlHint') ?? stringAt(scope, 'git', 'compareUrlHint');
     if (compareUrl) {
@@ -344,13 +379,13 @@ function bundleRequestId(bundle: unknown): string | null {
   return stringAt(bundle, 'requestId') ?? stringAt(bundle, 'manifest', 'requestId');
 }
 
-async function runSync(
+async function runBundleSync(
   args: ReturnType<typeof parseArgs>,
   context: {
     repoRoot: string;
     config: ProBridgeConfig;
     io: ProBridgeIo;
-    transport: ManualDirectoryTransport;
+    transport: BridgeCliTransport;
     clipboard: NonNullable<ProBridgeDeps['clipboard']>;
     now: () => Date;
   },
@@ -453,14 +488,16 @@ async function runSync(
       ?? stringAt(parsed.bundle, 'manifest', 'folder')
       ?? path.basename(installedPath);
     if (boundRequestId) {
+      const resultFilesSha256 = stringAt(outcome, 'resultFilesSha256');
+      if (!resultFilesSha256) {
+        context.io.err('Importer installed outcome에 resultFilesSha256가 없습니다.');
+        return 1;
+      }
       await context.transport.acknowledgeImport(boundRequestId, {
         requestId: boundRequestId,
         folder,
         installedPath,
-        resultFilesSha256:
-          stringAt(outcome, 'resultFilesSha256')
-          ?? stringAt(outcome, 'provenance', 'resultFilesSha256')
-          ?? 'recorded-by-importer',
+        resultFilesSha256,
         importedAt: context.now().toISOString(),
       });
     }
@@ -484,6 +521,189 @@ async function runSync(
   return 1;
 }
 
+async function runMailboxSync(
+  args: ReturnType<typeof parseArgs>,
+  context: {
+    repoRoot: string;
+    config: ProBridgeConfig;
+    io: ProBridgeIo;
+    transport: McpMailboxTransport;
+    now: () => Date;
+  },
+): Promise<number> {
+  const ready = await context.transport.listResultReady();
+  const positional = args.positionals[1];
+  let requestId: string | null = null;
+  if (positional) {
+    const status = await context.transport.getRequestStatus(positional).catch(() => null);
+    if (!status || status.state !== 'result-ready') {
+      context.io.err(`result-ready 요청이 아닙니다: ${positional}`);
+      return 1;
+    }
+    requestId = positional;
+  } else if (getBooleanFlag(args, 'latest')) {
+    requestId = ready[0]?.requestId ?? null;
+  } else if (ready.length === 1) {
+    requestId = ready[0]!.requestId;
+  } else if (ready.length > 1) {
+    printStatuses(ready, context.io);
+    context.io.err('result-ready 요청이 여러 개입니다. requestId 또는 --latest를 지정하세요.');
+    return 1;
+  }
+  if (!requestId) {
+    context.io.err('result-ready mailbox 요청이 없습니다. 웹 리뷰 결과 업로드를 확인하세요.');
+    return 1;
+  }
+
+  const [request, manifest] = await Promise.all([
+    context.transport.readRequest(requestId),
+    context.transport.getResultManifest(requestId),
+  ]);
+  if (!request || !manifest) {
+    context.io.err(`mailbox request/result manifest를 읽을 수 없습니다: ${requestId}`);
+    return 1;
+  }
+  const files = await Promise.all(manifest.files.map(async (file) => ({
+    path: file.path,
+    content: await context.transport.getResultFile(requestId, file.path),
+  })));
+  const importContext = {
+    repoRoot: context.repoRoot,
+    request,
+    resultManifest: manifest,
+    expectedRepositoryFullName: request.repository.fullName,
+    transport: 'mcp-mailbox',
+    now: context.now,
+    ...(context.config.resultRoot === 'docs/plans'
+      ? {}
+      : { installRoot: path.join(context.repoRoot, context.config.resultRoot) }),
+    ...(getBooleanFlag(args, 'approve-revision') ? { approveRevision: true } : {}),
+  };
+  const outcome = await importReviewResult(
+    { kind: 'files', requestId, folder: manifest.proposedFolder, files },
+    importContext,
+  );
+  if (outcome.status === 'installed') {
+    await context.transport.acknowledgeImport(requestId, {
+      requestId,
+      folder: outcome.folder,
+      installedPath: outcome.installedPath,
+      resultFilesSha256: outcome.resultFilesSha256,
+      importedAt: context.now().toISOString(),
+    });
+    context.io.out(`설치 완료: ${outcome.installedPath}`);
+    context.io.out(`nextAction: ${outcome.nextAction}`);
+    if (outcome.skippedValidations.length > 0) {
+      context.io.out(`skippedValidations: ${outcome.skippedValidations.join(', ')}`);
+    }
+    context.io.out('구현은 자동 시작하지 않습니다. 다음 goal 투입 여부를 사용자가 결정하세요.');
+    return 0;
+  }
+  if (outcome.status === 'no-op') {
+    context.io.out('동일한 결과 패키지가 이미 설치되어 변경이 없습니다.');
+    return 0;
+  }
+  context.io.err(
+    outcome.status === 'refused'
+      ? `결과 반입 refused: ${outcome.message}`
+      : `결과 반입 invalid: ${outcome.errors.map((error) => error.message).join('; ')}`,
+  );
+  return 1;
+}
+
+async function runSync(
+  args: ReturnType<typeof parseArgs>,
+  context: {
+    repoRoot: string;
+    config: ProBridgeConfig;
+    io: ProBridgeIo;
+    transport: BridgeCliTransport;
+    transportName: 'manual' | 'mcp-mailbox';
+    clipboard: NonNullable<ProBridgeDeps['clipboard']>;
+    now: () => Date;
+  },
+): Promise<number> {
+  if (getStringFlag(args, 'from') || context.transportName === 'manual') {
+    return runBundleSync(args, context);
+  }
+  return runMailboxSync(args, {
+    ...context,
+    transport: context.transport as McpMailboxTransport,
+  });
+}
+
+function resolveTunnelKind(value: string): TunnelKind {
+  if (value === 'cloudflared' || value === 'ngrok' || value === 'none') {
+    return value;
+  }
+  throw new Error(`Unsupported tunnel kind "${value}". Expected cloudflared, ngrok, or none.`);
+}
+
+function resolvePort(value: string | undefined, fallback: number): number {
+  const port = value === undefined ? fallback : Number(value);
+  if (!Number.isSafeInteger(port) || port < 0 || port > 65_535) {
+    throw new Error(`Invalid MCP port: ${value ?? fallback}`);
+  }
+  return port;
+}
+
+function waitForShutdownSignal(): Promise<void> {
+  return new Promise((resolve) => {
+    const finish = (): void => {
+      process.off('SIGINT', finish);
+      process.off('SIGTERM', finish);
+      resolve();
+    };
+    process.once('SIGINT', finish);
+    process.once('SIGTERM', finish);
+  });
+}
+
+async function runMcpServer(
+  args: ReturnType<typeof parseArgs>,
+  context: {
+    repoRoot: string;
+    config: ProBridgeConfig;
+    io: ProBridgeIo;
+    deps: ProBridgeDeps;
+    now: () => Date;
+  },
+): Promise<number> {
+  const port = resolvePort(getStringFlag(args, 'port'), context.config.mcp.port);
+  const tunnelKind = resolveTunnelKind(
+    getStringFlag(args, 'tunnel') ?? context.config.mcp.tunnel,
+  );
+  const token = context.deps.randomToken?.() ?? randomBytes(32).toString('base64url');
+  const mailbox = new McpMailboxTransport({ repoRoot: context.repoRoot, now: context.now });
+  const server = await (context.deps.mcpServer?.start ?? startMcpServer)({
+    tools: createMailboxTools(mailbox.store),
+    token,
+    port,
+    log: (line) => context.io.out(`[mcp] ${line}`),
+  });
+  let tunnelHandle: Awaited<ReturnType<typeof startTunnel>> | null = null;
+  try {
+    tunnelHandle = await (context.deps.tunnel?.start ?? startTunnel)(tunnelKind, server.port);
+    if (tunnelKind !== 'none' && tunnelHandle.publicUrl === null) {
+      context.io.err(`터널 URL을 만들지 못해 로컬 URL로 계속합니다: ${tunnelHandle.reason ?? 'binary unavailable'}`);
+    }
+    const baseUrl = tunnelHandle.publicUrl ?? server.url;
+    context.io.out(`local URL: ${server.url}`);
+    if (tunnelHandle.publicUrl) {
+      context.io.out(`public URL: ${tunnelHandle.publicUrl}`);
+    }
+    context.io.out(`connector URL: ${baseUrl}/mcp?token=${encodeURIComponent(token)}`);
+    context.io.out('이 URL에는 토큰이 포함됩니다 — 세션 밖에 저장·공유하지 마세요. 서버 재시작 시 토큰이 재발급됩니다.');
+    context.io.out('Developer Mode 등록: docs/context/pro-bridge-setup.md 를 참조하세요.');
+    context.io.out('종료: Ctrl+C');
+    await (context.deps.waitForShutdown ?? waitForShutdownSignal)();
+  } finally {
+    await tunnelHandle?.stop();
+    await server.close();
+  }
+  return 0;
+}
+
 export async function runProBridge(argv: string[], deps: ProBridgeDeps = {}): Promise<number> {
   const repoRoot = path.resolve(deps.repoRoot ?? process.cwd());
   const now = deps.now ?? (() => new Date());
@@ -498,8 +718,9 @@ export async function runProBridge(argv: string[], deps: ProBridgeDeps = {}): Pr
   const browser = deps.browser ?? { open: openInBrowser };
   const stdin = deps.stdin ?? { isTTY: process.stdin.isTTY === true };
 
+  let transportName: 'manual' | 'mcp-mailbox';
   try {
-    resolveTransportName({
+    transportName = resolveTransportName({
       cliOption: getStringFlag(args, 'transport'),
       configTransport: config.transport,
     });
@@ -507,7 +728,9 @@ export async function runProBridge(argv: string[], deps: ProBridgeDeps = {}): Pr
     io.err(error instanceof Error ? error.message : String(error));
     return 1;
   }
-  const transport = new ManualDirectoryTransport({ repoRoot, now });
+  const transport: BridgeCliTransport = transportName === 'mcp-mailbox'
+    ? new McpMailboxTransport({ repoRoot, now })
+    : new ManualDirectoryTransport({ repoRoot, now });
 
   if (!command) {
     const pending = (await transport.listRequests()).filter(
@@ -515,7 +738,15 @@ export async function runProBridge(argv: string[], deps: ProBridgeDeps = {}): Pr
     );
     if (pending.length > 0) {
       printStatuses(pending, io);
-      io.out('Manual transport는 원격 result-ready를 자동 감지하지 않습니다. 결과가 준비되면 npm run vibe:pro-sync 를 실행하세요.');
+      if (transportName === 'mcp-mailbox') {
+        if (pending.some((status) => status.state === 'result-ready')) {
+          io.out('결과 도착 — npm run vibe:pro-sync 로 설치하세요.');
+        } else {
+          io.out('웹이 요청을 읽으려면 npm run vibe:pro-mcp 서버가 떠 있어야 합니다.');
+        }
+      } else {
+        io.out('Manual transport는 원격 result-ready를 자동 감지하지 않습니다. 결과가 준비되면 npm run vibe:pro-sync 를 실행하세요.');
+      }
       return 0;
     }
     command = 'audit';
@@ -546,11 +777,19 @@ export async function runProBridge(argv: string[], deps: ProBridgeDeps = {}): Pr
     }
   }
   if (command === 'sync') {
-    return runSync(args, { repoRoot, config, io, transport, clipboard, now });
+    return runSync(args, { repoRoot, config, io, transport, transportName, clipboard, now });
+  }
+  if (command === 'mcp') {
+    try {
+      return await runMcpServer(args, { repoRoot, config, io, deps, now });
+    } catch (error) {
+      io.err(error instanceof Error ? error.message : String(error));
+      return 1;
+    }
   }
 
   if (command !== 'audit' && command !== 'design') {
-    io.err('usage: vibe-pro-bridge [audit|design|status|sync|cancel|list]');
+    io.err('usage: vibe-pro-bridge [audit|design|status|sync|cancel|list|mcp]');
     return 1;
   }
 
@@ -614,6 +853,7 @@ export async function runProBridge(argv: string[], deps: ProBridgeDeps = {}): Pr
       config,
       io,
       transport,
+      transportName,
       clipboard,
       browser,
       stdin,

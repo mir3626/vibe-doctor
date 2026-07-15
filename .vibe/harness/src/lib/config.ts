@@ -51,6 +51,11 @@ export interface AuditConfig {
   prototypeLocThreshold?: number;
 }
 
+export interface ProBridgeMcpConfig {
+  port: number;
+  tunnel: string;
+}
+
 export interface ProBridgeConfig {
   enabled: boolean;
   transport: string;
@@ -60,7 +65,17 @@ export interface ProBridgeConfig {
   openBrowser: boolean;
   copyInvocation: boolean;
   githubRequired: boolean;
+  mcp: ProBridgeMcpConfig;
 }
+
+export type ProBridgeConfigInput = Partial<Omit<ProBridgeConfig, 'mcp'>> & {
+  mcp?: Partial<ProBridgeMcpConfig>;
+};
+
+export const DEFAULT_PRO_BRIDGE_MCP_CONFIG: ProBridgeMcpConfig = {
+  port: 8848,
+  tunnel: 'none',
+};
 
 export const DEFAULT_PRO_BRIDGE_CONFIG: ProBridgeConfig = {
   enabled: false,
@@ -71,11 +86,12 @@ export const DEFAULT_PRO_BRIDGE_CONFIG: ProBridgeConfig = {
   openBrowser: true,
   copyInvocation: true,
   githubRequired: true,
+  mcp: DEFAULT_PRO_BRIDGE_MCP_CONFIG,
 };
 
 export function resolveProBridgeConfig(
-  base?: Partial<ProBridgeConfig>,
-  override?: Partial<ProBridgeConfig>,
+  base?: ProBridgeConfigInput,
+  override?: ProBridgeConfigInput,
 ): ProBridgeConfig {
   return {
     enabled: override?.enabled ?? base?.enabled ?? DEFAULT_PRO_BRIDGE_CONFIG.enabled,
@@ -98,6 +114,11 @@ export function resolveProBridgeConfig(
       override?.githubRequired
       ?? base?.githubRequired
       ?? DEFAULT_PRO_BRIDGE_CONFIG.githubRequired,
+    mcp: {
+      port: override?.mcp?.port ?? base?.mcp?.port ?? DEFAULT_PRO_BRIDGE_MCP_CONFIG.port,
+      tunnel:
+        override?.mcp?.tunnel ?? base?.mcp?.tunnel ?? DEFAULT_PRO_BRIDGE_MCP_CONFIG.tunnel,
+    },
   };
 }
 
@@ -137,7 +158,7 @@ export type VibeConfigOverride = Partial<
   bundle?: Partial<BundleConfig>;
   browserSmoke?: Partial<BrowserSmokeConfig>;
   audit?: Partial<AuditConfig>;
-  proBridge?: Partial<ProBridgeConfig>;
+  proBridge?: ProBridgeConfigInput;
 };
 
 function resolveBundleConfig(

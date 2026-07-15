@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { access, mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -6,16 +7,21 @@ import { describe, it } from 'node:test';
 import { runProBridge, type ProBridgeIo } from '../src/commands/pro-bridge.js';
 import { DEFAULT_PRO_BRIDGE_CONFIG } from '../src/lib/config.js';
 import {
+  computePayloadSha256,
   type GoalSourceManifest,
+  type ReviewRequest,
+  type ReviewResultManifest,
 } from '../src/pro-bridge/contract.js';
 import { resolveGoalSource } from '../src/pro-bridge/goal-source/resolver.js';
 import type {
   GitPort,
   GoalSourceProvider,
 } from '../src/pro-bridge/goal-source/types.js';
+import { createMailboxTools } from '../src/pro-bridge/mailbox/tools.js';
 import { buildReviewRequest } from '../src/pro-bridge/prompt-composer.js';
 import type { ScopeResolution } from '../src/pro-bridge/scope-resolver.js';
 import { ManualDirectoryTransport } from '../src/pro-bridge/transports/manual.js';
+import { McpMailboxTransport } from '../src/pro-bridge/transports/mcp-mailbox.js';
 import { serializeVibeBundle } from '../src/pro-bridge/vibe-bundle.js';
 
 const BASE_SHA = 'a'.repeat(40);
@@ -238,6 +244,137 @@ describe('pro bridge manual round trip', () => {
       assert.equal(imported.requestId, result.requestId);
       assert.equal(imported.folder, RESULT_FOLDER);
       assert.equal(imported.installedPath, result.installedPath);
+    } finally {
+      await rm(repoRoot, { recursive: true, force: true });
+    }
+  });
+});
+
+describe('pro bridge mcp mailbox round trip', () => {
+  it('round trips an audit request through the mcp mailbox transport', async () => {
+    const repoRoot = await mkdtemp(path.join(tmpdir(), 'vibe-pro-bridge-mcp-e2e-'));
+    const git: GitPort = {
+      async run(args) {
+        if (args[0] === 'config') {
+          return { ok: true, stdout: 'https://github.com/owner/repo.git\n', stderr: '', code: 0 };
+        }
+        if (args[0] === 'symbolic-ref') {
+          return { ok: true, stdout: 'origin/main\n', stderr: '', code: 0 };
+        }
+        if (args[0] === 'rev-parse') {
+          return { ok: true, stdout: args.includes('--abbrev-ref') ? 'main\n' : `${HEAD_SHA}\n`, stderr: '', code: 0 };
+        }
+        if (args[0] === 'branch') {
+          return { ok: true, stdout: '  origin/main\n', stderr: '', code: 0 };
+        }
+        if (args[0] === 'status') {
+          return { ok: true, stdout: '', stderr: '', code: 0 };
+        }
+        return { ok: false, stdout: '', stderr: `unexpected: ${args.join(' ')}`, code: 1 };
+      },
+    };
+    try {
+      const published = captureIo();
+      const exit = await runProBridge(['audit', '--yes'], {
+        repoRoot,
+        config: {
+          ...DEFAULT_PRO_BRIDGE_CONFIG,
+          enabled: true,
+          transport: 'mcp-mailbox',
+          resultRoot: 'installed-results',
+          copyInvocation: false,
+          openBrowser: false,
+        },
+        io: published.io,
+        git,
+        goalResolver: (async () => ({
+          selected: syntheticGoal(repoRoot),
+          candidates: [],
+          diagnostics: [],
+        })) as unknown as typeof resolveGoalSource,
+        clipboard: {
+          async copyFile() { return { ok: true, method: 'fake', error: null }; },
+          async readText() { return { ok: true, text: '', error: null }; },
+        },
+        browser: { async open() { return { ok: true, error: null }; } },
+        stdin: { isTTY: false },
+        now: () => NOW,
+      });
+      assert.equal(exit, 0, published.err.join('\n'));
+
+      const transport = new McpMailboxTransport({ repoRoot, now: () => NOW });
+      const pending = await transport.listRequests();
+      assert.equal(pending.length, 1);
+      const requestId = pending[0]!.requestId;
+      const tools = new Map(createMailboxTools(transport.store).map((tool) => [tool.name, tool]));
+      await tools.get('claim_request')!.invoke({ requestId });
+      await tools.get('begin_result')!.invoke({ requestId });
+
+      const request = await transport.readRequest(requestId) as ReviewRequest;
+      const files = [
+        { path: 'README.md', content: '# MCP E2E result\n' },
+        { path: 'REVIEW.md', content: '# Review\n\nMailbox E2E passed.\n' },
+        { path: 'FINDINGS.json', content: '{"findings":[]}\n' },
+        { path: 'prompt/CLI_MAIN_SESSION_PROMPT.md', content: '# Next\n\nWait for user approval.\n' },
+      ];
+      for (const file of files) {
+        await tools.get('put_result_file')!.invoke({
+          requestId,
+          filePath: file.path,
+          chunkIndex: 0,
+          chunkCount: 1,
+          content: file.content,
+          chunkSha256: createHash('sha256').update(file.content).digest('hex'),
+        });
+      }
+      const draft: ReviewResultManifest = {
+        schemaVersion: 'vibe-pro-review-result-v1', requestId,
+        requestPayloadSha256: request.payloadSha256, repositoryFullName: request.repository.fullName,
+        reviewedBaseSha: request.git.baseSha, reviewedHeadSha: request.git.headSha,
+        resultKind: 'audit', proposedFolder: '2026-07-15-mcp-round-trip-pro-review', disposition: 'approved',
+        files: files.map((file) => {
+          const bytes = Buffer.from(file.content, 'utf8');
+          return {
+            path: file.path,
+            mediaType: file.path.endsWith('.json') ? 'application/json' : 'text/markdown',
+            byteLength: bytes.byteLength,
+            sha256: createHash('sha256').update(bytes).digest('hex'),
+          };
+        }),
+        findingsSummary: { p0: 0, p1: 0, p2: 0, p3: 0 },
+        reviewerDeclaration: { surface: 'chatgpt-web', requestedMode: 'pro', githubConnectorUsed: true, limitations: [] },
+        createdAt: NOW.toISOString(), payloadSha256: '0'.repeat(64),
+      };
+      const manifest = { ...draft, payloadSha256: computePayloadSha256(draft) };
+      await tools.get('finalize_result')!.invoke({ requestId, manifest });
+
+      const synced = captureIo();
+      const syncExit = await runProBridge(['sync', '--latest'], {
+        repoRoot,
+        config: {
+          ...DEFAULT_PRO_BRIDGE_CONFIG,
+          enabled: true,
+          transport: 'mcp-mailbox',
+          resultRoot: 'installed-results',
+        },
+        io: synced.io,
+        now: () => NOW,
+      });
+      assert.equal(syncExit, 0, synced.err.join('\n'));
+      const installedPath = path.join(repoRoot, 'installed-results', manifest.proposedFolder);
+      for (const file of files) {
+        await access(path.join(installedPath, file.path));
+      }
+      const provenance = JSON.parse(await readFile(
+        path.join(installedPath, '.bridge/provenance.json'), 'utf8',
+      )) as { resultFilesSha256: string };
+      const imported = JSON.parse(await readFile(
+        path.join(transport.store.requestsRoot, requestId, 'imported.json'), 'utf8',
+      )) as { resultFilesSha256: string };
+      assert.match(imported.resultFilesSha256, /^[0-9a-f]{64}$/);
+      assert.notEqual(imported.resultFilesSha256, 'recorded-by-importer');
+      assert.equal(imported.resultFilesSha256, provenance.resultFilesSha256);
+      assert.equal((await transport.getRequestStatus(requestId)).state, 'imported');
     } finally {
       await rm(repoRoot, { recursive: true, force: true });
     }
