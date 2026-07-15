@@ -93,9 +93,12 @@ function githubScope(): ScopeResolution {
   };
 }
 
-const unusedGit: GitPort = {
-  async run() {
-    return { ok: false, stdout: '', stderr: 'not used by synthetic provider', code: 1 };
+const fixtureGit: GitPort = {
+  async run(args) {
+    if (args[0] === 'remote') {
+      return { ok: true, stdout: 'https://github.com/owner/repo.git\n', stderr: '', code: 0 };
+    }
+    return { ok: false, stdout: '', stderr: `unexpected: ${args.join(' ')}`, code: 1 };
   },
 };
 
@@ -146,7 +149,7 @@ async function executeRoundTrip(repoRoot: string): Promise<{
   requestId: string;
 }> {
   const resolution = await resolveGoalSource(
-    { repoRoot, git: unusedGit, now: () => NOW },
+    { repoRoot, git: fixtureGit, now: () => NOW },
     { providers: [goalProvider(repoRoot)] },
   );
   assert.ok(resolution.selected);
@@ -178,6 +181,7 @@ async function executeRoundTrip(repoRoot: string): Promise<{
       resultRoot: 'installed-results',
     },
     io: captured.io,
+    git: fixtureGit,
     clipboard: {
       async copyFile() {
         return { ok: true, method: 'fake', error: null };
@@ -255,6 +259,9 @@ describe('pro bridge mcp mailbox round trip', () => {
     const repoRoot = await mkdtemp(path.join(tmpdir(), 'vibe-pro-bridge-mcp-e2e-'));
     const git: GitPort = {
       async run(args) {
+        if (args[0] === 'remote') {
+          return { ok: true, stdout: 'https://github.com/owner/repo.git\n', stderr: '', code: 0 };
+        }
         if (args[0] === 'config') {
           return { ok: true, stdout: 'https://github.com/owner/repo.git\n', stderr: '', code: 0 };
         }
@@ -358,6 +365,7 @@ describe('pro bridge mcp mailbox round trip', () => {
           resultRoot: 'installed-results',
         },
         io: synced.io,
+        git,
         now: () => NOW,
       });
       assert.equal(syncExit, 0, synced.err.join('\n'));

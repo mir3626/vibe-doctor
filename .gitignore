@@ -33,3 +33,6 @@ scripts/tmp-*.mjs
 .vibe/sidecars/
 # pro-bridge runtime mailbox (durable provenance lives in installed packages)
 .vibe/pro-bridge/
+
+# transient user-provided raw review bundle (content preserved in installed docs/plans package)
+/vibe-pro-bridge-review.md

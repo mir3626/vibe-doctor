@@ -37,6 +37,17 @@ export interface ImportContext {
   request?: ReviewRequest | null;
   resultManifest?: ReviewResultManifest | null;
   expectedRepositoryFullName?: string | null;
+  currentRepositoryFullName?: string | null;
+  requestRepositoryFullName?: string | null;
+  repositoryIdentityOverride?: {
+    current: string | null;
+    request: string | null;
+    flag: 'dangerously-override-repository-identity';
+  } | null;
+  unboundAcceptance?: {
+    flag: 'accept-unbound-web-origin';
+    acknowledgedAt: string;
+  } | null;
   approveRevision?: boolean;
   acknowledgedValidations?: string[];
   transport?: string;
@@ -82,7 +93,7 @@ export type ImportOutcome =
       nextAction: string;
       skippedValidations: string[];
     }
-  | { status: 'no-op'; folder: string }
+  | { status: 'no-op'; folder: string; legacyRepositoryIdentity?: true }
   | {
       status: 'refused';
       code: 'existing-folder-conflict' | 'revision-slot-occupied';
@@ -118,6 +129,23 @@ interface ProvenanceReceipt {
   reviewerDeclaration: ReviewResultManifest['reviewerDeclaration'] | null;
   skippedValidations: string[];
   folder: string;
+  currentRepositoryFullName: string | null;
+  requestRepositoryFullName: string | null;
+  repositoryIdentityOverride: {
+    current: string | null;
+    request: string | null;
+    flag: 'dangerously-override-repository-identity';
+  } | null;
+  unboundAcceptance: {
+    flag: 'accept-unbound-web-origin';
+    acknowledgedAt: string;
+  } | null;
+}
+
+interface ExistingProvenance {
+  resultIdentity: string | null;
+  repositoryFullName: string | null;
+  hasRepositoryIdentityFields: boolean;
 }
 
 const DEFAULT_LIMITS = {
@@ -288,19 +316,58 @@ async function pathExists(targetPath: string): Promise<boolean> {
   }
 }
 
-async function existingIdentity(
+async function existingProvenance(
   folderPath: string,
   preferResultPayload: boolean,
-): Promise<string | null> {
+): Promise<ExistingProvenance | null> {
   try {
     const value = JSON.parse(
       await readFile(path.join(folderPath, RESERVED_PROVENANCE_PATH), 'utf8'),
     ) as Record<string, unknown>;
     const field = preferResultPayload ? value.resultPayloadSha256 : value.resultFilesSha256;
-    return typeof field === 'string' && /^[0-9a-f]{64}$/.test(field) ? field : null;
+    const requestRepository = value.requestRepositoryFullName;
+    const currentRepository = value.currentRepositoryFullName;
+    return {
+      resultIdentity: typeof field === 'string' && /^[0-9a-f]{64}$/.test(field) ? field : null,
+      repositoryFullName: typeof requestRepository === 'string'
+        ? requestRepository
+        : typeof currentRepository === 'string'
+          ? currentRepository
+          : null,
+      hasRepositoryIdentityFields:
+        Object.prototype.hasOwnProperty.call(value, 'requestRepositoryFullName')
+        || Object.prototype.hasOwnProperty.call(value, 'currentRepositoryFullName'),
+    };
   } catch {
     return null;
   }
+}
+
+function noOpOutcome(
+  existing: ExistingProvenance | null,
+  resultIdentity: string,
+  expectedRepositoryFullName: string | null,
+  folder: string,
+): ImportOutcome | null {
+  if (existing?.resultIdentity !== resultIdentity) {
+    return null;
+  }
+  if (expectedRepositoryFullName === null) {
+    return { status: 'no-op', folder };
+  }
+  if (!existing.hasRepositoryIdentityFields) {
+    return { status: 'no-op', folder, legacyRepositoryIdentity: true };
+  }
+  if (existing.repositoryFullName !== expectedRepositoryFullName) {
+    return {
+      status: 'invalid',
+      errors: [{
+        code: 'repository-mismatch',
+        message: `Installed provenance repository ${existing.repositoryFullName ?? 'unbound'} does not match ${expectedRepositoryFullName}`,
+      }],
+    };
+  }
+  return { status: 'no-op', folder };
 }
 
 async function syncBestEffort(targetPath: string): Promise<void> {
@@ -344,6 +411,12 @@ export async function importReviewResult(
   const skipped = new Set<string>();
   for (const validation of context.acknowledgedValidations ?? []) {
     addSkipped(skipped, validation);
+  }
+  if (context.repositoryIdentityOverride) {
+    addSkipped(skipped, 'repository-identity-overridden');
+  }
+  if (context.unboundAcceptance) {
+    addSkipped(skipped, 'unbound-import-accepted');
   }
   const limits = {
     maxFiles: normalizeLimit(context.limits?.maxFiles, DEFAULT_LIMITS.maxFiles),
@@ -461,7 +534,7 @@ export async function importReviewResult(
 
   if (request === null) {
     addSkipped(skipped, 'request-metadata-unavailable');
-    if (normalized.requestId !== 'web-origin') {
+    if (normalized.requestId !== 'web-origin' && !context.unboundAcceptance) {
       addError(
         errors,
         'request-id-mismatch',
@@ -566,8 +639,14 @@ export async function importReviewResult(
   let targetFolder = normalized.folder;
   let finalPath = path.join(installRoot, targetFolder);
   if (await pathExists(finalPath)) {
-    if ((await existingIdentity(finalPath, preferResultPayload)) === resultIdentity) {
-      return { status: 'no-op', folder: targetFolder };
+    const noOp = noOpOutcome(
+      await existingProvenance(finalPath, preferResultPayload),
+      resultIdentity,
+      context.expectedRepositoryFullName ?? null,
+      targetFolder,
+    );
+    if (noOp) {
+      return noOp;
     }
     if (context.approveRevision !== true) {
       return {
@@ -591,8 +670,14 @@ export async function importReviewResult(
     }
     finalPath = path.join(installRoot, targetFolder);
     if (await pathExists(finalPath)) {
-      if ((await existingIdentity(finalPath, preferResultPayload)) === resultIdentity) {
-        return { status: 'no-op', folder: targetFolder };
+      const noOp = noOpOutcome(
+        await existingProvenance(finalPath, preferResultPayload),
+        resultIdentity,
+        context.expectedRepositoryFullName ?? null,
+        targetFolder,
+      );
+      if (noOp) {
+        return noOp;
       }
       return {
         status: 'refused',
@@ -634,6 +719,10 @@ export async function importReviewResult(
       reviewerDeclaration: resultManifest?.reviewerDeclaration ?? null,
       skippedValidations: [...skipped].sort(compareStringsByCodePoint),
       folder: targetFolder,
+      currentRepositoryFullName: context.currentRepositoryFullName ?? null,
+      requestRepositoryFullName: context.requestRepositoryFullName ?? null,
+      repositoryIdentityOverride: context.repositoryIdentityOverride ?? null,
+      unboundAcceptance: context.unboundAcceptance ?? null,
     };
     const provenancePath = path.join(stagingPath, RESERVED_PROVENANCE_PATH);
     await mkdir(path.dirname(provenancePath), { recursive: true });

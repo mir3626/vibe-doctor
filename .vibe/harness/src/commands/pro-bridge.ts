@@ -22,7 +22,7 @@ import {
   createDefaultGitPort,
   type GitPort,
 } from '../pro-bridge/goal-source/types.js';
-import { importReviewResult } from '../pro-bridge/importer.js';
+import { importReviewResult, type ImportContext } from '../pro-bridge/importer.js';
 import { startMcpServer } from '../pro-bridge/mailbox/server.js';
 import { createMailboxTools } from '../pro-bridge/mailbox/tools.js';
 import {
@@ -64,6 +64,30 @@ const CHATGPT_BOOTSTRAP =
 const CHATGPT_MCP_BOOTSTRAP =
   '클립보드의 Vibe Pro Bridge request invocation을 붙여넣고, Pro 모델과 연결된 mailbox 도구로 진행하세요.';
 const TERMINAL_STATES = new Set(['imported', 'cancelled', 'expired', 'failed']);
+const REPOSITORY_OVERRIDE_FLAG = 'dangerously-override-repository-identity' as const;
+const UNBOUND_ACCEPTANCE_FLAG = 'accept-unbound-web-origin' as const;
+const UNBOUND_SKIPPED_VALIDATIONS = [
+  'request-metadata-unavailable',
+  'result-manifest-unavailable',
+  'request-hash-binding-skipped',
+  'result-hash-binding-skipped',
+  'repository-binding-skipped',
+  'reviewed-head-binding-skipped',
+  'file-roster-binding-skipped',
+  'file-sha-binding-skipped',
+  'reviewer-declaration-unavailable',
+] as const;
+
+type CurrentRepoIdentity =
+  | { ok: true; fullName: string }
+  | { ok: false; reason: 'origin-missing' | 'origin-unresolvable' };
+
+interface RepositoryImportBinding {
+  expectedRepositoryFullName: string | null;
+  currentRepositoryFullName: string | null;
+  requestRepositoryFullName: string | null;
+  repositoryIdentityOverride: NonNullable<ImportContext['repositoryIdentityOverride']> | null;
+}
 
 type BridgeCliTransport = VibeProBridgeTransport & {
   listRequests(): Promise<RequestStatus[]>;
@@ -158,6 +182,115 @@ function booleanAt(value: unknown, ...keys: string[]): boolean | null {
 function arrayAt(value: unknown, ...keys: string[]): unknown[] {
   const found = nested(value, ...keys);
   return Array.isArray(found) ? found : [];
+}
+
+async function resolveCurrentRepositoryIdentity(git: GitPort): Promise<CurrentRepoIdentity> {
+  let remote: Awaited<ReturnType<GitPort['run']>>;
+  try {
+    remote = await git.run(['remote', 'get-url', 'origin']);
+  } catch {
+    return { ok: false, reason: 'origin-missing' };
+  }
+  const remoteUrl = remote.ok ? remote.stdout.trim() : '';
+  if (!remoteUrl) {
+    return { ok: false, reason: 'origin-missing' };
+  }
+  const fullName = parseGitHubFullName(remoteUrl);
+  return fullName
+    ? { ok: true, fullName }
+    : { ok: false, reason: 'origin-unresolvable' };
+}
+
+function reportRepositoryIdentityFailure(
+  identity: Extract<CurrentRepoIdentity, { ok: false }>,
+  io: ProBridgeIo,
+): void {
+  const reason = identity.reason === 'origin-missing'
+    ? 'origin remote가 없거나 URL을 읽을 수 없습니다.'
+    : 'origin URL이 GitHub 저장소 fullName으로 해석되지 않습니다.';
+  io.err(`현재 저장소 정체성 확인 실패 (${identity.reason}): ${reason}`);
+  io.err('GitHub origin을 설정한 뒤 다시 시도하세요 (git remote add/set-url origin <github-url>).');
+  io.err(`정말 우회해야 한다면 --${REPOSITORY_OVERRIDE_FLAG}를 명시하세요. 이 실행은 provenance에 기록되고 release 증거에서 제외됩니다.`);
+}
+
+function bindRepositoryIdentity(input: {
+  current: CurrentRepoIdentity;
+  requestRepositoryFullName: string | null;
+  override: boolean;
+  io: ProBridgeIo;
+}): RepositoryImportBinding | null {
+  const currentFullName = input.current.ok ? input.current.fullName : null;
+  if (!input.current.ok && !input.override) {
+    reportRepositoryIdentityFailure(input.current, input.io);
+    return null;
+  }
+  if (
+    input.current.ok
+    && input.requestRepositoryFullName !== null
+    && input.current.fullName !== input.requestRepositoryFullName
+    && !input.override
+  ) {
+    input.io.err(
+      `저장소 정체성 불일치: current=${input.current.fullName}, request/manifest=${input.requestRepositoryFullName}`,
+    );
+    input.io.err(`다른 저장소 결과는 설치하지 않습니다. 정말 우회해야 한다면 --${REPOSITORY_OVERRIDE_FLAG}를 명시하세요.`);
+    return null;
+  }
+
+  const expectedRepositoryFullName = input.override
+    ? input.requestRepositoryFullName ?? currentFullName
+    : currentFullName;
+  const repositoryIdentityOverride = input.override
+    ? {
+        current: currentFullName,
+        request: input.requestRepositoryFullName,
+        flag: REPOSITORY_OVERRIDE_FLAG,
+      }
+    : null;
+  if (repositoryIdentityOverride) {
+    const currentLabel = currentFullName ?? `unavailable (${input.current.ok ? 'unknown' : input.current.reason})`;
+    input.io.err(
+      `저장소 정체성 강제 우회: current=${currentLabel}, request/manifest=${input.requestRepositoryFullName ?? 'unbound'}`,
+    );
+    input.io.err(`--${REPOSITORY_OVERRIDE_FLAG} 사용을 provenance에 기록하며 release 증거에서 제외합니다.`);
+  }
+  return {
+    expectedRepositoryFullName,
+    currentRepositoryFullName: currentFullName,
+    requestRepositoryFullName: input.requestRepositoryFullName,
+    repositoryIdentityOverride,
+  };
+}
+
+function printUnboundValidations(io: ProBridgeIo, channel: 'out' | 'err'): void {
+  io[channel](`unbound Web-origin에서 생략되는 검증: ${UNBOUND_SKIPPED_VALIDATIONS.join(', ')}`);
+}
+
+function warnLegacyNoOp(io: ProBridgeIo): void {
+  io.err('경고: 기존 provenance에 저장소 정체성 필드가 없어 legacy no-op를 허용했습니다. 새 설치에는 정체성 필드가 기록됩니다.');
+}
+
+async function acknowledgeAfterInstall(input: {
+  transport: Pick<VibeProBridgeTransport, 'acknowledgeImport'>;
+  requestId: string;
+  folder: string;
+  installedPath: string;
+  resultFilesSha256: string;
+  now: () => Date;
+  io: ProBridgeIo;
+}): Promise<void> {
+  try {
+    await input.transport.acknowledgeImport(input.requestId, {
+      requestId: input.requestId,
+      folder: input.folder,
+      installedPath: input.installedPath,
+      resultFilesSha256: input.resultFilesSha256,
+      importedAt: input.now().toISOString(),
+    });
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error);
+    input.io.err(`경고: 요청 후처리(ack) 실패: ${reason} — 설치는 완료됨, mailbox 요청은 종결되지 않은 상태로 남습니다 (ack 의미론은 vpb-08에서 처리).`);
+  }
 }
 
 function scopeReasons(error: unknown): string[] {
@@ -507,6 +640,7 @@ async function runBundleSync(
     io: ProBridgeIo;
     transport: BridgeCliTransport;
     clipboard: NonNullable<ProBridgeDeps['clipboard']>;
+    git: GitPort;
     now: () => Date;
   },
 ): Promise<number> {
@@ -537,8 +671,17 @@ async function runBundleSync(
     context.io.err('vibe-bundle requestId가 없습니다.');
     return 1;
   }
+
+  const currentIdentity = await resolveCurrentRepositoryIdentity(context.git);
+  const overrideRepositoryIdentity = getBooleanFlag(args, REPOSITORY_OVERRIDE_FLAG);
+  if (!currentIdentity.ok && !overrideRepositoryIdentity) {
+    reportRepositoryIdentityFailure(currentIdentity, context.io);
+    return 1;
+  }
+
   let request: ReviewRequest | null = null;
   let boundRequestId: string | null = null;
+  let acknowledgementTransport: Pick<VibeProBridgeTransport, 'acknowledgeImport'> | null = null;
   if (requestId === 'web-origin') {
     if (getBooleanFlag(args, 'latest')) {
       const latest = (await context.transport.listRequests()).find(
@@ -547,47 +690,74 @@ async function runBundleSync(
       if (latest) {
         request = await context.transport.readRequest(latest.requestId);
         boundRequestId = latest.requestId;
+        acknowledgementTransport = request ? context.transport : null;
       }
     }
   } else {
-    request = await context.transport.readRequest(requestId);
-    boundRequestId = request ? requestId : null;
-    if (!request) {
-      context.io.err(`일치하는 outbox 요청이 없습니다: ${requestId}`);
-      return 1;
+    const manual = new ManualDirectoryTransport({ repoRoot: context.repoRoot, now: context.now });
+    const mailbox = new McpMailboxTransport({ repoRoot: context.repoRoot, now: context.now });
+    request = await manual.readRequest(requestId);
+    if (request) {
+      boundRequestId = requestId;
+      acknowledgementTransport = manual;
+    } else {
+      request = await mailbox.store.getRequest(requestId);
+      if (request) {
+        boundRequestId = requestId;
+        acknowledgementTransport = mailbox;
+      }
     }
+  }
+
+  const unbound = request === null;
+  const acceptUnbound = getBooleanFlag(args, UNBOUND_ACCEPTANCE_FLAG);
+  if (unbound && !acceptUnbound) {
+    context.io.err('바인딩 메타데이터가 없는 Web-origin 결과는 기본적으로 설치하지 않습니다.');
+    printUnboundValidations(context.io, 'err');
+    context.io.err(`검증 생략을 명시적으로 승인하려면 --${UNBOUND_ACCEPTANCE_FLAG}를 사용하세요.`);
+    return 1;
+  }
+  if (unbound) {
+    printUnboundValidations(context.io, 'out');
+    context.io.out(`--${UNBOUND_ACCEPTANCE_FLAG} 승인을 provenance에 기록하며 release 증거에서 제외합니다.`);
+  }
+
+  const requestRepositoryFullName = request?.repository.fullName ?? null;
+  const repositoryBinding = bindRepositoryIdentity({
+    current: currentIdentity,
+    requestRepositoryFullName,
+    override: overrideRepositoryIdentity,
+    io: context.io,
+  });
+  if (!repositoryBinding) {
+    return 1;
   }
 
   const approveRevision = getBooleanFlag(args, 'approve-revision');
   const importer = importReviewResult as unknown as (
     input: { kind: 'bundle'; bundle: unknown },
-    importContext: {
-      repoRoot: string;
-      request: ReviewRequest | null;
-      expectedRepositoryFullName: string | null;
-      transport: string;
-      now: () => Date;
-      installRoot?: string;
-      approveRevision?: boolean;
-    },
+    importContext: ImportContext,
   ) => Promise<unknown>;
+  const bundleRecord = record(parsed.bundle);
+  const bundleForImport = requestId === 'web-origin' && boundRequestId && bundleRecord
+    ? { ...bundleRecord, requestId: boundRequestId }
+    : parsed.bundle;
   const importInput: { kind: 'bundle'; bundle: unknown } = {
     kind: 'bundle',
-    bundle: parsed.bundle,
+    bundle: bundleForImport,
   };
-  const importContext: {
-    repoRoot: string;
-    request: ReviewRequest | null;
-    expectedRepositoryFullName: string | null;
-    transport: string;
-    now: () => Date;
-    installRoot?: string;
-    approveRevision?: boolean;
-  } = {
+  const importContext: ImportContext = {
     repoRoot: context.repoRoot,
     request,
-    expectedRepositoryFullName: request
-      ? stringAt(request, 'repository', 'fullName')
+    expectedRepositoryFullName: repositoryBinding.expectedRepositoryFullName,
+    currentRepositoryFullName: repositoryBinding.currentRepositoryFullName,
+    requestRepositoryFullName: repositoryBinding.requestRepositoryFullName,
+    repositoryIdentityOverride: repositoryBinding.repositoryIdentityOverride,
+    unboundAcceptance: unbound
+      ? {
+          flag: UNBOUND_ACCEPTANCE_FLAG,
+          acknowledgedAt: context.now().toISOString(),
+        }
       : null,
     transport: 'manual',
     now: context.now,
@@ -607,20 +777,6 @@ async function runBundleSync(
     const folder = stringAt(outcome, 'folder')
       ?? stringAt(parsed.bundle, 'manifest', 'folder')
       ?? path.basename(installedPath);
-    if (boundRequestId) {
-      const resultFilesSha256 = stringAt(outcome, 'resultFilesSha256');
-      if (!resultFilesSha256) {
-        context.io.err('Importer installed outcome에 resultFilesSha256가 없습니다.');
-        return 1;
-      }
-      await context.transport.acknowledgeImport(boundRequestId, {
-        requestId: boundRequestId,
-        folder,
-        installedPath,
-        resultFilesSha256,
-        importedAt: context.now().toISOString(),
-      });
-    }
     context.io.out(`설치 완료: ${installedPath || folder}`);
     const nextAction = stringAt(outcome, 'nextAction');
     if (nextAction) {
@@ -631,10 +787,29 @@ async function runBundleSync(
       context.io.out(`skippedValidations: ${skipped.map(String).join(', ')}`);
     }
     context.io.out('구현은 자동 시작하지 않습니다. 다음 goal 투입 여부를 사용자가 결정하세요.');
+    if (boundRequestId && acknowledgementTransport) {
+      const resultFilesSha256 = stringAt(outcome, 'resultFilesSha256');
+      if (!resultFilesSha256) {
+        context.io.err('경고: importer 결과에 resultFilesSha256가 없어 요청 후처리(ack)를 생략했습니다. 설치는 완료되었습니다.');
+      } else {
+        await acknowledgeAfterInstall({
+          transport: acknowledgementTransport,
+          requestId: boundRequestId,
+          folder,
+          installedPath,
+          resultFilesSha256,
+          now: context.now,
+          io: context.io,
+        });
+      }
+    }
     return 0;
   }
   if (status === 'no-op' || status === 'noop') {
     context.io.out('동일한 결과 패키지가 이미 설치되어 변경이 없습니다.');
+    if (booleanAt(outcome, 'legacyRepositoryIdentity') === true) {
+      warnLegacyNoOp(context.io);
+    }
     return 0;
   }
   context.io.err(`결과 반입 ${status}: ${stringAt(outcome, 'message') ?? '검증을 통과하지 못했습니다.'}`);
@@ -654,6 +829,13 @@ async function runMailboxSync(
     now: () => Date;
   },
 ): Promise<number> {
+  const currentIdentity = await resolveCurrentRepositoryIdentity(context.git);
+  const overrideRepositoryIdentity = getBooleanFlag(args, REPOSITORY_OVERRIDE_FLAG);
+  if (!currentIdentity.ok && !overrideRepositoryIdentity) {
+    reportRepositoryIdentityFailure(currentIdentity, context.io);
+    return 1;
+  }
+
   let ready = await context.transport.listResultReady();
   const positional = args.positionals[1];
   const kind = resolveKindFlag(args);
@@ -661,16 +843,11 @@ async function runMailboxSync(
     if (kind !== null) {
       ready = ready.filter((status) => status.kind === kind);
     }
-    const remote = await context.git.run(['remote', 'get-url', 'origin']);
-    const repositoryFullName = parseGitHubFullName(remote.ok ? remote.stdout.trim() : null);
-    if (repositoryFullName === null) {
-      // The mailbox is repository-local, so unresolved identity degrades to an explicit warning.
-      context.io.err('현재 GitHub origin fullName을 해석하지 못해 mailbox repository 필터를 생략합니다.');
-    } else {
+    if (currentIdentity.ok && !overrideRepositoryIdentity) {
       const matching: RequestStatus[] = [];
       for (const status of ready) {
         const candidate = await context.transport.readRequest(status.requestId);
-        if (candidate?.repository.fullName === repositoryFullName) {
+        if (candidate?.repository.fullName === currentIdentity.fullName) {
           matching.push(status);
         }
       }
@@ -705,6 +882,21 @@ async function runMailboxSync(
   ]);
   if (!request || !manifest) {
     context.io.err(`mailbox request/result manifest를 읽을 수 없습니다: ${requestId}`);
+    return 1;
+  }
+  if (manifest.repositoryFullName !== request.repository.fullName) {
+    context.io.err(
+      `request/result 저장소 정체성 불일치: request=${request.repository.fullName}, manifest=${manifest.repositoryFullName}`,
+    );
+    return 1;
+  }
+  const repositoryBinding = bindRepositoryIdentity({
+    current: currentIdentity,
+    requestRepositoryFullName: request.repository.fullName,
+    override: overrideRepositoryIdentity,
+    io: context.io,
+  });
+  if (!repositoryBinding) {
     return 1;
   }
   if (kind !== null && request.kind !== kind) {
@@ -745,7 +937,11 @@ async function runMailboxSync(
     repoRoot: context.repoRoot,
     request,
     resultManifest: manifest,
-    expectedRepositoryFullName: request.repository.fullName,
+    expectedRepositoryFullName: repositoryBinding.expectedRepositoryFullName,
+    currentRepositoryFullName: repositoryBinding.currentRepositoryFullName,
+    requestRepositoryFullName: repositoryBinding.requestRepositoryFullName,
+    repositoryIdentityOverride: repositoryBinding.repositoryIdentityOverride,
+    unboundAcceptance: null,
     transport: context.transportName,
     now: context.now,
     ...(acknowledgedValidations.length === 0 ? {} : { acknowledgedValidations }),
@@ -759,23 +955,28 @@ async function runMailboxSync(
     importContext,
   );
   if (outcome.status === 'installed') {
-    await context.transport.acknowledgeImport(requestId, {
-      requestId,
-      folder: outcome.folder,
-      installedPath: outcome.installedPath,
-      resultFilesSha256: outcome.resultFilesSha256,
-      importedAt: context.now().toISOString(),
-    });
     context.io.out(`설치 완료: ${outcome.installedPath}`);
     context.io.out(`nextAction: ${outcome.nextAction}`);
     if (outcome.skippedValidations.length > 0) {
       context.io.out(`skippedValidations: ${outcome.skippedValidations.join(', ')}`);
     }
     context.io.out('구현은 자동 시작하지 않습니다. 다음 goal 투입 여부를 사용자가 결정하세요.');
+    await acknowledgeAfterInstall({
+      transport: context.transport,
+      requestId,
+      folder: outcome.folder,
+      installedPath: outcome.installedPath,
+      resultFilesSha256: outcome.resultFilesSha256,
+      now: context.now,
+      io: context.io,
+    });
     return 0;
   }
   if (outcome.status === 'no-op') {
     context.io.out('동일한 결과 패키지가 이미 설치되어 변경이 없습니다.');
+    if (outcome.legacyRepositoryIdentity === true) {
+      warnLegacyNoOp(context.io);
+    }
     return 0;
   }
   context.io.err(

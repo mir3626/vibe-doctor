@@ -59,6 +59,11 @@ class FakeGit implements GitPort {
         ? this.failure('no remote')
         : this.success(`${this.scenario.remote ?? 'https://github.com/owner/repo.git'}\n`);
     }
+    if (args[0] === 'remote') {
+      return this.scenario.remote === null
+        ? this.failure('no remote')
+        : this.success(`${this.scenario.remote ?? 'https://github.com/owner/repo.git'}\n`);
+    }
     if (args[0] === 'symbolic-ref') {
       return this.success('origin/main\n');
     }
@@ -422,10 +427,11 @@ describe('pro bridge command', () => {
     };
     try {
       const first = captureIo();
-      assert.equal(await runProBridge(['sync'], {
+      assert.equal(await runProBridge(['sync', '--accept-unbound-web-origin'], {
         repoRoot,
         config: enabledConfig({ resultRoot: 'plans' }),
         io: first.io,
+        git: new FakeGit(),
         clipboard,
         browser: fakeBrowser(),
         stdin: { isTTY: false },
@@ -434,10 +440,11 @@ describe('pro bridge command', () => {
 
       clipboardText = auditBundle('# Revised review');
       const revised = captureIo();
-      assert.equal(await runProBridge(['sync', '--approve-revision'], {
+      assert.equal(await runProBridge(['sync', '--approve-revision', '--accept-unbound-web-origin'], {
         repoRoot,
         config: enabledConfig({ resultRoot: 'plans' }),
         io: revised.io,
+        git: new FakeGit(),
         clipboard,
         browser: fakeBrowser(),
         stdin: { isTTY: false },
@@ -590,6 +597,7 @@ describe('pro bridge command', () => {
         repoRoot,
         config: enabledConfig({ transport: 'mcp-mailbox', resultRoot: 'plans' }),
         io: capture.io,
+        git: new FakeGit(),
         clipboard: fakeClipboard(),
         browser: fakeBrowser(),
         now: () => NOW,
@@ -614,7 +622,7 @@ describe('pro bridge command', () => {
       const capture = captureIo();
       const exit = await runProBridge(['sync'], {
         repoRoot, config: enabledConfig({ resultRoot: 'plans' }), io: capture.io,
-        clipboard: fakeClipboard(bundle), browser: fakeBrowser(), now: () => NOW,
+        git: new FakeGit(), clipboard: fakeClipboard(bundle), browser: fakeBrowser(), now: () => NOW,
       });
       assert.equal(exit, 0, capture.err.join('\n'));
       const receipt = JSON.parse(await readFile(path.join(handle.requestDir, 'imported.json'), 'utf8')) as {

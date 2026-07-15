@@ -1,0 +1,23 @@
+{
+  "schemaVersion": "vibe-pro-bridge-provenance-v1",
+  "requestId": "AUD-20260715-tlo6jc",
+  "requestPayloadSha256": "8487d19aedc3a170e93c6e95237cb3686d891a29abfa1f2d29b6a8d085f41036",
+  "resultPayloadSha256": null,
+  "resultFilesSha256": "4aa115d769831891c10bc339acdccec141b30d5a04d3a861719d8b7f6ef539ff",
+  "reviewedBaseSha": "64ffad48e01eeab1b0c73389cc809c008b11fe32",
+  "reviewedHeadSha": "9b002fe3235185a9a27dddec51bfc4248f768549",
+  "importedAt": "2026-07-15T12:51:21.990Z",
+  "transport": "manual",
+  "reviewerDeclaration": null,
+  "skippedValidations": [
+    "file-roster-binding-skipped",
+    "file-sha-binding-skipped",
+    "repository-binding-skipped",
+    "request-hash-binding-skipped",
+    "result-hash-binding-skipped",
+    "result-manifest-unavailable",
+    "reviewed-head-binding-skipped",
+    "reviewer-declaration-unavailable"
+  ],
+  "folder": "2026-07-15-web-pro-bridge-goal-audit-pro-review"
+}

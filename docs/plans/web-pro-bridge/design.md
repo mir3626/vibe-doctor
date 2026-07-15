@@ -255,7 +255,13 @@ kind=feature_design, CLI-origin과 Web-origin(§6.4) 모두 동일 프로토콜.
 - **audit 발견·수정** (sprint-vpb-06-audit-fix-1): ① Windows 클립보드 복사가 PowerShell `-Command`+`$args` 바인딩 오류로 항상 실패 → 리터럴 경로 임베드로 수정. ② manual transport에서 `sync --latest` 조용한 무시 → 명시 에러로 수정. ③ finalize_result가 웹 리뷰어가 계산 불가능한 canonical 해시 2종을 필수 요구 → server-fill + verify-if-present로 완화.
 - **기본 포트 변경**: 8848 → 18488 (WinNAT excluded range 8827–8926 실측 충돌). EACCES/EADDRINUSE 시 netsh 확인법 + 오버라이드 안내 추가.
 - **Codex App Server goal provider**: JSON-RPC 표면 미실측 — 명시적 unavailable stub 유지, provider 체인 2~4번이 실동작 (이 repo에서 vibe-goal-iterate provider가 confidence high로 동작 확인).
-- **사용자 확인 대기 항목**: 실 ChatGPT 웹 왕복 3종 — Pro 모드 챗의 GitHub 커넥터 가용성, Developer Mode MCP write tool의 Pro 모드 동작(불가 시 §5.3 모델 전환 fallback), 터널 경유 실 제출. 실측 후 본 절에 추기할 것.
+- **실 ChatGPT 웹 왕복 실측 (2026-07-15, AUD-20260715-tlo6jc — v1.8.0 구현 자체를 리뷰)**:
+  - ③ 터널/Developer Mode 등록: **성공** — cloudflared quick tunnel 경유로 ChatGPT가 등록 시 서버에 정상 도달(initialize/tools 조회 확인).
+  - ② MCP write tool (Pro 모드 챗): **미가용** — "connector action is not available in this chat's tool interface". 결과 제출은 vibe-bundle manual fallback으로 성공.
+  - ① GitHub 커넥터 (Pro 모드 챗): **미가용** — reviewerDeclaration에 "authenticated GitHub connector was not available; public GitHub repository pages were used" 기록. 모델이 public repo 웹 열람으로 대체 그라운딩 (private repo였다면 blind — §7 patch 동봉의 중요성 실증).
+  - manual fallback 왕복: **성공** — Pro 리뷰 11 findings(P1 5·P2 4·P3 2) 패키지가 요청 바인딩 포함으로 정식 설치됨.
+  - 신규 seam 발견(수정 대기): (a) mcp-mailbox transport에서 `sync --from`이 설치 성공 후 mailbox 결과 확인 단계에서 에러를 내 성공을 오보. (b) mailbox 생성 요청의 결과가 manual wire로 돌아오는 cross-transport fallback이 requestId 저장소 바인딩에 갇힘(`web-origin` 완화로만 우회 가능). (c) manual wire에서는 patch attachment 바이트가 리뷰어에게 전달되지 않음(해시만) — 프롬프트 인라인 또는 전달 채널 필요.
+  - 미해결: Thinking 계열 챗에서의 커넥터/MCP 가용성 교차 실측(케이스 A: 대화 미첨부 vs 케이스 B: Pro 모델 제한 판별)은 후속 확인.
 
 ## 13. 기각·철회 기록
 

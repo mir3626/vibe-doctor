@@ -1,0 +1,535 @@
+{
+"schemaVersion": "vibe-goal-audit-findings-v1",
+"requestId": "AUD-20260715-tlo6jc",
+"repository": {
+"fullName": "mir3626/vibe-doctor",
+"defaultBranch": "main"
+},
+"snapshot": {
+"baseSha": "64ffad48e01eeab1b0c73389cc809c008b11fe32",
+"headSha": "9b002fe3235185a9a27dddec51bfc4248f768549",
+"branch": "main",
+"patchPresent": true,
+"patchByteLength": 22063,
+"patchSha256": "78f9696e5bc30a86ac3224514c9848acdeb1f0883e2a00cee5d0f8d201dc84d0",
+"corroboratingPublicChildCommit": "47219847626cde24d2307c2773b5e15fce14b903",
+"outOfScopeReleaseCommit": "6051105"
+},
+"goal": "웹 GPT Pro 세션 ↔ CLI 연동 브릿지 구현 (docs/plans/web-pro-bridge/design.md Hybrid v2). 종료 조건: Orchestrator 전체 workflow audit 반복 통과 + 업스트림 릴리즈 마무리(pristine 복원, sync-manifest, 버전 bump + tag).",
+"disposition": "remediation-required-before-goal-closure",
+"goalCompletionAuthorized": false,
+"releaseAuthorizedFromReviewedSnapshot": false,
+"summary": {
+"P0": 0,
+"P1": 5,
+"P2": 4,
+"P3": 2,
+"total": 11
+},
+"reviewerDeclaration": {
+"surface": "chatgpt-web",
+"requestedMode": "pro",
+"githubConnectorUsed": false,
+"limitations": [
+"The authenticated ChatGPT GitHub connector was not available; public GitHub repository pages were used.",
+"The supplied patch bytes were not exposed for independent SHA-256 recomputation or byte-for-byte application.",
+"Commit 47219847626cde24d2307c2773b5e15fce14b903 was used only as a corroborating public child commit whose parent and file roster match the supplied patch metadata.",
+"No repository checkout was available, so tests, builds, race tests, crash injection, tunnel behavior, tag state, and worktree cleanliness were not executed locally.",
+"No actual ChatGPT Developer Mode session using both the GitHub connector and Vibe Pro Bridge MCP write tools was observed.",
+"Commit 6051105 and its release claims are outside the requested HEAD-plus-patch boundary."
+]
+},
+"P0": [],
+"P1": [
+{
+"id": "VPB-AUD-P1-001",
+"severity": "P1",
+"title": "Mailbox mutations are not serialized, fenced, or compare-and-swapped",
+"status": "open",
+"confidence": "high",
+"evidenceClass": "observed-plus-inference",
+"paths": [
+".vibe/harness/src/pro-bridge/mailbox/store.ts",
+".vibe/harness/src/pro-bridge/mailbox/server.ts",
+".vibe/harness/test/pro-bridge-mailbox.test.ts"
+],
+"symbols": [
+"writeJson",
+"writeBytes",
+"claimRequest",
+"beginResult",
+"putResultFile",
+"finalizeResult",
+"createMcpRequestListener"
+],
+"relevantCommits": [
+"410bd594c83559d141a87e6f401152e7726553c0",
+"9b002fe3235185a9a27dddec51bfc4248f768549"
+],
+"designConnection": "The Hybrid v2 mailbox contract requires claim-race safety, chunk idempotency, immutable results, and retryable lifecycle transitions.",
+"observedEvidence": [
+"Temporary write names are derived from destination plus process.pid, so concurrent same-process writes to one destination share a temporary path.",
+"Claim and lifecycle mutations use unlocked read-check-write transitions.",
+"Chunk metadata is read, modified in memory, and overwritten after the chunk write.",
+"The HTTP listener permits independent asynchronous tool invocations.",
+"No per-request queue, fencing token, lock, or compare-and-swap is visible."
+],
+"inference": "Concurrent or duplicated MCP calls can collide on temporary files, lose chunk metadata, duplicate claims, or leave lifecycle and result-index state inconsistent.",
+"impact": "The core mailbox can fail under legitimate parallel tool calls, transport retries, or duplicate delivery.",
+"requiredRemediation": [
+"Add a per-request single-writer queue, fenced lock, or compare-and-swap storage primitive.",
+"Use unique temporary filenames with a cryptographic nonce.",
+"Make lifecycle transitions and related artifact mutations one serialized operation.",
+"Make chunk metadata updates parallel-safe and idempotent.",
+"Reject stale owners after claim transfer."
+],
+"requiredTests": [
+"Concurrent claim via Promise.all",
+"Parallel same-file chunk indexes",
+"Duplicate and conflicting chunk delivery",
+"Concurrent begin_result",
+"Finalize racing with upload",
+"Stale-owner rejection after restart"
+]
+},
+{
+"id": "VPB-AUD-P1-002",
+"severity": "P1",
+"title": "Result finalization contains an unrecoverable crash window",
+"status": "open",
+"confidence": "high",
+"evidenceClass": "observed-plus-inference",
+"paths": [
+".vibe/harness/src/pro-bridge/mailbox/store.ts",
+".vibe/harness/test/pro-bridge-mailbox.test.ts"
+],
+"symbols": [
+"finalizeResult",
+"findOpenUpload",
+"readResultIndex",
+"writeStatus"
+],
+"relevantCommits": [
+"410bd594c83559d141a87e6f401152e7726553c0",
+"9b002fe3235185a9a27dddec51bfc4248f768549"
+],
+"designConnection": "Immutable finalize must be idempotent and restart-safe before the request can become result-ready.",
+"observedEvidence": [
+"Finalize writes the revision manifest and result index.",
+"Finalize then removes the upload directory.",
+"Only after upload removal does it write request status result-ready.",
+"Idempotent replay requires result-ready status, an index, and no upload.",
+"When the upload is absent outside that branch, finalize returns finalize-conflict."
+],
+"inference": "A crash after upload removal and before the status write leaves a durable result index with result-uploading status and no resumable upload; automatic replay cannot complete.",
+"impact": "A power loss or server restart can strand a valid result and permanently block normal sync without manual filesystem repair.",
+"requiredRemediation": [
+"Introduce a durable finalize journal or transaction marker.",
+"Reconcile status, result index, revision manifest, and upload state on startup.",
+"Do not delete the only resumable upload before a durable commit marker exists.",
+"Allow exact-manifest replay from every interruption point."
+],
+"requiredTests": [
+"Crash after imported revision files",
+"Crash after revision manifest",
+"Crash after result index",
+"Crash after upload removal",
+"Crash before and after result-ready status",
+"Restart reconciliation without duplicate revision"
+]
+},
+{
+"id": "VPB-AUD-P1-003",
+"severity": "P1",
+"title": "Install-before-acknowledgement failure cannot self-heal",
+"status": "open",
+"confidence": "high",
+"evidenceClass": "observed-plus-inference",
+"paths": [
+".vibe/harness/src/commands/pro-bridge.ts",
+".vibe/harness/src/pro-bridge/importer.ts",
+".vibe/harness/src/pro-bridge/mailbox/store.ts",
+".vibe/harness/test/pro-bridge-command.test.ts"
+],
+"symbols": [
+"runMailboxSync",
+"importReviewResult",
+"existingIdentity",
+"acknowledgeImport"
+],
+"relevantCommits": [
+"38a9ba26db54887f88ad957affc922a5bde41545",
+"9b002fe3235185a9a27dddec51bfc4248f768549"
+],
+"designConnection": "The terminal workflow requires both atomic local installation and exact acknowledgement of the import receipt.",
+"observedEvidence": [
+"A same-identity existing folder returns importer status no-op.",
+"runMailboxSync calls acknowledgeImport only for status installed.",
+"The no-op branch exits successfully without acknowledgement.",
+"Acknowledgement is a separate filesystem and status operation."
+],
+"inference": "A crash after final folder rename but before acknowledgement leaves the request result-ready forever; every retry returns no-op and again skips acknowledgement.",
+"impact": "The CLI can install the result but never reach the authoritative imported terminal state.",
+"requiredRemediation": [
+"On same-identity no-op, verify installed provenance against the current request and result hash, then acknowledge.",
+"Persist and reconcile a local import intent or receipt.",
+"Make acknowledgement idempotent for one exact result.",
+"Prevent an already installed unacknowledged result from starving newer ready results."
+],
+"requiredTests": [
+"Crash after rename and before acknowledgement",
+"Retry no-op reaches imported",
+"Duplicate acknowledgement",
+"No-op with mismatched provenance does not acknowledge",
+"Crash inside acknowledgement",
+"Multiple ready-result ordering after recovery"
+]
+},
+{
+"id": "VPB-AUD-P1-004",
+"severity": "P1",
+"title": "Current-repository identity can fail open or be bypassed",
+"status": "open",
+"confidence": "high",
+"evidenceClass": "observed-plus-inference",
+"paths": [
+".vibe/harness/src/commands/pro-bridge.ts",
+".vibe/harness/src/pro-bridge/importer.ts",
+".vibe/harness/test/pro-bridge-command.test.ts"
+],
+"symbols": [
+"runMailboxSync",
+"parseGitHubFullName",
+"importReviewResult"
+],
+"relevantCommits": [
+"9b002fe3235185a9a27dddec51bfc4248f768549"
+],
+"designConnection": "Repository full name and reviewed refs are immutable result-authority boundaries.",
+"observedEvidence": [
+"Repository filtering runs only when no positional request ID is supplied.",
+"An unparseable origin produces a warning and skips repository filtering.",
+"A positional request is accepted based on result-ready status without current-repository comparison.",
+"Importer expectedRepositoryFullName is populated from the selected request rather than the current local origin.",
+"Web-origin sync checks local HEAD but not an independently resolved current repository full name."
+],
+"inference": "A result for repository B can be explicitly selected and installed while the CLI is running in repository A if its request and result are internally consistent.",
+"impact": "A valid but unrelated implementation package can materialize into the wrong project.",
+"requiredRemediation": [
+"Resolve and validate current repository identity for all sync modes.",
+"Fail closed when required identity cannot be resolved.",
+"Compare current origin to request, result manifest, and installed provenance.",
+"Record any explicitly approved repository override in provenance.",
+"Bind repository identity into the import acknowledgement."
+],
+"requiredTests": [
+"Positional request for another repository",
+"Missing origin",
+"Unparseable origin",
+"Non-GitHub origin",
+"Same HEAD in two repositories",
+"Request and result agree but current repository differs"
+]
+},
+{
+"id": "VPB-AUD-P1-005",
+"severity": "P1",
+"title": "The exact original workflow-acceptance and release condition is not demonstrated",
+"status": "open",
+"confidence": "high",
+"evidenceClass": "observed",
+"paths": [
+"docs/plans/web-pro-bridge/design.md",
+"docs/plans/2026-07-15-web-origin-live-design/.bridge/provenance.json",
+"docs/plans/2026-07-15-web-pro-bridge-pro-review/REVIEW.md",
+"docs/plans/2026-07-15-web-pro-bridge-pro-review/.bridge/provenance.json",
+"package.json",
+".vibe/sync-manifest.json"
+],
+"symbols": [
+"whole-workflow dogfood evidence",
+"reviewerDeclaration",
+"release version and tag binding"
+],
+"relevantCommits": [
+"38a9ba26db54887f88ad957affc922a5bde41545",
+"5fd1806c82b14ef03d607815975a56e7e5e34512",
+"410bd594c83559d141a87e6f401152e7726553c0",
+"9b002fe3235185a9a27dddec51bfc4248f768549"
+],
+"designConnection": "The user explicitly required repeated whole-workflow audit passage plus pristine restoration, sync-manifest closure, version bump, and tag.",
+"observedEvidence": [
+"The Web-origin provenance identifies a synthetic live-audit round trip and githubConnectorUsed false.",
+"The manual review is explicitly synthetic and only validates installation.",
+"The manual provenance has no reviewer declaration or result manifest and skips eight binding validations.",
+"The corroborating patch state still reports package version 0.1.0 and harnessVersion 1.7.30.",
+"The later v1.8.0 release commit is outside the requested snapshot and states that actual Pro GitHub-connector and MCP-write-tool confirmation remained pending."
+],
+"inference": "Local protocol dogfood and later release metadata do not establish exact-HEAD completion of the requested real Web Pro journey.",
+"impact": "The original goal cannot be marked complete or release-closed from this reviewed state.",
+"requiredRemediation": [
+"Close all P1 implementation findings.",
+"Run real CLI-origin manual, CLI-origin mailbox, and Web-origin design journeys in Pro mode.",
+"Use the actual GitHub connector and Bridge MCP write tools.",
+"Persist exact request/result/ref/connector provenance.",
+"Rerun a fresh whole-workflow audit after the final P1 change.",
+"Verify pristine state, sync manifest, version, release commit, and tag at one exact commit.",
+"Do not move or reuse an existing release tag."
+],
+"requiredTests": [
+"Real Pro manual round trip",
+"Real Pro mailbox round trip",
+"Real Pro Web-origin design round trip",
+"Exact-HEAD full suite",
+"Sync-manifest audit",
+"Pristine worktree receipt",
+"Version/tag points-at-HEAD check"
+]
+}
+],
+"P2": [
+{
+"id": "VPB-AUD-P2-001",
+"severity": "P2",
+"title": "Direct Codex App Server goal discovery remains a stub",
+"status": "open",
+"confidence": "high",
+"evidenceClass": "observed",
+"paths": [
+".vibe/harness/src/pro-bridge/goal-source/codex-app-server.ts"
+],
+"symbols": [
+"CodexAppServerGoalProvider.discover"
+],
+"relevantCommits": [
+"64ffad48e01eeab1b0c73389cc809c008b11fe32",
+"9b002fe3235185a9a27dddec51bfc4248f768549"
+],
+"designConnection": "The highest-priority goal source is intended to read the persisted Codex goal for the current repository.",
+"observedEvidence": [
+"The provider contains a TODO for thread and goal JSON-RPC operations.",
+"The provider always returns unavailable with codex-app-server-api-unverified."
+],
+"inference": "A goal existing only in Codex App Server cannot be recovered exactly and must rely on lower-authority reconstruction.",
+"impact": "Standalone CLI /goal parity is incomplete, though fallback providers preserve partial functionality.",
+"requiredRemediation": [
+"Implement and verify the official App Server adapter or formally narrow the supported contract.",
+"Preserve the prohibition on private-reasoning extraction.",
+"Expose exact versus reconstructed confidence to the user."
+],
+"requiredTests": [
+"Active goal",
+"Persisted completed goal",
+"Repository thread filtering",
+"Stale thread ranking",
+"Unavailable server fallback",
+"Private reasoning ignored"
+]
+},
+{
+"id": "VPB-AUD-P2-002",
+"severity": "P2",
+"title": "Manual Web-origin import is unbound without a high-friction acceptance gate",
+"status": "open",
+"confidence": "high",
+"evidenceClass": "observed",
+"paths": [
+".vibe/harness/src/pro-bridge/importer.ts",
+".vibe/harness/src/commands/pro-bridge.ts",
+".vibe/harness/src/pro-bridge/transports/manual.ts",
+"docs/context/pro-bridge-setup.md"
+],
+"symbols": [
+"importReviewResult",
+"manual bundle sync"
+],
+"relevantCommits": [
+"5fd1806c82b14ef03d607815975a56e7e5e34512",
+"9b002fe3235185a9a27dddec51bfc4248f768549"
+],
+"designConnection": "Manual fallback may have weaker provenance, but the weakness must be explicit and must not be confused with a bound mailbox result.",
+"observedEvidence": [
+"Request ID web-origin is accepted without request metadata.",
+"Absent result manifest skips repository, request, result, reviewed-head, roster, file-hash, and reviewer validation.",
+"The checked-in manual provenance demonstrates these skipped validations."
+],
+"inference": "Any syntactically valid user-copied Web-origin package can be installed without repository or ref binding.",
+"impact": "The manual trust boundary is broader than the normal success output makes obvious.",
+"requiredRemediation": [
+"Require an exported request receipt or bound Web-origin manifest where possible.",
+"Require an explicit accept-unbound-web-origin flag otherwise.",
+"Display skipped validations before installation.",
+"Record current repository and operator acknowledgement in provenance.",
+"Exclude unbound imports from release acceptance evidence."
+],
+"requiredTests": [
+"Unbound import rejected by default",
+"Explicit acceptance recorded",
+"Bound Web-origin import",
+"Skipped-validation display before write"
+]
+},
+{
+"id": "VPB-AUD-P2-003",
+"severity": "P2",
+"title": "Importer does not enforce the semantic result-package contract",
+"status": "open",
+"confidence": "high",
+"evidenceClass": "observed",
+"paths": [
+".vibe/harness/src/pro-bridge/importer.ts",
+".vibe/harness/src/lib/schemas/pro-bridge.ts",
+".vibe/harness/test/pro-bridge-importer.test.ts"
+],
+"symbols": [
+"required-file validation",
+"prompt validation",
+"FINDINGS.json validation"
+],
+"relevantCommits": [
+"38a9ba26db54887f88ad957affc922a5bde41545",
+"9b002fe3235185a9a27dddec51bfc4248f768549"
+],
+"designConnection": "FINDINGS.json must contain structured P0-P3 findings and the implementation prompt must contain mandatory operational and safety sections.",
+"observedEvidence": [
+"The prompt is validated only as non-empty.",
+"FINDINGS.json is validated only with JSON.parse.",
+"No reconciliation is performed between findingsSummary and FINDINGS.json.",
+"Repository, reviewed SHA, verification commands, stop conditions, and final-report requirements are not semantically checked in the prompt."
+],
+"inference": "A structurally present but operationally useless or unsafe package can be accepted and installed.",
+"impact": "Successful import does not guarantee that the result is actionable or conforms to the review contract.",
+"requiredRemediation": [
+"Add a versioned findings schema with P0, P1, P2, and P3 arrays.",
+"Reconcile manifest counts with the findings file.",
+"Validate mandatory implementation-prompt sections and exact repository/SHA.",
+"Provide explicit backward compatibility for older bundles."
+],
+"requiredTests": [
+"Missing severity arrays",
+"Wrong severity field",
+"Summary count mismatch",
+"One-line prompt rejected",
+"Missing repository or SHA rejected",
+"Missing stop condition rejected"
+]
+},
+{
+"id": "VPB-AUD-P2-004",
+"severity": "P2",
+"title": "The session bearer capability is transported in a query URL",
+"status": "open",
+"confidence": "medium-high",
+"evidenceClass": "observed-plus-inference",
+"paths": [
+".vibe/harness/src/pro-bridge/mailbox/server.ts",
+".vibe/harness/src/pro-bridge/mailbox/tunnel.ts",
+"docs/context/pro-bridge-setup.md"
+],
+"symbols": [
+"suppliedToken",
+"connector URL construction"
+],
+"relevantCommits": [
+"410bd594c83559d141a87e6f401152e7726553c0",
+"9b002fe3235185a9a27dddec51bfc4248f768549"
+],
+"designConnection": "The local-first single-tenant deployment still requires bounded credential exposure.",
+"observedEvidence": [
+"The server accepts an Authorization bearer header or token query parameter.",
+"Setup prints a connector URL containing the token.",
+"Documentation limits the URL to one server session and warns against storage or sharing.",
+"The local logger records only the URL pathname."
+],
+"inference": "External tunnel, application, proxy, browser, or endpoint telemetry may retain the full query URL and leak the session capability.",
+"impact": "A leaked token grants mailbox tool access for the server session.",
+"requiredRemediation": [
+"Prefer Authorization headers or OAuth.",
+"Otherwise exchange a one-time bootstrap code for a short-lived scoped token.",
+"Add audience, expiry, replay protection, and immediate revocation.",
+"Document tunnel-provider log controls."
+],
+"requiredTests": [
+"Expired token",
+"Revoked token",
+"One-time bootstrap replay",
+"Log redaction across tunnel helper",
+"Authorization-header integration"
+]
+}
+],
+"P3": [
+{
+"id": "VPB-AUD-P3-001",
+"severity": "P3",
+"title": "Corrupt or partial mailbox entries are silently hidden",
+"status": "open",
+"confidence": "high",
+"evidenceClass": "observed",
+"paths": [
+".vibe/harness/src/pro-bridge/mailbox/store.ts"
+],
+"symbols": [
+"listRequests"
+],
+"relevantCommits": [
+"410bd594c83559d141a87e6f401152e7726553c0",
+"9b002fe3235185a9a27dddec51bfc4248f768549"
+],
+"designConnection": "Operational observability should distinguish an empty mailbox from a damaged mailbox.",
+"observedEvidence": [
+"listRequests catches request-read failures and omits the entry without diagnostic output."
+],
+"inference": "Interrupted or corrupt requests can disappear from user-visible status and evade repair.",
+"impact": "Troubleshooting and migration safety are weakened.",
+"requiredRemediation": [
+"Quarantine invalid entries.",
+"Expose structured health diagnostics.",
+"Record request ID and parse failure without treating the entry as valid."
+],
+"requiredTests": [
+"Corrupt request JSON",
+"Missing status file",
+"Partial revision index",
+"Health command reports quarantined entry"
+]
+},
+{
+"id": "VPB-AUD-P3-002",
+"severity": "P3",
+"title": "Filesystem revision installation is limited to rev2",
+"status": "open",
+"confidence": "high",
+"evidenceClass": "observed",
+"paths": [
+".vibe/harness/src/pro-bridge/importer.ts"
+],
+"symbols": [
+"importReviewResult revision-folder selection"
+],
+"relevantCommits": [
+"38a9ba26db54887f88ad957affc922a5bde41545",
+"9b002fe3235185a9a27dddec51bfc4248f768549"
+],
+"designConnection": "The mailbox supports immutable result revision chains, so local materialization should support more than one correction.",
+"observedEvidence": [
+"An approved conflict selects exactly folder-rev2.",
+"If folder-rev2 is occupied by another identity, the importer returns revision-slot-occupied.",
+"No search for rev3 or later is implemented."
+],
+"inference": "A third corrected review cannot be materialized under the same proposed folder without manual naming changes.",
+"impact": "Revision-chain usability is artificially capped.",
+"requiredRemediation": [
+"Select the lowest available revN folder.",
+"Bind revisionOf and revision number into provenance.",
+"Preserve all prior immutable folders."
+],
+"requiredTests": [
+"Three sequential revisions",
+"Same-result no-op at each revision",
+"Occupied revision gaps",
+"Folder-length limit near revN suffix"
+]
+}
+]
+}

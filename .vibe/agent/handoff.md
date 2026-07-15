@@ -1,25 +1,21 @@
 # Orchestrator Handoff
 
-PROJECT NOT INITIALIZED.
-
-This file is project-owned runtime state. Downstream projects must run `/vibe-init` before product work; init rewrites this placeholder with the current project's handoff.
+ACTIVE UPSTREAM ITERATION 2 — web-pro-bridge remediation. 종료 시 pristine 템플릿 상태(project-not-initialized 마커 — 릴리즈 커밋 6051105의 handoff 참조)로 복원할 것.
 
 ## 1. Identity
 
-- repo: `vibe-doctor`
-- status: template placeholder
-- harnessVersion: `1.8.0`
+- repo: `vibe-doctor` (upstream, v1.8.0 릴리즈됨 — 태그 불이동)
+- iteration: 2 — 실 Pro 리뷰(AUD-20260715-tlo6jc) remediation
+- 정본: `docs/plans/2026-07-15-web-pro-bridge-goal-audit-pro-review/` (REVIEW.md, FINDINGS.json P1×5 P2×4 P3×2, prompt/CLI_MAIN_SESSION_PROMPT.md 13-phase)
+- 모델 역할: Orchestrator/Planner/Evaluator=fable, Generator=codex gpt-5.6-sol xhigh (호출 env: VIBE_SKIP_AGENT_SESSION_START=1 불필요 — v1.8.0에서 stdin 회귀 수정됨, 단 유지해도 무해)
 
 ## 2. Status
 
-The checked-in upstream template intentionally does not ship active project handoff state.
-
-Maintenance checkpoint: release metadata is set for `v1.8.0`.
-
-Latest maintenance work (v1.8.0): web-pro-bridge — 웹 ChatGPT Pro 세션 ↔ CLI 왕복 브릿지. Goal-source discovery(provider 체인 4종), GitHub visibility gate + secret-safe patch, A~I 리뷰 프롬프트 composer, vibe-bundle v1 manual transport(클립보드/브라우저), 원자적 result importer(해시 바인딩·충돌 규칙·provenance), local-first MCP mailbox(12-tool streamable-HTTP, chunked upload, single-tenant 토큰, 터널 helper), web-origin design 왕복, 옵션 어댑터(workspace-agent/responses-api/codex-cloud apply). 스킬 `$vibe-goal-audit`/`$vibe-pro-design` + `vibe:pro-*` 커맨드. 정본 설계 `docs/plans/web-pro-bridge/design.md` (Hybrid v2, §12.1 실측 추기 포함). 부수 수정: vibe-agent-session-start의 비-hook stdin drain 회귀(파이프 프롬프트 소실) 수정, run-codex.sh `</dev/null` 이중 방어, MCP 기본 포트 18488(WinNAT excluded range 회피). 검증: typecheck/build/gen-schemas/self-test 627 tests 0 fail, 라이브 E2E 왕복 2종(manual/web-origin mailbox) 실측 완료. Pro 모드 챗의 GitHub 커넥터·MCP write tool 실측은 사용자 확인 대기(design.md §12.1).
-
-Previous maintenance work (v1.7.30): SessionStart dedupe and hidden nested Stop QA — see docs/release/v1.7.30.md.
+- roadmap Iteration 2: vpb-07(authority/binding) → vpb-08(lifecycle durability) → vpb-09(contract/polish) → 실 3-journey(사용자 참여) → 독립 audit → v1.8.1.
+- 실측 확정: Pro 챗 GitHub 커넥터·MCP write 미가용(케이스 A/B 판별 미결 — Thinking 챗 교차 실측 대기), manual fallback 왕복 성공. design.md §12.1 기록.
+- Immutable boundaries (remediation 프롬프트): 검증 약화 금지, 기존 결과 폴더/태그 불변, push는 명시 승인, P1 잔존 시 릴리즈 금지.
+- Orchestrator 발견 seam 3건(sync 성공 오보 / cross-transport 바인딩 / patch 바이트 미전달)은 vpb-07·09에 편입.
 
 ## 3. Next Action
 
-Run `/vibe-init` in a new downstream project. Existing downstream projects can sync to `v1.8.0`; the pro-bridge is opt-in (`proBridge.enabled`) — see `docs/context/pro-bridge-setup.md` for ChatGPT Developer Mode setup. Agent-mode one-liner initialization should not begin MVP work until `npm run vibe:init-ready` passes.
+vpb-07 Planner 소환(sprint-planner, model fable) → Generator(CODEX_MODEL=gpt-5.6-sol, xhigh) → 검증 → Evaluator(fable) → complete/commit 루프. 압축 복원 시 이 파일 + session-log + sprint-status + roadmap Iteration 2 섹션 먼저 읽을 것.

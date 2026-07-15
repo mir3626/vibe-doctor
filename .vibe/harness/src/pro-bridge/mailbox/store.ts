@@ -694,6 +694,7 @@ export class MailboxStore {
         installRoot: revisionRoot,
         request,
         resultManifest: manifest,
+        // This binds request to manifest; sync/install/ack separately enforce current-repo identity from origin.
         expectedRepositoryFullName: request.repository.fullName,
         transport: 'mcp-mailbox',
         now: this.now,

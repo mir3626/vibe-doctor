@@ -6,14 +6,10 @@ This file is project-owned runtime state. Downstream `/vibe-init` rewrites it be
 
 ## Entries
 
+
+- 2026-07-15T14:41:49.805Z [sprint-complete] sprint-vpb-07-authority-binding -> passed. Sprint sprint-vpb-07-authority-binding completed with passed LOC +69/-2683 (net -2614)
+- 2026-07-15T13:12:00.000Z [decision] iteration 2 착수 (user 선택 1): 실 웹 Pro 리뷰 AUD-20260715-tlo6jc remediation. 실측 확정 — Pro 챗에서 GitHub 커넥터·MCP write tool 미가용(모델이 public repo 열람으로 대체, 제출은 vibe-bundle fallback 성공), 터널/등록은 정상. 리뷰 verdict remediation-required (P1×5). Sprint vpb-07~09 + 독립 audit + v1.8.1 릴리즈 예정. 정본: docs/plans/2026-07-15-web-pro-bridge-goal-audit-pro-review/prompt/CLI_MAIN_SESSION_PROMPT.md.
 - 2026-07-15T10:56:00.000Z [checkpoint] upstream harness maintenance: release metadata updated for v1.8.0 web-pro-bridge. iter-1(vpb-01~06) 완료 — Planner/Evaluator=fable + Generator=gpt-5.6-sol xhigh 역할 분담, per-sprint Evaluator 6회(FAIL 1회 재작업 재판정 포함), Orchestrator whole-workflow audit에서 라이브 E2E 왕복 2종 완주 및 발견 3건(클립보드 PowerShell $args 바인딩, manual transport --latest 조용한 무시, finalize 해시 웹 리뷰어 계산 불가) 수정. 상태 문서 pristine 복원 + 포트 18488 이동 + stdin drain 회귀 수정 포함. 사용자 확인 대기: 실 ChatGPT 웹 왕복 3종(design.md §12.1).
-
-
-
-
-
-
-
 - 2026-07-15T10:49:36.798Z [sprint-complete] sprint-vpb-06-audit-fix-1 -> passed. Sprint sprint-vpb-06-audit-fix-1 completed with passed LOC +2742/-90 (net +2652)
 - 2026-07-15T10:24:32.588Z [audit-clear] resolved=1 note=iteration-1 vpb-01~05 각 Sprint Evaluator(1×opus, 4×fable) 검수 완료(전부 PASS/PASS-WITH-NOTES, FAIL 1회는 재작업 후 재판정 PASS). 직후 Orchestrator 전체 workflow audit(design.md 대비) 수행 예정 — user /goal directive.
 - 2026-07-15T10:24:05.171Z [sprint-complete] sprint-vpb-05-web-origin-optional -> passed. Sprint sprint-vpb-05-web-origin-optional completed with passed LOC +3596/-36 (net +3560)
