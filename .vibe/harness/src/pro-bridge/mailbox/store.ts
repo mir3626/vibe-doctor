@@ -15,6 +15,7 @@ import process from 'node:process';
 import { setTimeout as delay } from 'node:timers/promises';
 import {
   REQUEST_LIFECYCLE_STATES,
+  DEFAULT_PUBLISH_LIMITS,
   ReviewRequestSchema,
   ReviewResultManifestSchema,
   canTransition,
@@ -22,6 +23,8 @@ import {
   computePayloadSha256,
   isSafeRelativePath,
   type RequestLifecycleState,
+  type PublishLimits,
+  type ReviewDisposition,
   type ReviewRequest,
   type ReviewResultManifest,
 } from '../contract.js';
@@ -47,6 +50,8 @@ const DEFAULT_LEASE_STALE_MS = 30_000;
 const DEFAULT_LEASE_RETRY_ATTEMPTS = 4;
 const DEFAULT_LEASE_RETRY_DELAY_MS = 10;
 const FINALIZE_JOURNAL_SCHEMA = 'vibe-pro-bridge-finalize-journal-v1';
+const PUBLICATION_RECORD_SCHEMA = 'vibe-pro-bridge-publication-v1';
+const CLIENT_PUBLICATION_ID = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
 const OWNED_TEMP_PATTERN = /\.[0-9]+\.[0-9a-f]{32}\.tmp(?:dir)?$/;
 
 export type MailboxErrorCode =
@@ -99,6 +104,68 @@ export interface PutChunkInput {
   content?: string;
   contentBase64?: string;
   chunkSha256: string;
+}
+
+export interface PublishPackageFile {
+  path: string;
+  mediaType: 'text/markdown' | 'application/json';
+  content: string;
+}
+
+export interface PublishPackageInput {
+  proposedFolder: string;
+  disposition: ReviewDisposition;
+  summary: {
+    title: string;
+    reviewedRepository: string;
+    reviewedBaseSha: string;
+    reviewedHeadSha: string;
+    p0: number;
+    p1: number;
+    p2: number;
+    p3: number;
+    limitations: string[];
+  };
+  files: PublishPackageFile[];
+  clientPublicationId: string;
+  reviewerDeclaration?: ReviewResultManifest['reviewerDeclaration'];
+}
+
+export interface PublishReceipt {
+  status: 'result-ready';
+  requestId: string;
+  resultId: string;
+  proposedFolder: string;
+  resultManifestSha256: string;
+  fileCount: number;
+  totalBytes: number;
+  revision: number;
+  imported: false;
+  idempotentReplay: boolean;
+}
+
+export interface ChunkedUploadRequired {
+  status: 'chunked-upload-required';
+  requestId: string;
+  uploadSessionId: string;
+  maxChunkBytes: number;
+  requiredFiles: string[];
+  requiredNextTools: ['put_result_file', 'finalize_result'];
+  limits: PublishLimits;
+  exceeded: string[];
+}
+
+export interface PublicationConflict {
+  status: 'conflict';
+  reason:
+    | 'request-terminal'
+    // Reserved until the bridge has principal identity in the OAuth profile.
+    | 'claimed-by-another-reviewer'
+    | 'different-result-already-finalized'
+    | 'request-sha-mismatch'
+    | 'publication-id-content-mismatch';
+  existingResultId?: string;
+  detail: string;
 }
 
 export interface MailboxRequestStatus {
@@ -175,6 +242,33 @@ interface ResultRevision {
 interface ResultIndex {
   current: number;
   revisions: ResultRevision[];
+}
+
+interface StoredPublication {
+  manifestSha256: string;
+  revision: number;
+  resultId: string;
+  fileCount: number;
+  totalBytes: number;
+  title: string;
+  recordedAt: string;
+}
+
+interface PublicationIndex {
+  schemaVersion: typeof PUBLICATION_RECORD_SCHEMA;
+  publications: Record<string, StoredPublication>;
+}
+
+interface DirectorySnapshot {
+  directories: string[];
+  files: Array<{ path: string; content: Uint8Array }>;
+}
+
+interface PublishRollbackSnapshot {
+  status: Pick<StoredStatus, 'state' | 'detail'>;
+  uploadPath: string | null;
+  upload: DirectorySnapshot | null;
+  journal: FinalizeJournal | null;
 }
 
 interface FinalizeJournal {
@@ -348,6 +442,55 @@ function parseResultIndex(value: unknown): ResultIndex {
   return { current: index.current as number, revisions };
 }
 
+function parsePublicationIndex(value: unknown): PublicationIndex {
+  if (!value || typeof value !== 'object') {
+    throw new MailboxStoreError('invalid-input', 'Invalid publication record');
+  }
+  const index = value as Record<string, unknown>;
+  if (
+    index.schemaVersion !== PUBLICATION_RECORD_SCHEMA
+    || !index.publications
+    || typeof index.publications !== 'object'
+    || Array.isArray(index.publications)
+  ) {
+    throw new MailboxStoreError('invalid-input', 'Invalid publication record');
+  }
+  const publications: Record<string, StoredPublication> = {};
+  for (const [clientPublicationId, value] of Object.entries(
+    index.publications as Record<string, unknown>,
+  )) {
+    if (!CLIENT_PUBLICATION_ID.test(clientPublicationId) || !value || typeof value !== 'object') {
+      throw new MailboxStoreError('invalid-input', 'Invalid publication record entry');
+    }
+    const publication = value as Record<string, unknown>;
+    if (
+      typeof publication.manifestSha256 !== 'string'
+      || !SHA256_HEX.test(publication.manifestSha256)
+      || !Number.isSafeInteger(publication.revision)
+      || (publication.revision as number) < 1
+      || typeof publication.resultId !== 'string'
+      || !Number.isSafeInteger(publication.fileCount)
+      || (publication.fileCount as number) < 1
+      || !Number.isSafeInteger(publication.totalBytes)
+      || (publication.totalBytes as number) < 0
+      || typeof publication.title !== 'string'
+      || typeof publication.recordedAt !== 'string'
+    ) {
+      throw new MailboxStoreError('invalid-input', 'Invalid publication record entry');
+    }
+    publications[clientPublicationId] = {
+      manifestSha256: publication.manifestSha256,
+      revision: publication.revision as number,
+      resultId: publication.resultId,
+      fileCount: publication.fileCount as number,
+      totalBytes: publication.totalBytes as number,
+      title: publication.title,
+      recordedAt: publication.recordedAt,
+    };
+  }
+  return { schemaVersion: PUBLICATION_RECORD_SCHEMA, publications };
+}
+
 function parseFinalizeJournal(value: unknown): FinalizeJournal {
   if (!value || typeof value !== 'object') {
     throw new MailboxStoreError('invalid-input', 'Invalid finalize journal');
@@ -460,6 +603,49 @@ function validationMessage(error: unknown): string {
       .join('; ');
   }
   return error instanceof Error ? error.message : String(error);
+}
+
+function publicationResultId(revision: number, manifestSha256: string): string {
+  return `rev${revision}-${manifestSha256.slice(0, 12)}`;
+}
+
+export function validatePublishLimits(input: PublishLimits): PublishLimits {
+  for (const [name, value] of Object.entries(input)) {
+    if (!Number.isSafeInteger(value) || value < 1) {
+      throw new MailboxStoreError('invalid-input', `${name} must be a positive safe integer`);
+    }
+  }
+  if (
+    input.maxFiles > MAX_STAGING_FILES
+    || input.maxTotalBytes > MAX_STAGING_BYTES
+    || input.maxFileBytes > MAX_CHUNK_BYTES
+  ) {
+    throw new MailboxStoreError(
+      'invalid-input',
+      `Publish limits cannot exceed the staging ceilings (${MAX_STAGING_FILES} files, ${MAX_STAGING_BYTES} total bytes, ${MAX_CHUNK_BYTES} bytes per file)`,
+    );
+  }
+  return { ...input };
+}
+
+function publishReceipt(
+  requestId: string,
+  manifest: ReviewResultManifest,
+  publication: Pick<StoredPublication, 'revision' | 'resultId' | 'fileCount' | 'totalBytes'>,
+  idempotentReplay: boolean,
+): PublishReceipt {
+  return {
+    status: 'result-ready',
+    requestId,
+    resultId: publication.resultId,
+    proposedFolder: manifest.proposedFolder,
+    resultManifestSha256: manifest.payloadSha256,
+    fileCount: publication.fileCount,
+    totalBytes: publication.totalBytes,
+    revision: publication.revision,
+    imported: false,
+    idempotentReplay,
+  };
 }
 
 export class MailboxStore {
@@ -1071,6 +1257,230 @@ export class MailboxStore {
     }
     await this.writeStatus(requestId, 'claimed', null, lease);
     return this.getStatus(requestId);
+  }
+
+  async publishReviewPackage(
+    requestId: string,
+    input: PublishPackageInput,
+    limits: PublishLimits = DEFAULT_PUBLISH_LIMITS,
+  ): Promise<PublishReceipt | ChunkedUploadRequired | PublicationConflict> {
+    const publishLimits = validatePublishLimits(limits);
+    return this.mutate(requestId, async (lease) => {
+      const request = await this.requireRequest(requestId);
+      const status = await this.requireActiveStatus(requestId);
+      if (TERMINAL_STATES.has(status.state)) {
+        return {
+          status: 'conflict',
+          reason: 'request-terminal',
+          detail: `Request ${requestId} is already ${status.state}`,
+        };
+      }
+      if (
+        input.summary.reviewedRepository !== request.repository.fullName
+        || input.summary.reviewedBaseSha !== request.git.baseSha
+        || input.summary.reviewedHeadSha !== request.git.headSha
+      ) {
+        return {
+          status: 'conflict',
+          reason: 'request-sha-mismatch',
+          detail: 'Publication summary does not match the request repository and exact refs',
+        };
+      }
+
+      const publicationIndex = await this.readPublicationIndex(requestId);
+      const recorded = Object.prototype.hasOwnProperty.call(
+        publicationIndex.publications,
+        input.clientPublicationId,
+      )
+        ? publicationIndex.publications[input.clientPublicationId]
+        : undefined;
+      const resultIndex = await this.readResultIndex(requestId);
+      const recordedManifest = recorded === undefined
+        ? null
+        : await this.readRevisionManifest(requestId, recorded.revision);
+      if (recorded !== undefined && recordedManifest === null) {
+        throw new MailboxStoreError(
+          'invalid-input',
+          `Publication ${input.clientPublicationId} references a missing result revision`,
+        );
+      }
+      const currentManifest = recorded === undefined && status.state === 'result-ready' && resultIndex
+        ? await this.readRevisionManifest(requestId, resultIndex.current)
+        : null;
+      if (status.state === 'result-ready' && resultIndex && currentManifest === null && recorded === undefined) {
+        throw new MailboxStoreError('invalid-input', 'Current result revision manifest is missing');
+      }
+      if (recorded !== undefined && recordedManifest !== null) {
+        const indexed = resultIndex?.revisions.some((revision) =>
+          revision.revision === recorded.revision
+          && revision.manifestSha256 === recorded.manifestSha256);
+        const recordedTotalBytes = recordedManifest.files.reduce(
+          (total, file) => total + file.byteLength,
+          0,
+        );
+        if (!indexed) {
+          throw new MailboxStoreError(
+            'invalid-input',
+            `Publication ${input.clientPublicationId} is not present in the result index`,
+          );
+        }
+        if (
+          recordedManifest.payloadSha256 !== recorded.manifestSha256
+          || recorded.resultId !== publicationResultId(recorded.revision, recorded.manifestSha256)
+          || recorded.fileCount !== recordedManifest.files.length
+          || recorded.totalBytes !== recordedTotalBytes
+        ) {
+          throw new MailboxStoreError(
+            'invalid-input',
+            `Publication ${input.clientPublicationId} receipt metadata is inconsistent`,
+          );
+        }
+      }
+      if (currentManifest !== null && resultIndex !== null) {
+        const current = this.currentRevision(resultIndex);
+        if (currentManifest.payloadSha256 !== current.manifestSha256) {
+          throw new MailboxStoreError(
+            'invalid-input',
+            'Current revision manifest does not match the result index',
+          );
+        }
+      }
+
+      // createdAt participates in the canonical SHA. Reuse the server timestamp already bound
+      // to this publication/result so a later exact retry remains byte-for-byte idempotent.
+      const createdAt = recordedManifest?.createdAt
+        ?? currentManifest?.createdAt
+        ?? this.now().toISOString();
+      const manifest = this.buildPublicationManifest(request, input, createdAt);
+      const manifestSha256 = manifest.payloadSha256;
+
+      if (recorded !== undefined) {
+        if (recorded.manifestSha256 !== manifestSha256) {
+          return {
+            status: 'conflict',
+            reason: 'publication-id-content-mismatch',
+            existingResultId: recorded.resultId,
+            detail: `Publication id ${input.clientPublicationId} is already bound to different content`,
+          };
+        }
+        return publishReceipt(requestId, recordedManifest!, recorded, true);
+      }
+
+      if (status.state === 'result-ready') {
+        if (!resultIndex || !currentManifest) {
+          throw new MailboxStoreError('invalid-input', 'Result-ready request has no current result');
+        }
+        const current = this.currentRevision(resultIndex);
+        const existingResultId = publicationResultId(current.revision, current.manifestSha256);
+        if (current.manifestSha256 === manifestSha256) {
+          const converged: StoredPublication = {
+            manifestSha256,
+            revision: current.revision,
+            resultId: existingResultId,
+            fileCount: manifest.files.length,
+            totalBytes: manifest.files.reduce((total, file) => total + file.byteLength, 0),
+            title: input.summary.title,
+            recordedAt: this.now().toISOString(),
+          };
+          await this.recordPublication(
+            requestId,
+            input.clientPublicationId,
+            converged,
+            publicationIndex,
+            lease,
+          );
+          return publishReceipt(requestId, currentManifest, converged, true);
+        }
+        return {
+          status: 'conflict',
+          reason: 'different-result-already-finalized',
+          existingResultId,
+          detail: 'A different immutable result is already finalized; use begin_result with revisionOf to publish a revision',
+        };
+      }
+
+      const totalBytes = manifest.files.reduce((total, file) => total + file.byteLength, 0);
+      const exceeded: string[] = [];
+      if (manifest.files.length > publishLimits.maxFiles) {
+        exceeded.push('maxFiles');
+      }
+      if (totalBytes > publishLimits.maxTotalBytes) {
+        exceeded.push('maxTotalBytes');
+      }
+      if (manifest.files.some((file) => file.byteLength > publishLimits.maxFileBytes)) {
+        exceeded.push('maxFileBytes');
+      }
+
+      const openUpload = await this.findOpenUpload(requestId);
+      const snapshot: PublishRollbackSnapshot = {
+        status: { state: status.state, detail: status.detail },
+        uploadPath: openUpload?.path ?? null,
+        upload: openUpload === null ? null : await this.snapshotDirectory(openUpload.path),
+        journal: await this.readFinalizeJournal(requestId),
+      };
+      let finalizedInThisCall = false;
+      try {
+        if (status.state === 'ready') {
+          await this.claimRequestUnsafe(requestId, lease);
+        }
+        const upload = await this.beginResultUnsafe(requestId, undefined, lease);
+        if (exceeded.length > 0) {
+          return {
+            status: 'chunked-upload-required',
+            requestId,
+            uploadSessionId: `staging-rev${upload.revision}`,
+            maxChunkBytes: MAX_CHUNK_BYTES,
+            requiredFiles: [...request.outputContract.requiredFiles],
+            requiredNextTools: ['put_result_file', 'finalize_result'],
+            limits: publishLimits,
+            exceeded,
+          };
+        }
+
+        for (const file of input.files) {
+          const bytes = Buffer.from(file.content, 'utf8');
+          await this.putResultFileUnsafe(
+            requestId,
+            {
+              filePath: file.path,
+              chunkIndex: 0,
+              chunkCount: 1,
+              content: file.content,
+              chunkSha256: sha256(bytes),
+            },
+            lease,
+          );
+        }
+        const finalized = await this.finalizeResultUnsafe(requestId, manifest, lease);
+        finalizedInThisCall = true;
+        const resultId = publicationResultId(finalized.revision, finalized.manifestSha256);
+        const publication: StoredPublication = {
+          manifestSha256: finalized.manifestSha256,
+          revision: finalized.revision,
+          resultId,
+          fileCount: manifest.files.length,
+          totalBytes,
+          title: input.summary.title,
+          recordedAt: this.now().toISOString(),
+        };
+        // If this atomic record write fails after finalize, retry converges through the
+        // current-manifest branch above and records the same deterministic receipt.
+        await this.recordPublication(
+          requestId,
+          input.clientPublicationId,
+          publication,
+          publicationIndex,
+          lease,
+        );
+        return publishReceipt(requestId, manifest, publication, false);
+      } catch (error) {
+        if (error instanceof DurableOpHookError || finalizedInThisCall) {
+          throw error;
+        }
+        await this.rollbackPublish(requestId, snapshot, lease);
+        throw error;
+      }
+    });
   }
 
   async beginResult(requestId: string, revisionOf?: string): Promise<{ revision: number }> {
@@ -1689,6 +2099,226 @@ export class MailboxStore {
     assertSafeRequestId(requestId);
     const index = await this.readResultIndex(requestId);
     return index ? this.currentRevision(index).resultFilesSha256 : null;
+  }
+
+  private buildPublicationManifest(
+    request: ReviewRequest,
+    input: PublishPackageInput,
+    createdAt: string,
+  ): ReviewResultManifest {
+    if (!CLIENT_PUBLICATION_ID.test(input.clientPublicationId)) {
+      throw new MailboxStoreError('invalid-input', 'clientPublicationId has an invalid format');
+    }
+    if (typeof input.summary.title !== 'string' || input.summary.title.trim().length === 0) {
+      throw new MailboxStoreError('invalid-input', 'Publication summary title is required');
+    }
+    if (!Array.isArray(input.files) || input.files.length === 0) {
+      throw new MailboxStoreError('invalid-input', 'Publication requires at least one result file');
+    }
+    const seen = new Set<string>();
+    const files = input.files.map((file) => {
+      if (!isSafeRelativePath(file.path)) {
+        throw new MailboxStoreError('unsafe-path', `Unsafe result file path: ${file.path}`);
+      }
+      if (seen.has(file.path)) {
+        throw new MailboxStoreError('invalid-input', `Duplicate result file path: ${file.path}`);
+      }
+      if (typeof file.content !== 'string') {
+        throw new MailboxStoreError('invalid-input', `Result file content must be UTF-8 text: ${file.path}`);
+      }
+      seen.add(file.path);
+      const bytes = Buffer.from(file.content, 'utf8');
+      return {
+        path: file.path,
+        mediaType: file.mediaType,
+        byteLength: bytes.byteLength,
+        sha256: sha256(bytes),
+      };
+    });
+    const draft: ReviewResultManifest = {
+      schemaVersion: 'vibe-pro-review-result-v1',
+      requestId: request.requestId,
+      requestPayloadSha256: request.payloadSha256,
+      repositoryFullName: request.repository.fullName,
+      reviewedBaseSha: request.git.baseSha,
+      reviewedHeadSha: request.git.headSha,
+      resultKind: request.kind === 'feature_design' ? 'design' : 'audit',
+      proposedFolder: input.proposedFolder,
+      disposition: input.disposition,
+      files,
+      findingsSummary: {
+        p0: input.summary.p0,
+        p1: input.summary.p1,
+        p2: input.summary.p2,
+        p3: input.summary.p3,
+      },
+      reviewerDeclaration: input.reviewerDeclaration ?? {
+        surface: 'chatgpt-web',
+        requestedMode: 'pro',
+        githubConnectorUsed: true,
+        limitations: [...input.summary.limitations],
+      },
+      createdAt,
+      payloadSha256: '0'.repeat(64),
+    };
+    try {
+      return ReviewResultManifestSchema.parse({
+        ...draft,
+        payloadSha256: computePayloadSha256(draft),
+      });
+    } catch (error) {
+      throw new MailboxStoreError('invalid-input', validationMessage(error));
+    }
+  }
+
+  private async readRevisionManifest(
+    requestId: string,
+    revision: number,
+  ): Promise<ReviewResultManifest | null> {
+    const manifestPath = path.join(this.resultDir(requestId), `rev${revision}`, 'manifest.json');
+    if (!(await exists(manifestPath))) {
+      return null;
+    }
+    let manifest: ReviewResultManifest;
+    try {
+      manifest = ReviewResultManifestSchema.parse(await readJson(manifestPath));
+    } catch (error) {
+      throw new MailboxStoreError(
+        'invalid-input',
+        `Invalid revision ${revision} manifest: ${validationMessage(error)}`,
+      );
+    }
+    if (computePayloadSha256(manifest) !== manifest.payloadSha256) {
+      throw new MailboxStoreError('invalid-input', `Revision ${revision} manifest hash is invalid`);
+    }
+    return manifest;
+  }
+
+  private async readPublicationIndex(requestId: string): Promise<PublicationIndex> {
+    const publicationPath = path.join(this.resultDir(requestId), 'publications.json');
+    if (!(await exists(publicationPath))) {
+      return { schemaVersion: PUBLICATION_RECORD_SCHEMA, publications: {} };
+    }
+    try {
+      return parsePublicationIndex(await readJson(publicationPath));
+    } catch (error) {
+      if (error instanceof MailboxStoreError) {
+        throw error;
+      }
+      throw new MailboxStoreError(
+        'invalid-input',
+        `Invalid publication record: ${validationMessage(error)}`,
+      );
+    }
+  }
+
+  private async recordPublication(
+    requestId: string,
+    clientPublicationId: string,
+    publication: StoredPublication,
+    current: PublicationIndex,
+    lease: LeaseContext,
+  ): Promise<void> {
+    await this.commitJson(
+      path.join(this.resultDir(requestId), 'publications.json'),
+      {
+        schemaVersion: PUBLICATION_RECORD_SCHEMA,
+        publications: {
+          ...current.publications,
+          [clientPublicationId]: publication,
+        },
+      } satisfies PublicationIndex,
+      lease,
+      'publish:publication-record',
+    );
+  }
+
+  private async snapshotDirectory(directory: string): Promise<DirectorySnapshot> {
+    const snapshot: DirectorySnapshot = { directories: [], files: [] };
+    const visit = async (current: string, relative: string): Promise<void> => {
+      const entries = (await readdir(current, { withFileTypes: true }))
+        .sort((left, right) => compareStringsByCodePoint(left.name, right.name));
+      for (const entry of entries) {
+        const entryRelative = relative.length === 0
+          ? entry.name
+          : path.join(relative, entry.name);
+        const absolute = path.join(current, entry.name);
+        if (entry.isDirectory()) {
+          snapshot.directories.push(entryRelative);
+          await visit(absolute, entryRelative);
+        } else if (entry.isFile()) {
+          snapshot.files.push({ path: entryRelative, content: await readFile(absolute) });
+        } else {
+          throw new MailboxStoreError(
+            'invalid-input',
+            `Unsupported staging entry type: ${entryRelative}`,
+          );
+        }
+      }
+    };
+    await visit(directory, '');
+    return snapshot;
+  }
+
+  private async restoreDirectory(
+    directory: string,
+    snapshot: DirectorySnapshot,
+    lease: LeaseContext,
+  ): Promise<void> {
+    await this.removePath(directory, lease, 'publish:rollback-upload-reset');
+    await mkdir(directory, { recursive: true });
+    for (const relative of snapshot.directories) {
+      await mkdir(path.join(directory, relative), { recursive: true });
+    }
+    for (const file of snapshot.files) {
+      await this.commitBytes(
+        path.join(directory, file.path),
+        file.content,
+        lease,
+        'publish:rollback-upload-restore',
+      );
+    }
+  }
+
+  private async rollbackPublish(
+    requestId: string,
+    snapshot: PublishRollbackSnapshot,
+    lease: LeaseContext,
+  ): Promise<void> {
+    let journal = await this.readFinalizeJournal(requestId);
+    const mayAbortPreparedWork = journal === null
+      || (snapshot.journal === null && journal.phase === 'prepared');
+    if (mayAbortPreparedWork) {
+      if (snapshot.uploadPath === null) {
+        const upload = await this.findOpenUpload(requestId);
+        if (upload) {
+          await this.removePath(upload.path, lease, 'publish:rollback-upload');
+        }
+      } else if (snapshot.upload !== null) {
+        await this.restoreDirectory(snapshot.uploadPath, snapshot.upload, lease);
+      }
+    }
+    journal = await this.readFinalizeJournal(requestId);
+    if (snapshot.journal === null && journal?.phase === 'prepared') {
+      await this.removePath(
+        path.join(this.resultDir(requestId), 'journal.json'),
+        lease,
+        'publish:rollback-journal',
+      );
+      journal = null;
+    }
+    // revision-installed and later phases are authoritative and must roll forward via reconcile.
+    if (journal === null) {
+      const current = await this.getStatus(requestId);
+      if (current.state !== snapshot.status.state || current.detail !== snapshot.status.detail) {
+        await this.writeStatus(
+          requestId,
+          snapshot.status.state,
+          snapshot.status.detail,
+          lease,
+        );
+      }
+    }
   }
 
   private async ensureRequestArtifacts(request: ReviewRequest, lease: LeaseContext): Promise<void> {

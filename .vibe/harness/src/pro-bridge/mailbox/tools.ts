@@ -2,16 +2,21 @@ import { createHash } from 'node:crypto';
 import { z } from 'zod';
 import { zodToJsonSchema } from 'zod-to-json-schema';
 import {
+  DEFAULT_PUBLISH_LIMITS,
   FOLDER_NAME_PATTERN,
   REQUIRED_RESULT_FILES,
+  ReviewDispositionSchema,
   ReviewRequestSchema,
   ReviewResultManifestSchema,
   computePayloadSha256,
+  isSafeRelativePath,
+  type PublishLimits,
   type ReviewRequest,
 } from '../contract.js';
 import {
   MailboxStore,
   MailboxStoreError,
+  validatePublishLimits,
   type MailboxImportReceipt,
 } from './store.js';
 
@@ -23,6 +28,7 @@ const TERMINAL_STATES = new Set(['imported', 'cancelled', 'expired', 'failed']);
 export interface MailboxToolOptions {
   now?: () => Date;
   requestTtlHours?: number;
+  publishLimits?: PublishLimits;
 }
 
 export interface MailboxToolResult {
@@ -92,6 +98,60 @@ const CreateDesignRequestInput = z
     goal: z.string().min(1).max(4_000),
   })
   .strict();
+const PublishPackageFilesInput = z
+  .array(z
+    .object({
+      path: z.string().min(1).refine(isSafeRelativePath, 'Expected a safe relative path'),
+      mediaType: z.enum(['text/markdown', 'application/json']),
+      content: z.string(),
+    })
+    .strict())
+  .min(1)
+  .superRefine((files, context) => {
+    const seen = new Set<string>();
+    files.forEach((file, index) => {
+      if (seen.has(file.path)) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: [index, 'path'],
+          message: `Duplicate result file path: ${file.path}`,
+        });
+      }
+      seen.add(file.path);
+    });
+  });
+const PublishReviewPackageInput = z
+  .object({
+    requestId: z.string().min(1),
+    proposedFolder: z.string().regex(FOLDER_NAME_PATTERN),
+    disposition: ReviewDispositionSchema,
+    summary: z
+      .object({
+        title: z.string().min(1),
+        reviewedRepository: z.string().min(1),
+        reviewedBaseSha: z.string().regex(/^[0-9a-f]{40}$/),
+        reviewedHeadSha: z.string().regex(/^[0-9a-f]{40}$/),
+        p0: z.number().int().min(0),
+        p1: z.number().int().min(0),
+        p2: z.number().int().min(0),
+        p3: z.number().int().min(0),
+        limitations: z.array(z.string()),
+      })
+      .strict(),
+    files: PublishPackageFilesInput,
+    clientPublicationId: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/),
+    reviewerDeclaration: ReviewResultManifestSchema.shape.reviewerDeclaration.optional(),
+  })
+  .strict();
+
+const WEB_PUBLICATION_PROMPT = [
+  'The task is incomplete until the Bridge returns status=result-ready.',
+  'Do not finish by only printing Markdown in chat.',
+  'Generate every required result file, then call publish_review_package.',
+  'If it returns chunked-upload-required, upload every requested file or chunk and call finalize_result.',
+  'The final response must include requestId, resultId, proposedFolder, and resultManifestSha256.',
+  'If the publication tool is unavailable, report that the Bridge app tool surface is incomplete. Do not claim the request is complete.',
+] as const;
 
 function jsonSchema(schema: z.ZodTypeAny): Record<string, unknown> {
   return zodToJsonSchema(schema, {
@@ -139,6 +199,7 @@ export function createMailboxTools(
   store: MailboxStore,
   options: MailboxToolOptions = {},
 ): McpToolDefinition[] {
+  const publishLimits = validatePublishLimits(options.publishLimits ?? DEFAULT_PUBLISH_LIMITS);
   return [
     definition({
       name: 'create_request',
@@ -166,7 +227,7 @@ export function createMailboxTools(
             created: false,
             requiredFiles: [...REQUIRED_RESULT_FILES.design],
             proposedFolderPattern: FOLDER_NAME_PATTERN.source,
-            next: 'claim_request → begin_result → put_result_file × N → finalize_result',
+            next: 'publish_review_package — one call publishes the package; on chunked-upload-required follow put_result_file × N → finalize_result',
             guidance: TERMINAL_STATES.has(status.state)
               ? `request already ${status.state}; change goal or headSha to create a new request`
               : `request already ${status.state}`,
@@ -207,6 +268,9 @@ export function createMailboxTools(
             '',
             `Required files: ${REQUIRED_RESULT_FILES.design.join(', ')}`,
             'Web-origin: the review session already holds the design context; this prompt is the durable record and manual fallback.',
+            '',
+            '## Mandatory publication contract',
+            ...WEB_PUBLICATION_PROMPT,
           ].join('\n'),
           outputContract: { requiredFiles: [...REQUIRED_RESULT_FILES.design] },
           createdAt: now.toISOString(),
@@ -223,7 +287,7 @@ export function createMailboxTools(
           created: created.created,
           requiredFiles: [...REQUIRED_RESULT_FILES.design],
           proposedFolderPattern: FOLDER_NAME_PATTERN.source,
-          next: 'claim_request → begin_result → put_result_file × N → finalize_result',
+          next: 'publish_review_package — one call publishes the package; on chunked-upload-required follow put_result_file × N → finalize_result',
         };
       },
     }),
@@ -244,11 +308,27 @@ export function createMailboxTools(
       schema: RequestIdInput,
       readOnly: true,
       async invoke(input: z.infer<typeof RequestIdInput>) {
-        return requireValue(
+        const request = requireValue(
           await store.getRequest(input.requestId),
           'not-found',
           `Mailbox request not found: ${input.requestId}`,
         );
+        return {
+          ...request,
+          completionContract: {
+            publicationRequired: true,
+            primaryFinalTool: 'publish_review_package',
+            requiredFinalStatus: 'result-ready',
+            normalPackageMaxBytes: publishLimits.maxTotalBytes,
+            normalPackageLimits: { ...publishLimits },
+            requiredFiles: [...request.outputContract.requiredFiles],
+            fallback: {
+              triggerStatus: 'chunked-upload-required',
+              tools: ['put_result_file', 'finalize_result'],
+            },
+            chatOnlyOutputCompletesRequest: false,
+          },
+        };
       },
     }),
     definition({
@@ -260,8 +340,25 @@ export function createMailboxTools(
       },
     }),
     definition({
+      name: 'publish_review_package',
+      summary: 'Use this when a Vibe goal audit, implementation review, or feature design is complete and the user asked to save the package for CLI import. This is the required final publication step. Do not merely print the files in chat.',
+      schema: PublishReviewPackageInput,
+      async invoke(input: z.infer<typeof PublishReviewPackageInput>) {
+        return store.publishReviewPackage(input.requestId, {
+          proposedFolder: input.proposedFolder,
+          disposition: input.disposition,
+          summary: input.summary,
+          files: input.files,
+          clientPublicationId: input.clientPublicationId,
+          ...(input.reviewerDeclaration === undefined
+            ? {}
+            : { reviewerDeclaration: input.reviewerDeclaration }),
+        }, publishLimits);
+      },
+    }),
+    definition({
       name: 'begin_result',
-      summary: 'Open the initial result upload or a revision linked to the current manifest.',
+      summary: 'Use this only when publish_review_package returned chunked-upload-required, when an existing upload session must be resumed, or to open a result revision linked to the current manifest. Do not use it as the default publication path.',
       schema: BeginResultInput,
       async invoke(input: z.infer<typeof BeginResultInput>) {
         return store.beginResult(input.requestId, input.revisionOf);
@@ -269,7 +366,7 @@ export function createMailboxTools(
     }),
     definition({
       name: 'put_result_file',
-      summary: 'Upload one hash-bound result file chunk in any order.',
+      summary: 'Use this only for an active upload session returned by publish_review_package or begin_result. Upload exactly the requested file or chunk and preserve the returned upload session identity.',
       schema: PutResultFileInput,
       async invoke(input: z.infer<typeof PutResultFileInput>) {
         return store.putResultFile(input.requestId, {
@@ -284,7 +381,7 @@ export function createMailboxTools(
     }),
     definition({
       name: 'finalize_result',
-      summary: 'Validate and finalize one immutable result manifest and package. The requestPayloadSha256 and payloadSha256 fields may be omitted; the server fills and verifies both hashes.',
+      summary: 'Use this only after every file required by the active chunked upload has been stored. This is the final fallback step and must return status=result-ready. The requestPayloadSha256 and payloadSha256 fields may be omitted; the server fills and verifies both hashes.',
       schema: FinalizeResultInput,
       async invoke(input: z.infer<typeof FinalizeResultInput>) {
         const request = requireValue(

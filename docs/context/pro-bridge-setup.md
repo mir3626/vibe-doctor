@@ -45,12 +45,13 @@ npm run vibe:pro-mcp
 1. CLI에서 audit 또는 design 요청을 발행한다.
 2. 웹 대화에서 GitHub와 Vibe Pro Bridge 커넥터를 활성화한다.
 3. `@Vibe Pro Bridge review <request-id>` 취지의 invocation을 보낸다.
-4. 웹 리뷰어가 request를 claim하고 결과 파일을 chunk upload한 뒤 finalize하도록 둔다.
-5. 결과가 도착하면 로컬에서 `npm run vibe:pro-sync`를 실행한다. 클립보드 복사는 필요 없다.
+4. 웹 리뷰어는 `get_request`로 요청과 완료 계약을 읽고, 정상 크기 패키지는 `publish_review_package` 한 번으로 발행한다. 정상 왕복은 `get_request → publish_review_package` 두 콜이다.
+5. `publish_review_package`가 `chunked-upload-required`를 반환한 경우에만 열린 upload session에 `put_result_file`을 반복하고 `finalize_result`로 마친다. 기존 세션을 명시적으로 재개하는 경우에도 이 저수준 경로를 사용한다.
+6. Bridge가 `status=result-ready`와 requestId/resultId/proposedFolder/resultManifestSha256 receipt를 반환해야 웹 리뷰가 완료된다. 결과가 도착하면 로컬에서 `npm run vibe:pro-sync`를 실행한다. 클립보드 복사는 필요 없다.
 
 `finalize_result` 호출에서 manifest의 `requestPayloadSha256`와 `payloadSha256`는 생략할 수 있다. 서버가 저장된 request와 canonical manifest를 기준으로 두 값을 채우며, 리뷰어가 값을 제공한 경우에는 일치 여부를 검증한다. 따라서 웹 리뷰어가 채팅에서 canonical SHA-256을 직접 계산할 필요가 없다.
 
-Pro 모드 대화에서 connector write tool이 호출되지 않으면 Pro로 추론을 마친 뒤 같은 대화에서 모델을 전환해 제출 턴(`begin_result`, `put_result_file`, `finalize_result`)만 실행한다. 그래도 불가능하면 vibe-bundle을 출력하고 `npm run vibe:pro-sync -- --from <file>` Phase 1 경로로 돌아간다.
+Pro 모드 대화에서 connector write tool이 호출되지 않으면 Pro로 추론을 마친 뒤 같은 대화에서 모델을 전환해 제출 턴(`publish_review_package`, 필요 시 반환된 fallback 계획의 `put_result_file`·`finalize_result`)만 실행한다. 그래도 불가능하면 vibe-bundle을 출력하고 `npm run vibe:pro-sync -- --from <file>` Phase 1 경로로 돌아간다.
 
 CLI-origin 요청에 로컬 patch가 있으면 상한 내 patch는 manual과 mailbox 양쪽의 review prompt에 fenced diff로 포함된다. manual outbox에는 크기와 무관하게 `<requestDir>/patch.diff`도 생성된다. 인라인 상한을 넘으면 CLI가 해당 파일을 리뷰 대화에 직접 첨부하라고 안내한다. mailbox wire는 상한 초과 patch를 별도로 가져오는 도구가 아직 없으므로, 이 경우 manual artifact 첨부 경로를 사용한다.
 
@@ -75,7 +76,7 @@ netsh interface ipv4 show excludedportrange protocol=tcp
 
 ## Web-origin 설계 (Phase 3)
 
-웹에서 설계를 시작하기 전에 `npm run vibe:pro-mcp`를 기동하고 해당 세션의 connector URL이 유효한지 확인한다. 웹 세션은 `create_design_request`에 repository fullName, 실제 GitHub head SHA, 선택적 branch/base SHA, goal을 전달한다. 반환된 request id로 `claim_request` → `begin_result` → `put_result_file` 반복 → `finalize_result` 순서를 수행한다.
+웹에서 설계를 시작하기 전에 `npm run vibe:pro-mcp`를 기동하고 해당 세션의 connector URL이 유효한지 확인한다. 웹 세션은 `create_design_request`에 repository fullName, 실제 GitHub head SHA, 선택적 branch/base SHA, goal을 전달한다. 반환된 request id를 `get_request`로 읽고 정상 크기 결과는 `publish_review_package`로 발행한다. `chunked-upload-required`가 반환되면 facade가 이미 연 upload session에서 `put_result_file` 반복 → `finalize_result` 순서로 fallback을 완료한다.
 
 로컬에서는 `npm run vibe:pro-sync -- --latest`가 현재 repository fullName, 아직 import되지 않은 result-ready 상태, 선택적 `--kind`, 최신 생성 시각을 기준으로 결과를 고른다. web-origin manifest의 reviewed HEAD가 로컬 HEAD와 다르면 설치가 중단되며, 검토 후 `--accept-head-mismatch`로 명시 승인할 수 있다.
 

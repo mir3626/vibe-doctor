@@ -179,6 +179,37 @@ describe('review prompt composer', () => {
     assert.match(prompt, /VIBE:END/);
   });
 
+  it('states the result-ready completion contract in the composed review prompt', () => {
+    const prompt = composeReviewPrompt(input());
+    assert.match(prompt, /The task is incomplete until the Bridge returns status=result-ready\./);
+    assert.match(prompt, /Do not finish by only printing Markdown in chat\./);
+    for (const receiptField of [
+      'requestId',
+      'resultId',
+      'proposedFolder',
+      'resultManifestSha256',
+    ]) {
+      assert.equal(prompt.includes(receiptField), true, receiptField);
+    }
+    assert.match(prompt, /chunked-upload-required.*every requested file or chunk.*finalize_result/);
+  });
+
+  it('keeps the manual vibe-bundle wire as an explicit completion path without contradiction', () => {
+    const prompt = composeReviewPrompt(input());
+    assert.match(prompt, /When mailbox tools are not attached.*Phase 1 manual wire.*vibe-bundle.*completion path/);
+    assert.match(prompt, /Phase 1 is manual: output the final response as one complete vibe-bundle block/);
+    assert.match(prompt, /Return exactly one vibe-bundle v1 block/);
+    assert.match(prompt, /VIBE:END/);
+  });
+
+  it('instructs the model to report an incomplete bridge tool surface when the publish tool is missing', () => {
+    const prompt = composeReviewPrompt(input());
+    assert.match(
+      prompt,
+      /If the publication tool is unavailable, report that the Bridge app tool surface is incomplete\. Do not claim the request is complete\./,
+    );
+  });
+
   it('includes patch instruction only when a patch is attached', () => {
     const instruction = 'Apply the attached patch conceptually for local-only changes.';
     assert.equal(composeReviewPrompt(input()).includes(instruction), false);

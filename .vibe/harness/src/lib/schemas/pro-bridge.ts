@@ -1,4 +1,5 @@
 import { z } from 'zod';
+export { DEFAULT_PUBLISH_LIMITS, type PublishLimits } from '../config.js';
 import { IsoDateTimeSchema } from './datetime.js';
 
 export const GitShaSchema = z.string().regex(/^[0-9a-f]{40}$/);

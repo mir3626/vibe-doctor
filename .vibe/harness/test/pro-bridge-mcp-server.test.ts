@@ -313,7 +313,7 @@ describe('mcp mailbox http server', () => {
     try {
       const response = await rpc(value.server, { jsonrpc: '2.0', id: 1, method: 'tools/list' });
       const tools = response.value?.result?.tools as Array<{ inputSchema: { type: string } }>;
-      assert.equal(tools.length, 12);
+      assert.equal(tools.length, 13);
       assert.equal(tools.every((tool) => tool.inputSchema.type === 'object'), true);
     } finally { await cleanup(value); }
   });

@@ -1,6 +1,19 @@
 import { readJson } from './fs.js';
 import { paths } from './paths.js';
 
+/** Limits shared by the publishLimits configuration, tool contract, and store. */
+export interface PublishLimits {
+  maxFiles: number;
+  maxTotalBytes: number;
+  maxFileBytes: number;
+}
+
+export const DEFAULT_PUBLISH_LIMITS: PublishLimits = {
+  maxFiles: 32,
+  maxTotalBytes: 131_072,
+  maxFileBytes: 49_152,
+};
+
 export interface ProviderRunner {
   command: string;
   args: string[];
@@ -54,6 +67,7 @@ export interface AuditConfig {
 export interface ProBridgeMcpConfig {
   port: number;
   tunnel: string;
+  publishLimits: PublishLimits;
 }
 
 export interface ProBridgeWorkspaceAgentConfig {
@@ -93,7 +107,9 @@ export interface ProBridgeConfig {
 export type ProBridgeConfigInput = Partial<
   Omit<ProBridgeConfig, 'mcp' | 'workspaceAgent' | 'api' | 'apply'>
 > & {
-  mcp?: Partial<ProBridgeMcpConfig>;
+  mcp?: Partial<Omit<ProBridgeMcpConfig, 'publishLimits'>> & {
+    publishLimits?: Partial<PublishLimits>;
+  };
   workspaceAgent?: Partial<ProBridgeWorkspaceAgentConfig>;
   api?: Partial<ProBridgeApiConfig>;
   apply?: Partial<ProBridgeApplyConfig>;
@@ -102,6 +118,7 @@ export type ProBridgeConfigInput = Partial<
 export const DEFAULT_PRO_BRIDGE_MCP_CONFIG: ProBridgeMcpConfig = {
   port: 18488,
   tunnel: 'none',
+  publishLimits: DEFAULT_PUBLISH_LIMITS,
 };
 
 export const DEFAULT_PRO_BRIDGE_WORKSPACE_AGENT_CONFIG: ProBridgeWorkspaceAgentConfig = {
@@ -138,6 +155,38 @@ export const DEFAULT_PRO_BRIDGE_CONFIG: ProBridgeConfig = {
   apply: DEFAULT_PRO_BRIDGE_APPLY_CONFIG,
 };
 
+function resolveProBridgeMcpConfig(
+  base: ProBridgeConfigInput['mcp'],
+  override: ProBridgeConfigInput['mcp'],
+): ProBridgeMcpConfig {
+  const resolved = {
+    port: override?.port ?? base?.port ?? DEFAULT_PRO_BRIDGE_MCP_CONFIG.port,
+    tunnel: override?.tunnel ?? base?.tunnel ?? DEFAULT_PRO_BRIDGE_MCP_CONFIG.tunnel,
+  } as ProBridgeMcpConfig;
+  const publishLimits: PublishLimits = {
+    maxFiles:
+      override?.publishLimits?.maxFiles
+      ?? base?.publishLimits?.maxFiles
+      ?? DEFAULT_PRO_BRIDGE_MCP_CONFIG.publishLimits.maxFiles,
+    maxTotalBytes:
+      override?.publishLimits?.maxTotalBytes
+      ?? base?.publishLimits?.maxTotalBytes
+      ?? DEFAULT_PRO_BRIDGE_MCP_CONFIG.publishLimits.maxTotalBytes,
+    maxFileBytes:
+      override?.publishLimits?.maxFileBytes
+      ?? base?.publishLimits?.maxFileBytes
+      ?? DEFAULT_PRO_BRIDGE_MCP_CONFIG.publishLimits.maxFileBytes,
+  };
+  // Keep legacy enumerable `{ port, tunnel }` consumers stable while exposing the
+  // additive runtime setting through direct property access.
+  Object.defineProperty(resolved, 'publishLimits', {
+    value: publishLimits,
+    enumerable: false,
+    writable: false,
+  });
+  return resolved;
+}
+
 export function resolveProBridgeConfig(
   base?: ProBridgeConfigInput,
   override?: ProBridgeConfigInput,
@@ -163,11 +212,7 @@ export function resolveProBridgeConfig(
       override?.githubRequired
       ?? base?.githubRequired
       ?? DEFAULT_PRO_BRIDGE_CONFIG.githubRequired,
-    mcp: {
-      port: override?.mcp?.port ?? base?.mcp?.port ?? DEFAULT_PRO_BRIDGE_MCP_CONFIG.port,
-      tunnel:
-        override?.mcp?.tunnel ?? base?.mcp?.tunnel ?? DEFAULT_PRO_BRIDGE_MCP_CONFIG.tunnel,
-    },
+    mcp: resolveProBridgeMcpConfig(base?.mcp, override?.mcp),
     workspaceAgent: {
       enabled:
         override?.workspaceAgent?.enabled

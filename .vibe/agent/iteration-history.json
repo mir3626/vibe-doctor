@@ -1,6 +1,6 @@
 {
   "$schema": "./iteration-history.schema.json",
-  "currentIteration": null,
+  "currentIteration": "iter-3",
   "iterations": [
     {
       "id": "iter-2",
@@ -25,6 +25,28 @@
         "release": 0
       },
       "summary": "iteration 1(v1.8.0) 산출물에 대한 실 웹 Pro 리뷰 기반 개선. 모델 역할 동일: Orchestrator/Planner/Evaluator=fable, Generator=gpt-5.6-sol xhigh."
+    },
+    {
+      "id": "iter-3",
+      "label": "mcp-write-path-improvement",
+      "startedAt": "2026-07-16T00:20:00.000Z",
+      "completedAt": null,
+      "goal": "MCP write-path 개선 (vibe-doctor-mcp-write-improvement-v1.8.0/ 패키지 MCP-001~007): publish_review_package 파사드, chunked fallback 계약, 완료 계약+프롬프트 갱신, 도구 메타데이터+카탈로그 audit, auth scope, bridge_capabilities+doctor, golden prompt 회귀. iter-2 remediation과 합쳐 v1.8.1 릴리즈.",
+      "plannedSprints": [
+        "sprint-vpb-10-publish-facade",
+        "sprint-vpb-11-metadata-diagnostics",
+        "sprint-vpb-12-auth-golden"
+      ],
+      "completedSprints": [
+        "sprint-vpb-10-publish-facade"
+      ],
+      "milestoneProgress": {
+        "mcp-001-003": 0,
+        "mcp-004-006": 0,
+        "mcp-005-007": 0,
+        "release": 0
+      },
+      "summary": "실 Journey B 실패(도구 미노출+저수준 표면)의 근본 대응. 모델 역할 동일: Orchestrator/Planner/Evaluator=fable, Generator=gpt-5.6-sol xhigh."
     }
   ]
 }

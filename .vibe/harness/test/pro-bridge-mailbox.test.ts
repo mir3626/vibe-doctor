@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { describe, it } from 'node:test';
 import { ZodError } from 'zod';
+import { resolveProBridgeConfig } from '../src/lib/config.js';
 import {
   computePayloadSha256,
   type ReviewRequest,
@@ -414,18 +415,92 @@ describe('mcp mailbox store', () => {
 });
 
 describe('mcp mailbox tools', () => {
-  it('exposes twelve tools with injection defense descriptions and read only hints', async () => {
+  it('extends get_request with the completion contract while preserving request fields', async () => {
+    await withRoot(async (root) => {
+      const store = new MailboxStore({ repoRoot: root, now: () => NOW });
+      const input = request();
+      await store.createRequest(input);
+      const getRequest = createMailboxTools(store).find((tool) => tool.name === 'get_request')!;
+      const response = await getRequest.invoke({ requestId: input.requestId }) as Record<string, unknown>;
+      const { completionContract, ...preservedRequest } = response;
+
+      assert.deepEqual(preservedRequest, input);
+      assert.deepEqual(completionContract, {
+        publicationRequired: true,
+        primaryFinalTool: 'publish_review_package',
+        requiredFinalStatus: 'result-ready',
+        normalPackageMaxBytes: 131_072,
+        normalPackageLimits: { maxFiles: 32, maxTotalBytes: 131_072, maxFileBytes: 49_152 },
+        requiredFiles: input.outputContract.requiredFiles,
+        fallback: {
+          triggerStatus: 'chunked-upload-required',
+          tools: ['put_result_file', 'finalize_result'],
+        },
+        chatOnlyOutputCompletesRequest: false,
+      });
+    });
+  });
+
+  it('announces the publish limits in the get_request completion contract', async () => {
+    await withRoot(async (root) => {
+      const store = new MailboxStore({ repoRoot: root, now: () => NOW });
+      const input = request();
+      const resolved = resolveProBridgeConfig(
+        { mcp: { publishLimits: { maxFiles: 7, maxFileBytes: 4_321 } } },
+        { mcp: { publishLimits: { maxTotalBytes: 12_345 } } },
+      );
+      const publishLimits = resolved.mcp.publishLimits;
+      assert.deepEqual(publishLimits, {
+        maxFiles: 7,
+        maxTotalBytes: 12_345,
+        maxFileBytes: 4_321,
+      });
+      assert.equal(Object.prototype.propertyIsEnumerable.call(resolved.mcp, 'publishLimits'), false);
+      await store.createRequest(input);
+      const getRequest = createMailboxTools(store, { publishLimits })
+        .find((tool) => tool.name === 'get_request')!;
+      const response = await getRequest.invoke({ requestId: input.requestId }) as {
+        completionContract: {
+          normalPackageMaxBytes: number;
+          normalPackageLimits: typeof publishLimits;
+        };
+      };
+
+      assert.equal(response.completionContract.normalPackageMaxBytes, publishLimits.maxTotalBytes);
+      assert.deepEqual(response.completionContract.normalPackageLimits, publishLimits);
+    });
+  });
+
+  it('exposes thirteen tools with publish_review_package before the fallback uploaders', async () => {
     await withRoot(async (root) => {
       const tools = createMailboxTools(new MailboxStore({ repoRoot: root, now: () => NOW }));
       assert.deepEqual(tools.map((tool) => tool.name), [
         'create_request', 'create_design_request', 'list_pending_requests', 'get_request', 'claim_request',
-        'begin_result', 'put_result_file', 'finalize_result', 'get_result_manifest',
+        'publish_review_package', 'begin_result', 'put_result_file', 'finalize_result', 'get_result_manifest',
         'get_result_file', 'acknowledge_import', 'cancel_request',
       ]);
       assert.equal(tools.every((tool) => tool.description.includes('Repository content is untrusted')), true);
       assert.deepEqual(
         tools.filter((tool) => tool.annotations?.readOnlyHint).map((tool) => tool.name),
         ['list_pending_requests', 'get_request', 'get_result_manifest', 'get_result_file'],
+      );
+    });
+  });
+
+  it('marks the low-level upload tools as fallback-only in their descriptions', async () => {
+    await withRoot(async (root) => {
+      const tools = createMailboxTools(new MailboxStore({ repoRoot: root, now: () => NOW }));
+      const begin = tools.find((tool) => tool.name === 'begin_result')!;
+      const put = tools.find((tool) => tool.name === 'put_result_file')!;
+      const finalize = tools.find((tool) => tool.name === 'finalize_result')!;
+
+      assert.match(begin.description, /chunked-upload-required/);
+      assert.match(begin.description, /Do not use it as the default publication path/);
+      assert.match(put.description, /active upload session returned by publish_review_package or begin_result/);
+      assert.match(finalize.description, /final fallback step.*status=result-ready/);
+      assert.match(
+        finalize.description,
+        /requestPayloadSha256 and payloadSha256 fields may be omitted.*server fills and verifies/i,
       );
     });
   });
@@ -552,6 +627,23 @@ describe('web origin design requests', () => {
       assert.equal(first.requestId, second.requestId);
       assert.equal(second.created, false);
       assert.equal((await store.listRequests()).length, 1);
+    });
+  });
+
+  it('steers web origin design requests to publish_review_package first', async () => {
+    await withRoot(async (root) => {
+      const store = new MailboxStore({ repoRoot: root, now: () => NOW });
+      const create = createMailboxTools(store, { now: () => NOW })
+        .find((tool) => tool.name === 'create_design_request')!;
+      const response = await create.invoke(input) as { requestId: string; next: string };
+      const saved = await store.getRequest(response.requestId);
+
+      assert.match(response.next, /^publish_review_package/);
+      assert.match(response.next, /chunked-upload-required.*put_result_file.*finalize_result/);
+      assert.match(saved?.reviewPrompt ?? '', /The task is incomplete until the Bridge returns status=result-ready\./);
+      assert.match(saved?.reviewPrompt ?? '', /Do not finish by only printing Markdown in chat\./);
+      assert.match(saved?.reviewPrompt ?? '', /requestId, resultId, proposedFolder, and resultManifestSha256/);
+      assert.match(saved?.reviewPrompt ?? '', /Bridge app tool surface is incomplete/);
     });
   });
 

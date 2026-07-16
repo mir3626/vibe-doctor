@@ -1223,6 +1223,7 @@ async function runMcpServer(
       tools: createMailboxTools(mailbox.store, {
         now: context.now,
         requestTtlHours: context.config.requestTtlHours,
+        publishLimits: context.config.mcp.publishLimits,
       }),
       connectCode,
       port,
