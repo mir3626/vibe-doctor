@@ -90,6 +90,15 @@ export interface MailboxStoreOptions {
   onAfterDurableOp?: (event: DurableOpEvent) => void | Promise<void>;
 }
 
+export interface RequestRangeDiffArtifact {
+  diffText: string;
+  byteLength: number;
+  sha256: string;
+  statText: string;
+  statByteLength: number;
+  statSha256: string;
+}
+
 export interface DurableOpEvent {
   scope: string;
   step: string;
@@ -834,6 +843,36 @@ export class MailboxStore {
     const request = ReviewRequestSchema.parse(input);
     assertSafeRequestId(request.requestId);
     return this.mutate(request.requestId, (lease) => this.createRequestUnsafe(request, lease));
+  }
+
+  async writeRangeDiffArtifacts(
+    requestId: string,
+    rangeDiff: RequestRangeDiffArtifact,
+  ): Promise<{ rangePath: string; statPath: string }> {
+    assertSafeRequestId(requestId);
+    const rangeBytes = Buffer.from(rangeDiff.diffText, 'utf8');
+    const statBytes = Buffer.from(rangeDiff.statText, 'utf8');
+    if (rangeBytes.byteLength !== rangeDiff.byteLength || sha256(rangeBytes) !== rangeDiff.sha256) {
+      throw new MailboxStoreError('invalid-input', `Range diff integrity mismatch for ${requestId}`);
+    }
+    if (
+      statBytes.byteLength !== rangeDiff.statByteLength
+      || sha256(statBytes) !== rangeDiff.statSha256
+    ) {
+      throw new MailboxStoreError('invalid-input', `Range stat integrity mismatch for ${requestId}`);
+    }
+    if (!(await this.getRequest(requestId))) {
+      throw new MailboxStoreError('not-found', `Mailbox request not found: ${requestId}`);
+    }
+
+    return this.mutate(requestId, async (lease) => {
+      const requestDir = this.requestDir(requestId);
+      const rangePath = path.join(requestDir, 'range.diff');
+      const statPath = path.join(requestDir, 'range-stat.txt');
+      await this.commitBytes(rangePath, rangeBytes, lease, 'create:range-diff');
+      await this.commitBytes(statPath, statBytes, lease, 'create:range-stat');
+      return { rangePath, statPath };
+    });
   }
 
   private async createRequestUnsafe(

@@ -18,6 +18,30 @@ export interface PatchAttachment {
   excluded: Array<{ path: string; reason: 'secret' | 'binary' }>;
 }
 
+export type RangeDiffExclusionReason = 'secret' | 'binary' | 'budget' | 'unavailable';
+
+export interface RangeDiffFile {
+  path: string;
+  additions: number;
+  deletions: number;
+  byteLength: number;
+  sha256: string;
+}
+
+export interface RangeDiffAttachment {
+  diffText: string;
+  byteLength: number;
+  sha256: string;
+  sourceByteLength: number;
+  maxBytes: number;
+  truncated: boolean;
+  files: RangeDiffFile[];
+  excluded: Array<{ path: string; reason: RangeDiffExclusionReason }>;
+  statText: string;
+  statByteLength: number;
+  statSha256: string;
+}
+
 export interface ScopeResolution {
   repository: {
     fullName: string | null;
@@ -40,6 +64,7 @@ export interface ScopeResolution {
     | 'blocked';
   blockedReasons: string[];
   patch: PatchAttachment | null;
+  rangeDiff: RangeDiffAttachment | null;
   warnings: string[];
 }
 
@@ -55,6 +80,7 @@ export const DEFAULT_SECRET_PATH_PATTERNS: readonly RegExp[] = Object.freeze([
 ]);
 
 const DEFAULT_MAX_PATCH_BYTES = 1024 * 1024;
+export const DEFAULT_MAX_RANGE_DIFF_BYTES = 2 * 1024 * 1024;
 const GITHUB_REMOTE_PATTERNS = [
   /^https:\/\/github\.com\/([^/\s]+)\/([^/\s]+?)(?:\.git)?\/?$/i,
   /^git@github\.com:([^/\s]+)\/([^/\s]+?)(?:\.git)?$/i,
@@ -181,6 +207,23 @@ function parseNumstatPath(line: string): string | null {
   return filePath.length > 0 ? filePath : null;
 }
 
+interface NumstatEntry {
+  path: string;
+  additions: number | null;
+  deletions: number | null;
+}
+
+function parseNumstatEntry(line: string): NumstatEntry | null {
+  const fields = line.split('\t');
+  const filePath = parseNumstatPath(line);
+  if (filePath === null || fields.length < 3) {
+    return null;
+  }
+  const additions = /^(?:0|[1-9][0-9]*)$/.test(fields[0]!) ? Number(fields[0]) : null;
+  const deletions = /^(?:0|[1-9][0-9]*)$/.test(fields[1]!) ? Number(fields[1]) : null;
+  return { path: filePath, additions, deletions };
+}
+
 function addExcluded(
   excluded: Map<string, 'secret' | 'binary'>,
   filePath: string,
@@ -281,10 +324,179 @@ async function createPatch(
   };
 }
 
+function normalizeByteLimit(value: number | undefined, fallback: number): number {
+  return value !== undefined && Number.isFinite(value) && value >= 0
+    ? Math.floor(value)
+    : fallback;
+}
+
+function renderRangeStat(input: {
+  baseSha: string;
+  headSha: string;
+  maxBytes: number;
+  byteLength: number;
+  sourceByteLength: number;
+  diffSha256: string;
+  files: RangeDiffFile[];
+  excluded: RangeDiffAttachment['excluded'];
+}): string {
+  const truncated = input.excluded.some((entry) => entry.reason === 'budget');
+  const diffstat = input.files.length === 0
+    ? ['(no included text files)']
+    : input.files.map(
+        (file) => `${file.path}\t+${file.additions}\t-${file.deletions}\t${file.byteLength} bytes`,
+      );
+  const included = input.files.length === 0
+    ? ['(none)']
+    : input.files.map(
+        (file) => `${file.path}\t${file.byteLength} bytes\tsha256:${file.sha256}`,
+      );
+  const excluded = input.excluded.length === 0
+    ? ['(none)']
+    : input.excluded.map((file) => `${file.path}\t${file.reason}`);
+  return [
+    `Range: ${input.baseSha}..${input.headSha}`,
+    `Budget: ${input.maxBytes} UTF-8 bytes`,
+    `Source text bytes: ${input.sourceByteLength}`,
+    `Written bytes: ${input.byteLength}`,
+    `Range diff SHA-256: ${input.diffSha256}`,
+    `Truncated by budget: ${truncated ? 'yes' : 'no'}`,
+    '',
+    'Diffstat (included text files):',
+    ...diffstat,
+    '',
+    'Included roster:',
+    ...included,
+    '',
+    'Excluded roster:',
+    ...excluded,
+    '',
+  ].join('\n');
+}
+
+export async function createRangeDiffArtifact(
+  ctx: { repoRoot: string; git: GitPort },
+  input: { baseSha: string; headSha: string },
+  options: { maxBytes?: number } = {},
+): Promise<{ rangeDiff: RangeDiffAttachment | null; warnings: string[] }> {
+  const warnings: string[] = [];
+  const maxBytes = normalizeByteLimit(options.maxBytes, DEFAULT_MAX_RANGE_DIFF_BYTES);
+  const rangeSpec = `${input.baseSha}..${input.headSha}`;
+  const numstat = await ctx.git.run([
+    'diff',
+    '--no-renames',
+    '--numstat',
+    rangeSpec,
+  ]);
+  if (!numstat.ok) {
+    return { rangeDiff: null, warnings: ['range-diff-numstat-unavailable'] };
+  }
+
+  const candidates: Array<{ path: string; additions: number; deletions: number }> = [];
+  const excluded = new Map<string, RangeDiffExclusionReason>();
+  for (const line of numstat.stdout.split(/\r?\n/).filter((entry) => entry.length > 0)) {
+    const entry = parseNumstatEntry(line);
+    if (entry === null) {
+      continue;
+    }
+    if (isSecretPath(entry.path)) {
+      excluded.set(entry.path, 'secret');
+    } else if (
+      entry.additions === null
+      || entry.deletions === null
+      || !isSafeRelativePath(entry.path)
+    ) {
+      excluded.set(entry.path, 'binary');
+    } else {
+      candidates.push({
+        path: entry.path,
+        additions: entry.additions,
+        deletions: entry.deletions,
+      });
+    }
+  }
+
+  const diffParts: string[] = [];
+  const files: RangeDiffFile[] = [];
+  let byteLength = 0;
+  let sourceByteLength = 0;
+  const uniqueCandidates = new Map(
+    candidates.map((candidate) => [candidate.path, candidate] as const),
+  );
+  for (const candidate of [...uniqueCandidates.values()].sort((left, right) =>
+    compareStringsByCodePoint(left.path, right.path))) {
+    const result = await ctx.git.run([
+      'diff',
+      '--no-renames',
+      rangeSpec,
+      '--',
+      candidate.path,
+    ]);
+    if (!result.ok || result.stdout.length === 0) {
+      excluded.set(candidate.path, 'unavailable');
+      warnings.push(`range-diff-unavailable:${candidate.path}`);
+      continue;
+    }
+    if (hasUnsafeControlCharacters(result.stdout)) {
+      excluded.set(candidate.path, 'binary');
+      continue;
+    }
+    const diffText = result.stdout.endsWith('\n') ? result.stdout : `${result.stdout}\n`;
+    const fileByteLength = Buffer.byteLength(diffText, 'utf8');
+    sourceByteLength += fileByteLength;
+    if (byteLength + fileByteLength > maxBytes) {
+      excluded.set(candidate.path, 'budget');
+      continue;
+    }
+    diffParts.push(diffText);
+    byteLength += fileByteLength;
+    files.push({
+      ...candidate,
+      byteLength: fileByteLength,
+      sha256: createHash('sha256').update(diffText, 'utf8').digest('hex'),
+    });
+  }
+
+  const diffText = diffParts.join('');
+  const sha256 = createHash('sha256').update(diffText, 'utf8').digest('hex');
+  const excludedFiles = [...excluded.entries()]
+    .map(([path, reason]) => ({ path, reason }))
+    .sort((left, right) => {
+      const byPath = compareStringsByCodePoint(left.path, right.path);
+      return byPath === 0 ? compareStringsByCodePoint(left.reason, right.reason) : byPath;
+    });
+  const statText = renderRangeStat({
+    baseSha: input.baseSha,
+    headSha: input.headSha,
+    maxBytes,
+    byteLength,
+    sourceByteLength,
+    diffSha256: sha256,
+    files,
+    excluded: excludedFiles,
+  });
+  return {
+    rangeDiff: {
+      diffText,
+      byteLength,
+      sha256,
+      sourceByteLength,
+      maxBytes,
+      truncated: excludedFiles.some((entry) => entry.reason === 'budget'),
+      files,
+      excluded: excludedFiles,
+      statText,
+      statByteLength: Buffer.byteLength(statText, 'utf8'),
+      statSha256: createHash('sha256').update(statText, 'utf8').digest('hex'),
+    },
+    warnings,
+  };
+}
+
 export async function resolveGitHubScope(
   ctx: { repoRoot: string; git: GitPort },
   input: { baseSha: string; headSha: string },
-  options: { maxPatchBytes?: number } = {},
+  options: { maxPatchBytes?: number; maxRangeDiffBytes?: number } = {},
 ): Promise<ScopeResolution> {
   const warnings = ['visibility-from-local-remote-refs'];
   const [remote, defaultBranchResult, branchResult, baseVisibility, headVisibility, statusResult] =
@@ -321,6 +533,19 @@ export async function resolveGitHubScope(
     blockedReasons.push('base-not-on-remote');
   }
 
+  const rangeResult = await createRangeDiffArtifact(ctx, input, {
+    ...(options.maxRangeDiffBytes === undefined
+      ? {}
+      : { maxBytes: options.maxRangeDiffBytes }),
+  });
+  warnings.push(...rangeResult.warnings);
+  const rangeDiff = rangeResult.rangeDiff;
+  if (rangeDiff === null) {
+    blockedReasons.push('range-diff-unavailable');
+  } else if (rangeDiff.excluded.some((entry) => entry.reason === 'unavailable')) {
+    blockedReasons.push('range-diff-incomplete');
+  }
+
   const compareUrlHint = fullName === null
     ? null
     : `https://github.com/${fullName}/compare/${input.baseSha}...${input.headSha}`;
@@ -336,10 +561,7 @@ export async function resolveGitHubScope(
     visibilityCase = headVisibility === 'remote'
       ? 'github-range-plus-patch'
       : 'github-base-plus-patch';
-    const requestedLimit = options.maxPatchBytes ?? DEFAULT_MAX_PATCH_BYTES;
-    const maxPatchBytes = Number.isFinite(requestedLimit) && requestedLimit >= 0
-      ? Math.floor(requestedLimit)
-      : DEFAULT_MAX_PATCH_BYTES;
+    const maxPatchBytes = normalizeByteLimit(options.maxPatchBytes, DEFAULT_MAX_PATCH_BYTES);
     const patchResult = await createPatch(
       ctx,
       headVisibility === 'remote' ? input.headSha : input.baseSha,
@@ -368,6 +590,7 @@ export async function resolveGitHubScope(
     visibilityCase,
     blockedReasons,
     patch,
+    rangeDiff,
     warnings,
   };
 }

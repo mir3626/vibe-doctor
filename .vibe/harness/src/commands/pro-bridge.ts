@@ -349,6 +349,12 @@ function scopeBlockedMessage(reasons: readonly string[]): string | null {
   if (reasons.includes('patch-oversized')) {
     messages.push('GitHub에서 보이지 않는 head의 patch가 상한을 초과했습니다. review branch는 사용자가 직접 push한 뒤 재시도하세요.');
   }
+  if (reasons.includes('range-diff-unavailable')) {
+    messages.push('리뷰 base..head range diff를 생성할 수 없어 발행을 보류했습니다. 두 ref와 로컬 git object를 확인한 뒤 재시도하세요.');
+  }
+  if (reasons.includes('range-diff-incomplete')) {
+    messages.push('리뷰 base..head range diff의 일부 파일을 읽을 수 없어 발행을 보류했습니다. range를 다시 확인한 뒤 재시도하세요.');
+  }
   return messages.length > 0 ? messages.join('\n') : null;
 }
 
@@ -449,6 +455,8 @@ function publicationSummary(scope: unknown, destination = 'OpenAI(ChatGPT 웹)')
   const fallbackIncluded = arrayAt(scope, 'patch', 'included');
   const roster = included.length > 0 ? included : fallbackIncluded;
   const excluded = arrayAt(scope, 'patch', 'excluded');
+  const rangeFiles = arrayAt(scope, 'rangeDiff', 'files');
+  const rangeExcluded = arrayAt(scope, 'rangeDiff', 'excluded');
   let protectedCount = 0;
   let nonTextCount = 0;
   let otherCount = 0;
@@ -462,8 +470,19 @@ function publicationSummary(scope: unknown, destination = 'OpenAI(ChatGPT 웹)')
       otherCount += 1;
     }
   }
+  let rangeBudgetCount = 0;
+  let rangeFilteredCount = 0;
+  for (const item of rangeExcluded) {
+    if (stringAt(item, 'reason') === 'budget') {
+      rangeBudgetCount += 1;
+    } else {
+      rangeFilteredCount += 1;
+    }
+  }
   return [
-    `외부 발행 고지: 요청 메타데이터, 리뷰 프롬프트, 아래 patch가 ${destination}로 전송됩니다.`,
+    `외부 발행 고지: 요청 메타데이터, 리뷰 프롬프트, 아래 range/patch가 ${destination}로 전송됩니다.`,
+    `range 파일: ${rangeFiles.length > 0 ? rangeFiles.map((item) => stringAt(item, 'path') ?? String(item)).join(', ') : '없음'}`,
+    `range 제외 요약: 필터 제외 ${rangeFilteredCount}, 예산 제외 ${rangeBudgetCount}`,
     `patch 파일: ${roster.length > 0 ? roster.map((item) => stringAt(item, 'path') ?? String(item)).join(', ') : '없음'}`,
     `제외 요약: 보안 필터 제외 ${protectedCount}, 비텍스트 제외 ${nonTextCount}, 기타 제외 ${otherCount}`,
   ];
@@ -536,6 +555,37 @@ async function createAndPublish(
   }
 
   const handle = await options.transport.createRequest(request);
+  let rangePaths: { rangePath: string; statPath: string } | null = null;
+  if (options.transportName === 'manual' || options.transportName === 'mcp-mailbox') {
+    const diffText = stringAt(scope, 'rangeDiff', 'diffText');
+    const sha256 = stringAt(scope, 'rangeDiff', 'sha256');
+    const byteLength = numberAt(scope, 'rangeDiff', 'byteLength');
+    const statText = stringAt(scope, 'rangeDiff', 'statText');
+    const statSha256 = stringAt(scope, 'rangeDiff', 'statSha256');
+    const statByteLength = numberAt(scope, 'rangeDiff', 'statByteLength');
+    if (
+      diffText === null
+      || sha256 === null
+      || byteLength === null
+      || statText === null
+      || statSha256 === null
+      || statByteLength === null
+    ) {
+      throw new Error(`Range diff artifact is missing for ${handle.requestId}`);
+    }
+    const artifact = { diffText, sha256, byteLength, statText, statSha256, statByteLength };
+    rangePaths = options.transportName === 'manual'
+      ? await (options.transport as ManualDirectoryTransport).writeRangeDiffArtifacts(
+          handle.requestId,
+          artifact,
+        )
+      : await (options.transport as McpMailboxTransport).store.writeRangeDiffArtifacts(
+          handle.requestId,
+          artifact,
+        );
+    options.io.out(`range artifact: ${rangePaths.rangePath}`);
+    options.io.out(`range stat: ${rangePaths.statPath}`);
+  }
   if (options.transportName === 'manual') {
     const diffText = stringAt(scope, 'patch', 'diffText');
     const sha256 = stringAt(scope, 'patch', 'sha256');
@@ -592,6 +642,10 @@ async function createAndPublish(
   options.io.out(`requestId: ${handle.requestId}`);
   options.io.out(`prompt: ${handle.promptPath}`);
   options.io.out('Pro 모델은 사용자가 웹에서 직접 선택하세요.');
+  if (rangePaths !== null) {
+    options.io.out(`Pro 챗에는 패킷 붙여넣기 + range.diff 첨부: ${rangePaths.rangePath}`);
+    options.io.out(`범위 포함/제외 내역: ${rangePaths.statPath}`);
+  }
   if (options.transportName === 'mcp-mailbox') {
     options.io.out(`@Vibe Pro Bridge review ${handle.requestId}`);
     options.io.out(`Expected tool catalog: ${TOOL_CATALOG_VERSION}`);
@@ -628,7 +682,10 @@ async function resolveScopeAndCompose(
   const scope = await resolveGitHubScope(
     { repoRoot: context.repoRoot, git: context.git },
     { baseSha: input.baseSha, headSha: input.headSha },
-    { maxPatchBytes: context.config.maxPatchBytes },
+    {
+      maxPatchBytes: context.config.maxPatchBytes,
+      maxRangeDiffBytes: context.config.rangeDiffBudget.maxBytes,
+    },
   );
   const compose = buildReviewRequest as unknown as (value: {
     kind: 'goal_audit' | 'feature_design';

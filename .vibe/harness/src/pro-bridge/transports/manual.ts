@@ -99,6 +99,12 @@ export interface ManualPatchArtifact {
   byteLength: number;
 }
 
+export interface ManualRangeDiffArtifact extends ManualPatchArtifact {
+  statText: string;
+  statSha256: string;
+  statByteLength: number;
+}
+
 async function readJson(filePath: string): Promise<unknown> {
   return JSON.parse(await readFile(filePath, 'utf8')) as unknown;
 }
@@ -182,6 +188,41 @@ export class ManualDirectoryTransport implements VibeProBridgeTransport {
     await bestEffortFsync(temporaryPath);
     await rename(temporaryPath, patchPath);
     return patchPath;
+  }
+
+  async writeRangeDiffArtifacts(
+    requestId: string,
+    rangeDiff: ManualRangeDiffArtifact,
+  ): Promise<{ rangePath: string; statPath: string }> {
+    await this.requireRequest(requestId);
+    const rangeBytes = Buffer.from(rangeDiff.diffText, 'utf8');
+    const statBytes = Buffer.from(rangeDiff.statText, 'utf8');
+    if (rangeBytes.byteLength !== rangeDiff.byteLength) {
+      throw new Error(`Range diff byte length mismatch for ${requestId}`);
+    }
+    if (createHash('sha256').update(rangeBytes).digest('hex') !== rangeDiff.sha256) {
+      throw new Error(`Range diff SHA-256 mismatch for ${requestId}`);
+    }
+    if (statBytes.byteLength !== rangeDiff.statByteLength) {
+      throw new Error(`Range stat byte length mismatch for ${requestId}`);
+    }
+    if (createHash('sha256').update(statBytes).digest('hex') !== rangeDiff.statSha256) {
+      throw new Error(`Range stat SHA-256 mismatch for ${requestId}`);
+    }
+
+    const requestDir = this.requestDir(requestId);
+    const rangePath = path.join(requestDir, 'range.diff');
+    const statPath = path.join(requestDir, 'range-stat.txt');
+    for (const [targetPath, bytes] of [
+      [rangePath, rangeBytes],
+      [statPath, statBytes],
+    ] as const) {
+      const temporaryPath = `${targetPath}.${process.pid}.${randomBytes(16).toString('hex')}.tmp`;
+      await writeFile(temporaryPath, bytes);
+      await bestEffortFsync(temporaryPath);
+      await rename(temporaryPath, targetPath);
+    }
+    return { rangePath, statPath };
   }
 
   async getRequestStatus(requestId: string): Promise<RequestStatus> {

@@ -20,6 +20,8 @@ interface FakeOptions {
   status?: string;
   numstat?: string;
   diffs?: Record<string, string>;
+  rangeNumstat?: string;
+  rangeDiffs?: Record<string, string>;
 }
 
 class FakeGit implements GitPort {
@@ -53,12 +55,14 @@ class FakeGit implements GitPort {
       return this.success(this.options.status ?? '');
     }
     if (args[0] === 'diff' && args.includes('--numstat')) {
-      return this.success(this.options.numstat ?? '');
+      const isRange = args.includes(`${BASE_SHA}..${HEAD_SHA}`);
+      return this.success(isRange ? this.options.rangeNumstat ?? '' : this.options.numstat ?? '');
     }
     if (args[0] === 'diff' && args.includes('--')) {
       const filePath = args[args.indexOf('--') + 1]!;
+      const isRange = args.includes(`${BASE_SHA}..${HEAD_SHA}`);
       return this.success(
-        this.options.diffs?.[filePath] ??
+        (isRange ? this.options.rangeDiffs?.[filePath] : this.options.diffs?.[filePath]) ??
           `diff --git a/${filePath} b/${filePath}\n--- a/${filePath}\n+++ b/${filePath}\n@@ -1 +1 @@\n-old\n+new\n`,
       );
     }
@@ -109,6 +113,98 @@ describe('github scope resolver', () => {
       result.git.compareUrlHint,
       `https://github.com/owner/repo/compare/${BASE_SHA}...${HEAD_SHA}`,
     );
+  });
+
+  it('generates range.diff with --no-renames for committed base..head files', async () => {
+    const git = new FakeGit({
+      rangeNumstat: '2\t1\tsrc/range.ts\n',
+      rangeDiffs: {
+        'src/range.ts': 'diff --git a/src/range.ts b/src/range.ts\n-old\n+new\n+line\n',
+      },
+    });
+    const result = await resolve(git);
+    assert.equal(result.rangeDiff?.files[0]?.path, 'src/range.ts');
+    assert.match(result.rangeDiff?.diffText ?? '', /src\/range\.ts/);
+    assert.match(result.rangeDiff?.statText ?? '', /Diffstat \(included text files\):/);
+    assert.equal(
+      result.rangeDiff?.sha256,
+      createHash('sha256').update(result.rangeDiff?.diffText ?? '', 'utf8').digest('hex'),
+    );
+    assert.equal(
+      git.calls.some((args) => args.join(' ') === `diff --no-renames --numstat ${BASE_SHA}..${HEAD_SHA}`),
+      true,
+    );
+    assert.equal(
+      git.calls
+        .filter((args) => args[0] === 'diff' && args.includes(`${BASE_SHA}..${HEAD_SHA}`))
+        .every((args) => args.includes('--no-renames')),
+      true,
+    );
+  });
+
+  it('truncates range.diff only at file boundaries and records the budget exclusion roster', async () => {
+    const firstDiff = 'a'.repeat(10);
+    const result = await resolveGitHubScope(
+      {
+        repoRoot: '.',
+        git: new FakeGit({
+          rangeNumstat: '1\t1\tsrc/a.ts\n1\t1\tsrc/b.ts\n',
+          rangeDiffs: {
+            'src/a.ts': firstDiff,
+            'src/b.ts': 'b'.repeat(20),
+          },
+        }),
+      },
+      { baseSha: BASE_SHA, headSha: HEAD_SHA },
+      { maxRangeDiffBytes: Buffer.byteLength(`${firstDiff}\n`, 'utf8') },
+    );
+    assert.equal(result.rangeDiff?.diffText, `${firstDiff}\n`);
+    assert.deepEqual(result.rangeDiff?.files.map((file) => file.path), ['src/a.ts']);
+    assert.deepEqual(result.rangeDiff?.excluded, [{ path: 'src/b.ts', reason: 'budget' }]);
+    assert.equal(result.rangeDiff?.truncated, true);
+    assert.match(result.rangeDiff?.statText ?? '', /Truncated by budget: yes/);
+    assert.match(result.rangeDiff?.statText ?? '', /src\/b\.ts\tbudget/);
+  });
+
+  it('excludes secret and binary committed files from range.diff with explicit roster reasons', async () => {
+    const result = await resolve(
+      new FakeGit({
+        rangeNumstat: [
+          '1\t1\t.env.production',
+          '-\t-\tassets/logo.png',
+          '1\t1\tsrc/safe.ts',
+        ].join('\n'),
+        rangeDiffs: {
+          'src/safe.ts': 'diff --git a/src/safe.ts b/src/safe.ts\n-old\n+new\n',
+        },
+      }),
+    );
+    assert.deepEqual(result.rangeDiff?.files.map((file) => file.path), ['src/safe.ts']);
+    assert.deepEqual(result.rangeDiff?.excluded, [
+      { path: '.env.production', reason: 'secret' },
+      { path: 'assets/logo.png', reason: 'binary' },
+    ]);
+    assert.doesNotMatch(result.rangeDiff?.diffText ?? '', /env\.production|logo\.png/);
+  });
+
+  it('keeps the existing dirty patch separate from committed range.diff', async () => {
+    const result = await resolve(
+      new FakeGit({
+        status: ' M src/dirty.ts\n',
+        numstat: '1\t1\tsrc/dirty.ts\n',
+        diffs: {
+          'src/dirty.ts': 'diff --git a/src/dirty.ts b/src/dirty.ts\n-dirty-old\n+dirty-new\n',
+        },
+        rangeNumstat: '1\t1\tsrc/committed.ts\n',
+        rangeDiffs: {
+          'src/committed.ts': 'diff --git a/src/committed.ts b/src/committed.ts\n-old\n+new\n',
+        },
+      }),
+    );
+    assert.deepEqual(result.patch?.files.map((file) => file.path), ['src/dirty.ts']);
+    assert.deepEqual(result.rangeDiff?.files.map((file) => file.path), ['src/committed.ts']);
+    assert.doesNotMatch(result.patch?.diffText ?? '', /committed\.ts/);
+    assert.doesNotMatch(result.rangeDiff?.diffText ?? '', /dirty\.ts/);
   });
 
   it('classifies unpushed commits as github-base plus patch', async () => {

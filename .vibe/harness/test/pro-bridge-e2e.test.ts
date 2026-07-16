@@ -90,6 +90,19 @@ function githubScope(): ScopeResolution {
     visibilityCase: 'github-range',
     blockedReasons: [],
     patch: null,
+    rangeDiff: {
+      diffText: '',
+      byteLength: 0,
+      sha256: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+      sourceByteLength: 0,
+      maxBytes: 2 * 1024 * 1024,
+      truncated: false,
+      files: [],
+      excluded: [],
+      statText: 'Included roster:\n(none)\nExcluded roster:\n(none)\n',
+      statByteLength: 48,
+      statSha256: '1'.repeat(64),
+    },
     warnings: [],
   };
 }
@@ -255,6 +268,8 @@ describe('pro bridge manual round trip', () => {
 describe('pro bridge mcp mailbox round trip', () => {
   it('round trips an audit request through the mcp mailbox transport', async () => {
     const repoRoot = await mkdtemp(path.join(tmpdir(), 'vibe-pro-bridge-mcp-e2e-'));
+    const rangeFilePath = '.vibe/harness/src/pro-bridge/transports/manual.ts';
+    const rangeDiffText = `diff --git a/${rangeFilePath} b/${rangeFilePath}\n-old\n+new\n`;
     const git: GitPort = {
       async run(args) {
         if (args[0] === 'remote') {
@@ -274,6 +289,25 @@ describe('pro bridge mcp mailbox round trip', () => {
         }
         if (args[0] === 'status') {
           return { ok: true, stdout: '', stderr: '', code: 0 };
+        }
+        if (
+          args[0] === 'diff'
+          && args.includes('--no-renames')
+          && args.includes('--numstat')
+          && args.includes(`${BASE_SHA}..${HEAD_SHA}`)
+        ) {
+          return { ok: true, stdout: `1\t1\t${rangeFilePath}\n`, stderr: '', code: 0 };
+        }
+        if (
+          args[0] === 'diff'
+          && args.includes('--no-renames')
+          && args.includes(`${BASE_SHA}..${HEAD_SHA}`)
+          && args.includes('--')
+        ) {
+          const filePath = args[args.indexOf('--') + 1];
+          if (filePath === rangeFilePath) {
+            return { ok: true, stdout: rangeDiffText, stderr: '', code: 0 };
+          }
         }
         return { ok: false, stdout: '', stderr: `unexpected: ${args.join(' ')}`, code: 1 };
       },
@@ -311,6 +345,12 @@ describe('pro bridge mcp mailbox round trip', () => {
       const pending = await transport.listRequests();
       assert.equal(pending.length, 1);
       const requestId = pending[0]!.requestId;
+      const requestDir = path.join(transport.store.requestsRoot, requestId);
+      assert.equal(await readFile(path.join(requestDir, 'range.diff'), 'utf8'), rangeDiffText);
+      assert.match(
+        await readFile(path.join(requestDir, 'range-stat.txt'), 'utf8'),
+        /\.vibe\/harness\/src\/pro-bridge\/transports\/manual\.ts/,
+      );
       const tools = new Map(createMailboxTools(transport.store).map((tool) => [tool.name, tool]));
       await tools.get('claim_request')!.invoke({ requestId });
       await tools.get('begin_result')!.invoke({ requestId });

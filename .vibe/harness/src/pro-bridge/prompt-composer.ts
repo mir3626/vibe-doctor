@@ -39,7 +39,7 @@ export class ScopeBlockedError extends Error {
 }
 
 const CONNECTOR_WARNING =
-  'GitHub 앱은 repo 단위 검색만 지원(파일명 검색 불가)하고 사실상 기본 브랜치 인덱스를 본다. 요청된 base/head가 인덱스와 다를 수 있으니 첨부 patch를 정본 delta로 취급하라. 신규/private repo는 인덱싱 ~5분 지연 — 안 보이면 `repo:owner/name <키워드>` 검색으로 인덱싱을 트리거하라.';
+  'GitHub 앱은 repo 단위 검색만 지원(파일명 검색 불가)하고 사실상 기본 브랜치 인덱스를 본다. 요청된 base/head가 인덱스와 다를 수 있으니 첨부 range.diff와 patch.diff를 각각 committed/local-only 정본 delta로 취급하라. 신규/private repo는 인덱싱 ~5분 지연 — 안 보이면 `repo:owner/name <키워드>` 검색으로 인덱싱을 트리거하라.';
 
 const PATCH_INSTRUCTION = [
   'Use GitHub for base repository and call graph.',
@@ -159,7 +159,16 @@ function renderGoalSource(goalSource: GoalSourceManifest | null, userGoal: strin
   ].join('\n');
 }
 
-function renderImplementationScope(goalSource: GoalSourceManifest | null): string {
+function renderImplementationScope(
+  goalSource: GoalSourceManifest | null,
+  scope: ScopeResolution,
+): string {
+  const rangeInstruction = scope.rangeDiff === null
+    ? []
+    : [
+        'GitHub 열람 지시는 도구 가용 세션에만 적용된다.',
+        '도구가 없으면 range.diff와 range-stat.txt의 포함/제외 로스터를 함께 사용해 committed 범위를 검토하라.',
+      ];
   if (goalSource === null) {
     return [
       'Commit roster: unavailable',
@@ -167,6 +176,7 @@ function renderImplementationScope(goalSource: GoalSourceManifest | null): strin
       'Scope globs: unavailable',
       'Implementation refs: unavailable',
       'Use GitHub to investigate callers, wiring, schemas, and tests around the requested change.',
+      ...rangeInstruction,
     ].join('\n');
   }
   return [
@@ -175,7 +185,24 @@ function renderImplementationScope(goalSource: GoalSourceManifest | null): strin
     `Scope globs: ${JSON.stringify(goalSource.scope.scopeGlobs)}`,
     `Implementation refs: ${JSON.stringify(goalSource.implementationRefs)}`,
     'Use GitHub to expand the review through callers, wiring, schemas, migrations, and tests; do not stop at the changed-file roster.',
+    ...rangeInstruction,
   ].join('\n');
+}
+
+function renderRangeDiffDetails(scope: ScopeResolution): string[] {
+  if (scope.rangeDiff === null) {
+    return ['Range diff attachment: unavailable.'];
+  }
+  return [
+    `Range diff attachment: range.diff (${scope.rangeDiff.byteLength} UTF-8 bytes).`,
+    `Range diff source bytes before budget filtering: ${scope.rangeDiff.sourceByteLength}`,
+    `Range diff budget: ${scope.rangeDiff.maxBytes}`,
+    `Range diff SHA-256: ${scope.rangeDiff.sha256}`,
+    `Range diff file roster: ${JSON.stringify(scope.rangeDiff.files)}`,
+    `Excluded range diff roster: ${JSON.stringify(scope.rangeDiff.excluded)}`,
+    `Range stat attachment: range-stat.txt (${scope.rangeDiff.statByteLength} UTF-8 bytes, SHA-256 ${scope.rangeDiff.statSha256}).`,
+    '도구가 차단된 세션(Pro 모드)에서는 첨부된 range.diff가 리뷰 대상 delta의 정본이다.',
+  ];
 }
 
 function renderPatchDetails(scope: ScopeResolution): string[] {
@@ -226,6 +253,29 @@ function renderInlinePatch(scope: ScopeResolution, budget: number): string[] {
     `Patch byte length: ${scope.patch.byteLength}`,
     `${fence}diff`,
     scope.patch.diffText,
+    fence,
+  ];
+}
+
+function renderInlineRangeDiff(scope: ScopeResolution, budget: number): string[] {
+  if (scope.rangeDiff === null) {
+    return [];
+  }
+  if (scope.rangeDiff.byteLength > budget) {
+    return [
+      '## Authoritative committed range delta',
+      `Range diff SHA-256: ${scope.rangeDiff.sha256}`,
+      `Range diff byte length: ${scope.rangeDiff.byteLength}`,
+      `The range diff is not inlined because it exceeds the ${budget}-byte prompt budget. Attach range.diff and range-stat.txt directly to the Pro review conversation.`,
+    ];
+  }
+  const fence = safeDiffFence(scope.rangeDiff.diffText);
+  return [
+    '## Authoritative committed range delta — base..head',
+    `Range diff SHA-256: ${scope.rangeDiff.sha256}`,
+    `Range diff byte length: ${scope.rangeDiff.byteLength}`,
+    `${fence}diff`,
+    scope.rangeDiff.diffText,
     fence,
   ];
 }
@@ -295,6 +345,7 @@ function renderPrompt(input: ComposerInput, requestId: string): string {
     `Head SHA: ${scope.git.headSha}`,
     `Branch: ${scope.git.branch ?? '(detached or unknown)'}`,
     `Compare URL hint: ${scope.git.compareUrlHint ?? '(unavailable)'}`,
+    ...renderRangeDiffDetails(scope),
     ...renderPatchDetails(scope),
     '',
     `Connector warning: ${CONNECTOR_WARNING}`,
@@ -304,7 +355,7 @@ function renderPrompt(input: ComposerInput, requestId: string): string {
     renderGoalSource(input.goalSource, input.userGoal),
     '',
     '## D. Implementation item/commit scope',
-    renderImplementationScope(input.goalSource),
+    renderImplementationScope(input.goalSource, scope),
     '',
     '## E. Required workflow reconstruction',
     'Reconstruct the end-to-end workflow from entry point through persistence, side effects, failure handling, and user-visible completion. Identify missing seams and explain their impact.',
@@ -312,6 +363,8 @@ function renderPrompt(input: ComposerInput, requestId: string): string {
     '## F. Review dimensions',
     bulletList(dimensions),
     'For every material finding, include repository path, symbol/module, relevant commit SHA, and the reasoning connection to the original goal.',
+    '',
+    ...renderInlineRangeDiff(scope, inlinePatchBudget(input)),
     '',
     ...renderInlinePatch(scope, inlinePatchBudget(input)),
     '',

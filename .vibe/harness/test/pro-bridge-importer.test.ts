@@ -113,6 +113,19 @@ function validScope(): ScopeResolution {
     visibilityCase: 'github-range',
     blockedReasons: [],
     patch: null,
+    rangeDiff: {
+      diffText: '',
+      byteLength: 0,
+      sha256: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+      sourceByteLength: 0,
+      maxBytes: 2 * 1024 * 1024,
+      truncated: false,
+      files: [],
+      excluded: [],
+      statText: 'Included roster:\n(none)\nExcluded roster:\n(none)\n',
+      statByteLength: 48,
+      statSha256: '1'.repeat(64),
+    },
     warnings: ['visibility-from-local-remote-refs'],
   };
 }

@@ -46,6 +46,8 @@ interface GitScenario {
   status?: string;
   numstat?: string;
   diffs?: Record<string, string>;
+  rangeNumstat?: string;
+  rangeDiffs?: Record<string, string>;
 }
 
 class FakeGit implements GitPort {
@@ -84,12 +86,14 @@ class FakeGit implements GitPort {
       return this.success(this.scenario.status ?? '');
     }
     if (args[0] === 'diff' && args.includes('--numstat')) {
-      return this.success(this.scenario.numstat ?? '');
+      const isRange = args.includes(`${BASE_SHA}..${HEAD_SHA}`);
+      return this.success(isRange ? this.scenario.rangeNumstat ?? '' : this.scenario.numstat ?? '');
     }
     if (args[0] === 'diff' && args.includes('--')) {
       const filePath = args[args.indexOf('--') + 1]!;
+      const isRange = args.includes(`${BASE_SHA}..${HEAD_SHA}`);
       return this.success(
-        this.scenario.diffs?.[filePath]
+        (isRange ? this.scenario.rangeDiffs?.[filePath] : this.scenario.diffs?.[filePath])
           ?? `diff --git a/${filePath} b/${filePath}\n--- a/${filePath}\n+++ b/${filePath}\n@@ -1 +1 @@\n-old\n+new\n`,
       );
     }
@@ -597,6 +601,58 @@ describe('pro bridge command', () => {
     assert.deepEqual(cloned.mcp.publishLimits, resolved.mcp.publishLimits);
     assert.deepEqual({ ...resolved.mcp }.publishLimits, resolved.mcp.publishLimits);
     assert.equal(Object.prototype.propertyIsEnumerable.call(resolved.mcp, 'publishLimits'), true);
+  });
+
+  it('resolves the additive range diff budget with a 2 MiB default', () => {
+    const defaults = resolveProBridgeConfig();
+    assert.deepEqual(defaults.rangeDiffBudget, { maxBytes: 2 * 1024 * 1024 });
+    const overridden = resolveProBridgeConfig(
+      { maxPatchBytes: 123_456, rangeDiffBudget: { maxBytes: 654_321 } },
+    );
+    assert.equal(overridden.maxPatchBytes, 123_456);
+    assert.deepEqual(overridden.rangeDiffBudget, { maxBytes: 654_321 });
+    assert.equal(Object.prototype.propertyIsEnumerable.call(overridden, 'rangeDiffBudget'), true);
+  });
+
+  it('records range.diff and range-stat.txt for both manual outbox and mailbox requests', async () => {
+    const repoRoot = await makeRoot();
+    try {
+      for (const transportName of ['manual', 'mcp-mailbox'] as const) {
+        const capture = captureIo();
+        const diffText = 'diff --git a/src/range.ts b/src/range.ts\n-old\n+new\n';
+        const exit = await runProBridge(['audit', '--yes'], {
+          repoRoot,
+          config: enabledConfig({ transport: transportName }),
+          io: capture.io,
+          git: new FakeGit({
+            rangeNumstat: '1\t1\tsrc/range.ts\n',
+            rangeDiffs: { 'src/range.ts': diffText },
+          }),
+          clipboard: fakeClipboard(),
+          browser: fakeBrowser(),
+          stdin: { isTTY: false },
+          goalResolver: goalResolver(repoRoot),
+          now: () => NOW,
+        });
+        assert.equal(exit, 0, capture.err.join('\n'));
+        const requestId = capture.out
+          .find((line) => line.startsWith('requestId: '))
+          ?.slice('requestId: '.length);
+        assert.notEqual(requestId, undefined);
+        const requestDir = path.join(
+          repoRoot,
+          '.vibe',
+          'pro-bridge',
+          transportName === 'manual' ? 'outbox' : 'requests',
+          requestId!,
+        );
+        assert.equal(await readFile(path.join(requestDir, 'range.diff'), 'utf8'), diffText);
+        assert.match(await readFile(path.join(requestDir, 'range-stat.txt'), 'utf8'), /src\/range\.ts/);
+        assert.match(capture.out.join('\n'), /Pro 챗에는 패킷 붙여넣기 \+ range\.diff 첨부:/);
+      }
+    } finally {
+      await rm(repoRoot, { recursive: true, force: true });
+    }
   });
 
   it('prints the expected tool catalog version in the mailbox handoff', async () => {

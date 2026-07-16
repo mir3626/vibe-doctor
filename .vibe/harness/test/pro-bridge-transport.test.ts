@@ -170,6 +170,32 @@ describe('manual directory transport', () => {
     }
   });
 
+  it('writes range.diff and range-stat.txt next to the manual request prompt', async () => {
+    const repoRoot = await mkdtemp(path.join(tmpdir(), 'vibe-pro-transport-range-'));
+    try {
+      const transport = new ManualDirectoryTransport({ repoRoot, now: () => NOW });
+      const handle = await transport.createRequest(request());
+      const diffText = 'diff --git a/src/range.ts b/src/range.ts\n-old\n+new\n';
+      const statText = 'Included roster:\nsrc/range.ts\nExcluded roster:\n(none)\n';
+      const written = await transport.writeRangeDiffArtifacts(handle.requestId, {
+        diffText,
+        sha256: createHash('sha256').update(diffText).digest('hex'),
+        byteLength: Buffer.byteLength(diffText, 'utf8'),
+        statText,
+        statSha256: createHash('sha256').update(statText).digest('hex'),
+        statByteLength: Buffer.byteLength(statText, 'utf8'),
+      });
+      assert.deepEqual(written, {
+        rangePath: path.join(handle.requestDir, 'range.diff'),
+        statPath: path.join(handle.requestDir, 'range-stat.txt'),
+      });
+      assert.equal(await readFile(written.rangePath, 'utf8'), diffText);
+      assert.equal(await readFile(written.statPath, 'utf8'), statText);
+    } finally {
+      await rm(repoRoot, { recursive: true, force: true });
+    }
+  });
+
   it('uses pid plus nonce temporary names for manual transport writes', async () => {
     const repoRoot = await mkdtemp(path.join(tmpdir(), 'vibe-pro-transport-nonce-'));
     try {

@@ -140,6 +140,7 @@ describe('pro bridge golden prompt dataset', () => {
         },
         visibilityCase: 'github-range',
         patch: null,
+        rangeDiff: null,
         blockedReasons: [],
         warnings: [],
       },

@@ -93,12 +93,17 @@ export interface ProBridgeApplyConfig {
   envId: string | null;
 }
 
+export interface ProBridgeRangeDiffBudget {
+  maxBytes: number;
+}
+
 export interface ProBridgeConfig {
   enabled: boolean;
   transport: string;
   resultRoot: string;
   requestTtlHours: number;
   maxPatchBytes: number;
+  rangeDiffBudget: ProBridgeRangeDiffBudget;
   openBrowser: boolean;
   copyInvocation: boolean;
   githubRequired: boolean;
@@ -109,7 +114,7 @@ export interface ProBridgeConfig {
 }
 
 export type ProBridgeConfigInput = Partial<
-  Omit<ProBridgeConfig, 'mcp' | 'workspaceAgent' | 'api' | 'apply'>
+  Omit<ProBridgeConfig, 'mcp' | 'workspaceAgent' | 'api' | 'apply' | 'rangeDiffBudget'>
 > & {
   mcp?: Partial<Omit<ProBridgeMcpConfig, 'publishLimits'>> & {
     publishLimits?: Partial<PublishLimits>;
@@ -117,6 +122,7 @@ export type ProBridgeConfigInput = Partial<
   workspaceAgent?: Partial<ProBridgeWorkspaceAgentConfig>;
   api?: Partial<ProBridgeApiConfig>;
   apply?: Partial<ProBridgeApplyConfig>;
+  rangeDiffBudget?: Partial<ProBridgeRangeDiffBudget>;
 };
 
 export const DEFAULT_PRO_BRIDGE_MCP_CONFIG: ProBridgeMcpConfig = {
@@ -148,12 +154,17 @@ export const DEFAULT_PRO_BRIDGE_APPLY_CONFIG: ProBridgeApplyConfig = {
   envId: null,
 };
 
+export const DEFAULT_PRO_BRIDGE_RANGE_DIFF_BUDGET: ProBridgeRangeDiffBudget = {
+  maxBytes: 2 * 1024 * 1024,
+};
+
 export const DEFAULT_PRO_BRIDGE_CONFIG: ProBridgeConfig = {
   enabled: false,
   transport: 'manual',
   resultRoot: 'docs/plans',
   requestTtlHours: 72,
   maxPatchBytes: 1_048_576,
+  rangeDiffBudget: DEFAULT_PRO_BRIDGE_RANGE_DIFF_BUDGET,
   openBrowser: true,
   copyInvocation: true,
   githubRequired: true,
@@ -226,6 +237,12 @@ export function resolveProBridgeConfig(
       ?? DEFAULT_PRO_BRIDGE_CONFIG.requestTtlHours,
     maxPatchBytes:
       override?.maxPatchBytes ?? base?.maxPatchBytes ?? DEFAULT_PRO_BRIDGE_CONFIG.maxPatchBytes,
+    rangeDiffBudget: {
+      maxBytes:
+        override?.rangeDiffBudget?.maxBytes
+        ?? base?.rangeDiffBudget?.maxBytes
+        ?? DEFAULT_PRO_BRIDGE_RANGE_DIFF_BUDGET.maxBytes,
+    },
     openBrowser:
       override?.openBrowser ?? base?.openBrowser ?? DEFAULT_PRO_BRIDGE_CONFIG.openBrowser,
     copyInvocation:

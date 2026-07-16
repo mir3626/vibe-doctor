@@ -18,7 +18,32 @@ import type { ScopeResolution } from '../src/pro-bridge/scope-resolver.js';
 const BASE_SHA = 'a'.repeat(40);
 const HEAD_SHA = 'b'.repeat(40);
 const PATCH_SHA = 'c'.repeat(64);
+const RANGE_SHA = 'e'.repeat(64);
 const NOW = new Date('2026-07-15T03:04:05.000Z');
+
+function rangeDiff(): NonNullable<ScopeResolution['rangeDiff']> {
+  const diffText = 'diff --git a/src/range.ts b/src/range.ts\n-old\n+new\n';
+  const statText = 'Included roster:\nsrc/range.ts\nExcluded roster:\n(none)\n';
+  return {
+    diffText,
+    byteLength: Buffer.byteLength(diffText, 'utf8'),
+    sha256: RANGE_SHA,
+    sourceByteLength: Buffer.byteLength(diffText, 'utf8'),
+    maxBytes: 2 * 1024 * 1024,
+    truncated: false,
+    files: [{
+      path: 'src/range.ts',
+      additions: 1,
+      deletions: 1,
+      byteLength: Buffer.byteLength(diffText, 'utf8'),
+      sha256: 'f'.repeat(64),
+    }],
+    excluded: [],
+    statText,
+    statByteLength: Buffer.byteLength(statText, 'utf8'),
+    statSha256: '1'.repeat(64),
+  };
+}
 
 function goalSource(): GoalSourceManifest {
   return {
@@ -87,6 +112,7 @@ function scope(withPatch = false): ScopeResolution {
           excluded: [{ path: '.env.local', reason: 'secret' }],
         }
       : null,
+    rangeDiff: rangeDiff(),
     warnings: ['visibility-from-local-remote-refs'],
   };
 }
@@ -217,6 +243,34 @@ describe('review prompt composer', () => {
       composeReviewPrompt(input({ scope: scope(true) })).includes(instruction),
       true,
     );
+  });
+
+  it('renders Pro tool-blocked range.diff guidance only when the range artifact is present', () => {
+    const instruction = '도구가 차단된 세션(Pro 모드)에서는 첨부된 range.diff가 리뷰 대상 delta의 정본이다.';
+    assert.equal(composeReviewPrompt(input()).includes(instruction), true);
+    const withoutRange = scope();
+    withoutRange.rangeDiff = null;
+    assert.equal(composeReviewPrompt(input({ scope: withoutRange })).includes(instruction), false);
+  });
+
+  it('inlines a small committed range diff while retaining attachment metadata', () => {
+    const scoped = scope();
+    const prompt = composeReviewPrompt(input({ scope: scoped }));
+    assert.equal(prompt.includes(scoped.rangeDiff!.diffText), true);
+    assert.match(prompt, /Authoritative committed range delta/);
+    assert.match(prompt, /Range diff attachment: range\.diff/);
+    assert.match(prompt, /Range stat attachment: range-stat\.txt/);
+  });
+
+  it('keeps a large committed range diff as an attachment instead of inlining it', () => {
+    const scoped = scope();
+    const prompt = composeReviewPrompt(input({
+      scope: scoped,
+      inlinePatchBudgetBytes: 1,
+    }));
+    assert.equal(prompt.includes(scoped.rangeDiff!.diffText), false);
+    assert.match(prompt, /range diff is not inlined/);
+    assert.match(prompt, /Attach range\.diff and range-stat\.txt directly/);
   });
 
   it('inlines a bounded patch into the review prompt with a safe fence', () => {
