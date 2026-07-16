@@ -1,0 +1,39 @@
+{
+  "schemaVersion": "vibe-pro-bridge-write-review-v1",
+  "repository": "mir3626/vibe-doctor",
+  "reviewedHead": "60511059e787301216b4ece7706c4c7b1328e6a7",
+  "reviewedVersion": "v1.8.0",
+  "overallDisposition": "additive-remediation-recommended",
+  "findings": [
+    {
+      "id": "MCP-WRITE-001",
+      "priority": "P0",
+      "title": "No single model-facing action publishes a completed review package",
+      "remediation": "MCP-001"
+    },
+    {
+      "id": "MCP-WRITE-002",
+      "priority": "P1",
+      "title": "Low-level upload tools compete with normal publication intent",
+      "remediation": "MCP-002"
+    },
+    {
+      "id": "MCP-WRITE-003",
+      "priority": "P1",
+      "title": "Publication completion is not sufficiently machine-visible",
+      "remediation": "MCP-003"
+    },
+    {
+      "id": "MCP-WRITE-004",
+      "priority": "P1",
+      "title": "Tool metadata, annotations, visibility, and auth require deterministic audit",
+      "remediation": "MCP-004,MCP-005"
+    },
+    {
+      "id": "MCP-WRITE-005",
+      "priority": "P2",
+      "title": "Stale ChatGPT app metadata is not detected before review",
+      "remediation": "MCP-006"
+    }
+  ]
+}
