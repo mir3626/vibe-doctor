@@ -591,9 +591,43 @@ describe('pro bridge command', () => {
     }
   });
 
+  it('keeps publish limits enumerable across clone and spread', () => {
+    const resolved = resolveProBridgeConfig({ enabled: true, transport: 'mcp-mailbox' });
+    const cloned = JSON.parse(JSON.stringify(resolved)) as typeof resolved;
+    assert.deepEqual(cloned.mcp.publishLimits, resolved.mcp.publishLimits);
+    assert.deepEqual({ ...resolved.mcp }.publishLimits, resolved.mcp.publishLimits);
+    assert.equal(Object.prototype.propertyIsEnumerable.call(resolved.mcp, 'publishLimits'), true);
+  });
+
+  it('prints the expected tool catalog version in the mailbox handoff', async () => {
+    const repoRoot = await makeRoot();
+    try {
+      const capture = captureIo();
+      const exit = await runProBridge(['audit', '--yes'], {
+        repoRoot,
+        config: enabledConfig({ transport: 'mcp-mailbox' }),
+        io: capture.io,
+        git: new FakeGit(),
+        clipboard: fakeClipboard(),
+        browser: fakeBrowser(),
+        stdin: { isTTY: false },
+        goalResolver: goalResolver(repoRoot),
+        now: () => NOW,
+      });
+      assert.equal(exit, 0, capture.err.join('\n'));
+      assert.ok(capture.out.includes('Expected tool catalog: 2'));
+    } finally {
+      await rm(repoRoot, { recursive: true, force: true });
+    }
+  });
+
   it('resolves mcp mailbox config defaults when the section is absent', () => {
     const resolved = resolveProBridgeConfig({ enabled: true, transport: 'mcp-mailbox' });
-    assert.deepEqual(resolved.mcp, { port: 18488, tunnel: 'none' });
+    assert.deepEqual(resolved.mcp, {
+      port: 18488,
+      tunnel: 'none',
+      publishLimits: { maxFiles: 32, maxTotalBytes: 131072, maxFileBytes: 49152 },
+    });
   });
 
   it('sync pulls a result ready mailbox request through the shared importer', async () => {

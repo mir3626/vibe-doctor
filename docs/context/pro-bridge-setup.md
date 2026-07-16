@@ -42,6 +42,8 @@ npm run vibe:pro-mcp
 
 ## 4. 리뷰 왕복
 
+현재 기대 도구 카탈로그 버전은 `2`다. 긴 리뷰를 시작하기 전에 가능하면 `vibe-pro-bridge.mjs doctor "<connector-url>"`로 실 서버 metadata와 `publish_review_package`를 먼저 진단한다.
+
 1. CLI에서 audit 또는 design 요청을 발행한다.
 2. 웹 대화에서 GitHub와 Vibe Pro Bridge 커넥터를 활성화한다.
 3. `@Vibe Pro Bridge review <request-id>` 취지의 invocation을 보낸다.
@@ -101,3 +103,35 @@ netsh interface ipv4 show excludedportrange protocol=tcp
 - `workspace-agent`: `proBridge.workspaceAgent.enabled`와 `triggerCommand`를 설정한다. trigger 성공은 접수 확인일 뿐이며 완료 판단은 bridge status만이 authoritative하다. ready 상태를 벗어난 요청은 중복 trigger하지 않는다.
 - `responses-api`: `proBridge.api.enabled`, model, effort, token/가격 설정을 명시한다. `OPENAI_API_KEY`는 환경변수로만 전달하고 config에 저장하지 않는다. model은 config에 직접 지정하며 model-registry를 확장하지 않는다. 실행 전에 입력·출력 token과 비용을 추정하고 승인하며, retry는 최대 1회다. provenance surface는 `responses-api`로 강제 기록되어 Web Pro 리뷰와 구분된다.
 - `vibe:pro-apply`: 설치된 `<folder>/prompt/CLI_MAIN_SESSION_PROMPT.md`를 codex cloud에 제출한다. `.vibe/config.local.json`의 `proBridge.apply.envId`가 필요하며, 이후 `codex cloud status`와 `codex cloud diff`로 확인한다. 자동 merge/apply는 수행하지 않는다.
+
+## 도구 카탈로그 진단 (doctor / catalog-audit)
+
+긴 웹 리뷰를 시작하기 전에 현재 connector URL을 대상으로 실 서버 진단을 실행한다.
+
+```text
+node .vibe/harness/scripts/vibe-pro-bridge.mjs doctor "<connector-url>"
+```
+
+doctor는 원시 `initialize → tools/list → tools/call(bridge_capabilities)` 왕복으로 서버 도달성, `publish_review_package` 존재 여부, 14개 도구의 annotations·outputSchema·visibility·scope 메타데이터, 카탈로그 버전을 확인한다. 현재 기대 카탈로그 버전은 `2`다. connector URL의 `?code=`를 사용한 진단은 현재 서버 세션에 연결을 바인딩하지만 같은 code는 session TTL 동안 멱등 재사용되므로 이후 ChatGPT 연결을 막지 않는다.
+
+실 서버 없이 로컬 카탈로그와 커밋된 review snapshot만 대조하려면 다음을 실행한다.
+
+```text
+node .vibe/harness/scripts/vibe-pro-bridge.mjs catalog-audit
+```
+
+snapshot을 의도적으로 갱신할 때만 `catalog-audit --write-snapshot`을 사용하고, 생성된 diff를 반드시 검토한다. doctor와 catalog-audit는 모두 명시 호출 전용이며 hook, Stop QA, PreCompact, sprint-complete 또는 정기 QA에 연결되지 않는다.
+
+## ChatGPT 메타데이터 Refresh
+
+서버를 배포·재시작했어도 기존 ChatGPT 앱 대화에는 이전 도구 metadata snapshot이 남을 수 있다. 다음 순서로 갱신한다.
+
+1. Bridge 서버를 배포하거나 재시작하고 새 connector URL이 응답하는지 확인한다.
+2. ChatGPT Settings > Plugins에서 등록한 Vibe Pro Bridge 앱을 연다.
+3. 앱 상세 화면에서 Refresh를 실행한다.
+4. 도구 목록에 `publish_review_package`와 `bridge_capabilities`가 있고 카탈로그 버전이 `2`인지 확인한다.
+5. 새 대화를 시작한다.
+6. GitHub와 Vibe Pro Bridge 앱을 새 대화에 attach한다.
+7. 승인된 golden prompt를 다시 실행해 tool selection과 write 왕복을 확인한다.
+
+Published plugin은 새 metadata snapshot을 반영하려면 재심사가 필요할 수 있다. 권장 앱 권한은 처음에는 **Ask before making changes**이며, 신뢰가 쌓인 뒤 필요하면 **Ask only before important changes**로 완화한다.

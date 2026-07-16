@@ -179,12 +179,10 @@ function resolveProBridgeMcpConfig(
   };
   // Keep legacy enumerable `{ port, tunnel }` consumers stable while exposing the
   // additive runtime setting through direct property access.
-  Object.defineProperty(resolved, 'publishLimits', {
-    value: publishLimits,
-    enumerable: false,
-    writable: false,
-  });
-  return resolved;
+  return {
+    ...resolved,
+    publishLimits,
+  };
 }
 
 export function resolveProBridgeConfig(

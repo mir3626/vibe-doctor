@@ -308,13 +308,44 @@ describe('mcp mailbox http server', () => {
     } finally { await cleanup(value); }
   });
 
+  it('returns structured content alongside text for tool calls', async () => {
+    const value = await fixture();
+    try {
+      const response = await rpc(value.server, {
+        jsonrpc: '2.0', id: 201, method: 'tools/call',
+        params: { name: 'list_pending_requests', arguments: {} },
+      });
+      const result = response.value?.result;
+      const content = result?.content as Array<{ type: string; text: string }>;
+      assert.deepEqual(result?.structuredContent, JSON.parse(content[0]!.text));
+      assert.equal(result?.isError, false);
+    } finally { await cleanup(value); }
+  });
+
+  it('serves bridge capabilities over tools call', async () => {
+    const value = await fixture();
+    try {
+      const capabilities = await callTool(value.server, 202, 'bridge_capabilities', {});
+      assert.equal(capabilities.toolCatalogVersion, '2');
+      assert.equal(capabilities.primaryResultWriteTool, 'publish_review_package');
+    } finally { await cleanup(value); }
+  });
+
   it('lists the mailbox tools over tools list', async () => {
     const value = await fixture();
     try {
       const response = await rpc(value.server, { jsonrpc: '2.0', id: 1, method: 'tools/list' });
-      const tools = response.value?.result?.tools as Array<{ inputSchema: { type: string } }>;
-      assert.equal(tools.length, 13);
+      const tools = response.value?.result?.tools as Array<{
+        inputSchema: { type: string };
+        outputSchema: Record<string, unknown>;
+        annotations: Record<string, unknown>;
+        _meta: Record<string, unknown>;
+      }>;
+      assert.equal(tools.length, 14);
       assert.equal(tools.every((tool) => tool.inputSchema.type === 'object'), true);
+      assert.equal(tools.every((tool) => tool.outputSchema !== undefined), true);
+      assert.equal(tools.every((tool) => tool.annotations !== undefined), true);
+      assert.equal(tools.every((tool) => tool._meta !== undefined), true);
     } finally { await cleanup(value); }
   });
 

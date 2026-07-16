@@ -1,6 +1,6 @@
-import { randomBytes } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 import { spawn } from 'node:child_process';
-import { readFile } from 'node:fs/promises';
+import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
 import { createInterface } from 'node:readline/promises';
@@ -25,7 +25,15 @@ import {
 import { importReviewResult, type ImportContext } from '../pro-bridge/importer.js';
 import type { MailboxHealth } from '../pro-bridge/mailbox/store.js';
 import { startMcpServer } from '../pro-bridge/mailbox/server.js';
-import { createMailboxTools } from '../pro-bridge/mailbox/tools.js';
+import {
+  MAILBOX_TOOL_NAMES,
+  TOOL_CATALOG_VERSION,
+  auditToolCatalog,
+  buildCatalogSnapshot,
+  createMailboxTools,
+  serializeToolDescriptor,
+  type SerializedToolDescriptor,
+} from '../pro-bridge/mailbox/tools.js';
 import {
   startTunnel,
   type TunnelKind,
@@ -583,6 +591,8 @@ async function createAndPublish(
   options.io.out('Pro 모델은 사용자가 웹에서 직접 선택하세요.');
   if (options.transportName === 'mcp-mailbox') {
     options.io.out(`@Vibe Pro Bridge review ${handle.requestId}`);
+    options.io.out(`Expected tool catalog: ${TOOL_CATALOG_VERSION}`);
+    options.io.out('publish_review_package가 웹 대화에 없으면 리뷰 시작 전에 앱을 Refresh 하세요 (doctor로 진단).');
     options.io.out('npm run vibe:pro-mcp 로 서버를 켜두세요. 결과 도착 후 npm run vibe:pro-sync 를 실행하면 클립보드 없이 설치됩니다.');
     options.io.out(`수동 fallback prompt: ${handle.promptPath}`);
   } else {
@@ -1174,6 +1184,250 @@ async function runApply(
   return result.code ?? 1;
 }
 
+function localCatalogDescriptors(
+  repoRoot: string,
+  now: () => Date,
+): SerializedToolDescriptor[] {
+  const mailbox = new McpMailboxTransport({ repoRoot, now });
+  return createMailboxTools(mailbox.store, { now }).map(serializeToolDescriptor);
+}
+
+function catalogSnapshotPath(repoRoot: string, override: string | undefined): string {
+  return path.resolve(
+    repoRoot,
+    override ?? '.vibe/harness/test/fixtures/pro-bridge-catalog-snapshot.json',
+  );
+}
+
+async function runCatalogAudit(
+  args: ReturnType<typeof parseArgs>,
+  context: { repoRoot: string; io: ProBridgeIo; now: () => Date },
+): Promise<number> {
+  const descriptors = localCatalogDescriptors(context.repoRoot, context.now);
+  const findings = auditToolCatalog(descriptors);
+  const snapshot = buildCatalogSnapshot(descriptors);
+  const snapshotPath = catalogSnapshotPath(context.repoRoot, getStringFlag(args, 'snapshot'));
+
+  if (getBooleanFlag(args, 'write-snapshot')) {
+    await writeFile(snapshotPath, `${JSON.stringify(snapshot, null, 2)}\n`, 'utf8');
+    context.io.out(`[PASS] catalog snapshot updated: ${snapshotPath}`);
+    return 0;
+  }
+
+  let snapshotMatches = false;
+  let snapshotFailure: string | null = null;
+  try {
+    const committed = JSON.parse(await readFile(snapshotPath, 'utf8')) as unknown;
+    snapshotMatches = JSON.stringify(committed) === JSON.stringify(snapshot);
+    if (!snapshotMatches) {
+      snapshotFailure = `snapshot mismatch: ${snapshotPath}`;
+    }
+  } catch (error) {
+    snapshotFailure = `snapshot unavailable: ${error instanceof Error ? error.message : String(error)}`;
+  }
+
+  if (getBooleanFlag(args, 'json')) {
+    context.io.out(JSON.stringify(findings));
+  } else {
+    findings.forEach((finding) => {
+      context.io.err(`[FAIL] ${finding.tool}: ${finding.rule} — ${finding.message}`);
+    });
+  }
+  if (snapshotFailure !== null) {
+    context.io.err(`[FAIL] catalog: ${snapshotFailure}`);
+  }
+  if (findings.length > 0 || !snapshotMatches) {
+    return 1;
+  }
+  context.io.out(`[PASS] catalog audit: ${descriptors.length} tools, 0 findings, snapshot match`);
+  return 0;
+}
+
+function descriptorRecord(value: unknown): Record<string, unknown> | null {
+  return value !== null && typeof value === 'object' && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : null;
+}
+
+function descriptorHash(value: unknown): string {
+  return createHash('sha256').update(JSON.stringify(value), 'utf8').digest('hex');
+}
+
+function firstDescriptorMismatch(
+  expected: SerializedToolDescriptor,
+  served: Record<string, unknown>,
+): string | null {
+  if (served.description !== expected.description) {
+    return 'description mismatch';
+  }
+  if (JSON.stringify(served.annotations) !== JSON.stringify(expected.annotations)) {
+    return 'annotations mismatch';
+  }
+  if (JSON.stringify(served._meta) !== JSON.stringify(expected._meta)) {
+    return 'visibility or auth scope metadata mismatch';
+  }
+  if (descriptorHash(served.inputSchema) !== descriptorHash(expected.inputSchema)) {
+    return 'inputSchema mismatch';
+  }
+  if (descriptorHash(served.outputSchema) !== descriptorHash(expected.outputSchema)) {
+    return 'outputSchema mismatch';
+  }
+  return null;
+}
+
+async function callMcp(
+  fetchPort: typeof fetch,
+  connectorUrl: string,
+  id: number,
+  method: string,
+  params?: Record<string, unknown>,
+): Promise<unknown> {
+  const response = await fetchPort(connectorUrl, {
+    method: 'POST',
+    headers: {
+      accept: 'application/json, text/event-stream',
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({ jsonrpc: '2.0', id, method, ...(params === undefined ? {} : { params }) }),
+    signal: AbortSignal.timeout(10_000),
+  });
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}`);
+  }
+  const payload = descriptorRecord(await response.json());
+  if (payload === null) {
+    throw new Error('invalid JSON-RPC response');
+  }
+  const rpcError = descriptorRecord(payload.error);
+  if (rpcError !== null) {
+    throw new Error(typeof rpcError.message === 'string' ? rpcError.message : 'JSON-RPC error');
+  }
+  return payload.result;
+}
+
+function structuredToolResult(value: unknown): Record<string, unknown> | null {
+  const result = descriptorRecord(value);
+  const structured = descriptorRecord(result?.structuredContent);
+  if (structured !== null) {
+    return structured;
+  }
+  const rawContent = result?.content;
+  const content = Array.isArray(rawContent) ? rawContent : [];
+  const first = descriptorRecord(content[0]);
+  if (typeof first?.text !== 'string') {
+    return null;
+  }
+  try {
+    return descriptorRecord(JSON.parse(first.text) as unknown);
+  } catch {
+    return null;
+  }
+}
+
+async function runDoctor(
+  args: ReturnType<typeof parseArgs>,
+  context: { repoRoot: string; io: ProBridgeIo; now: () => Date; fetchPort: typeof fetch },
+): Promise<number> {
+  const connectorUrl = args.positionals[1];
+  if (!connectorUrl) {
+    context.io.err('usage: vibe-pro-bridge doctor <connector-url>');
+    context.io.err('local-only: vibe-pro-bridge catalog-audit');
+    return 1;
+  }
+  try {
+    new URL(connectorUrl);
+  } catch {
+    context.io.err('[FAIL] MCP endpoint unreachable: invalid connector URL');
+    return 1;
+  }
+
+  try {
+    await callMcp(context.fetchPort, connectorUrl, 1, 'initialize', {
+      protocolVersion: '2025-06-18',
+      capabilities: {},
+      clientInfo: { name: 'vibe-pro-bridge-doctor', version: '1' },
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    const hint = message.includes('HTTP 401') ? ' — connector URL의 ?code= 값을 확인하세요' : '';
+    context.io.err(`[FAIL] MCP endpoint unreachable: ${message}${hint}`);
+    return 1;
+  }
+
+  let listResult: unknown;
+  try {
+    listResult = await callMcp(context.fetchPort, connectorUrl, 2, 'tools/list');
+  } catch (error) {
+    context.io.err(`[FAIL] MCP endpoint unreachable: ${error instanceof Error ? error.message : String(error)}`);
+    return 1;
+  }
+  const listRecord = descriptorRecord(listResult);
+  const servedTools = Array.isArray(listRecord?.tools)
+    ? listRecord.tools
+    : [];
+  const expected = localCatalogDescriptors(context.repoRoot, context.now);
+  const servedByName = new Map<string, Record<string, unknown>>();
+  for (const value of servedTools) {
+    const descriptor = descriptorRecord(value);
+    if (typeof descriptor?.name === 'string') {
+      servedByName.set(descriptor.name, descriptor);
+    }
+  }
+
+  let failures = 0;
+  for (const expectedTool of expected) {
+    const served = servedByName.get(expectedTool.name);
+    if (served === undefined) {
+      context.io.err(expectedTool.name === 'publish_review_package'
+        ? '[FAIL] publish_review_package missing'
+        : `[FAIL] ${expectedTool.name} missing`);
+      failures += 1;
+      continue;
+    }
+    const mismatch = firstDescriptorMismatch(expectedTool, served);
+    if (mismatch === null) {
+      context.io.out(`[PASS] ${expectedTool.name}`);
+    } else {
+      context.io.err(`[FAIL] ${expectedTool.name}: ${mismatch}`);
+      failures += 1;
+    }
+  }
+  for (const name of servedByName.keys()) {
+    if (!(MAILBOX_TOOL_NAMES as readonly string[]).includes(name)) {
+      context.io.out(`[WARN] unexpected tool ${name}`);
+    }
+  }
+  for (const finding of auditToolCatalog(servedTools)) {
+    context.io.err(`[FAIL] ${finding.tool}: ${finding.rule} — ${finding.message}`);
+    failures += 1;
+  }
+
+  if (servedByName.has('bridge_capabilities')) {
+    try {
+      const callResult = await callMcp(context.fetchPort, connectorUrl, 3, 'tools/call', {
+        name: 'bridge_capabilities',
+        arguments: {},
+      });
+      const capabilities = structuredToolResult(callResult);
+      const servedVersion = typeof capabilities?.toolCatalogVersion === 'string'
+        ? capabilities.toolCatalogVersion
+        : 'unknown';
+      if (servedVersion !== String(TOOL_CATALOG_VERSION)) {
+        context.io.out(`[WARN] server catalog v${servedVersion}, skill expects v${TOOL_CATALOG_VERSION}`);
+        context.io.out('[ACTION] redeploy and Refresh the ChatGPT developer-mode app');
+      }
+    } catch (error) {
+      context.io.err(`[FAIL] bridge_capabilities call failed: ${error instanceof Error ? error.message : String(error)}`);
+      failures += 1;
+    }
+  } else {
+    context.io.out('[WARN] bridge_capabilities call skipped because the tool is missing');
+  }
+  context.io.out('[WARN] oauth metadata check skipped (noauth-local profile)');
+  context.io.out(`Expected tool catalog: ${TOOL_CATALOG_VERSION}`);
+  return failures === 0 ? 0 : 1;
+}
+
 function resolveTunnelKind(value: string): TunnelKind {
   if (value === 'cloudflared' || value === 'ngrok' || value === 'none') {
     return value;
@@ -1217,12 +1471,19 @@ async function runMcpServer(
   );
   const connectCode = context.deps.randomToken?.() ?? randomBytes(32).toString('base64url');
   const mailbox = new McpMailboxTransport({ repoRoot: context.repoRoot, now: context.now });
+  let serverBuildSha = 'unknown';
+  try {
+    serverBuildSha = await gitHead(createGit(context.repoRoot, context.deps.git));
+  } catch {
+    // Diagnostics remain available outside a git checkout with an explicit unknown build.
+  }
   let server: Awaited<ReturnType<typeof startMcpServer>>;
   try {
     server = await (context.deps.mcpServer?.start ?? startMcpServer)({
       tools: createMailboxTools(mailbox.store, {
         now: context.now,
         requestTtlHours: context.config.requestTtlHours,
+        serverBuildSha,
         publishLimits: context.config.mcp.publishLimits,
       }),
       connectCode,
@@ -1276,6 +1537,23 @@ export async function runProBridge(argv: string[], deps: ProBridgeDeps = {}): Pr
   };
   const browser = deps.browser ?? { open: openInBrowser };
   const stdin = deps.stdin ?? { isTTY: process.stdin.isTTY === true };
+
+  if (command === 'catalog-audit') {
+    try {
+      return await runCatalogAudit(args, { repoRoot, io, now });
+    } catch (error) {
+      io.err(error instanceof Error ? error.message : String(error));
+      return 1;
+    }
+  }
+  if (command === 'doctor') {
+    return runDoctor(args, {
+      repoRoot,
+      io,
+      now,
+      fetchPort: deps.fetchPort ?? fetch,
+    });
+  }
 
   let transportName: SupportedTransportName;
   try {
@@ -1445,7 +1723,7 @@ export async function runProBridge(argv: string[], deps: ProBridgeDeps = {}): Pr
   }
 
   if (command !== 'audit' && command !== 'design') {
-    io.err('usage: vibe-pro-bridge [audit|design|status|sync|cancel|list|mcp|apply]');
+    io.err('usage: vibe-pro-bridge [audit|design|status|sync|cancel|list|mcp|apply|catalog-audit|doctor]');
     return 1;
   }
 

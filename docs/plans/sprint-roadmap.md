@@ -1,9 +1,9 @@
 # Sprint Roadmap
 
 <!-- BEGIN:VIBE:CURRENT-SPRINT -->
-> **Current**: sprint-vpb-11-metadata-diagnostics
-> **Completed**: sprint-vpb-10-publish-facade
-> **Pending**: sprint-vpb-12-auth-golden
+> **Current**: sprint-vpb-12-auth-golden
+> **Completed**: sprint-vpb-10-publish-facade, sprint-vpb-11-metadata-diagnostics
+> **Pending**: -
 <!-- END:VIBE:CURRENT-SPRINT -->
 
 > Active file: current iteration only. Archived iteration roadmaps live under `docs/plans/archive/roadmaps/`.

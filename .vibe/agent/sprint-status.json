@@ -55,18 +55,41 @@
         "net": 2128,
         "filesChanged": 23
       }
+    },
+    {
+      "id": "sprint-vpb-11-metadata-diagnostics",
+      "name": "sprint-vpb-11-metadata-diagnostics",
+      "status": "passed",
+      "completedAt": "2026-07-16T04:07:21.838Z",
+      "actualLoc": {
+        "added": 1910,
+        "deleted": 33,
+        "net": 1877,
+        "filesChanged": 16
+      }
     }
   ],
   "verificationCommands": [],
   "handoff": {
     "currentSprintId": "idle",
-    "lastActionSummary": "Sprint sprint-vpb-10-publish-facade completed with passed",
+    "lastActionSummary": "Sprint sprint-vpb-11-metadata-diagnostics completed with passed",
     "orchestratorContextBudget": "medium",
     "preferencesActive": [],
     "handoffDocPath": ".vibe/agent/handoff.md",
-    "updatedAt": "2026-07-16T01:46:05.572Z"
+    "updatedAt": "2026-07-16T04:07:21.838Z"
   },
-  "pendingRisks": [],
+  "pendingRisks": [
+    {
+      "id": "audit-after-sprint-vpb-11-metadata-diagnostics",
+      "raisedBy": "vibe-sprint-complete",
+      "targetSprint": "*",
+      "text": "Evaluator audit due (sprintsSinceLastAudit=5, everyN=5).",
+      "status": "resolved",
+      "createdAt": "2026-07-16T04:07:21.838Z",
+      "resolvedAt": "2026-07-16T04:07:37.667Z",
+      "statusUpdatedAt": "2026-07-16T04:07:37.667Z"
+    }
+  ],
   "lastSprintScope": [
     ".gitignore",
     ".vibe/agent/iteration-history.json",
@@ -112,10 +135,14 @@
     "docs/plans/archive/roadmaps/iter-2.md",
     "docs/reports/project-report.html",
     ".vibe/harness/src/lib/config.ts",
-    ".vibe/harness/test/pro-bridge-publish.test.ts"
+    ".vibe/harness/test/pro-bridge-publish.test.ts",
+    ".claude/skills/vibe-goal-audit/SKILL.md",
+    ".vibe/harness/test/fixtures/pro-bridge-catalog-snapshot.json",
+    ".vibe/harness/test/pro-bridge-catalog.test.ts",
+    ".vibe/harness/test/pro-bridge-doctor.test.ts"
   ],
   "lastSprintScopeGlob": [],
-  "sprintsSinceLastAudit": 4,
-  "stateUpdatedAt": "2026-07-16T01:46:05.572Z",
+  "sprintsSinceLastAudit": 0,
+  "stateUpdatedAt": "2026-07-16T04:07:37.666Z",
   "verifiedAt": null
 }

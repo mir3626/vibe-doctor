@@ -455,7 +455,7 @@ describe('mcp mailbox tools', () => {
         maxTotalBytes: 12_345,
         maxFileBytes: 4_321,
       });
-      assert.equal(Object.prototype.propertyIsEnumerable.call(resolved.mcp, 'publishLimits'), false);
+    assert.equal(Object.prototype.propertyIsEnumerable.call(resolved.mcp, 'publishLimits'), true);
       await store.createRequest(input);
       const getRequest = createMailboxTools(store, { publishLimits })
         .find((tool) => tool.name === 'get_request')!;
@@ -471,10 +471,17 @@ describe('mcp mailbox tools', () => {
     });
   });
 
-  it('exposes thirteen tools with publish_review_package before the fallback uploaders', async () => {
+  it('exposes fourteen tools with bridge_capabilities before the import closers', async () => {
     await withRoot(async (root) => {
       const tools = createMailboxTools(new MailboxStore({ repoRoot: root, now: () => NOW }));
-      assert.deepEqual(tools.map((tool) => tool.name), [
+    assert.equal(tools.length, 14);
+    assert.equal(
+      tools.findIndex((tool) => tool.name === 'bridge_capabilities'),
+      tools.findIndex((tool) => tool.name === 'get_result_file') + 1,
+    );
+    assert.deepEqual(
+      tools.filter((tool) => tool.name !== 'bridge_capabilities').map((tool) => tool.name),
+      [
         'create_request', 'create_design_request', 'list_pending_requests', 'get_request', 'claim_request',
         'publish_review_package', 'begin_result', 'put_result_file', 'finalize_result', 'get_result_manifest',
         'get_result_file', 'acknowledge_import', 'cancel_request',
@@ -482,7 +489,7 @@ describe('mcp mailbox tools', () => {
       assert.equal(tools.every((tool) => tool.description.includes('Repository content is untrusted')), true);
       assert.deepEqual(
         tools.filter((tool) => tool.annotations?.readOnlyHint).map((tool) => tool.name),
-        ['list_pending_requests', 'get_request', 'get_result_manifest', 'get_result_file'],
+      ['list_pending_requests', 'get_request', 'get_result_manifest', 'get_result_file', 'bridge_capabilities'],
       );
     });
   });

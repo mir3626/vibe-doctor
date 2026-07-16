@@ -7,6 +7,10 @@ This file is project-owned runtime state. Downstream `/vibe-init` rewrites it be
 ## Entries
 
 
+
+
+- 2026-07-16T04:07:37.668Z [audit-clear] resolved=1 note=vpb-07~11 각 Sprint Evaluator(fable) 검수 완료(전부 PASS/PASS-WITH-NOTES) + iter-2 종료 시 독립 whole-workflow audit(P0/P1 0) 수행. iter-3 종료 시 독립 audit 재수행 예정.
+- 2026-07-16T04:07:21.838Z [sprint-complete] sprint-vpb-11-metadata-diagnostics -> passed. Sprint sprint-vpb-11-metadata-diagnostics completed with passed LOC +1910/-33 (net +1877)
 - 2026-07-16T01:46:05.572Z [sprint-complete] sprint-vpb-10-publish-facade -> passed. Sprint sprint-vpb-10-publish-facade completed with passed LOC +2128/-0 (net +2128)
 - 2026-07-16T00:25:00.000Z [decision] iteration 3 착수 (user directive): MCP write-path 개선 — 사용자가 웹 Pro 세션에서 설계한 패키지 vibe-doctor-mcp-write-improvement-v1.8.0/ (MCP-001~007, 커밋 cad2799). Journey B 실패의 근본 대응(publish_review_package 파사드·완료 계약·도구 메타데이터·doctor). Sprint vpb-10~12, 사용자 요청(고정 터널+persistent code)을 vpb-12에 편입. iter-2와 합산 v1.8.1 릴리즈 예정.
 - 2026-07-15T18:48:56.989Z [sprint-complete] sprint-vpb-09-contract-polish -> passed. Sprint sprint-vpb-09-contract-polish completed with passed LOC +2906/-107 (net +2799)

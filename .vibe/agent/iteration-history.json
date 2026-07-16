@@ -38,7 +38,8 @@
         "sprint-vpb-12-auth-golden"
       ],
       "completedSprints": [
-        "sprint-vpb-10-publish-facade"
+        "sprint-vpb-10-publish-facade",
+        "sprint-vpb-11-metadata-diagnostics"
       ],
       "milestoneProgress": {
         "mcp-001-003": 0,

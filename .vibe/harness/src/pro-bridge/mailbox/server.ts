@@ -3,6 +3,7 @@ import http, { type IncomingMessage, type ServerResponse } from 'node:http';
 import { ZodError } from 'zod';
 import { MailboxStoreError } from './store.js';
 import type { McpToolDefinition } from './tools.js';
+import { serializeToolDescriptor } from './tools.js';
 
 const MAX_BODY_BYTES = 4 * 1024 * 1024;
 const SUPPORTED_PROTOCOL_VERSIONS = ['2025-06-18', '2025-03-26'] as const;
@@ -280,16 +281,7 @@ function createAuthenticatedMcpRequestListener(
     }
     if (rpc.method === 'tools/list') {
       sendRpcResult(response, rpc.id, {
-        tools: options.tools.map((tool) => {
-          const listed = {
-            name: tool.name,
-            description: tool.description,
-            inputSchema: tool.inputSchema,
-          };
-          return tool.annotations === undefined
-            ? listed
-            : { ...listed, annotations: tool.annotations };
-        }),
+        tools: options.tools.map(serializeToolDescriptor),
       });
       return;
     }
@@ -305,6 +297,7 @@ function createAuthenticatedMcpRequestListener(
         const result = await tool.invoke(params?.arguments ?? {});
         sendRpcResult(response, rpc.id, {
           content: [{ type: 'text', text: JSON.stringify(result) }],
+          structuredContent: result,
           isError: false,
         });
       } catch (error) {
