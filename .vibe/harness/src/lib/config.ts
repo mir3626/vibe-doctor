@@ -67,6 +67,10 @@ export interface AuditConfig {
 export interface ProBridgeMcpConfig {
   port: number;
   tunnel: string;
+  authMode: string;
+  oauthTokens: Record<string, readonly string[]> | null;
+  persistentCode: string | null;
+  tunnelUrl: string | null;
   publishLimits: PublishLimits;
 }
 
@@ -118,6 +122,10 @@ export type ProBridgeConfigInput = Partial<
 export const DEFAULT_PRO_BRIDGE_MCP_CONFIG: ProBridgeMcpConfig = {
   port: 18488,
   tunnel: 'none',
+  authMode: 'noauth-local',
+  oauthTokens: null,
+  persistentCode: null,
+  tunnelUrl: null,
   publishLimits: DEFAULT_PUBLISH_LIMITS,
 };
 
@@ -155,7 +163,7 @@ export const DEFAULT_PRO_BRIDGE_CONFIG: ProBridgeConfig = {
   apply: DEFAULT_PRO_BRIDGE_APPLY_CONFIG,
 };
 
-function resolveProBridgeMcpConfig(
+function resolveProBridgeMcpConfigBase(
   base: ProBridgeConfigInput['mcp'],
   override: ProBridgeConfigInput['mcp'],
 ): ProBridgeMcpConfig {
@@ -177,11 +185,30 @@ function resolveProBridgeMcpConfig(
       ?? base?.publishLimits?.maxFileBytes
       ?? DEFAULT_PRO_BRIDGE_MCP_CONFIG.publishLimits.maxFileBytes,
   };
-  // Keep legacy enumerable `{ port, tunnel }` consumers stable while exposing the
-  // additive runtime setting through direct property access.
   return {
     ...resolved,
     publishLimits,
+  };
+}
+
+function resolveProBridgeMcpConfig(
+  base: ProBridgeConfigInput['mcp'],
+  override: ProBridgeConfigInput['mcp'],
+): ProBridgeMcpConfig {
+  const resolved = resolveProBridgeMcpConfigBase(base, override);
+  return {
+    ...resolved,
+    publishLimits: resolved.publishLimits,
+    authMode:
+      override?.authMode ?? base?.authMode ?? DEFAULT_PRO_BRIDGE_MCP_CONFIG.authMode,
+    oauthTokens:
+      override?.oauthTokens ?? base?.oauthTokens ?? DEFAULT_PRO_BRIDGE_MCP_CONFIG.oauthTokens,
+    persistentCode:
+      override?.persistentCode
+      ?? base?.persistentCode
+      ?? DEFAULT_PRO_BRIDGE_MCP_CONFIG.persistentCode,
+    tunnelUrl:
+      override?.tunnelUrl ?? base?.tunnelUrl ?? DEFAULT_PRO_BRIDGE_MCP_CONFIG.tunnelUrl,
   };
 }
 

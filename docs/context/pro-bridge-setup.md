@@ -25,6 +25,8 @@ ChatGPT GitHub 앱도 연결하고 대상 repository를 승인한다. Private re
 
 ## 2. 세션 서버 기동
 
+기본 code는 서버 세션 한정이지만, `persistentCode`를 명시한 noauth-local 프로파일은 재시작 간 같은 code를 유지한다. 고정 `tunnelUrl`과 함께 쓰면 같은 connector URL을 재등록 없이 계속 사용할 수 있다.
+
 ```text
 npm run vibe:pro-mcp
 ```
@@ -135,3 +137,50 @@ snapshot을 의도적으로 갱신할 때만 `catalog-audit --write-snapshot`을
 7. 승인된 golden prompt를 다시 실행해 tool selection과 write 왕복을 확인한다.
 
 Published plugin은 새 metadata snapshot을 반영하려면 재심사가 필요할 수 있다. 권장 앱 권한은 처음에는 **Ask before making changes**이며, 신뢰가 쌓인 뒤 필요하면 **Ask only before important changes**로 완화한다.
+
+## 인증 프로파일 (noauth-local / oauth)
+
+기본 `noauth-local`은 connector URL의 code를 현재 서버 인스턴스 세션에 교환하는 기존 방식이다. `authMode: "oauth"`는 모든 `/mcp` POST에 Bearer 토큰을 요구하고, 도구별 scope를 검사한다. 로컬 검증용 정적 토큰은 반드시 git 미추적 `.vibe/config.local.json`에만 둔다.
+
+```json
+{
+  "proBridge": {
+    "mcp": {
+      "authMode": "oauth",
+      "oauthTokens": {
+        "replace-with-a-local-secret": [
+          "bridge.request.read",
+          "bridge.result.write"
+        ]
+      }
+    }
+  }
+}
+```
+
+| Scope | 허용 작업 |
+|---|---|
+| `bridge.request.read` | 요청 목록·요청 전문 읽기 |
+| `bridge.request.write` | 요청 생성·claim·cancel |
+| `bridge.result.read` | 결과 manifest·파일 읽기 |
+| `bridge.result.write` | 결과 facade 발행·chunk 업로드·finalize |
+| `bridge.import.ack` | CLI import receipt 확인 |
+
+Web 리뷰 프로파일은 보통 `bridge.request.read + bridge.result.write`, CLI importer는 `bridge.result.read + bridge.import.ack`가 필요하다. scope가 부족하면 Bridge는 plain HTTP 403 대신 JSON-RPC `insufficient_scope`와 `_meta["mcp/www_authenticate"]` challenge를 반환한다. OAuth-aware 클라이언트는 이 challenge를 재인가 지점으로 사용한다. 현재 구현은 protected-resource metadata, 도구별 security scheme, runtime challenge까지 제공하지만 실제 OAuth Authorization Server와 ChatGPT linking UI 완주는 범위 밖이다.
+
+개인 ChatGPT 앱 권한은 처음에 **Ask before making changes**를 권장하고, 충분히 신뢰한 뒤 필요하면 **Ask only before important changes**로 완화한다. write 확인 대화상자는 scope 재인가가 필요한 지점이다. 권한이나 auth 프로파일을 바꾼 뒤에는 위 **ChatGPT 메타데이터 Refresh** 절을 수행하고 새 대화를 시작한다.
+
+## 연결 영속화 (persistentCode + 고정 도메인)
+
+기본값은 서버마다 새 임의 code와 quick tunnel URL을 쓰는 세션 한정 방식이며 보안상 가장 보수적이다. `persistentCode`를 설정한 noauth-local 프로파일만 code를 서버 재시작 간 유지한다. 개인용 커넥터를 한 번만 등록하려면 다음 opt-in 절차를 사용한다.
+
+1. ngrok 계정을 만들고 로컬 CLI에 authtoken을 등록한 뒤 무료 고정 도메인 하나를 발급한다.
+2. git 미추적 `.vibe/config.local.json`에 `proBridge.mcp.tunnel: "ngrok"`과 `proBridge.mcp.tunnelUrl: "https://<고정-도메인>"`을 설정한다.
+3. `node .vibe/harness/scripts/vibe-pro-bridge.mjs mcp --rotate-code`를 한 번 실행해 강한 `persistentCode`를 생성한다.
+4. 출력된 connector URL을 ChatGPT에 한 번 등록한다. 이후 같은 고정 도메인과 code를 쓰는 서버 재시작은 재등록이 필요 없다.
+
+`persistentCode`는 장수 자격이므로 개인용 opt-in으로만 사용한다. `git check-ignore .vibe/config.local.json`으로 로컬 설정이 무시되는지 확인하고, 유출이 의심되면 즉시 `mcp --rotate-code`를 실행한다. 공유 `.vibe/config.json`에 `persistentCode`나 `oauthTokens`가 있으면 서버와 rotate 명령은 기동을 거부한다. rotate 뒤에는 code가 바뀌므로 그 한 번은 ChatGPT connector URL을 갱신해야 한다. cloudflared named tunnel은 별도 도메인·계정 설정이 필요해 범위 밖이며 기존 quick tunnel을 유지한다.
+
+## Golden prompt 회귀
+
+커밋된 데이터셋과 수동 체크리스트는 `.vibe/harness/test/fixtures/golden-prompts/`에 있다. 자동 검증은 strict schema, 카탈로그/model visibility 정합, 범주별 도구 불변식, 완료 계약 문구까지만 다루며 실 LLM을 호출하지 않는다. ChatGPT Developer Mode replay와 direct recall 100% / negative false publication 0% / completion 100% / median write calls 1 / partial visibility 0 측정은 해당 README의 수동 절차를 따른다. 각 결과는 `GoldenSelectionRecordSchema` 형식의 작업 artifact로 기록하고 fixture에는 커밋하지 않는다.

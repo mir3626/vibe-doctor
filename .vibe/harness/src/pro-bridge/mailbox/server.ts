@@ -2,8 +2,12 @@ import { randomBytes, timingSafeEqual } from 'node:crypto';
 import http, { type IncomingMessage, type ServerResponse } from 'node:http';
 import { ZodError } from 'zod';
 import { MailboxStoreError } from './store.js';
-import type { McpToolDefinition } from './tools.js';
-import { serializeToolDescriptor } from './tools.js';
+import {
+  applyAuthProfile,
+  serializeToolDescriptor,
+  type McpToolDefinition,
+  type ProBridgeAuthMode,
+} from './tools.js';
 
 const MAX_BODY_BYTES = 4 * 1024 * 1024;
 const SUPPORTED_PROTOCOL_VERSIONS = ['2025-06-18', '2025-03-26'] as const;
@@ -11,6 +15,7 @@ const DEFAULT_EXCHANGE_TTL_MS = 15 * 60 * 1000;
 const DEFAULT_SESSION_TTL_MS = 12 * 60 * 60 * 1000;
 
 export interface McpServerOptions {
+  auth?: McpServerAuthOptions;
   tools: McpToolDefinition[];
   connectCode: string;
   port: number;
@@ -21,6 +26,13 @@ export interface McpServerOptions {
   exchangeTtlMs?: number;
   sessionTtlMs?: number;
   randomSessionToken?: () => string;
+}
+
+export interface McpServerAuthOptions {
+  mode: ProBridgeAuthMode;
+  introspectToken?: (token: string) => Promise<readonly string[] | null>;
+  resource?: string;
+  authorizationServers?: readonly string[];
 }
 
 export interface RunningMcpServer {
@@ -318,14 +330,267 @@ function createAuthenticatedMcpRequestListener(
   };
 }
 
-export function createMcpRequestListener(options: McpServerOptions): http.RequestListener {
+const BRIDGE_OAUTH_SCOPES = [
+  'bridge.request.read',
+  'bridge.request.write',
+  'bridge.result.read',
+  'bridge.result.write',
+  'bridge.import.ack',
+] as const;
+
+export function createStaticTokenIntrospector(
+  tokens: Record<string, readonly string[]>,
+): (token: string) => Promise<readonly string[] | null> {
+  const entries = Object.entries(tokens).map(([candidate, scopes]) => ({
+    candidate: Buffer.from(candidate, 'utf8'),
+    scopes: [...scopes],
+  }));
+  return async (token: string): Promise<readonly string[] | null> => {
+    const supplied = Buffer.from(token, 'utf8');
+    let matched: readonly string[] | null = null;
+    for (const entry of entries) {
+      const comparable = Buffer.alloc(entry.candidate.byteLength);
+      supplied.copy(comparable, 0, 0, Math.min(supplied.byteLength, comparable.byteLength));
+      const equal = timingSafeEqual(entry.candidate, comparable)
+        && supplied.byteLength === entry.candidate.byteLength;
+      if (equal) {
+        matched = entry.scopes;
+      }
+    }
+    return matched;
+  };
+}
+
+function bearerToken(request: IncomingMessage): string | null {
+  const match = request.headers.authorization?.match(/^Bearer ([^\s]+)$/);
+  return match?.[1] ?? null;
+}
+
+function oauthResource(request: IncomingMessage, auth: McpServerAuthOptions): string {
+  if (auth.resource !== undefined) {
+    return auth.resource;
+  }
+  return `http://${request.headers.host ?? '127.0.0.1'}/mcp`;
+}
+
+function resourceMetadataUrl(request: IncomingMessage, auth: McpServerAuthOptions): string {
+  return new URL('/.well-known/oauth-protected-resource', oauthResource(request, auth)).toString();
+}
+
+function requiredScopes(tool: McpToolDefinition): readonly string[] {
+  const meta = object((tool as unknown as { _meta?: unknown })._meta);
+  const value = meta?.['vibe/requiredScopes'];
+  return Array.isArray(value) && value.every((scope) => typeof scope === 'string')
+    ? value as string[]
+    : [];
+}
+
+function insufficientScopeChallenge(missingScopes: readonly string[]): string {
+  const joined = missingScopes.join(' ');
+  return `Bearer error="insufficient_scope", error_description="${joined} is required", scope="${joined}"`;
+}
+
+function sendInsufficientScope(
+  response: ServerResponse,
+  id: string | number,
+  required: readonly string[],
+  missing: readonly string[],
+): void {
+  const challenge = insufficientScopeChallenge(missing);
+  const joined = missing.join(' ');
+  sendJson(response, 200, {
+    jsonrpc: '2.0',
+    id,
+    error: {
+      code: -32001,
+      message: `insufficient_scope: ${joined} is required`,
+      data: {
+        requiredScopes: [...required],
+        missingScopes: [...missing],
+        'mcp/www_authenticate': challenge,
+      },
+    },
+    _meta: { 'mcp/www_authenticate': challenge },
+  });
+}
+
+function createOauthMcpRequestListener(
+  options: McpServerOptions,
+  auth: McpServerAuthOptions,
+): http.RequestListener {
+  const introspectToken = auth.introspectToken;
+  if (introspectToken === undefined) {
+    throw new Error('OAuth MCP mode requires an introspectToken implementation');
+  }
+  const tools = new Map(options.tools.map((tool) => [tool.name, tool]));
+  const log = options.log ?? (() => undefined);
+  const serverInfo = options.serverInfo ?? { name: 'vibe-pro-bridge', version: '1' };
+
+  return async (request, response) => {
+    const requestUrl = new URL(request.url ?? '/', 'http://127.0.0.1');
+    log(`${request.method ?? 'UNKNOWN'} ${requestUrl.pathname}`);
+    if (
+      request.method === 'GET'
+      && requestUrl.pathname === '/.well-known/oauth-protected-resource'
+    ) {
+      sendJson(response, 200, {
+        resource: oauthResource(request, auth),
+        authorization_servers: [...(auth.authorizationServers ?? [])],
+        scopes_supported: [...BRIDGE_OAUTH_SCOPES],
+        bearer_methods_supported: ['header'],
+      });
+      return;
+    }
+    if (requestUrl.pathname !== '/mcp') {
+      sendJson(response, 404, { error: 'not-found' });
+      return;
+    }
+    if (request.method !== 'POST') {
+      response.setHeader('Allow', 'POST');
+      sendJson(response, 405, { error: 'method-not-allowed' });
+      return;
+    }
+    if (request.headers.origin !== undefined) {
+      sendJson(response, 403, { error: 'origin-forbidden' });
+      return;
+    }
+    const token = requestUrl.searchParams.has('code') || requestUrl.searchParams.has('token')
+      ? null
+      : bearerToken(request);
+    const granted = token === null ? null : await introspectToken(token);
+    if (granted === null) {
+      response.setHeader(
+        'WWW-Authenticate',
+        `Bearer resource_metadata="${resourceMetadataUrl(request, auth)}"`,
+      );
+      sendJson(response, 401, { error: 'unauthorized' });
+      return;
+    }
+
+    const bytes = await readBody(request);
+    if (bytes === null) {
+      sendJson(response, 413, { error: 'payload-too-large' });
+      return;
+    }
+    let raw: unknown;
+    try {
+      raw = JSON.parse(Buffer.from(bytes).toString('utf8')) as unknown;
+    } catch {
+      sendRpcError(response, null, -32700, 'Parse error');
+      return;
+    }
+    if (Array.isArray(raw)) {
+      sendRpcError(response, null, -32600, 'Invalid Request');
+      return;
+    }
+    const rpc = parseRequest(raw);
+    if (!rpc) {
+      const candidate = object(raw);
+      if (candidate && candidate.jsonrpc === '2.0' && candidate.method === undefined) {
+        response.statusCode = 202;
+        response.end();
+        return;
+      }
+      sendRpcError(response, null, -32600, 'Invalid Request');
+      return;
+    }
+    if (rpc.id === undefined || rpc.method.startsWith('notifications/')) {
+      response.statusCode = 202;
+      response.end();
+      return;
+    }
+    if (rpc.method === 'initialize') {
+      const params = object(rpc.params);
+      if (!params || typeof params.protocolVersion !== 'string') {
+        sendRpcError(response, rpc.id, -32602, 'Invalid params');
+        return;
+      }
+      const protocolVersion = (SUPPORTED_PROTOCOL_VERSIONS as readonly string[]).includes(
+        params.protocolVersion,
+      ) ? params.protocolVersion : SUPPORTED_PROTOCOL_VERSIONS[0];
+      sendRpcResult(response, rpc.id, {
+        protocolVersion,
+        capabilities: { tools: {} },
+        serverInfo,
+      });
+      return;
+    }
+    if (rpc.method === 'ping') {
+      sendRpcResult(response, rpc.id, {});
+      return;
+    }
+    if (rpc.method === 'tools/list') {
+      sendRpcResult(response, rpc.id, {
+        tools: options.tools
+          .map(serializeToolDescriptor)
+          .map((descriptor) => applyAuthProfile(descriptor, 'oauth')),
+      });
+      return;
+    }
+    if (rpc.method === 'tools/call') {
+      const params = object(rpc.params);
+      const name = typeof params?.name === 'string' ? params.name : null;
+      const tool = name === null ? undefined : tools.get(name);
+      if (!tool) {
+        sendRpcError(response, rpc.id, -32602, 'Invalid params: unknown tool');
+        return;
+      }
+      const required = requiredScopes(tool);
+      const grantedSet = new Set(granted);
+      const missing = required.filter((scope) => !grantedSet.has(scope));
+      if (missing.length > 0) {
+        sendInsufficientScope(response, rpc.id, required, missing);
+        return;
+      }
+      try {
+        const result = await tool.invoke(params?.arguments ?? {});
+        sendRpcResult(response, rpc.id, {
+          content: [{ type: 'text', text: JSON.stringify(result) }],
+          structuredContent: result,
+          isError: false,
+        });
+      } catch (error) {
+        if (error instanceof MailboxStoreError) {
+          sendRpcResult(response, rpc.id, {
+            content: [{
+              type: 'text',
+              text: JSON.stringify({ code: error.code, message: error.message }),
+            }],
+            isError: true,
+          });
+        } else if (error instanceof ZodError) {
+          sendRpcError(response, rpc.id, -32602, 'Invalid params', error.issues);
+        } else {
+          sendRpcError(response, rpc.id, -32603, 'Internal error');
+        }
+      }
+      return;
+    }
+    sendRpcError(response, rpc.id, -32601, 'Method not found');
+  };
+}
+
+function createNoauthMcpRequestListener(options: McpServerOptions): http.RequestListener {
   return createAuthenticatedMcpRequestListener(options, createSessionAuth(options));
 }
 
+export function createMcpRequestListener(options: McpServerOptions): http.RequestListener {
+  const auth = options.auth ?? { mode: 'noauth-local' as const };
+  return auth.mode === 'oauth'
+    ? createOauthMcpRequestListener(options, auth)
+    : createNoauthMcpRequestListener(options);
+}
+
 export async function startMcpServer(options: McpServerOptions): Promise<RunningMcpServer> {
+  if (options.auth?.mode === 'oauth' && options.auth.introspectToken === undefined) {
+    throw new Error('OAuth MCP mode requires an introspectToken implementation');
+  }
   const host = options.host ?? '127.0.0.1';
-  const auth = createSessionAuth(options);
-  const server = http.createServer(createAuthenticatedMcpRequestListener(options, auth));
+  const sessionAuth = options.auth?.mode === 'oauth' ? null : createSessionAuth(options);
+  const listener = options.auth?.mode === 'oauth'
+    ? createOauthMcpRequestListener(options, options.auth)
+    : createAuthenticatedMcpRequestListener(options, sessionAuth!);
+  const server = http.createServer(listener);
   await new Promise<void>((resolve, reject) => {
     const onError = (error: Error): void => reject(error);
     server.once('error', onError);
@@ -343,13 +608,13 @@ export async function startMcpServer(options: McpServerOptions): Promise<Running
     port: address.port,
     url: `http://${host}:${address.port}`,
     revoke(): void {
-      auth.revoke();
+      sessionAuth?.revoke();
     },
     getSessionTokenForTesting(): string | null {
-      return auth.getSessionTokenForTesting();
+      return sessionAuth?.getSessionTokenForTesting() ?? null;
     },
     async close(): Promise<void> {
-      auth.revoke();
+      sessionAuth?.revoke();
       await new Promise<void>((resolve, reject) => {
         server.close((error) => error ? reject(error) : resolve());
       });

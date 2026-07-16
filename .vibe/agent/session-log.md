@@ -9,6 +9,8 @@ This file is project-owned runtime state. Downstream `/vibe-init` rewrites it be
 
 
 
+
+- 2026-07-16T06:40:47.233Z [sprint-complete] sprint-vpb-12-auth-golden -> passed. Sprint sprint-vpb-12-auth-golden completed with passed LOC +1936/-60 (net +1876)
 - 2026-07-16T04:07:37.668Z [audit-clear] resolved=1 note=vpb-07~11 각 Sprint Evaluator(fable) 검수 완료(전부 PASS/PASS-WITH-NOTES) + iter-2 종료 시 독립 whole-workflow audit(P0/P1 0) 수행. iter-3 종료 시 독립 audit 재수행 예정.
 - 2026-07-16T04:07:21.838Z [sprint-complete] sprint-vpb-11-metadata-diagnostics -> passed. Sprint sprint-vpb-11-metadata-diagnostics completed with passed LOC +1910/-33 (net +1877)
 - 2026-07-16T01:46:05.572Z [sprint-complete] sprint-vpb-10-publish-facade -> passed. Sprint sprint-vpb-10-publish-facade completed with passed LOC +2128/-0 (net +2128)

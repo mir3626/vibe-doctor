@@ -60,3 +60,7 @@ node .vibe/harness/scripts/vibe-pro-bridge.mjs doctor "<connector-url>"
 이 진단은 `initialize → tools/list → bridge_capabilities`를 순서대로 호출해 `publish_review_package` 존재 여부, 승인된 annotations·outputSchema·visibility·scope 메타데이터, 로컬 기대 카탈로그 버전과 서버 버전의 일치를 확인한다. `[FAIL] publish_review_package missing`이면 긴 리뷰를 시작하지 말고 `docs/context/pro-bridge-setup.md`의 ChatGPT 메타데이터 Refresh 절차를 따른다.
 
 로컬 정적 카탈로그와 커밋된 snapshot만 검사하려면 `node .vibe/harness/scripts/vibe-pro-bridge.mjs catalog-audit`를 사용한다. 두 진단 모두 명시 호출 전용이며 hook이나 정기 QA에는 연결하지 않는다.
+
+고정 ngrok 도메인과 `persistentCode`를 사용하면 서버 재시작 뒤에도 같은 connector URL을 재등록 없이 유지할 수 있다. code 유출이 의심되면 `node .vibe/harness/scripts/vibe-pro-bridge.mjs mcp --rotate-code`로 회전한다.
+
+설정·보안 절충은 `docs/context/pro-bridge-setup.md`의 **연결 영속화** 절을 따른다. Golden prompt replay는 같은 문서와 fixture README의 명시 수동 절차이며 hook이나 정기 QA에는 연결하지 않는다.

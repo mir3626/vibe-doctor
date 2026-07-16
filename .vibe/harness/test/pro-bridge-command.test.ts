@@ -626,6 +626,10 @@ describe('pro bridge command', () => {
     assert.deepEqual(resolved.mcp, {
       port: 18488,
       tunnel: 'none',
+      authMode: 'noauth-local',
+      oauthTokens: null,
+      persistentCode: null,
+      tunnelUrl: null,
       publishLimits: { maxFiles: 32, maxTotalBytes: 131072, maxFileBytes: 49152 },
     });
   });

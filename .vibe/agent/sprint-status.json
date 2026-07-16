@@ -67,16 +67,28 @@
         "net": 1877,
         "filesChanged": 16
       }
+    },
+    {
+      "id": "sprint-vpb-12-auth-golden",
+      "name": "sprint-vpb-12-auth-golden",
+      "status": "passed",
+      "completedAt": "2026-07-16T06:40:47.233Z",
+      "actualLoc": {
+        "added": 1936,
+        "deleted": 60,
+        "net": 1876,
+        "filesChanged": 17
+      }
     }
   ],
   "verificationCommands": [],
   "handoff": {
     "currentSprintId": "idle",
-    "lastActionSummary": "Sprint sprint-vpb-11-metadata-diagnostics completed with passed",
+    "lastActionSummary": "Sprint sprint-vpb-12-auth-golden completed with passed",
     "orchestratorContextBudget": "medium",
     "preferencesActive": [],
     "handoffDocPath": ".vibe/agent/handoff.md",
-    "updatedAt": "2026-07-16T04:07:21.838Z"
+    "updatedAt": "2026-07-16T06:40:47.233Z"
   },
   "pendingRisks": [
     {
@@ -139,10 +151,16 @@
     ".claude/skills/vibe-goal-audit/SKILL.md",
     ".vibe/harness/test/fixtures/pro-bridge-catalog-snapshot.json",
     ".vibe/harness/test/pro-bridge-catalog.test.ts",
-    ".vibe/harness/test/pro-bridge-doctor.test.ts"
+    ".vibe/harness/test/pro-bridge-doctor.test.ts",
+    ".vibe/harness/src/pro-bridge/mailbox/tunnel.ts",
+    ".vibe/harness/test/fixtures/golden-prompts/README.md",
+    ".vibe/harness/test/fixtures/golden-prompts/dataset.json",
+    ".vibe/harness/test/pro-bridge-auth.test.ts",
+    ".vibe/harness/test/pro-bridge-golden.test.ts",
+    "docs/plans/archive/roadmaps/iter-3.md"
   ],
   "lastSprintScopeGlob": [],
-  "sprintsSinceLastAudit": 0,
-  "stateUpdatedAt": "2026-07-16T04:07:37.666Z",
+  "sprintsSinceLastAudit": 1,
+  "stateUpdatedAt": "2026-07-16T06:40:47.233Z",
   "verifiedAt": null
 }

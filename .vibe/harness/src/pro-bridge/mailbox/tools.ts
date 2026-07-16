@@ -32,7 +32,10 @@ const INJECTION_DEFENSE =
 const WRITE_SCOPE = 'This tool writes only to the local bridge mailbox namespace.';
 const TERMINAL_STATES = new Set(['imported', 'cancelled', 'expired', 'failed']);
 
+export type ProBridgeAuthMode = 'noauth-local' | 'oauth';
+
 export interface MailboxToolOptions {
+  authMode?: ProBridgeAuthMode;
   now?: () => Date;
   requestTtlHours?: number;
   serverBuildSha?: string;
@@ -382,7 +385,7 @@ const PublishReviewPackageInput = z
   })
   .strict();
 
-const WEB_PUBLICATION_PROMPT = [
+export const WEB_PUBLICATION_PROMPT = [
   'The task is incomplete until the Bridge returns status=result-ready.',
   'Do not finish by only printing Markdown in chat.',
   'Generate every required result file, then call publish_review_package.',
@@ -435,6 +438,10 @@ function requireValue<T>(value: T | null, code: string, message: string): T {
     throw new MailboxStoreError(code as 'not-found', message);
   }
   return value;
+}
+
+function bridgeCapabilitiesOutputSchema(authMode: ProBridgeAuthMode) {
+  return BridgeCapabilitiesOutputSchema.extend({ authMode: z.literal(authMode) });
 }
 
 export function createMailboxTools(
@@ -677,7 +684,9 @@ export function createMailboxTools(
       name: 'bridge_capabilities',
       summary: 'Use this when you need to check whether result writing is enabled, which tool publishes packages, the package limits, and the tool catalog version. Do not infer write support from the catalog shape.',
       schema: z.object({}).strict(),
-      output: BridgeCapabilitiesOutputSchema,
+      output: options.authMode === 'oauth'
+        ? bridgeCapabilitiesOutputSchema('oauth')
+        : BridgeCapabilitiesOutputSchema,
       async invoke() {
         return {
           protocolVersion: 'vibe-pro-bridge-v1' as const,
@@ -691,7 +700,7 @@ export function createMailboxTools(
             maxSingleFileBytes: options.publishLimits?.maxFileBytes ?? 49_152,
           },
           chunkedUploadEnabled: true as const,
-          authMode: 'noauth-local' as const,
+          authMode: options.authMode ?? 'noauth-local',
           requiredScopes: {
             reviewRead: ['bridge.request.read'] as const,
             resultWrite: ['bridge.result.write'] as const,
@@ -725,12 +734,29 @@ export function createMailboxTools(
 }
 
 export interface SerializedToolDescriptor {
+  securitySchemes?: Array<{ type: 'oauth2'; scopes: readonly string[] }>;
   name: string;
   description: string;
   inputSchema: Record<string, unknown>;
   outputSchema: Record<string, unknown>;
   annotations: McpToolAnnotations;
   _meta: McpToolDefinition['_meta'];
+}
+
+export function applyAuthProfile(
+  descriptor: SerializedToolDescriptor,
+  authMode: ProBridgeAuthMode,
+): SerializedToolDescriptor {
+  if (authMode === 'noauth-local') {
+    return descriptor;
+  }
+  return {
+    ...descriptor,
+    securitySchemes: [{
+      type: 'oauth2',
+      scopes: [...descriptor._meta['vibe/requiredScopes']],
+    }],
+  };
 }
 
 export function serializeToolDescriptor(tool: McpToolDefinition): SerializedToolDescriptor {
@@ -774,6 +800,26 @@ function isObjectOutputSchema(value: unknown): boolean {
 
 export function auditToolCatalog(descriptors: unknown[]): CatalogAuditFinding[] {
   const findings: CatalogAuditFinding[] = [];
+  const auditedDescriptors = arguments[0] as readonly SerializedToolDescriptor[];
+  for (const descriptor of auditedDescriptors) {
+    if (descriptor.securitySchemes === undefined) {
+      continue;
+    }
+    const required = descriptor._meta['vibe/requiredScopes'];
+    const scheme = descriptor.securitySchemes.length === 1
+      ? descriptor.securitySchemes[0]
+      : undefined;
+    const scopesMatch = scheme?.type === 'oauth2'
+      && scheme.scopes.length === required.length
+      && scheme.scopes.every((scope, index) => scope === required[index]);
+    if (!scopesMatch) {
+      findings.push({
+        rule: 'security-scheme-mismatch',
+        tool: descriptor.name,
+        message: 'OAuth security scheme scopes must match vibe/requiredScopes exactly.',
+      });
+    }
+  }
   const byName = new Map<string, Record<string, unknown>>();
   descriptors.forEach((value, index) => {
     const descriptor = recordValue(value);

@@ -1,6 +1,6 @@
 import { createHash, randomBytes } from 'node:crypto';
 import { spawn } from 'node:child_process';
-import { readFile, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
 import { createInterface } from 'node:readline/promises';
@@ -24,7 +24,10 @@ import {
 } from '../pro-bridge/goal-source/types.js';
 import { importReviewResult, type ImportContext } from '../pro-bridge/importer.js';
 import type { MailboxHealth } from '../pro-bridge/mailbox/store.js';
-import { startMcpServer } from '../pro-bridge/mailbox/server.js';
+import {
+  createStaticTokenIntrospector,
+  startMcpServer,
+} from '../pro-bridge/mailbox/server.js';
 import {
   MAILBOX_TOOL_NAMES,
   TOOL_CATALOG_VERSION,
@@ -1481,6 +1484,7 @@ async function runMcpServer(
   try {
     server = await (context.deps.mcpServer?.start ?? startMcpServer)({
       tools: createMailboxTools(mailbox.store, {
+        authMode: validatedAuthMode(context.config.mcp.authMode),
         now: context.now,
         requestTtlHours: context.config.requestTtlHours,
         serverBuildSha,
@@ -1524,7 +1528,200 @@ async function runMcpServer(
   return 0;
 }
 
-export async function runProBridge(argv: string[], deps: ProBridgeDeps = {}): Promise<number> {
+async function readOptionalJson(filePath: string): Promise<Record<string, unknown>> {
+  try {
+    const parsed = JSON.parse(await readFile(filePath, 'utf8')) as unknown;
+    const value = record(parsed);
+    if (value === null) {
+      throw new Error(`설정 파일은 JSON object여야 합니다: ${filePath}`);
+    }
+    return value;
+  } catch (error) {
+    const code = record(error)?.code;
+    if (code === 'ENOENT') {
+      return {};
+    }
+    throw error;
+  }
+}
+
+async function sharedMcpSecretsAreSafe(repoRoot: string, io: ProBridgeIo): Promise<boolean> {
+  const shared = await readOptionalJson(path.join(repoRoot, '.vibe', 'config.json'));
+  const mcp = record(nested(shared, 'proBridge', 'mcp'));
+  if (mcp && (Object.hasOwn(mcp, 'persistentCode') || Object.hasOwn(mcp, 'oauthTokens'))) {
+    io.err('보안: persistentCode/oauthTokens는 git 미추적 .vibe/config.local.json에만 두세요.');
+    return false;
+  }
+  return true;
+}
+
+function validatedAuthMode(value: string): 'noauth-local' | 'oauth' {
+  if (value === 'noauth-local' || value === 'oauth') {
+    return value;
+  }
+  throw new Error(`지원하지 않는 proBridge.mcp.authMode: ${value}`);
+}
+
+function validatedTunnelUrl(value: string | null): string | null {
+  if (value === null) {
+    return null;
+  }
+  const parsed = new URL(value);
+  if (parsed.protocol !== 'https:') {
+    throw new Error('proBridge.mcp.tunnelUrl은 https:// URL이어야 합니다.');
+  }
+  return parsed.toString().replace(/\/$/, '');
+}
+
+async function rotatePersistentCode(
+  repoRoot: string,
+  config: ProBridgeConfig,
+  io: ProBridgeIo,
+  randomToken: (() => string) | undefined,
+): Promise<number> {
+  const localPath = path.join(repoRoot, '.vibe', 'config.local.json');
+  const local = await readOptionalJson(localPath);
+  const proBridge = record(local.proBridge) ?? {};
+  const mcp = record(proBridge.mcp) ?? {};
+  const persistentCode = randomToken?.() ?? randomBytes(32).toString('base64url');
+  if (persistentCode.length < 22) {
+    io.err('새 persistentCode가 너무 짧습니다. 22자 이상의 안전한 randomToken이 필요합니다.');
+    return 1;
+  }
+  const next = {
+    ...local,
+    proBridge: {
+      ...proBridge,
+      mcp: { ...mcp, persistentCode },
+    },
+  };
+  await mkdir(path.dirname(localPath), { recursive: true });
+  await writeFile(localPath, `${JSON.stringify(next, null, 2)}\n`, 'utf8');
+  const baseUrl = validatedTunnelUrl(config.mcp.tunnelUrl)
+    ?? `http://127.0.0.1:${config.mcp.port}`;
+  io.out(`${baseUrl}/mcp?code=${encodeURIComponent(persistentCode)}`);
+  io.out('code가 바뀌었으므로 이번 1회는 ChatGPT 커넥터 URL 갱신이 필요합니다.');
+  return 0;
+}
+
+function persistentMcpIo(
+  io: ProBridgeIo,
+  authMode: 'noauth-local' | 'oauth',
+  persistentCode: string | null,
+  tunnelUrl: string | null,
+): ProBridgeIo {
+  let stableNoticeEmitted = false;
+  return {
+    ...io,
+    out(line: string): void {
+      if (authMode === 'oauth') {
+        if (!line.includes('1회 교환용')) {
+          io.out(line.replace(/\?code=[^\s]+/g, ''));
+        }
+        return;
+      }
+      if (persistentCode !== null && line.includes('1회 교환용')) {
+        io.out('이 code는 재시작 간 유지됩니다(첫 제시 교환·인스턴스별 세션은 동일). 유출 시 `vibe-pro-bridge.mjs mcp --rotate-code`로 회전하세요.');
+        return;
+      }
+      const rendered = persistentCode === null
+        ? line
+        : line.replace(/\?code=[^\s]+/g, `?code=${encodeURIComponent(persistentCode)}`);
+      io.out(rendered);
+      if (
+        !stableNoticeEmitted
+        && persistentCode !== null
+        && tunnelUrl !== null
+        && rendered.includes(`${tunnelUrl}/mcp?code=`)
+      ) {
+        stableNoticeEmitted = true;
+        io.out('connector URL이 재시작 후에도 동일합니다 — ChatGPT 재등록 불필요.');
+      }
+    },
+  };
+}
+
+function prepareMcpDeps(
+  deps: ProBridgeDeps,
+  config: ProBridgeConfig,
+  io: ProBridgeIo,
+): ProBridgeDeps {
+  const authMode = validatedAuthMode(config.mcp.authMode);
+  const tunnelUrl = validatedTunnelUrl(config.mcp.tunnelUrl);
+  const persistentCode = config.mcp.persistentCode;
+  if (persistentCode !== null && persistentCode.length < 22) {
+    throw new Error('proBridge.mcp.persistentCode는 22자 이상이어야 합니다. `vibe-pro-bridge.mjs mcp --rotate-code`로 다시 생성하세요.');
+  }
+  if (authMode === 'oauth' && (!config.mcp.oauthTokens || Object.keys(config.mcp.oauthTokens).length === 0)) {
+    throw new Error('oauth 모드는 .vibe/config.local.json의 proBridge.mcp.oauthTokens 설정이 필요합니다.');
+  }
+  if (authMode === 'oauth') {
+    io.out('Bearer 토큰 인증 모드입니다. 실 ChatGPT OAuth linking은 Authorization Server 연동이 필요하며 현재 Inspector/doctor/테스트 검증 범위입니다.');
+    if (persistentCode !== null) {
+      io.out('[WARN] oauth 모드에서는 persistentCode가 사용되지 않습니다.');
+    }
+  }
+  if (tunnelUrl !== null && config.mcp.tunnel === 'cloudflared') {
+    io.out('[WARN] cloudflared named tunnel은 범위 밖입니다 — 설정한 고정 도메인을 무시하고 quick tunnel로 계속합니다.');
+  }
+
+  const baseServerStart = deps.mcpServer?.start ?? startMcpServer;
+  const baseTunnelStart = deps.tunnel?.start ?? startTunnel;
+  const effectivePersistentCode = authMode === 'noauth-local' ? persistentCode : null;
+  const authResourceBase = config.mcp.tunnel === 'ngrok' ? tunnelUrl : null;
+  return {
+    ...deps,
+    config,
+    io: persistentMcpIo(io, authMode, effectivePersistentCode, tunnelUrl),
+    ...(effectivePersistentCode === null ? {} : { randomToken: () => effectivePersistentCode }),
+    mcpServer: {
+      async start(options) {
+        return baseServerStart({
+          ...options,
+          ...(effectivePersistentCode === null ? {} : { connectCode: effectivePersistentCode }),
+          ...(authMode === 'oauth'
+            ? { auth: {
+                mode: 'oauth',
+                introspectToken: createStaticTokenIntrospector(config.mcp.oauthTokens ?? {}),
+                ...(authResourceBase === null ? {} : { resource: `${authResourceBase}/mcp` }),
+                authorizationServers: [],
+              } }
+            : {}),
+        });
+      },
+    },
+    ...(tunnelUrl === null ? {} : { tunnel: {
+      async start(kind, port, ports) {
+        return baseTunnelStart(kind, port, {
+          ...ports,
+          ...(kind === 'ngrok' && tunnelUrl !== null ? { staticUrl: tunnelUrl } : {}),
+        });
+      },
+    } }),
+  };
+}
+
+async function runProBridgeBase(argv: string[], deps: ProBridgeDeps = {}): Promise<number> {
+  if (argv[0] === 'mcp') {
+    const repoRoot = deps.repoRoot ?? process.cwd();
+    const io = deps.io ?? createDefaultIo();
+    try {
+      if (!await sharedMcpSecretsAreSafe(repoRoot, io)) {
+        return 1;
+      }
+      if (argv.includes('--rotate-code')) {
+        const loaded = deps.config
+          ?? resolveProBridgeConfig((await loadConfig()).proBridge, undefined);
+        return rotatePersistentCode(repoRoot, loaded, io, deps.randomToken);
+      }
+      const loaded = deps.config
+        ?? resolveProBridgeConfig((await loadConfig()).proBridge, undefined);
+      deps = prepareMcpDeps(deps, loaded, io);
+    } catch (error) {
+      io.err(error instanceof Error ? error.message : String(error));
+      return 1;
+    }
+  }
   const repoRoot = path.resolve(deps.repoRoot ?? process.cwd());
   const now = deps.now ?? (() => new Date());
   const io = deps.io ?? createDefaultIo();
@@ -1797,6 +1994,260 @@ export async function runProBridge(argv: string[], deps: ProBridgeDeps = {}): Pr
     io.err(blocked ?? (error instanceof Error ? error.message : String(error)));
     return 1;
   }
+}
+
+function rpcMethodFromInit(init: RequestInit | undefined): { method: string; toolName: string | null } {
+  if (typeof init?.body !== 'string') {
+    return { method: '', toolName: null };
+  }
+  try {
+    const body = record(JSON.parse(init.body) as unknown);
+    return {
+      method: typeof body?.method === 'string' ? body.method : '',
+      toolName: stringAt(body?.params, 'name'),
+    };
+  } catch {
+    return { method: '', toolName: null };
+  }
+}
+
+function authModeFromRpcEnvelope(envelope: Record<string, unknown>): string | null {
+  const structured = record(nested(envelope, 'result', 'structuredContent'));
+  if (typeof structured?.authMode === 'string') {
+    return structured.authMode;
+  }
+  const content = arrayAt(envelope, 'result', 'content');
+  const first = record(content[0]);
+  if (typeof first?.text !== 'string') {
+    return null;
+  }
+  try {
+    return stringAt(JSON.parse(first.text) as unknown, 'authMode');
+  } catch {
+    return null;
+  }
+}
+
+function normalizeOauthEnvelopeForCatalog(
+  envelope: Record<string, unknown>,
+  rpc: { method: string; toolName: string | null },
+): Record<string, unknown> {
+  if (rpc.method === 'tools/list') {
+    const result = record(envelope.result);
+    const tools = Array.isArray(result?.tools) ? result.tools : [];
+    return {
+      ...envelope,
+      result: {
+        ...result,
+        tools: tools.map((value) => {
+          const tool = record(value);
+          if (tool === null) {
+            return value;
+          }
+          const copy = { ...tool };
+          delete copy.securitySchemes;
+          if (copy.name === 'bridge_capabilities') {
+            const outputSchema = record(copy.outputSchema);
+            const properties = record(outputSchema?.properties);
+            if (outputSchema && properties) {
+              copy.outputSchema = {
+                ...outputSchema,
+                properties: {
+                  ...properties,
+                  authMode: { type: 'string', const: 'noauth-local' },
+                },
+              };
+            }
+          }
+          return copy;
+        }),
+      },
+    };
+  }
+  if (rpc.method === 'tools/call' && rpc.toolName === 'bridge_capabilities') {
+    const result = record(envelope.result);
+    if (result === null) {
+      return envelope;
+    }
+    const structured = record(result.structuredContent);
+    const content = Array.isArray(result.content) ? result.content : [];
+    return {
+      ...envelope,
+      result: {
+        ...result,
+        ...(structured === null
+          ? {}
+          : { structuredContent: { ...structured, authMode: 'noauth-local' } }),
+        content: content.map((value, index) => {
+          if (index !== 0) {
+            return value;
+          }
+          const item = record(value);
+          if (typeof item?.text !== 'string') {
+            return value;
+          }
+          try {
+            const parsed = record(JSON.parse(item.text) as unknown);
+            return parsed === null
+              ? value
+              : { ...item, text: JSON.stringify({ ...parsed, authMode: 'noauth-local' }) };
+          } catch {
+            return value;
+          }
+        }),
+      },
+    };
+  }
+  return envelope;
+}
+
+export async function runProBridge(argv: string[], deps: ProBridgeDeps = {}): Promise<number> {
+  if (argv[0] !== 'doctor') {
+    return runProBridgeBase(argv, deps);
+  }
+
+  const io = deps.io ?? createDefaultIo();
+  const baseFetch = deps.fetchPort ?? fetch;
+  const config = deps.config
+    ?? resolveProBridgeConfig((await loadConfig()).proBridge, undefined);
+  const configuredToken = config.mcp.authMode === 'oauth'
+    ? Object.keys(config.mcp.oauthTokens ?? {})[0]
+    : undefined;
+  let servedAuthMode: string | null = null;
+  let writeScopeAdvertised = false;
+  let oauthSecuritySchemesValid = true;
+  const doctorFetch: typeof fetch = async (input, init) => {
+    const rpc = rpcMethodFromInit(init);
+    const headers = new Headers(init?.headers);
+    if (configuredToken !== undefined && rpc.method !== '') {
+      headers.set('Authorization', `Bearer ${configuredToken}`);
+    }
+    const response = await baseFetch(input, { ...init, headers });
+    if (rpc.method === '') {
+      return response;
+    }
+    let envelope: Record<string, unknown> | null = null;
+    try {
+      envelope = record(await response.clone().json());
+    } catch {
+      return response;
+    }
+    if (envelope === null) {
+      return response;
+    }
+    if (rpc.method === 'tools/call' && rpc.toolName === 'bridge_capabilities') {
+      servedAuthMode = authModeFromRpcEnvelope(envelope);
+    }
+    if (rpc.method === 'tools/list') {
+      const tools = arrayAt(envelope, 'result', 'tools');
+      const publish = tools.map(record).find((tool) => tool?.name === 'publish_review_package');
+      const schemes = Array.isArray(publish?.securitySchemes) ? publish.securitySchemes : [];
+      writeScopeAdvertised = schemes.some((schemeValue) => {
+        const scheme = record(schemeValue);
+        return scheme?.type === 'oauth2'
+          && Array.isArray(scheme.scopes)
+          && scheme.scopes.includes('bridge.result.write');
+      });
+      if (schemes.length > 0 && servedAuthMode === null) {
+        servedAuthMode = 'oauth';
+      }
+      if (schemes.length > 0) {
+        oauthSecuritySchemesValid = tools.every((toolValue) => {
+          const tool = record(toolValue);
+          const toolSchemes = Array.isArray(tool?.securitySchemes) ? tool.securitySchemes : [];
+          const required = arrayAt(tool, '_meta', 'vibe/requiredScopes');
+          if (toolSchemes.length !== 1) {
+            return false;
+          }
+          const scheme = record(toolSchemes[0]);
+          return scheme?.type === 'oauth2'
+            && Array.isArray(scheme.scopes)
+            && scheme.scopes.length === required.length
+            && scheme.scopes.every((scope, index) => scope === required[index]);
+        });
+      }
+    }
+    if (servedAuthMode !== 'oauth') {
+      return response;
+    }
+    const normalized = normalizeOauthEnvelopeForCatalog(envelope, rpc);
+    const responseHeaders = new Headers(response.headers);
+    responseHeaders.delete('content-length');
+    return new Response(`${JSON.stringify(normalized)}\n`, {
+      status: response.status,
+      statusText: response.statusText,
+      headers: responseHeaders,
+    });
+  };
+  const doctorIo: ProBridgeIo = {
+    ...io,
+    out(line) {
+      if (!line.includes('oauth metadata check skipped')) {
+        io.out(line);
+      }
+    },
+  };
+  if (argv[1] !== undefined) {
+    try {
+      await doctorFetch(argv[1], {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          id: 'doctor-auth-profile',
+          method: 'tools/call',
+          params: { name: 'bridge_capabilities', arguments: {} },
+        }),
+      });
+    } catch {
+      // The existing doctor path owns reachability diagnostics and exit reporting.
+    }
+  }
+  const baseExit = await runProBridgeBase(argv, {
+    ...deps,
+    config,
+    io: doctorIo,
+    fetchPort: doctorFetch,
+  });
+  if (servedAuthMode !== 'oauth') {
+    io.out('[WARN] oauth metadata check skipped (noauth-local profile)');
+    return baseExit;
+  }
+
+  let metadataPassed = false;
+  try {
+    const connectorUrl = argv[1];
+    if (connectorUrl === undefined) {
+      throw new Error('connector URL missing');
+    }
+    const metadataUrl = new URL('/.well-known/oauth-protected-resource', connectorUrl);
+    const response = await baseFetch(metadataUrl);
+    const metadata = record(await response.json());
+    const scopes = Array.isArray(metadata?.scopes_supported) ? metadata.scopes_supported : [];
+    metadataPassed = response.ok
+      && ['bridge.request.read', 'bridge.request.write', 'bridge.result.read', 'bridge.result.write', 'bridge.import.ack']
+        .every((scope) => scopes.includes(scope));
+    if (!metadataPassed) {
+      throw new Error(`HTTP ${response.status} or required scopes missing`);
+    }
+    io.out('[PASS] oauth protected resource metadata');
+  } catch (error) {
+    io.out(`[FAIL] oauth protected resource metadata unreachable: ${error instanceof Error ? error.message : String(error)}`);
+  }
+  if (writeScopeAdvertised) {
+    io.out('[PASS] write scope advertised');
+  } else {
+    io.out('[FAIL] write scope advertised missing');
+  }
+  if (!oauthSecuritySchemesValid) {
+    io.out('[FAIL] oauth security scheme catalog mismatch');
+  }
+  return baseExit === 0
+    && metadataPassed
+    && writeScopeAdvertised
+    && oauthSecuritySchemesValid
+    ? 0
+    : 1;
 }
 
 runMain(async () => {

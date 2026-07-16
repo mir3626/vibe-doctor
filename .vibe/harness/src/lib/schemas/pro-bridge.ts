@@ -307,6 +307,86 @@ export const ReviewResultManifestSchema = z
   })
   .strict();
 
+export const GoldenPromptCategorySchema = z.enum([
+  'direct',
+  'indirect',
+  'fallback',
+  'negative',
+  'cancel',
+]);
+
+export const GoldenPromptCaseSchema = z
+  .object({
+    id: z.string().regex(/^(direct|indirect|fallback|negative|cancel)-[0-9]{2}$/),
+    category: GoldenPromptCategorySchema,
+    prompt: z.string().min(1),
+    expectedTools: z.array(z.string().min(1)),
+    forbiddenTools: z.array(z.string().min(1)),
+    expectedFinalStatus: z.enum(['result-ready']).nullable(),
+    source: z.enum(['acceptance-plan', 'authored']),
+    notes: z.string().optional(),
+  })
+  .strict();
+
+export const GoldenPromptDatasetSchema = z
+  .object({
+    schemaVersion: z.literal('vibe-pro-bridge-golden-prompts-v1'),
+    toolCatalogVersion: z.literal(2),
+    completionInvariant: z.literal(
+      'The task is incomplete until the Bridge returns status=result-ready.',
+    ),
+    cases: z.array(GoldenPromptCaseSchema).min(15),
+  })
+  .strict()
+  .superRefine((dataset, context) => {
+    const ids = new Set<string>();
+    const counts: Record<z.infer<typeof GoldenPromptCategorySchema>, number> = {
+      direct: 0,
+      indirect: 0,
+      fallback: 0,
+      negative: 0,
+      cancel: 0,
+    };
+    for (const entry of dataset.cases) {
+      if (ids.has(entry.id)) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `Duplicate golden prompt id: ${entry.id}`,
+          path: ['cases'],
+        });
+      }
+      ids.add(entry.id);
+      counts[entry.category] += 1;
+    }
+    for (const category of GoldenPromptCategorySchema.options) {
+      if (counts[category] < 3) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `Golden prompt category ${category} requires at least 3 cases`,
+          path: ['cases'],
+        });
+      }
+    }
+  });
+
+export const GoldenSelectionRecordSchema = z
+  .object({
+    schemaVersion: z.literal('vibe-pro-bridge-golden-selection-v1'),
+    caseId: z.string().min(1),
+    replayedAt: IsoDateTimeSchema,
+    surface: z.enum(['chatgpt-developer-mode', 'mcp-inspector']),
+    selectedTools: z.array(z.string()),
+    finalStatus: z.string().nullable(),
+    pass: z.boolean(),
+    notes: z.string().optional(),
+  })
+  .strict();
+
+export type GoldenPromptCategory = z.infer<typeof GoldenPromptCategorySchema>;
+export type GoldenPromptCase = z.infer<typeof GoldenPromptCaseSchema>;
+export type GoldenPromptDataset = z.infer<typeof GoldenPromptDatasetSchema>;
+export type GoldenSelectionRecord = z.infer<typeof GoldenSelectionRecordSchema>;
+
 export type GoalSourceKind = z.infer<typeof GoalSourceKindSchema>;
 export type GoalSourceConfidence = z.infer<typeof GoalSourceConfidenceSchema>;
 export type GoalSourceScope = z.infer<typeof GoalSourceScopeSchema>;

@@ -1,6 +1,6 @@
 {
   "$schema": "./iteration-history.schema.json",
-  "currentIteration": "iter-3",
+  "currentIteration": null,
   "iterations": [
     {
       "id": "iter-2",
@@ -30,7 +30,7 @@
       "id": "iter-3",
       "label": "mcp-write-path-improvement",
       "startedAt": "2026-07-16T00:20:00.000Z",
-      "completedAt": null,
+      "completedAt": "2026-07-16T06:40:47.763Z",
       "goal": "MCP write-path 개선 (vibe-doctor-mcp-write-improvement-v1.8.0/ 패키지 MCP-001~007): publish_review_package 파사드, chunked fallback 계약, 완료 계약+프롬프트 갱신, 도구 메타데이터+카탈로그 audit, auth scope, bridge_capabilities+doctor, golden prompt 회귀. iter-2 remediation과 합쳐 v1.8.1 릴리즈.",
       "plannedSprints": [
         "sprint-vpb-10-publish-facade",
@@ -39,7 +39,8 @@
       ],
       "completedSprints": [
         "sprint-vpb-10-publish-facade",
-        "sprint-vpb-11-metadata-diagnostics"
+        "sprint-vpb-11-metadata-diagnostics",
+        "sprint-vpb-12-auth-golden"
       ],
       "milestoneProgress": {
         "mcp-001-003": 0,

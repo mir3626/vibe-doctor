@@ -8,6 +8,7 @@ export type TunnelKind = 'cloudflared' | 'ngrok' | 'none';
 export interface TunnelPorts {
   spawn?: typeof defaultSpawn;
   timeoutMs?: number;
+  staticUrl?: string;
 }
 
 export interface TunnelHandle {
@@ -66,7 +67,15 @@ export async function startTunnel(
   const command = kind === 'cloudflared' ? 'cloudflared' : 'ngrok';
   const args = kind === 'cloudflared'
     ? ['tunnel', '--url', `http://127.0.0.1:${port}`, '--no-autoupdate']
-    : ['http', String(port), '--log', 'stdout', '--log-format', 'json'];
+    : [
+        'http',
+        String(port),
+        ...(ports.staticUrl === undefined ? [] : ['--url', ports.staticUrl]),
+        '--log',
+        'stdout',
+        '--log-format',
+        'json',
+      ];
   let child: ChildProcess;
   try {
     child = spawn(command, args, {

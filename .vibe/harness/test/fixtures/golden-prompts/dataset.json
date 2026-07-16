@@ -1,0 +1,146 @@
+{
+  "schemaVersion": "vibe-pro-bridge-golden-prompts-v1",
+  "toolCatalogVersion": 2,
+  "completionInvariant": "The task is incomplete until the Bridge returns status=result-ready.",
+  "cases": [
+    {
+      "id": "direct-01",
+      "category": "direct",
+      "prompt": "Review request AUD-123 and save the completed package for CLI import.",
+      "expectedTools": ["get_request", "publish_review_package"],
+      "forbiddenTools": ["begin_result", "put_result_file", "finalize_result"],
+      "expectedFinalStatus": "result-ready",
+      "source": "acceptance-plan"
+    },
+    {
+      "id": "direct-02",
+      "category": "direct",
+      "prompt": "Open the newest pending Vibe audit, complete the review, and publish the package for import.",
+      "expectedTools": ["list_pending_requests", "get_request", "publish_review_package"],
+      "forbiddenTools": ["begin_result", "put_result_file", "finalize_result"],
+      "expectedFinalStatus": "result-ready",
+      "source": "authored",
+      "notes": "Exercises discovery followed by the single-call publication facade."
+    },
+    {
+      "id": "direct-03",
+      "category": "direct",
+      "prompt": "Read request AUD-123, review its repository scope, and persist the final result to the Bridge.",
+      "expectedTools": ["get_request", "publish_review_package"],
+      "forbiddenTools": ["begin_result", "put_result_file", "finalize_result"],
+      "expectedFinalStatus": "result-ready",
+      "source": "authored"
+    },
+    {
+      "id": "indirect-01",
+      "category": "indirect",
+      "prompt": "Finish this Vibe review and make the result available to my CLI.",
+      "expectedTools": ["publish_review_package"],
+      "forbiddenTools": ["begin_result", "put_result_file", "finalize_result"],
+      "expectedFinalStatus": "result-ready",
+      "source": "acceptance-plan"
+    },
+    {
+      "id": "indirect-02",
+      "category": "indirect",
+      "prompt": "Do the review and leave it in the state where vibe:pro-sync can import it.",
+      "expectedTools": ["publish_review_package"],
+      "forbiddenTools": ["begin_result", "put_result_file", "finalize_result"],
+      "expectedFinalStatus": "result-ready",
+      "source": "authored"
+    },
+    {
+      "id": "indirect-03",
+      "category": "indirect",
+      "prompt": "Complete the current Bridge task; do not stop at a Markdown answer in chat.",
+      "expectedTools": ["publish_review_package"],
+      "forbiddenTools": ["begin_result", "put_result_file", "finalize_result"],
+      "expectedFinalStatus": "result-ready",
+      "source": "authored",
+      "notes": "Guards against claiming success from a chat-only response."
+    },
+    {
+      "id": "fallback-01",
+      "category": "fallback",
+      "prompt": "Resume upload session UPL-123 using the returned chunk plan.",
+      "expectedTools": ["put_result_file", "finalize_result"],
+      "forbiddenTools": ["publish_review_package"],
+      "expectedFinalStatus": "result-ready",
+      "source": "acceptance-plan"
+    },
+    {
+      "id": "fallback-02",
+      "category": "fallback",
+      "prompt": "The facade returned chunked-upload-required. Upload every remaining file chunk and finalize the existing session.",
+      "expectedTools": ["put_result_file", "finalize_result"],
+      "forbiddenTools": ["publish_review_package", "begin_result"],
+      "expectedFinalStatus": "result-ready",
+      "source": "authored"
+    },
+    {
+      "id": "fallback-03",
+      "category": "fallback",
+      "prompt": "Continue the open fallback upload and only report completion after finalize_result returns result-ready.",
+      "expectedTools": ["put_result_file", "finalize_result"],
+      "forbiddenTools": ["publish_review_package", "begin_result"],
+      "expectedFinalStatus": "result-ready",
+      "source": "authored",
+      "notes": "Guards against claiming success immediately after begin_result."
+    },
+    {
+      "id": "negative-01",
+      "category": "negative",
+      "prompt": "Explain what request AUD-123 is asking for.",
+      "expectedTools": ["get_request"],
+      "forbiddenTools": ["publish_review_package", "begin_result", "put_result_file", "finalize_result", "cancel_request"],
+      "expectedFinalStatus": null,
+      "source": "acceptance-plan"
+    },
+    {
+      "id": "negative-02",
+      "category": "negative",
+      "prompt": "List the pending Vibe review requests without changing any of them.",
+      "expectedTools": ["list_pending_requests"],
+      "forbiddenTools": ["publish_review_package", "begin_result", "put_result_file", "finalize_result", "cancel_request"],
+      "expectedFinalStatus": null,
+      "source": "authored"
+    },
+    {
+      "id": "negative-03",
+      "category": "negative",
+      "prompt": "Show me the finalized manifest for AUD-123; this is inspection only.",
+      "expectedTools": ["get_result_manifest"],
+      "forbiddenTools": ["publish_review_package", "begin_result", "put_result_file", "finalize_result", "cancel_request"],
+      "expectedFinalStatus": null,
+      "source": "authored"
+    },
+    {
+      "id": "cancel-01",
+      "category": "cancel",
+      "prompt": "Cancel request AUD-123.",
+      "expectedTools": ["cancel_request"],
+      "forbiddenTools": ["publish_review_package"],
+      "expectedFinalStatus": null,
+      "source": "acceptance-plan"
+    },
+    {
+      "id": "cancel-02",
+      "category": "cancel",
+      "prompt": "Stop the current AUD-123 review and do not create or publish a replacement.",
+      "expectedTools": ["cancel_request"],
+      "forbiddenTools": ["publish_review_package", "create_request", "create_design_request"],
+      "expectedFinalStatus": null,
+      "source": "authored",
+      "notes": "Guards against regenerating work after cancellation."
+    },
+    {
+      "id": "cancel-03",
+      "category": "cancel",
+      "prompt": "Abandon request AUD-123. I only want it cancelled, not reviewed.",
+      "expectedTools": ["cancel_request"],
+      "forbiddenTools": ["publish_review_package", "begin_result", "put_result_file", "finalize_result"],
+      "expectedFinalStatus": null,
+      "source": "authored"
+    }
+  ]
+}
