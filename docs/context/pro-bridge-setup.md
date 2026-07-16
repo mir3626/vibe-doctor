@@ -55,7 +55,14 @@ npm run vibe:pro-mcp
 
 `finalize_result` 호출에서 manifest의 `requestPayloadSha256`와 `payloadSha256`는 생략할 수 있다. 서버가 저장된 request와 canonical manifest를 기준으로 두 값을 채우며, 리뷰어가 값을 제공한 경우에는 일치 여부를 검증한다. 따라서 웹 리뷰어가 채팅에서 canonical SHA-256을 직접 계산할 필요가 없다.
 
-**Pro 모드는 커넥터 도구를 의도적으로 차단한다** (2026-07-16 실측 — Thinking은 Pro와 통합되어 별도 선택 불가, **xhigh reasoning effort 챗에서는 커넥터가 정상 연동**). 표준 경로: 도구 통합 왕복(`get_request → publish_review_package`)은 **xhigh 챗**에서 수행한다. Pro-tier 추론이 꼭 필요하면 Pro로 리뷰를 마친 뒤 같은 대화에서 xhigh로 전환해 제출 턴(`publish_review_package`, 필요 시 fallback 계획의 `put_result_file`·`finalize_result`)만 실행한다. 그래도 불가능하면 vibe-bundle을 출력하고 `npm run vibe:pro-sync -- --from <file>` Phase 1 경로로 돌아간다.
+**Pro 모드는 커넥터 도구를 의도적으로 차단한다** (2026-07-16 실측 — Thinking은 Pro와 통합되어 별도 선택 불가, xhigh reasoning effort 챗에서는 커넥터가 정상 연동). **이 브릿지의 목적은 웹 전용 Pro 추론으로 리뷰하는 것이므로, Pro 중심 경로가 정본이다**:
+
+1. **리뷰는 Pro 챗에서** — 패킷 붙여넣기(manual wire). Pro는 도구가 없으므로 repo 근거는 인라인 patch + (public repo라면) Pro의 웹 열람이 담당한다. private repo는 인라인 patch가 유일한 delta 전달 수단이다.
+2. **제출은 두 경로 중 하나**:
+   - 전환 제출(권장): 리뷰가 끝난 같은 대화에서 모델을 xhigh로 전환해 제출 턴(`get_request` 확인 후 `publish_review_package`, 필요 시 fallback의 `put_result_file`·`finalize_result`)만 실행 — 복사 없이 Pro 추론을 온전히 유지한다.
+   - vibe-bundle 복귀: Pro가 번들 한 블록을 출력하면 복사해 `npm run vibe:pro-sync`(클립보드) 또는 `-- --from <file>`로 반입한다.
+
+xhigh 수준 추론으로 충분한 리뷰는 브릿지를 쓸 필요 없이 CLI(Codex xhigh)에서 직접 수행하는 것이 더 간단하다. xhigh 챗의 도구 통합 왕복은 web-origin 설계와 제출 턴 인프라로 사용한다.
 
 CLI-origin 요청에 로컬 patch가 있으면 상한 내 patch는 manual과 mailbox 양쪽의 review prompt에 fenced diff로 포함된다. manual outbox에는 크기와 무관하게 `<requestDir>/patch.diff`도 생성된다. 인라인 상한을 넘으면 CLI가 해당 파일을 리뷰 대화에 직접 첨부하라고 안내한다. mailbox wire는 상한 초과 patch를 별도로 가져오는 도구가 아직 없으므로, 이 경우 manual artifact 첨부 경로를 사용한다.
 

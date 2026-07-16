@@ -261,7 +261,7 @@ kind=feature_design, CLI-origin과 Web-origin(§6.4) 모두 동일 프로토콜.
   - ① GitHub 커넥터 (Pro 모드 챗): **미가용** — reviewerDeclaration에 "authenticated GitHub connector was not available; public GitHub repository pages were used" 기록. 모델이 public repo 웹 열람으로 대체 그라운딩 (private repo였다면 blind — §7 patch 동봉의 중요성 실증).
   - manual fallback 왕복: **성공** — Pro 리뷰 11 findings(P1 5·P2 4·P3 2) 패키지가 요청 바인딩 포함으로 정식 설치됨.
   - 신규 seam 발견(수정 대기): (a) mcp-mailbox transport에서 `sync --from`이 설치 성공 후 mailbox 결과 확인 단계에서 에러를 내 성공을 오보. (b) mailbox 생성 요청의 결과가 manual wire로 돌아오는 cross-transport fallback이 requestId 저장소 바인딩에 갇힘(`web-origin` 완화로만 우회 가능). (c) manual wire에서는 patch attachment 바이트가 리뷰어에게 전달되지 않음(해시만) — 프롬프트 인라인 또는 전달 채널 필요.
-  - ~~미해결: Thinking 계열 챗에서의 커넥터/MCP 가용성 교차 실측~~ → **케이스 B 확정 (사용자 실측, 2026-07-16)**: Thinking 모델은 Pro와 통합되어 별도 선택이 불가해졌고, **xhigh(reasoning effort) 챗에서는 커넥터가 정상 연동**되는 반면 Pro 모드는 커넥터 연결을 의도적으로 차단하는 것으로 확인. 표준 워크플로우 확정: (a) 도구 통합이 필요한 왕복(publish 1콜 발행 포함)은 xhigh 챗에서 수행, (b) Pro-tier 추론이 꼭 필요하면 Pro로 리뷰 후 제출 턴만 xhigh로 전환하거나 vibe-bundle manual 복귀. 문서의 "Thinking 계열 전환" fallback 문구는 "xhigh 전환"으로 대체.
+  - ~~미해결: Thinking 계열 챗에서의 커넥터/MCP 가용성 교차 실측~~ → **케이스 B 확정 (사용자 실측, 2026-07-16)**: Thinking 모델은 Pro와 통합되어 별도 선택이 불가해졌고, **xhigh(reasoning effort) 챗에서는 커넥터가 정상 연동**되는 반면 Pro 모드는 커넥터 연결을 의도적으로 차단하는 것으로 확인. 표준 워크플로우 확정 (사용자 교정 반영: **본 브릿지의 목적 = 웹 전용 Pro 추론 리뷰** — xhigh 추론은 CLI Codex로 충분하므로 xhigh 챗 리뷰는 목적 부합 아님): **리뷰는 Pro 챗**(manual wire 패킷 + 인라인 patch + public repo 웹 열람), **제출은 같은 대화 xhigh 전환 후 publish 1콜(권장) 또는 vibe-bundle 복귀**. xhigh 챗 도구 왕복은 web-origin·제출 턴 인프라로 위치. 문서의 "Thinking 계열 전환" 문구는 "xhigh 전환"으로 대체.
 
 ## 13. 기각·철회 기록
 
