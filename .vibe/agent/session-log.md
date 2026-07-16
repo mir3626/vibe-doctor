@@ -6,6 +6,7 @@ This file is project-owned runtime state. Downstream `/vibe-init` rewrites it be
 
 ## Entries
 
+- 2026-07-16T07:25:00.000Z [checkpoint] upstream harness maintenance: release metadata updated for v1.8.1. iter-2(remediation vpb-07~09: 실 Pro 리뷰 11 findings 코드 폐쇄) + iter-3(MCP write-path vpb-10~12: publish 파사드·카탈로그 audit·oauth scope·persistentCode/tunnelUrl 영속 연결) 합산. 검증: self-test 780 tests 0 fail, 독립 whole-workflow 감사 2회 P0/P1 0, 라이브 실측(code 교환·persistentCode 재시작 생존·14툴). 부수: Stop QA 콘솔 깜빡임 해소(cmd.exe 계층 제거, detach는 Job Object 실측으로 필수 유지), Generator 인용문 역할 혼동 사고 1회(가드 프리앰블로 재발 방지 — Planner 규약에 편입). 사용자 참여 잔여: Developer Mode golden replay + Journey B/C 실측(design.md §12.1 추기 예정).
 
 
 

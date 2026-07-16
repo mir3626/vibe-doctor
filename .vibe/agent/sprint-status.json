@@ -7,160 +7,20 @@
     "runtime": "node24",
     "framework": "template-placeholder"
   },
-  "sprints": [
-    {
-      "id": "sprint-vpb-07-authority-binding",
-      "name": "sprint-vpb-07-authority-binding",
-      "status": "passed",
-      "completedAt": "2026-07-15T14:41:49.805Z",
-      "actualLoc": {
-        "added": 69,
-        "deleted": 2683,
-        "net": -2614,
-        "filesChanged": 27
-      }
-    },
-    {
-      "id": "sprint-vpb-08-lifecycle-durability",
-      "name": "sprint-vpb-08-lifecycle-durability",
-      "status": "passed",
-      "completedAt": "2026-07-15T16:18:38.598Z",
-      "actualLoc": {
-        "added": 3641,
-        "deleted": 110,
-        "net": 3531,
-        "filesChanged": 19
-      }
-    },
-    {
-      "id": "sprint-vpb-09-contract-polish",
-      "name": "sprint-vpb-09-contract-polish",
-      "status": "passed",
-      "completedAt": "2026-07-15T18:48:56.989Z",
-      "actualLoc": {
-        "added": 2906,
-        "deleted": 107,
-        "net": 2799,
-        "filesChanged": 15
-      }
-    },
-    {
-      "id": "sprint-vpb-10-publish-facade",
-      "name": "sprint-vpb-10-publish-facade",
-      "status": "passed",
-      "completedAt": "2026-07-16T01:46:05.572Z",
-      "actualLoc": {
-        "added": 2128,
-        "deleted": 0,
-        "net": 2128,
-        "filesChanged": 23
-      }
-    },
-    {
-      "id": "sprint-vpb-11-metadata-diagnostics",
-      "name": "sprint-vpb-11-metadata-diagnostics",
-      "status": "passed",
-      "completedAt": "2026-07-16T04:07:21.838Z",
-      "actualLoc": {
-        "added": 1910,
-        "deleted": 33,
-        "net": 1877,
-        "filesChanged": 16
-      }
-    },
-    {
-      "id": "sprint-vpb-12-auth-golden",
-      "name": "sprint-vpb-12-auth-golden",
-      "status": "passed",
-      "completedAt": "2026-07-16T06:40:47.233Z",
-      "actualLoc": {
-        "added": 1936,
-        "deleted": 60,
-        "net": 1876,
-        "filesChanged": 17
-      }
-    }
-  ],
+  "sprints": [],
   "verificationCommands": [],
   "handoff": {
     "currentSprintId": "idle",
-    "lastActionSummary": "Sprint sprint-vpb-12-auth-golden completed with passed",
+    "lastActionSummary": "Upstream harness maintenance checkpoint: release metadata updated for v1.8.1 with the web-pro-bridge remediation (fail-closed identity, durable mailbox lifecycle) and the MCP write-path improvement (publish_review_package facade, tool catalog metadata and audit, oauth scopes, persistent connector registration).",
     "orchestratorContextBudget": "medium",
     "preferencesActive": [],
     "handoffDocPath": ".vibe/agent/handoff.md",
-    "updatedAt": "2026-07-16T06:40:47.233Z"
+    "updatedAt": "2026-07-16T07:20:00.000Z"
   },
-  "pendingRisks": [
-    {
-      "id": "audit-after-sprint-vpb-11-metadata-diagnostics",
-      "raisedBy": "vibe-sprint-complete",
-      "targetSprint": "*",
-      "text": "Evaluator audit due (sprintsSinceLastAudit=5, everyN=5).",
-      "status": "resolved",
-      "createdAt": "2026-07-16T04:07:21.838Z",
-      "resolvedAt": "2026-07-16T04:07:37.667Z",
-      "statusUpdatedAt": "2026-07-16T04:07:37.667Z"
-    }
-  ],
-  "lastSprintScope": [
-    ".gitignore",
-    ".vibe/agent/iteration-history.json",
-    ".vibe/harness/src/commands/pro-bridge.ts",
-    ".vibe/harness/src/pro-bridge/importer.ts",
-    ".vibe/harness/src/pro-bridge/mailbox/store.ts",
-    ".vibe/harness/test/pro-bridge-command.test.ts",
-    ".vibe/harness/test/pro-bridge-e2e.test.ts",
-    "docs/plans/sprint-roadmap.md",
-    "docs/plans/web-pro-bridge/design.md",
-    ".vibe/harness/test/pro-bridge-identity.test.ts",
-    "docs/plans/2026-07-15-web-pro-bridge-goal-audit-pro-review/.bridge/provenance.json",
-    "docs/plans/2026-07-15-web-pro-bridge-goal-audit-pro-review/FINDINGS.json",
-    "docs/plans/2026-07-15-web-pro-bridge-goal-audit-pro-review/README.md",
-    "docs/plans/2026-07-15-web-pro-bridge-goal-audit-pro-review/REVIEW.md",
-    "docs/plans/2026-07-15-web-pro-bridge-goal-audit-pro-review/prompt/CLI_MAIN_SESSION_PROMPT.md",
-    ".vibe/harness/src/pro-bridge/mailbox/tools.ts",
-    ".vibe/harness/src/pro-bridge/transports/mcp-mailbox.ts",
-    ".vibe/harness/src/pro-bridge/transports/types.ts",
-    ".vibe/harness/test/pro-bridge-mailbox.test.ts",
-    ".vibe/harness/test/pro-bridge-health.test.ts",
-    ".vibe/harness/test/pro-bridge-lifecycle.test.ts",
-    ".vibe/harness/scripts/vibe-gen-schemas-impl.ts",
-    ".vibe/harness/scripts/vibe-stop-qa-gate.mjs",
-    ".vibe/harness/src/lib/schemas/pro-bridge.ts",
-    ".vibe/harness/src/pro-bridge/goal-source/codex-app-server.ts",
-    ".vibe/harness/src/pro-bridge/mailbox/server.ts",
-    ".vibe/harness/src/pro-bridge/prompt-composer.ts",
-    ".vibe/harness/src/pro-bridge/transports/manual.ts",
-    ".vibe/harness/src/pro-bridge/transports/responses-api.ts",
-    ".vibe/harness/test/pro-bridge-adapters.test.ts",
-    ".vibe/harness/test/pro-bridge-bundle.test.ts",
-    ".vibe/harness/test/pro-bridge-composer.test.ts",
-    ".vibe/harness/test/pro-bridge-goal-source.test.ts",
-    ".vibe/harness/test/pro-bridge-importer.test.ts",
-    ".vibe/harness/test/pro-bridge-mcp-server.test.ts",
-    ".vibe/harness/test/pro-bridge-schemas.test.ts",
-    ".vibe/harness/test/pro-bridge-transport.test.ts",
-    ".vibe/harness/test/stop-qa-gate.test.ts",
-    "docs/context/pro-bridge-setup.md",
-    ".vibe/harness/schemas/pro-bridge-findings.schema.json",
-    ".vibe/harness/test/helpers/pro-bridge-result-fixture.ts",
-    "docs/plans/archive/roadmaps/iter-2.md",
-    "docs/reports/project-report.html",
-    ".vibe/harness/src/lib/config.ts",
-    ".vibe/harness/test/pro-bridge-publish.test.ts",
-    ".claude/skills/vibe-goal-audit/SKILL.md",
-    ".vibe/harness/test/fixtures/pro-bridge-catalog-snapshot.json",
-    ".vibe/harness/test/pro-bridge-catalog.test.ts",
-    ".vibe/harness/test/pro-bridge-doctor.test.ts",
-    ".vibe/harness/src/pro-bridge/mailbox/tunnel.ts",
-    ".vibe/harness/test/fixtures/golden-prompts/README.md",
-    ".vibe/harness/test/fixtures/golden-prompts/dataset.json",
-    ".vibe/harness/test/pro-bridge-auth.test.ts",
-    ".vibe/harness/test/pro-bridge-golden.test.ts",
-    "docs/plans/archive/roadmaps/iter-3.md"
-  ],
+  "pendingRisks": [],
+  "lastSprintScope": [],
   "lastSprintScopeGlob": [],
-  "sprintsSinceLastAudit": 1,
-  "stateUpdatedAt": "2026-07-16T06:40:47.233Z",
+  "sprintsSinceLastAudit": 0,
+  "stateUpdatedAt": "2026-07-16T07:20:00.000Z",
   "verifiedAt": null
 }

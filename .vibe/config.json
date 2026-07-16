@@ -1,5 +1,5 @@
 {
-  "harnessVersion": "1.8.0",
+  "harnessVersion": "1.8.1",
   "upstream": {
     "type": "git",
     "url": "https://github.com/mir3626/vibe-doctor",
@@ -91,5 +91,5 @@
     }
   },
   "mode": "human",
-  "harnessVersionInstalled": "1.8.0"
+  "harnessVersionInstalled": "1.8.1"
 }

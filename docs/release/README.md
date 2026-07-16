@@ -6,6 +6,7 @@ and in version-specific notes.
 
 ## Current
 
+- [v1.8.1](v1.8.1.md) - Web Pro Bridge 실전화 (remediation + MCP write-path + 영속 연결)
 - [v1.8.0](v1.8.0.md) - Web Pro Bridge (ChatGPT Pro 세션 왕복 리뷰·설계)
 - [v1.7.30](v1.7.30.md) - SessionStart dedupe and hidden nested Stop QA
 - [v1.7.29](v1.7.29.md) - Nonblocking harness-only Stop QA worker
