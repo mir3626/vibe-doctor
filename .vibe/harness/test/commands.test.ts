@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -51,6 +52,11 @@ test('config-audit hook binds to CLAUDE_PROJECT_DIR and emits only valid hook ou
   const strayCwd = await mkdtemp(path.join(tmpdir(), 'config-audit-hook-stray-'));
   const auditPath = path.resolve('.vibe/harness/src/commands/audit-config.ts');
   const tsxPath = path.resolve('node_modules/tsx/dist/cli.mjs');
+  const npmCliPath = [
+    process.env.npm_execpath,
+    path.join(path.dirname(process.execPath), 'node_modules', 'npm', 'bin', 'npm-cli.js'),
+  ].find((candidate): candidate is string => Boolean(candidate && existsSync(candidate)));
+  assert.ok(npmCliPath, 'npm CLI entrypoint is required for the config-audit hook test');
   const run = (explicitHook = true) => {
     const env = { ...process.env };
     if (explicitHook) {
@@ -58,13 +64,22 @@ test('config-audit hook binds to CLAUDE_PROJECT_DIR and emits only valid hook ou
     } else {
       delete env.CLAUDE_PROJECT_DIR;
     }
-    const hookArgs = explicitHook ? ' -- --hook' : '';
-    return spawnSync(`npm --prefix "${root}" run --silent vibe:config-audit${hookArgs}`, {
+    const args = [
+      npmCliPath,
+      '--prefix',
+      root,
+      'run',
+      '--silent',
+      'vibe:config-audit',
+      ...(explicitHook ? ['--', '--hook'] : []),
+    ];
+    return spawnSync(process.execPath, args, {
       cwd: strayCwd,
       encoding: 'utf8',
       env,
       input: JSON.stringify({ hook_event_name: 'PostToolUse', cwd: root, tool_name: 'Edit' }),
-      shell: true,
+      shell: false,
+      windowsHide: true,
     });
   };
 

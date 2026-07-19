@@ -372,8 +372,10 @@ describe('project report', () => {
     const root = await makeTempDir('project-report-open-dedupe-');
     const { runProjectReportCli } = await loadReportModule();
     let spawnCount = 0;
-    const spawn = () => {
+    const spawnOptions: Array<{ windowsHide?: boolean }> = [];
+    const spawn = (...args: unknown[]) => {
       spawnCount += 1;
+      spawnOptions.push((args[2] ?? {}) as { windowsHide?: boolean });
       return {};
     };
     await scaffoldReportProject(root);
@@ -398,6 +400,7 @@ describe('project report', () => {
     });
 
     assert.equal(spawnCount, 2);
+    assert.deepEqual(spawnOptions.map((options) => options.windowsHide), [true, true]);
   });
 
   it('browser open errors are warnings and do not fail report generation', async () => {

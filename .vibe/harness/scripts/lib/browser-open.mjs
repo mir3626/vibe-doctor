@@ -22,6 +22,7 @@ export function openExternalTarget(
     const child = spawnFn(argsByPlatform[0], argsByPlatform[1], {
       detached: true,
       stdio: 'ignore',
+      windowsHide: true,
     });
     if (typeof child?.on === 'function') {
       child.on('error', (error) => warnOpenFailure(targetLabel, error, stderr));

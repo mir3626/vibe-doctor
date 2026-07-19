@@ -9,6 +9,12 @@ targeted Sprint evidence, and a cumulative entrypoint-to-output journey. If a
 shared schema, config, API, state transition, or workflow boundary changed,
 Sprint-local unit tests alone cannot pass the Sprint.
 
+For harness-owned changes, carry the iteration/goal base SHA and run
+`npm run vibe:verify -- <goal-base-sha>`. A current successful group
+receipt is cumulative evidence; branch name or an earlier Sprint-local pass is
+not. Reserve `vibe:verify:release` for the release/tag/migration/compatibility
+boundaries defined in `docs/guides/verification-reuse.md`.
+
 Planner must not receive `.vibe/agent/iteration-history.json`. The Orchestrator
 may prepend only a short prior-sprint header such as:
 

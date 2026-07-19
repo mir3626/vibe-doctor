@@ -30,6 +30,7 @@ import {
   prepareBridgeWorktree,
   resolveRepositoryRoot,
   runGit,
+  type WorktreeContext,
 } from '../pro-roundtrip/worktree.js';
 
 function usage(): string {
@@ -53,6 +54,65 @@ function output(value: unknown, json = false): void {
     return;
   }
   process.stdout.write(`${value}\n`);
+}
+
+export interface ProRoundtripExecutionOptions {
+  cwd?: string;
+  preparedContext?: WorktreeContext;
+  writeOutput?: (value: unknown, json: boolean) => void;
+  setExitCode?: (exitCode: number) => void;
+}
+
+interface ProRoundtripRuntime {
+  cwd: string;
+  context: WorktreeContext | undefined;
+  writeOutput: (value: unknown, json: boolean) => void;
+  setExitCode: (exitCode: number) => void;
+}
+
+async function repositoryRoot(runtime: ProRoundtripRuntime): Promise<string> {
+  return runtime.context?.repoRoot ?? resolveRepositoryRoot(runtime.cwd);
+}
+
+async function bridgeContext(
+  runtime: ProRoundtripRuntime,
+): Promise<WorktreeContext> {
+  runtime.context ??= await prepareBridgeWorktree(runtime.cwd);
+  return runtime.context;
+}
+
+function emit(runtime: ProRoundtripRuntime, value: unknown, json = false): void {
+  runtime.writeOutput(value, json);
+}
+
+function canonicalPath(value: string): string {
+  const resolved = path.resolve(value);
+  return process.platform === 'win32' ? resolved.toLowerCase() : resolved;
+}
+
+function assertPreparedContext(
+  cwd: string,
+  context: WorktreeContext | undefined,
+): void {
+  if (!context) {
+    return;
+  }
+  const repoRoot = canonicalPath(context.repoRoot);
+  const relativeCwd = path.relative(repoRoot, canonicalPath(cwd));
+  const expectedWorktree = canonicalPath(
+    path.join(context.repoRoot, '.vibe', 'worktrees', 'pro-roundtrip'),
+  );
+  const expectedMarker = canonicalPath(
+    path.join(context.repoRoot, '.vibe', 'worktrees', 'pro-roundtrip.owner.json'),
+  );
+  if (
+    relativeCwd.startsWith('..') ||
+    path.isAbsolute(relativeCwd) ||
+    canonicalPath(context.worktreePath) !== expectedWorktree ||
+    canonicalPath(context.markerPath) !== expectedMarker
+  ) {
+    throw new Error('prepared bridge context does not belong to the requested repository');
+  }
 }
 
 function projectTimezone(args: ParsedArgs): string {
@@ -113,13 +173,16 @@ Continue flow ${flowPath} from its latest valid COMPLETE.json.
 Write only new files under the exact nextWriteTarget, create COMPLETE.json last, keep confirmation visible, and stop if exact-ref access is unavailable.`;
 }
 
-async function bootstrapCommand(args: ParsedArgs): Promise<void> {
+async function bootstrapCommand(
+  args: ParsedArgs,
+  runtime: ProRoundtripRuntime,
+): Promise<void> {
   if (!getBooleanFlag(args, 'publish')) {
     throw new Error(
       'bootstrap publishes protocol/v1 to GitHub; obtain user authorization and pass --publish',
     );
   }
-  const repoRoot = await resolveRepositoryRoot();
+  const repoRoot = await repositoryRoot(runtime);
   const remoteUrl = safeRemoteUrl(
     (await runGit(repoRoot, ['remote', 'get-url', 'origin'])).stdout.trim(),
   );
@@ -190,17 +253,21 @@ async function bootstrapCommand(args: ParsedArgs): Promise<void> {
       `code branch ${codeBranch} must be pushed at the exact local HEAD before Web-first bootstrap`,
     );
   }
-  output({
+  const context = await bridgeContext(runtime);
+  emit(runtime, {
     action: 'bootstrap',
     repository: fullName,
     branch: 'vibe-pro-bridge',
     codeBranch,
-    protocol: await ensureProtocol({ cwd: repoRoot, publish: true }),
+    protocol: await ensureProtocol({ context, publish: true }),
     webEntry: 'Read ./bridge-runbook.md from the exact code ref with the GitHub app.',
   });
 }
 
-async function selectGoFlow(args: ParsedArgs): Promise<string> {
+async function selectGoFlow(
+  args: ParsedArgs,
+  runtime: ProRoundtripRuntime,
+): Promise<string> {
   const explicit = args.positionals[1];
   if (explicit) {
     return explicit;
@@ -211,7 +278,7 @@ async function selectGoFlow(args: ParsedArgs): Promise<string> {
   }
   const requestedSlug = getStringFlag(args, 'slug');
   const slug = requestedSlug ? validateSlug(requestedSlug) : undefined;
-  const repoRoot = await resolveRepositoryRoot();
+  const repoRoot = await repositoryRoot(runtime);
   const codeBranch = (await runGit(repoRoot, ['branch', '--show-current'])).stdout.trim();
   if (!codeBranch) {
     throw new Error('go requires a named code branch, not detached HEAD');
@@ -225,7 +292,7 @@ async function selectGoFlow(args: ParsedArgs): Promise<string> {
   } catch {
     // Local integration fixtures may use a non-GitHub origin.
   }
-  const context = await prepareBridgeWorktree(repoRoot);
+  const context = await bridgeContext(runtime);
   const paths = await listFlowPaths(context.worktreePath);
   const candidates: Array<{
     flowPath: string;
@@ -314,16 +381,19 @@ function nextInstruction(
   return `Continue as ${marker.nextActor} at ${marker.nextWriteTarget ?? 'no write target'}.`;
 }
 
-async function goCommand(args: ParsedArgs): Promise<void> {
-  const flowPath = await selectGoFlow(args);
-  const synced = await syncFlow(flowPath);
+async function goCommand(
+  args: ParsedArgs,
+  runtime: ProRoundtripRuntime,
+): Promise<void> {
+  const flowPath = await selectGoFlow(args, runtime);
+  const synced = await syncFlow(flowPath, { context: await bridgeContext(runtime) });
   const marker = synced.snapshot.latestEvent.marker;
   const contract = [...synced.snapshot.events].reverse().find((event) => event.contract)
     ?.contract;
   const currentSprint = contract?.sprints.find(
     ({ id }) => id === synced.state.currentSprintId,
   );
-  output({
+  emit(runtime, {
     action: 'go',
     flowPath,
     selection: args.positionals[1] ? 'explicit' : 'latest-non-closed-current-repo-branch',
@@ -352,7 +422,10 @@ async function goCommand(args: ParsedArgs): Promise<void> {
   });
 }
 
-async function startCommand(args: ParsedArgs): Promise<void> {
+async function startCommand(
+  args: ParsedArgs,
+  runtime: ProRoundtripRuntime,
+): Promise<void> {
   const mode = args.positionals[1];
   if (mode !== 'design' && mode !== 'audit') {
     throw new Error(`start requires design or audit\n${usage()}`);
@@ -360,7 +433,7 @@ async function startCommand(args: ParsedArgs): Promise<void> {
   if (!getBooleanFlag(args, 'publish')) {
     throw new Error('start publishes to GitHub; obtain user authorization and pass --publish');
   }
-  const repoRoot = await resolveRepositoryRoot();
+  const repoRoot = await repositoryRoot(runtime);
   const goal =
     mode === 'design'
       ? args.positionals.slice(2).join(' ').trim()
@@ -407,14 +480,14 @@ async function startCommand(args: ParsedArgs): Promise<void> {
   if (!fullName) {
     throw new Error('GitHub repository identity is unavailable');
   }
-  const protocol = await ensureProtocol({ cwd: repoRoot, publish: true });
+  const context = await bridgeContext(runtime);
+  const protocol = await ensureProtocol({ context, publish: true });
 
   let published:
     | { flowPath: string; bridgeCommitSha: string; attempts: number }
     | undefined;
   let lastError: unknown;
   for (let allocationAttempt = 1; allocationAttempt <= 3; allocationAttempt += 1) {
-    const context = await prepareBridgeWorktree(repoRoot);
     const flowPath = await allocateFlowPath(context.worktreePath, date, slug);
     const flow: ProRoundtripFlow = {
       schemaVersion: 'vibe-pro-flow-v1',
@@ -501,7 +574,7 @@ ${flow.nonGoals.map((item) => `- ${item}`).join('\n')}
       const result = await publishAdditions(
         files,
         `docs(pro-go): start ${path.posix.basename(flowPath)}`,
-        { cwd: repoRoot },
+        { context },
       );
       published = {
         flowPath,
@@ -519,7 +592,7 @@ ${flow.nonGoals.map((item) => `- ${item}`).join('\n')}
   if (!published) {
     throw new Error(`flow allocation failed after 3 attempts: ${String(lastError)}`);
   }
-  output({
+  emit(runtime, {
     action: 'start',
     mode,
     ...published,
@@ -529,18 +602,24 @@ ${flow.nonGoals.map((item) => `- ${item}`).join('\n')}
   });
 }
 
-async function loadRemoteSnapshot(requested?: string) {
-  const context = await prepareBridgeWorktree();
+async function loadRemoteSnapshot(
+  runtime: ProRoundtripRuntime,
+  requested?: string,
+) {
+  const context = await bridgeContext(runtime);
   const flowPath = await resolveFlowPath(context.worktreePath, requested);
   const snapshot = await loadFlowSnapshot(context.worktreePath, flowPath);
   await verifyPinnedProtocol(context.repoRoot, context.worktreePath, snapshot.flow.protocol);
   return { context, snapshot };
 }
 
-async function statusCommand(args: ParsedArgs): Promise<void> {
-  const { context, snapshot } = await loadRemoteSnapshot(args.positionals[1]);
+async function statusCommand(
+  args: ParsedArgs,
+  runtime: ProRoundtripRuntime,
+): Promise<void> {
+  const { context, snapshot } = await loadRemoteSnapshot(runtime, args.positionals[1]);
   const localState = await readPacketState(context.repoRoot, snapshot.flow.flowPath);
-  output({
+  emit(runtime, {
     flowPath: snapshot.flow.flowPath,
     goal: snapshot.flow.goal,
     codeBranch: snapshot.flow.codeBranch,
@@ -560,9 +639,14 @@ async function statusCommand(args: ParsedArgs): Promise<void> {
   });
 }
 
-async function syncCommand(args: ParsedArgs): Promise<void> {
-  const result = await syncFlow(args.positionals[1]);
-  output({
+async function syncCommand(
+  args: ParsedArgs,
+  runtime: ProRoundtripRuntime,
+): Promise<void> {
+  const result = await syncFlow(args.positionals[1], {
+    context: await bridgeContext(runtime),
+  });
+  emit(runtime, {
     flowPath: result.snapshot.flow.flowPath,
     packetRoot: result.packetRoot,
     importedEventIds: result.importedEventIds,
@@ -575,27 +659,33 @@ async function syncCommand(args: ParsedArgs): Promise<void> {
   });
 }
 
-async function reportCommand(args: ParsedArgs): Promise<void> {
-  let synced = await syncFlow(args.positionals[1]);
+async function reportCommand(
+  args: ParsedArgs,
+  runtime: ProRoundtripRuntime,
+): Promise<void> {
+  const context = await bridgeContext(runtime);
+  let synced = await syncFlow(args.positionals[1], { context });
   const evidencePath = getStringFlag(args, 'evidence');
   let checkpointPath: string | null = null;
   if (evidencePath) {
-    const input = await readReportInput(path.resolve(evidencePath));
-    const repoRoot = await resolveRepositoryRoot();
+    const input = await readReportInput(path.resolve(runtime.cwd, evidencePath));
+    const repoRoot = await repositoryRoot(runtime);
     checkpointPath = await recordSprintReport(
       repoRoot,
       synced.snapshot,
       input,
     );
-    synced = await syncFlow(synced.snapshot.flow.flowPath);
+    synced = await syncFlow(synced.snapshot.flow.flowPath, { context });
   }
   let publication = null;
   if (getBooleanFlag(args, 'publish')) {
-    const repoRoot = await resolveRepositoryRoot();
-    publication = await publishAggregateReport(repoRoot, synced.snapshot);
-    synced = await syncFlow(synced.snapshot.flow.flowPath);
+    const repoRoot = await repositoryRoot(runtime);
+    publication = await publishAggregateReport(repoRoot, synced.snapshot, {
+      context,
+    });
+    synced = await syncFlow(synced.snapshot.flow.flowPath, { context });
   }
-  output({
+  emit(runtime, {
     flowPath: synced.snapshot.flow.flowPath,
     checkpointPath,
     published: publication,
@@ -606,22 +696,29 @@ async function reportCommand(args: ParsedArgs): Promise<void> {
   });
 }
 
-async function continueCommand(args: ParsedArgs): Promise<void> {
-  const { snapshot } = await loadRemoteSnapshot(args.positionals[1]);
+async function continueCommand(
+  args: ParsedArgs,
+  runtime: ProRoundtripRuntime,
+): Promise<void> {
+  const { snapshot } = await loadRemoteSnapshot(runtime, args.positionals[1]);
   if (snapshot.latestEvent.marker.nextActor === 'pro') {
-    output(webPrompt(snapshot.flow.repository.fullName, snapshot.flow.flowPath));
+    emit(runtime, webPrompt(snapshot.flow.repository.fullName, snapshot.flow.flowPath));
     return;
   }
-  output(
+  emit(
+    runtime,
     `Run $vibe-pro-go for ${snapshot.flow.flowPath}; it will sync and continue as ${snapshot.latestEvent.marker.nextActor} at ${snapshot.latestEvent.marker.nextWriteTarget ?? 'no target'}.`,
   );
 }
 
-async function closeCommand(args: ParsedArgs): Promise<void> {
+async function closeCommand(
+  args: ParsedArgs,
+  runtime: ProRoundtripRuntime,
+): Promise<void> {
   if (!getBooleanFlag(args, 'publish')) {
     throw new Error('close publishes to GitHub; obtain user authorization and pass --publish');
   }
-  const { context, snapshot } = await loadRemoteSnapshot(args.positionals[1]);
+  const { context, snapshot } = await loadRemoteSnapshot(runtime, args.positionals[1]);
   if (snapshot.latestEvent.marker.kind !== 'approval') {
     throw new Error('close requires the latest completed event to be a Pro approval');
   }
@@ -694,10 +791,10 @@ The append-only archive is closed. No default-branch write or PR was created by 
     [`${target}/COMPLETE.json`, `${JSON.stringify(marker, null, 2)}\n`],
   ]);
   const publication = await publishAdditions(files, 'docs(pro-go): close flow', {
-    cwd: context.repoRoot,
+    context,
   });
-  const synced = await syncFlow(snapshot.flow.flowPath);
-  output({
+  const synced = await syncFlow(snapshot.flow.flowPath, { context });
+  emit(runtime, {
     publication,
     flowPath: snapshot.flow.flowPath,
     status: 'closed',
@@ -705,8 +802,8 @@ The append-only archive is closed. No default-branch write or PR was created by 
   });
 }
 
-async function doctorCommand(): Promise<void> {
-  const inspection = await inspectBridgeWorktree();
+async function doctorCommand(runtime: ProRoundtripRuntime): Promise<void> {
+  const inspection = await inspectBridgeWorktree(runtime.cwd);
   const checks: Array<{ id: string; status: 'ok' | 'fail' | 'manual'; detail: string }> = [];
   checks.push({
     id: 'bridge-branch',
@@ -744,59 +841,77 @@ async function doctorCommand(): Promise<void> {
     detail:
       'Must be run in the actual Web Pro session: private repo read, non-default branch nested create, re-read/commit SHA, no default-branch/PR mutation, ~100 KiB UTF-8, sequential create convergence, confirmation UI.',
   });
-  output({
+  emit(runtime, {
     ok: checks.every(({ status }) => status !== 'fail'),
     checks,
   });
   if (checks.some(({ status }) => status === 'fail')) {
-    process.exitCode = 1;
+    runtime.setExitCode(1);
   }
 }
 
-async function main(): Promise<void> {
-  const args = parseArgs(process.argv.slice(2));
+export async function executeProRoundtrip(
+  argv: string[],
+  options: ProRoundtripExecutionOptions = {},
+): Promise<void> {
+  const runtime: ProRoundtripRuntime = {
+    cwd: path.resolve(options.cwd ?? process.cwd()),
+    context: options.preparedContext,
+    writeOutput: options.writeOutput ?? output,
+    setExitCode:
+      options.setExitCode ??
+      ((exitCode) => {
+        process.exitCode = exitCode;
+      }),
+  };
+  assertPreparedContext(runtime.cwd, runtime.context);
+  const args = parseArgs(argv);
   const command = args.positionals[0] ?? 'go';
   if (command === 'help' || getBooleanFlag(args, 'help')) {
-    output(usage());
+    emit(runtime, usage());
     return;
   }
   if (command === 'go') {
-    await goCommand(args);
+    await goCommand(args, runtime);
     return;
   }
   if (command === 'bootstrap') {
-    await bootstrapCommand(args);
+    await bootstrapCommand(args, runtime);
     return;
   }
   if (command === 'start') {
-    await startCommand(args);
+    await startCommand(args, runtime);
     return;
   }
   if (command === 'status') {
-    await statusCommand(args);
+    await statusCommand(args, runtime);
     return;
   }
   if (command === 'sync') {
-    await syncCommand(args);
+    await syncCommand(args, runtime);
     return;
   }
   if (command === 'report') {
-    await reportCommand(args);
+    await reportCommand(args, runtime);
     return;
   }
   if (command === 'continue') {
-    await continueCommand(args);
+    await continueCommand(args, runtime);
     return;
   }
   if (command === 'close') {
-    await closeCommand(args);
+    await closeCommand(args, runtime);
     return;
   }
   if (command === 'doctor') {
-    await doctorCommand();
+    await doctorCommand(runtime);
     return;
   }
   throw new Error(`unknown command: ${command}\n${usage()}`);
+}
+
+async function main(): Promise<void> {
+  await executeProRoundtrip(process.argv.slice(2));
 }
 
 runMain(main, import.meta.url);

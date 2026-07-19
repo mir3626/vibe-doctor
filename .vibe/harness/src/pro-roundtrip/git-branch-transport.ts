@@ -85,14 +85,18 @@ function isNonFastForward(output: string): boolean {
 export async function publishAdditions(
   files: ReadonlyMap<string, string>,
   commitMessage: string,
-  options: { cwd?: string; maxAttempts?: number } = {},
+  options: {
+    cwd?: string;
+    context?: WorktreeContext;
+    maxAttempts?: number;
+  } = {},
 ): Promise<PublishResult> {
   if (files.size === 0) {
     throw new Error('publish requires at least one file');
   }
   const entries = orderedFiles(files);
   const relativePaths = entries.map(([filePath]) => filePath);
-  const context = await prepareBridgeWorktree(options.cwd);
+  const context = options.context ?? await prepareBridgeWorktree(options.cwd);
   await assertPathsAbsent(context, relativePaths);
 
   for (const [relativePath, content] of entries) {
@@ -135,6 +139,7 @@ export async function publishAdditions(
       const bridgeCommitSha = (
         await runGit(context.worktreePath, ['rev-parse', 'HEAD^{commit}'])
       ).stdout.trim();
+      context.remoteTip = bridgeCommitSha;
       return { bridgeCommitSha, paths: relativePaths, attempts: attempt };
     }
     const output = `${pushed.stdout}\n${pushed.stderr}`;

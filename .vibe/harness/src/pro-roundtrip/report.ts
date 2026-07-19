@@ -16,7 +16,7 @@ import {
   writeTextAtomic,
 } from './importer.js';
 import type { FlowSnapshot } from './flow-store.js';
-import { runGit } from './worktree.js';
+import { runGit, type WorktreeContext } from './worktree.js';
 
 async function exists(filePath: string): Promise<boolean> {
   try {
@@ -334,6 +334,7 @@ function nextFeedbackTarget(snapshot: FlowSnapshot, reportSequence: number): str
 export async function publishAggregateReport(
   repoRoot: string,
   snapshot: FlowSnapshot,
+  options: { context?: WorktreeContext } = {},
 ): Promise<PublishResult> {
   const state = await readPacketState(repoRoot, snapshot.flow.flowPath);
   if (!state) {
@@ -458,7 +459,10 @@ Review every Sprint report and \`WORKFLOW-MATRIX.md\` against the exact code HEA
   return publishAdditions(
     files,
     `docs(pro-go): publish ${kind} ${eventParts.revision}`,
-    { cwd: repoRoot },
+    {
+      cwd: repoRoot,
+      ...(options.context ? { context: options.context } : {}),
+    },
   );
 }
 

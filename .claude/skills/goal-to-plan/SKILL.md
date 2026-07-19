@@ -21,3 +21,8 @@ Output structure:
 8. Workflow Continuity: affected workflows, upstream inputs, downstream
    consumers, cumulative entrypoint-to-output journey, preserved invariants,
    and evidence
+
+For a multi-Sprint goal that may change harness-owned files, record the exact
+`goalBaseSha` in the plan and use
+`npm run vibe:verify -- <goalBaseSha>` for cumulative harness
+verification. Do not substitute a branch name or only the latest Sprint diff.

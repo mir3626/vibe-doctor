@@ -72,6 +72,7 @@ export function resolveGitBashPath(env: NodeJS.ProcessEnv = process.env): string
   const result = spawnSync('where.exe', ['git'], {
     encoding: 'utf8',
     stdio: ['ignore', 'pipe', 'ignore'],
+    windowsHide: true,
   });
   if (result.status !== 0 || !result.stdout) {
     return null;
@@ -170,6 +171,7 @@ export async function runCommand(
       cwd: options?.cwd,
       env,
       stdio: ['ignore', 'pipe', 'pipe'],
+      windowsHide: true,
     });
 
     let stdout = '';

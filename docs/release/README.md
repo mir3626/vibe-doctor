@@ -6,6 +6,7 @@ and in version-specific notes.
 
 ## Current
 
+- [v1.8.3](v1.8.3.md) - Verification reuse and faster Pro E2E
 - [v1.8.2](v1.8.2.md) - GitHub-backed Web Pro round trip
 - [v1.7.30](v1.7.30.md) - SessionStart dedupe and hidden nested Stop QA
 - [v1.7.29](v1.7.29.md) - Nonblocking harness-only Stop QA worker

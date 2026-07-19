@@ -3,8 +3,9 @@ import { execFile as execFileCallback } from 'node:child_process';
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { afterEach, describe, it } from 'node:test';
+import { describe, it, type TestContext } from 'node:test';
 import { promisify } from 'node:util';
+import { executeProRoundtrip } from '../src/commands/pro-roundtrip.js';
 import type {
   ProRoundtripContract,
   ProRoundtripEventComplete,
@@ -13,21 +14,15 @@ import type {
 } from '../src/lib/schemas/pro-roundtrip.js';
 import { publishAdditions } from '../src/pro-roundtrip/git-branch-transport.js';
 import { packetRootFor } from '../src/pro-roundtrip/importer.js';
-import { prepareBridgeWorktree, runGit } from '../src/pro-roundtrip/worktree.js';
+import {
+  prepareBridgeWorktree,
+  runGit,
+  type WorktreeContext,
+} from '../src/pro-roundtrip/worktree.js';
 
 const execFile = promisify(execFileCallback);
 const sourceRoot = process.cwd();
 const cliPath = path.resolve('.vibe', 'harness', 'scripts', 'vibe-pro-go.mjs');
-const tempDirs: string[] = [];
-
-afterEach(async () => {
-  while (tempDirs.length > 0) {
-    const directory = tempDirs.pop();
-    if (directory) {
-      await rm(directory, { recursive: true, force: true });
-    }
-  }
-});
 
 async function git(cwd: string, args: string[]): Promise<string> {
   const result = await execFile('git', args, {
@@ -59,9 +54,15 @@ async function copyProtocolSources(checkout: string): Promise<void> {
   }
 }
 
-async function scaffoldRepository(): Promise<{ checkout: string; mainHead: string }> {
+interface CliFixture {
+  checkout: string;
+  mainHead: string;
+  context: WorktreeContext;
+}
+
+async function scaffoldRepository(testContext: TestContext): Promise<CliFixture> {
   const root = await mkdtemp(path.join(tmpdir(), 'pro-roundtrip-cli-'));
-  tempDirs.push(root);
+  testContext.after(() => rm(root, { recursive: true, force: true }));
   const remote = path.join(root, 'remote.git');
   const seed = path.join(root, 'seed');
   const checkout = path.join(root, 'checkout');
@@ -83,24 +84,38 @@ async function scaffoldRepository(): Promise<{ checkout: string; mainHead: strin
   await git(checkout, ['config', 'user.email', 'roundtrip@example.invalid']);
   await git(checkout, ['config', 'core.autocrlf', 'false']);
   await copyProtocolSources(checkout);
-  return { checkout, mainHead: await git(checkout, ['rev-parse', 'HEAD']) };
+  return {
+    checkout,
+    mainHead: await git(checkout, ['rev-parse', 'HEAD']),
+    context: await prepareBridgeWorktree(checkout),
+  };
 }
 
-async function runCli(checkout: string, args: string[]): Promise<Record<string, unknown>> {
-  const result = await execFile(process.execPath, [cliPath, ...args], {
-    cwd: checkout,
-    encoding: 'utf8',
-    windowsHide: true,
-    maxBuffer: 16 * 1024 * 1024,
+async function runCli(
+  fixture: CliFixture,
+  args: string[],
+): Promise<Record<string, unknown>> {
+  let result: unknown;
+  await executeProRoundtrip(args, {
+    cwd: fixture.checkout,
+    preparedContext: fixture.context,
+    writeOutput(value) {
+      result = value;
+    },
+    setExitCode(exitCode) {
+      throw new Error(`unexpected in-process exit code: ${exitCode}`);
+    },
   });
-  return JSON.parse(result.stdout) as Record<string, unknown>;
+  assert.notEqual(result, undefined, 'command must produce output');
+  assert.equal(typeof result, 'object');
+  return result as Record<string, unknown>;
 }
 
 async function publishDesignEvent(
-  checkout: string,
+  fixture: CliFixture,
   flowPath: string,
 ): Promise<{ flow: ProRoundtripFlow; contract: ProRoundtripContract }> {
-  const context = await prepareBridgeWorktree(checkout);
+  const { context } = fixture;
   const flow = JSON.parse(
     await readFile(path.join(context.worktreePath, ...flowPath.split('/'), 'FLOW.json'), 'utf8'),
   ) as ProRoundtripFlow;
@@ -153,16 +168,51 @@ async function publishDesignEvent(
       [`${designRoot}/COMPLETE.json`, `${JSON.stringify(designMarker, null, 2)}\n`],
     ]),
     'test: publish Web design',
-    { cwd: checkout },
+    { context },
   );
   return { flow, contract };
 }
 
-describe('vibe-pro-go CLI', () => {
-  it('requires the root Web entry runbook on the pushed code branch before bootstrap', async () => {
-    const fixture = await scaffoldRepository();
+describe('vibe-pro-go CLI', { concurrency: true }, () => {
+  it('keeps the shipped Node wrapper connected to the TypeScript command', async () => {
+    const result = await execFile(process.execPath, [cliPath, 'help'], {
+      cwd: sourceRoot,
+      encoding: 'utf8',
+      windowsHide: true,
+    });
+
+    assert.match(result.stdout, /^Usage:\s+vibe-pro-go/m);
+    assert.equal(result.stderr, '');
+  });
+
+  it('rejects a prepared bridge context owned by another checkout', async () => {
+    const otherRoot = path.join(sourceRoot, 'not-the-current-checkout');
+
     await assert.rejects(
-      runCli(fixture.checkout, [
+      executeProRoundtrip(['help'], {
+        cwd: sourceRoot,
+        preparedContext: {
+          repoRoot: otherRoot,
+          worktreePath: path.join(otherRoot, '.vibe', 'worktrees', 'pro-roundtrip'),
+          markerPath: path.join(
+            otherRoot,
+            '.vibe',
+            'worktrees',
+            'pro-roundtrip.owner.json',
+          ),
+          remoteTip: 'a'.repeat(40),
+        },
+      }),
+      /prepared bridge context does not belong/,
+    );
+  });
+
+  it(
+    'requires the root Web entry runbook on the pushed code branch before bootstrap',
+    async (testContext) => {
+      const fixture = await scaffoldRepository(testContext);
+    await assert.rejects(
+      runCli(fixture, [
         'bootstrap',
         '--repository',
         'fixture/repo',
@@ -187,7 +237,7 @@ describe('vibe-pro-go CLI', () => {
     await git(fixture.checkout, ['add', 'pending-review.txt']);
     await git(fixture.checkout, ['commit', '-m', 'test: advance local review head']);
     await assert.rejects(
-      runCli(fixture.checkout, [
+      runCli(fixture, [
         'bootstrap',
         '--repository',
         'fixture/repo',
@@ -196,7 +246,7 @@ describe('vibe-pro-go CLI', () => {
       /must be pushed at the exact local HEAD/,
     );
     await git(fixture.checkout, ['push', 'origin', 'main']);
-    const bootstrapped = await runCli(fixture.checkout, [
+    const bootstrapped = await runCli(fixture, [
       'bootstrap',
       '--repository',
       'fixture/repo',
@@ -209,11 +259,14 @@ describe('vibe-pro-go CLI', () => {
       (bootstrapped.protocol as { bootstrapped: boolean }).bootstrapped,
       true,
     );
-  });
+    },
+  );
 
-  it('runs start → Web design import → Sprint checkpoint → aggregate publication', async () => {
-    const fixture = await scaffoldRepository();
-    const started = await runCli(fixture.checkout, [
+  it(
+    'runs start → Web design import → Sprint checkpoint → aggregate publication',
+    async (testContext) => {
+      const fixture = await scaffoldRepository(testContext);
+    const started = await runCli(fixture, [
       'start',
       'design',
       'Implement the roundtrip fixture',
@@ -231,7 +284,7 @@ describe('vibe-pro-go CLI', () => {
     assert.match(String(started.webPrompt), /MUST NOT use Web Search/);
     assert.match(String(started.webPrompt), /protocol\/v1\/PROTOCOL\.json/);
 
-    const protocolContext = await prepareBridgeWorktree(fixture.checkout);
+    const protocolContext = fixture.context;
     const protocolManifest = JSON.parse(
       await readFile(
         path.join(protocolContext.worktreePath, 'protocol', 'v1', 'PROTOCOL.json'),
@@ -241,9 +294,9 @@ describe('vibe-pro-go CLI', () => {
     assert.equal(protocolManifest.schemaVersion, 'vibe-pro-protocol-manifest-v1');
     assert.equal(protocolManifest.files.length, 5);
 
-    const { flow, contract } = await publishDesignEvent(fixture.checkout, flowPath);
+    const { flow, contract } = await publishDesignEvent(fixture, flowPath);
 
-    const synced = await runCli(fixture.checkout, ['sync', flowPath]);
+    const synced = await runCli(fixture, ['sync', flowPath]);
     assert.deepEqual(synced.importedEventIds, [
       '0000--cli--goal--r01',
       '0100--pro--design--r01',
@@ -253,7 +306,7 @@ describe('vibe-pro-go CLI', () => {
       await readFile(path.join(packetRoot, 'sprints', 'SPR-001-end-to-end', 'SPRINT.md'), 'utf8'),
       /Design event: `0100--pro--design--r01`/,
     );
-    const resumed = await runCli(fixture.checkout, []);
+    const resumed = await runCli(fixture, []);
     assert.equal(resumed.action, 'go');
     assert.equal(resumed.flowPath, flowPath);
     assert.equal(resumed.currentSprintId, 'SPR-001');
@@ -333,29 +386,30 @@ describe('vibe-pro-go CLI', () => {
     };
     const evidencePath = path.join(fixture.checkout, 'evidence.json');
     await writeFile(evidencePath, `${JSON.stringify(evidence, null, 2)}\n`, 'utf8');
-    const recorded = await runCli(fixture.checkout, [
+    const recorded = await runCli(fixture, [
       'report',
       flowPath,
       '--evidence',
       evidencePath,
     ]);
     assert.match(String(recorded.checkpointPath), /SPR-001-end-to-end$/);
+    assert.equal(recorded.currentSprintId, null);
 
     await assert.rejects(
-      runCli(fixture.checkout, ['report', flowPath, '--publish']),
+      runCli(fixture, ['report', flowPath, '--publish']),
       /final flow gate evidence is required/,
     );
     evidence.finalGatePassed = true;
     await writeFile(evidencePath, `${JSON.stringify(evidence, null, 2)}\n`, 'utf8');
-    await runCli(fixture.checkout, [
+    await runCli(fixture, [
       'report',
       flowPath,
       '--evidence',
       evidencePath,
     ]);
-    const published = await runCli(fixture.checkout, ['report', flowPath, '--publish']);
+    const published = await runCli(fixture, ['report', flowPath, '--publish']);
     assert.ok(published.published);
-    const refreshed = await prepareBridgeWorktree(fixture.checkout);
+    const refreshed = fixture.context;
     assert.match(
       await readFile(
         path.join(
@@ -431,9 +485,9 @@ describe('vibe-pro-go CLI', () => {
         [`${feedbackRoot}/COMPLETE.json`, `${JSON.stringify(feedbackMarker, null, 2)}\n`],
       ]),
       'test: publish Web feedback',
-      { cwd: fixture.checkout },
+      { context: fixture.context },
     );
-    await runCli(fixture.checkout, ['sync', flowPath]);
+    await runCli(fixture, ['sync', flowPath]);
     const remediationEvidence: ProRoundtripReportInput = {
       ...evidence,
       reportKind: 'remediation',
@@ -446,13 +500,13 @@ describe('vibe-pro-go CLI', () => {
       `${JSON.stringify(remediationEvidence, null, 2)}\n`,
       'utf8',
     );
-    await runCli(fixture.checkout, [
+    await runCli(fixture, [
       'report',
       flowPath,
       '--evidence',
       remediationEvidencePath,
     ]);
-    await runCli(fixture.checkout, ['report', flowPath, '--publish']);
+    await runCli(fixture, ['report', flowPath, '--publish']);
 
     const secondFeedbackRoot = `${flowPath}/0500--pro--feedback--r02`;
     const secondFeedbackMarker: ProRoundtripEventComplete = {
@@ -493,7 +547,7 @@ describe('vibe-pro-go CLI', () => {
         ],
       ]),
       'test: approve remediation',
-      { cwd: fixture.checkout },
+      { context: fixture.context },
     );
     const approvalRoot = `${flowPath}/0600--pro--approval--r01`;
     const approvalMarker: ProRoundtripEventComplete = {
@@ -526,11 +580,11 @@ describe('vibe-pro-go CLI', () => {
         [`${approvalRoot}/COMPLETE.json`, `${JSON.stringify(approvalMarker, null, 2)}\n`],
       ]),
       'test: publish Web approval',
-      { cwd: fixture.checkout },
+      { context: fixture.context },
     );
-    await runCli(fixture.checkout, ['sync', flowPath]);
-    await runCli(fixture.checkout, ['close', flowPath, '--publish']);
-    const closed = await prepareBridgeWorktree(fixture.checkout);
+    await runCli(fixture, ['sync', flowPath]);
+    await runCli(fixture, ['close', flowPath, '--publish']);
+    const closed = fixture.context;
     assert.match(
       await readFile(
         path.join(
@@ -543,11 +597,14 @@ describe('vibe-pro-go CLI', () => {
       ),
       /The append-only archive is closed/,
     );
-  });
+    },
+  );
 
-  it('rejects a Web design that reviewed a stale code HEAD', async () => {
-    const fixture = await scaffoldRepository();
-    const started = await runCli(fixture.checkout, [
+  it(
+    'rejects a Web design that reviewed a stale code HEAD',
+    async (testContext) => {
+      const fixture = await scaffoldRepository(testContext);
+    const started = await runCli(fixture, [
       'start',
       'design',
       'Stale HEAD fixture',
@@ -560,20 +617,23 @@ describe('vibe-pro-go CLI', () => {
       '--publish',
     ]);
     const flowPath = String(started.flowPath);
-    await publishDesignEvent(fixture.checkout, flowPath);
+    await publishDesignEvent(fixture, flowPath);
     await writeFile(path.join(fixture.checkout, 'changed-after-design.txt'), 'new head\n', 'utf8');
     await git(fixture.checkout, ['add', 'changed-after-design.txt']);
     await git(fixture.checkout, ['commit', '-m', 'test: advance code head']);
 
     await assert.rejects(
-      runCli(fixture.checkout, ['sync', flowPath]),
+      runCli(fixture, ['sync', flowPath]),
       /stale reviewed HEAD/,
     );
-  });
+    },
+  );
 
-  it('rejects modify-then-current completed payload history on first sync', async () => {
-    const fixture = await scaffoldRepository();
-    const started = await runCli(fixture.checkout, [
+  it(
+    'rejects modify-then-current completed payload history on first sync',
+    async (testContext) => {
+      const fixture = await scaffoldRepository(testContext);
+    const started = await runCli(fixture, [
       'start',
       'design',
       'Tamper history fixture',
@@ -586,8 +646,8 @@ describe('vibe-pro-go CLI', () => {
       '--publish',
     ]);
     const flowPath = String(started.flowPath);
-    await publishDesignEvent(fixture.checkout, flowPath);
-    const context = await prepareBridgeWorktree(fixture.checkout);
+    await publishDesignEvent(fixture, flowPath);
+    const context = fixture.context;
     const designPath = path.join(
       context.worktreePath,
       ...flowPath.split('/'),
@@ -608,8 +668,9 @@ describe('vibe-pro-go CLI', () => {
     ]);
 
     await assert.rejects(
-      runCli(fixture.checkout, ['sync', flowPath]),
+      runCli(fixture, ['sync', flowPath]),
       /append-only history violation/,
     );
-  });
+    },
+  );
 });

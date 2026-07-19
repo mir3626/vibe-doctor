@@ -10,7 +10,11 @@ import {
 import { auditAppendOnlyRange } from './git-branch-transport.js';
 import { loadFlowSnapshot, resolveFlowPath, type FlowSnapshot } from './flow-store.js';
 import { verifyPinnedProtocol } from './protocol.js';
-import { prepareBridgeWorktree, runGit } from './worktree.js';
+import {
+  prepareBridgeWorktree,
+  runGit,
+  type WorktreeContext,
+} from './worktree.js';
 
 export interface EventReceipt {
   eventId: string;
@@ -277,10 +281,19 @@ function requiresExactCurrentHead(kind: ProRoundtripEventComplete['kind']): bool
   return ['design', 'feedback', 'approval'].includes(kind);
 }
 
-async function assertImmutableAddedOnce(
+async function validateImmutableFlowHistory(
   worktreePath: string,
-  relativePath: string,
+  snapshot: FlowSnapshot,
 ): Promise<void> {
+  const requiredPaths = new Set<string>([
+    `${snapshot.flow.flowPath}/FLOW.json`,
+    ...snapshot.events.flatMap((event) => [
+      ...event.marker.files.map(
+        (file) => `${snapshot.flow.flowPath}/${event.directory}/${file.path}`,
+      ),
+      `${snapshot.flow.flowPath}/${event.directory}/COMPLETE.json`,
+    ]),
+  ]);
   const history = await runGit(worktreePath, [
     'log',
     '--format=',
@@ -288,41 +301,36 @@ async function assertImmutableAddedOnce(
     '--find-renames',
     'HEAD',
     '--',
-    relativePath,
+    snapshot.flow.flowPath,
   ]);
-  const entries = history.stdout.trim().split(/\r?\n/).filter(Boolean);
-  const expected = `A\t${relativePath}`;
-  if (entries.length !== 1 || entries[0] !== expected) {
-    throw new Error(
-      `append-only history violation: ${relativePath}; history=${entries.join('|') || '<none>'}`,
-    );
+  const entriesByPath = new Map<string, string[]>();
+  for (const entry of history.stdout.trim().split(/\r?\n/).filter(Boolean)) {
+    const [, ...changedPaths] = entry.split('\t');
+    for (const changedPath of changedPaths) {
+      if (!requiredPaths.has(changedPath)) {
+        continue;
+      }
+      const entries = entriesByPath.get(changedPath) ?? [];
+      entries.push(entry);
+      entriesByPath.set(changedPath, entries);
+    }
   }
-}
-
-async function validateImmutableFlowHistory(
-  worktreePath: string,
-  snapshot: FlowSnapshot,
-): Promise<void> {
-  await assertImmutableAddedOnce(worktreePath, `${snapshot.flow.flowPath}/FLOW.json`);
-  for (const event of snapshot.events) {
-    for (const file of event.marker.files) {
-      await assertImmutableAddedOnce(
-        worktreePath,
-        `${snapshot.flow.flowPath}/${event.directory}/${file.path}`,
+  for (const relativePath of requiredPaths) {
+    const entries = entriesByPath.get(relativePath) ?? [];
+    const expected = `A\t${relativePath}`;
+    if (entries.length !== 1 || entries[0] !== expected) {
+      throw new Error(
+        `append-only history violation: ${relativePath}; history=${entries.join('|') || '<none>'}`,
       );
     }
-    await assertImmutableAddedOnce(
-      worktreePath,
-      `${snapshot.flow.flowPath}/${event.directory}/COMPLETE.json`,
-    );
   }
 }
 
 export async function syncFlow(
   requestedFlow?: string,
-  options: { cwd?: string } = {},
+  options: { cwd?: string; context?: WorktreeContext } = {},
 ): Promise<SyncResult> {
-  const context = await prepareBridgeWorktree(options.cwd);
+  const context = options.context ?? await prepareBridgeWorktree(options.cwd);
   const flowPath = await resolveFlowPath(context.worktreePath, requestedFlow);
   const previousState = await readPacketState(context.repoRoot, flowPath);
   if (previousState && previousState.lastAcknowledgedBridgeSha !== context.remoteTip) {

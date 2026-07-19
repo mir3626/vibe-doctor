@@ -8,6 +8,12 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { afterEach, describe, it } from 'node:test';
 
 const scriptPath = path.resolve('.vibe', 'harness', 'scripts', 'vibe-stop-qa-gate.mjs');
+const windowsHidePreloadPath = path.resolve(
+  '.vibe',
+  'harness',
+  'test',
+  'windows-hide-child-process.cjs',
+);
 const hookEntryPoints = [
   '.vibe/harness/scripts/vibe-stop-qa-gate.mjs',
   '.vibe/harness/scripts/vibe-agent-session-start.mjs',
@@ -52,22 +58,37 @@ async function writeText(filePath: string, value: string): Promise<void> {
   await writeFile(filePath, value, 'utf8');
 }
 
-async function prepareFixture(root: string, selfTestSource: string): Promise<void> {
+async function prepareFixture(
+  root: string,
+  selfTestSource: string,
+  verifySource?: string,
+): Promise<void> {
   git(root, 'init');
+  const scripts: Record<string, string> = {
+    'vibe:typecheck': 'node qa-typecheck.mjs',
+    'vibe:self-test': 'node qa-self-test.mjs',
+    'vibe:qa': 'node product-qa-should-not-run.mjs',
+  };
+  if (verifySource !== undefined) {
+    scripts['vibe:verify'] = 'node qa-verify.mjs';
+  }
   await writeText(
     path.join(root, 'package.json'),
     `${JSON.stringify({
-      scripts: {
-        'vibe:typecheck': 'node qa-typecheck.mjs',
-        'vibe:self-test': 'node qa-self-test.mjs',
-        'vibe:qa': 'node product-qa-should-not-run.mjs',
-      },
+      scripts,
     }, null, 2)}\n`,
   );
   await writeText(path.join(root, '.gitignore'), 'node_modules/\n.vibe/runs/\nqa-count.txt\n');
   await writeText(path.join(root, 'node_modules', 'tsx', 'package.json'), '{"name":"tsx"}\n');
   await writeText(path.join(root, 'qa-typecheck.mjs'), "console.log('TYPECHECK_OK');\n");
   await writeText(path.join(root, 'qa-self-test.mjs'), selfTestSource);
+  if (verifySource !== undefined) {
+    await writeText(path.join(root, 'qa-verify.mjs'), verifySource);
+  }
+  await writeText(
+    path.join(root, '.vibe', 'harness', 'test', 'windows-hide-child-process.cjs'),
+    await readFile(windowsHidePreloadPath, 'utf8'),
+  );
   await writeText(
     path.join(root, 'product-qa-should-not-run.mjs'),
     [
@@ -185,6 +206,8 @@ describe('vibe-stop-qa-gate', () => {
   it('runs nested harness QA hidden, without a shell, and with lifecycle isolation', async () => {
     const source = await readFile(scriptPath, 'utf8');
     assert.match(source, /VIBE_SKIP_AGENT_SESSION_START:\s*'1'/);
+    assert.match(source, /SELF_TEST_WINDOWS_HIDE_PRELOAD/);
+    assert.match(source, /NODE_OPTIONS/);
     assert.match(source, /shell:\s*false/);
     assert.match(source, /windowsHide:\s*true/);
     assert.doesNotMatch(source, /shell:\s*true/);
@@ -195,6 +218,7 @@ describe('vibe-stop-qa-gate', () => {
       [
         "if (process.env.VIBE_SKIP_AGENT_SESSION_START !== '1') process.exit(10);",
         'if (process.env.CLAUDE_PROJECT_DIR) process.exit(11);',
+        "if (process.platform === 'win32' && process.env.VIBE_SELF_TEST_WINDOWS_HIDE_PRELOADED !== '1') process.exit(12);",
         "console.log('ISOLATED_HARNESS_QA');",
         '',
       ].join('\n'),
@@ -216,6 +240,39 @@ describe('vibe-stop-qa-gate', () => {
     assert.ok(logMatch?.[1]);
     const log = await readFile(path.join(root, logMatch[1]), 'utf8');
     assert.match(log, /ISOLATED_HARNESS_QA/);
+  });
+
+  it('prefers the shared smart verifier when the synced package script exists', async () => {
+    const root = await makeTempDir('stop-qa-gate-smart-');
+    await prepareFixture(
+      root,
+      'process.exit(19);\n',
+      [
+        "if (process.env.VIBE_SKIP_AGENT_SESSION_START !== '1') process.exit(20);",
+        'if (process.env.CLAUDE_PROJECT_DIR) process.exit(21);',
+        "console.log('SMART_VERIFY_OK');",
+        '',
+      ].join('\n'),
+    );
+    await writeText(path.join(root, '.vibe', 'harness', 'src', 'changed.ts'), 'export const changed = true;\n');
+
+    const result = spawnSync(process.execPath, [scriptPath], {
+      cwd: root,
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        CLAUDE_PROJECT_DIR: 'C:\\should-not-leak',
+        VIBE_HARNESS_HOOKS: 'on',
+      },
+    });
+
+    assert.equal(result.status, 0, result.stderr);
+    const logMatch = result.stdout.match(/log=([^\s]+)/);
+    assert.ok(logMatch?.[1]);
+    const log = await readFile(path.join(root, logMatch[1]), 'utf8');
+    assert.match(log, /commands: npm run vibe:verify/);
+    assert.match(log, /SMART_VERIFY_OK/);
+    assert.doesNotMatch(log, /TYPECHECK_OK/);
   });
 
   it('does not schedule harness QA for product-only changes', async () => {

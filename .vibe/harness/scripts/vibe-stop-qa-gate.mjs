@@ -43,6 +43,12 @@ const STATE_SCHEMA_VERSION = 2;
 const STATE_FILE = path.join('.vibe', 'runs', 'stop-harness-qa-state.json');
 const LEASE_FILE = path.join('.vibe', 'runs', 'stop-harness-qa-worker.lock');
 const LEASE_STALE_MS = 30 * 60 * 1000;
+const SELF_TEST_WINDOWS_HIDE_PRELOAD = path.join(
+  '.vibe',
+  'harness',
+  'test',
+  'windows-hide-child-process.cjs',
+);
 const LOCKFILES = [
   'package.json',
   'package-lock.json',
@@ -307,17 +313,44 @@ function npmInvocation(script) {
   return { command: 'npm', args: ['run', script, '--silent'] };
 }
 
-function harnessQaEnv() {
+function appendNodeRequireOption(current, preloadPath) {
+  const normalizedPath = preloadPath.replaceAll('\\', '/');
+  const existing = current?.trim() ?? '';
+  if (existing.includes(normalizedPath)) {
+    return existing;
+  }
+
+  const requireOption = `--require="${normalizedPath}"`;
+  return existing ? `${existing} ${requireOption}` : requireOption;
+}
+
+function harnessQaEnv(repoRoot) {
   const env = {
     ...process.env,
     VIBE_SKIP_AGENT_SESSION_START: '1',
   };
+  const preloadPath = path.join(repoRoot, SELF_TEST_WINDOWS_HIDE_PRELOAD);
+  if (process.platform === 'win32' && existsSync(preloadPath)) {
+    env.NODE_OPTIONS = appendNodeRequireOption(env.NODE_OPTIONS, preloadPath);
+  }
   delete env.CLAUDE_PROJECT_DIR;
   return env;
 }
 
+function selectHarnessQaScripts(repoRoot) {
+  try {
+    const packageJson = JSON.parse(readFileSync(path.join(repoRoot, 'package.json'), 'utf8'));
+    if (typeof packageJson?.scripts?.['vibe:verify'] === 'string') {
+      return ['vibe:verify'];
+    }
+  } catch {
+    // Partially synced downstreams retain the legacy deterministic fallback.
+  }
+  return ['vibe:typecheck', 'vibe:self-test'];
+}
+
 function runHarnessQa(repoRoot) {
-  const scripts = ['vibe:typecheck', 'vibe:self-test'];
+  const scripts = selectHarnessQaScripts(repoRoot);
   const stdout = [];
   const stderr = [];
   let status = 0;
@@ -327,7 +360,7 @@ function runHarnessQa(repoRoot) {
     const invocation = npmInvocation(script);
     const result = spawnSync(invocation.command, invocation.args, {
       cwd: repoRoot,
-      env: harnessQaEnv(),
+      env: harnessQaEnv(repoRoot),
       encoding: 'utf8',
       maxBuffer: 20 * 1024 * 1024,
       shell: false,
@@ -344,6 +377,7 @@ function runHarnessQa(repoRoot) {
   }
 
   return {
+    scripts,
     status,
     stdout: stdout.join('\n'),
     stderr: stderr.join('\n'),
@@ -362,7 +396,9 @@ function writeQaLog(repoRoot, result, mode) {
     '# vibe-stop-qa-gate',
     `timestamp: ${now.toISOString()}`,
     `mode: ${mode}`,
-    'commands: npm run vibe:typecheck; npm run vibe:self-test',
+    `commands: ${(result.scripts ?? ['vibe:typecheck', 'vibe:self-test'])
+      .map((script) => `npm run ${script}`)
+      .join('; ')}`,
     `exit: ${result.status}`,
     '',
     '## stdout',

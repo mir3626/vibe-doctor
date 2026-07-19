@@ -122,6 +122,14 @@ Final gate: project full QA, every `WF-*` journey, evidence for all
 `REQ/INV/NFR`, base..head wiring/config/migration/docs audit, skipped validation,
 and residual risk.
 
+For harness-owned changes in a multi-Sprint goal, record the exact goal base and
+use `npm run vibe:verify -- <goal-base-sha>`. A successful group receipt
+may satisfy a later Sprint or final harness check only when the verifier
+recomputes the same semantic input hash at the current tree. Unknown ownership
+fails closed, failures are never reusable, and project-owned QA remains
+separate. Run `npm run vibe:verify:release` for a release, tag, sync migration,
+or explicit compatibility boundary. See `docs/guides/verification-reuse.md`.
+
 Do not cross a shared boundary without the cumulative gate. Do not mark a Sprint,
 iteration, goal queue, or flow complete when only Sprint-local unit tests are
 green.

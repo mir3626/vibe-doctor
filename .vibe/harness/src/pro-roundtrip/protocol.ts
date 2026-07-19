@@ -2,7 +2,11 @@ import { createHash } from 'node:crypto';
 import { readFile, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { publishAdditions } from './git-branch-transport.js';
-import { prepareBridgeWorktree, runGit } from './worktree.js';
+import {
+  prepareBridgeWorktree,
+  runGit,
+  type WorktreeContext,
+} from './worktree.js';
 
 export const PROTOCOL_VERSION = 'v1';
 export const PROTOCOL_ROOT = `protocol/${PROTOCOL_VERSION}`;
@@ -125,9 +129,13 @@ export async function loadLocalProtocol(repoRoot: string): Promise<LocalProtocol
 }
 
 export async function ensureProtocol(
-  options: { cwd?: string; publish: boolean },
+  options: {
+    cwd?: string;
+    context?: WorktreeContext;
+    publish: boolean;
+  },
 ): Promise<ProtocolBinding> {
-  const context = await prepareBridgeWorktree(options.cwd);
+  const context = options.context ?? await prepareBridgeWorktree(options.cwd);
   const local = await loadLocalProtocol(context.repoRoot);
   const presence = await Promise.all(
     [...local.files.keys()].map(async (relativePath) => ({
@@ -153,7 +161,7 @@ export async function ensureProtocol(
     const result = await publishAdditions(
       local.files,
       `chore(pro-go): bootstrap protocol ${PROTOCOL_VERSION}`,
-      { cwd: context.repoRoot },
+      { context },
     );
     commitSha = result.bridgeCommitSha;
     bootstrapped = true;

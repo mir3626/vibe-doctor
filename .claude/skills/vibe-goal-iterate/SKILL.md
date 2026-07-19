@@ -45,7 +45,8 @@ This skill narrows verification while the multi-item queue is still running.
 - For each item, run only targeted verification tied to that item's changed code, acceptance criteria, or immediate integration point.
 - Do not run harness-wide or full-suite verification between items. Examples include full project test/build/QA commands, harness self-tests, broad wrapper audits, or sync/preflight audits that are unrelated to the current item.
 - `npm run vibe:checkpoint` remains allowed for durable handoff/session state because it is a context-persistence check, not harness-wide verification.
-- Run harness-wide or full-suite verification only when both conditions are true: the final queued item has finished, and the completed iteration explicitly changed harness/runtime/skill/orchestration behavior.
+- Record the exact `goalBaseSha` before item 1. When an item changes harness/runtime/skill/orchestration behavior, use `npm run vibe:verify -- <goalBaseSha>` so unchanged successful groups can be reused without losing cumulative earlier-Sprint impact.
+- At the final queued item, recompute the same base-bound harness plan at the final tree. Use `npm run vibe:verify:release` only for a release, tag, sync migration, explicit compatibility boundary, or when the verifier fails closed and requires the release lane.
 - If harness-wide or full-suite verification is skipped, record the reason in the item or final audit summary.
 
 ## Workflow
@@ -60,7 +61,7 @@ This skill narrows verification while the multi-item queue is still running.
 
 2. Freeze the design into a durable work packet.
    - Create or update a concise handoff/design note before implementation begins.
-   - Include: goal, invariants, non-goals, item list, dependencies/order, open risks, verification commands, and rollback/guardrails.
+   - Include: goal, invariants, non-goals, item list, dependencies/order, open risks, exact `goalBaseSha`, verification commands, and rollback/guardrails.
    - If the repo has `.vibe/agent/handoff.md` and `.vibe/agent/session-log.md`, update them before the first implementation item.
 
 3. Decompose into implementation items.

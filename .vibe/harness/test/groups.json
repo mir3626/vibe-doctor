@@ -1,0 +1,367 @@
+{
+  "schemaVersion": "vibe-test-groups-v1",
+  "globalInputPatterns": [
+    "package.json",
+    "package-lock.json",
+    "npm-shrinkwrap.json",
+    "pnpm-lock.yaml",
+    "yarn.lock",
+    "bun.lock",
+    "bun.lockb",
+    ".vibe/harness/test/groups.json",
+    ".vibe/harness/src/commands/verify.ts",
+    ".vibe/harness/tsconfig.json",
+    ".vibe/harness/tsconfig.harness.json",
+    ".vibe/harness/test/windows-hide-child-process.cjs"
+  ],
+  "globalInvalidatorPatterns": [
+    "package.json",
+    "package-lock.json",
+    "npm-shrinkwrap.json",
+    "pnpm-lock.yaml",
+    "yarn.lock",
+    "bun.lock",
+    "bun.lockb",
+    ".vibe/harness/test/groups.json",
+    ".vibe/harness/src/commands/verify.ts",
+    ".vibe/harness/tsconfig.json",
+    ".vibe/harness/tsconfig.harness.json",
+    ".vibe/harness/test/windows-hide-child-process.cjs"
+  ],
+  "sharedInputPatterns": [
+    ".vibe/harness/src/lib/**",
+    ".vibe/harness/schemas/**"
+  ],
+  "sharedImpactPatterns": [
+    ".vibe/harness/src/lib/**",
+    ".vibe/harness/schemas/**"
+  ],
+  "environmentKeys": [
+    "CI"
+  ],
+  "groups": [
+    {
+      "id": "typecheck",
+      "description": "Harness TypeScript compile contract",
+      "tier": "fast",
+      "runner": "command",
+      "command": [
+        "{node}",
+        "node_modules/typescript/bin/tsc",
+        "-p",
+        ".vibe/harness/tsconfig.harness.json",
+        "--noEmit"
+      ],
+      "inputPatterns": [
+        ".vibe/harness/src/**/*.ts",
+        ".vibe/harness/test/**/*.ts"
+      ],
+      "impactPatterns": [
+        ".vibe/harness/src/**/*.ts",
+        ".vibe/harness/test/**/*.ts"
+      ]
+    },
+    {
+      "id": "core",
+      "description": "Pure library, schema, provider, and state helpers",
+      "tier": "fast",
+      "runner": "node-test",
+      "testFiles": [
+        ".vibe/harness/test/args.test.ts",
+        ".vibe/harness/test/config-path-resolution.test.ts",
+        ".vibe/harness/test/config.test.ts",
+        ".vibe/harness/test/decisions.test.ts",
+        ".vibe/harness/test/encoding-settings.test.ts",
+        ".vibe/harness/test/interview-dimensions.test.ts",
+        ".vibe/harness/test/iteration.test.ts",
+        ".vibe/harness/test/model-registry.test.ts",
+        ".vibe/harness/test/patterns-index.test.ts",
+        ".vibe/harness/test/project-map.test.ts",
+        ".vibe/harness/test/providers.test.ts",
+        ".vibe/harness/test/review-priority.test.ts",
+        ".vibe/harness/test/schemas.test.ts",
+        ".vibe/harness/test/sprint-planner-contract.test.ts",
+        ".vibe/harness/test/sprint-status.test.ts",
+        ".vibe/harness/test/usage.test.ts",
+        ".vibe/harness/test/verification-runner.test.ts"
+      ],
+      "inputPatterns": [
+        ".vibe/harness/src/commands/doctor.ts",
+        ".vibe/harness/src/commands/run-agent.ts",
+        ".vibe/harness/src/commands/summarize-usage.ts",
+        ".vibe/harness/src/commands/write-report.ts",
+        ".vibe/harness/src/providers/**",
+        ".vibe/model-registry.json",
+        ".vibe/model-registry.schema.json"
+      ],
+      "impactPatterns": [
+        ".vibe/harness/src/commands/doctor.ts",
+        ".vibe/harness/src/commands/run-agent.ts",
+        ".vibe/harness/src/commands/summarize-usage.ts",
+        ".vibe/harness/src/commands/write-report.ts",
+        ".vibe/harness/src/providers/**",
+        ".vibe/model-registry.json",
+        ".vibe/model-registry.schema.json"
+      ]
+    },
+    {
+      "id": "static-audits",
+      "description": "Skill, prompt, wiring, rule, and template structural audits",
+      "tier": "fast",
+      "runner": "node-test",
+      "testFiles": [
+        ".vibe/harness/test/codex-agents.test.ts",
+        ".vibe/harness/test/codex-skills.test.ts",
+        ".vibe/harness/test/codex-wrapper-audit.test.ts",
+        ".vibe/harness/test/context-audit.test.ts",
+        ".vibe/harness/test/interview-coverage.test.ts",
+        ".vibe/harness/test/preflight-vibe-init-shards.test.ts",
+        ".vibe/harness/test/review-regression.test.ts",
+        ".vibe/harness/test/rule-audit.test.ts",
+        ".vibe/harness/test/sprint-mode-audit.test.ts",
+        ".vibe/harness/test/template-hygiene.test.ts",
+        ".vibe/harness/test/vibe-audit-skip-set.test.ts",
+        ".vibe/harness/test/vibe-init-shard-audit.test.ts",
+        ".vibe/harness/test/vibe-interview-shard-audit.test.ts",
+        ".vibe/harness/test/vibe-iterate-shard-audit.test.ts",
+        ".vibe/harness/test/vibe-review-inputs.test.ts",
+        ".vibe/harness/test/vibe-review-shard-audit.test.ts",
+        ".vibe/harness/test/vibe-sync-audit.test.ts"
+      ],
+      "inputPatterns": [
+        ".claude/agents/**",
+        ".claude/skills/**",
+        ".claude/templates/**",
+        ".codex/agents/**",
+        ".codex/skills/**",
+        ".vibe/agent/_common-rules.md",
+        ".vibe/harness/scripts/*audit*.mjs",
+        ".vibe/harness/scripts/vibe-review-inputs.mjs",
+        "docs/context/**",
+        "docs/guides/**"
+      ],
+      "impactPatterns": [
+        ".claude/agents/**",
+        ".claude/skills/**",
+        ".claude/templates/**",
+        ".codex/agents/**",
+        ".codex/skills/**",
+        ".vibe/agent/_common-rules.md",
+        ".vibe/harness/scripts/*audit*.mjs",
+        ".vibe/harness/scripts/vibe-review-inputs.mjs",
+        "docs/context/**",
+        "docs/guides/**"
+      ]
+    },
+    {
+      "id": "orchestration",
+      "description": "Sprint, checkpoint, preflight, interview, sidecar, and audit lifecycle",
+      "tier": "workflow",
+      "runner": "node-test",
+      "testFiles": [
+        ".vibe/harness/test/attention-notify.test.ts",
+        ".vibe/harness/test/audit-counter.test.ts",
+        ".vibe/harness/test/audit-lightweight.test.ts",
+        ".vibe/harness/test/audit-skip-set-bootstrap.test.ts",
+        ".vibe/harness/test/checkpoint.test.ts",
+        ".vibe/harness/test/daily-log.test.ts",
+        ".vibe/harness/test/init-guard.test.ts",
+        ".vibe/harness/test/init-ready.test.ts",
+        ".vibe/harness/test/interview-cli.test.ts",
+        ".vibe/harness/test/interview-engine.test.ts",
+        ".vibe/harness/test/phase0-seal.test.ts",
+        ".vibe/harness/test/preflight-audit-gate.test.ts",
+        ".vibe/harness/test/preflight-planner-presence.test.ts",
+        ".vibe/harness/test/preflight-roadmap-iteration.test.ts",
+        ".vibe/harness/test/preflight-stale.test.ts",
+        ".vibe/harness/test/preflight-wrapper-generalized.test.ts",
+        ".vibe/harness/test/roadmap-maintenance.test.ts",
+        ".vibe/harness/test/session-log-sync.test.ts",
+        ".vibe/harness/test/sidecar.test.ts",
+        ".vibe/harness/test/sprint-mode.test.ts",
+        ".vibe/harness/test/status-tick.test.ts",
+        ".vibe/harness/test/vibe-planner-skip-log.test.ts",
+        ".vibe/harness/test/vibe-sprint-complete.test.ts"
+      ],
+      "inputPatterns": [
+        ".vibe/harness/src/commands/init.ts",
+        ".vibe/harness/scripts/vibe-agent-*.mjs",
+        ".vibe/harness/scripts/vibe-audit-*.mjs",
+        ".vibe/harness/scripts/vibe-checkpoint.mjs",
+        ".vibe/harness/scripts/vibe-daily-*.mjs",
+        ".vibe/harness/scripts/vibe-init-*.mjs",
+        ".vibe/harness/scripts/vibe-interview.mjs",
+        ".vibe/harness/scripts/vibe-phase0-*.mjs",
+        ".vibe/harness/scripts/vibe-preflight.mjs",
+        ".vibe/harness/scripts/vibe-roadmap-*.mjs",
+        ".vibe/harness/scripts/vibe-session-log-*.mjs",
+        ".vibe/harness/scripts/vibe-sidecar-*.mjs",
+        ".vibe/harness/scripts/vibe-sprint-*.mjs",
+        ".vibe/harness/scripts/vibe-status-tick.mjs",
+        ".vibe/harness/sidecars/**"
+      ],
+      "impactPatterns": [
+        ".vibe/harness/src/commands/init.ts",
+        ".vibe/harness/scripts/vibe-agent-*.mjs",
+        ".vibe/harness/scripts/vibe-audit-*.mjs",
+        ".vibe/harness/scripts/vibe-checkpoint.mjs",
+        ".vibe/harness/scripts/vibe-daily-*.mjs",
+        ".vibe/harness/scripts/vibe-init-*.mjs",
+        ".vibe/harness/scripts/vibe-interview.mjs",
+        ".vibe/harness/scripts/vibe-phase0-*.mjs",
+        ".vibe/harness/scripts/vibe-preflight.mjs",
+        ".vibe/harness/scripts/vibe-roadmap-*.mjs",
+        ".vibe/harness/scripts/vibe-session-log-*.mjs",
+        ".vibe/harness/scripts/vibe-sidecar-*.mjs",
+        ".vibe/harness/scripts/vibe-sprint-*.mjs",
+        ".vibe/harness/scripts/vibe-status-tick.mjs",
+        ".vibe/harness/sidecars/**"
+      ]
+    },
+    {
+      "id": "provider-process",
+      "description": "Provider wrappers, hooks, shells, statusline, and Windows child processes",
+      "tier": "workflow",
+      "runner": "node-test",
+      "testFiles": [
+        ".vibe/harness/test/agent-session-start.test.ts",
+        ".vibe/harness/test/commands.test.ts",
+        ".vibe/harness/test/playwright-wrapper.test.ts",
+        ".vibe/harness/test/run-codex-wrapper.test.ts",
+        ".vibe/harness/test/shell.test.ts",
+        ".vibe/harness/test/statusline.test.ts",
+        ".vibe/harness/test/stop-qa-gate.test.ts",
+        ".vibe/harness/test/windows-hide-child-process.test.ts"
+      ],
+      "inputPatterns": [
+        ".claude/settings.json",
+        ".claude/statusline.*",
+        ".vibe/harness/src/commands/audit-config.ts",
+        ".vibe/harness/src/commands/qa.ts",
+        ".vibe/harness/src/commands/run-agent.ts",
+        ".vibe/harness/scripts/lib/browser-open.mjs",
+        ".vibe/harness/scripts/run-codex.*",
+        ".vibe/harness/scripts/vibe-agent-session-start.mjs",
+        ".vibe/harness/scripts/vibe-attention-*.mjs",
+        ".vibe/harness/scripts/vibe-playwright-test.mjs",
+        ".vibe/harness/scripts/vibe-stop-qa-gate.mjs",
+        ".vibe/harness/src/lib/shell.ts"
+      ],
+      "impactPatterns": [
+        ".claude/settings.json",
+        ".claude/statusline.*",
+        ".vibe/harness/src/commands/audit-config.ts",
+        ".vibe/harness/src/commands/qa.ts",
+        ".vibe/harness/src/commands/run-agent.ts",
+        ".vibe/harness/scripts/lib/browser-open.mjs",
+        ".vibe/harness/scripts/run-codex.*",
+        ".vibe/harness/scripts/vibe-agent-session-start.mjs",
+        ".vibe/harness/scripts/vibe-attention-*.mjs",
+        ".vibe/harness/scripts/vibe-playwright-test.mjs",
+        ".vibe/harness/scripts/vibe-stop-qa-gate.mjs",
+        ".vibe/harness/src/lib/shell.ts"
+      ]
+    },
+    {
+      "id": "reporting",
+      "description": "Browser smoke, bundle, dashboard, and project report rendering",
+      "tier": "workflow",
+      "runner": "node-test",
+      "testFiles": [
+        ".vibe/harness/test/browser-smoke-contract.test.ts",
+        ".vibe/harness/test/bundle-size.test.ts",
+        ".vibe/harness/test/dashboard-server.test.ts",
+        ".vibe/harness/test/project-report.test.ts"
+      ],
+      "inputPatterns": [
+        ".vibe/harness/src/commands/bundle-size.ts",
+        ".vibe/harness/playwright.config.ts",
+        ".vibe/harness/scripts/lib/browser-open.mjs",
+        ".vibe/harness/scripts/lib/dashboard-*.mjs",
+        ".vibe/harness/scripts/lib/project-report-*.mjs",
+        ".vibe/harness/scripts/vibe-browser-smoke.mjs",
+        ".vibe/harness/scripts/vibe-bundle-*.mjs",
+        ".vibe/harness/scripts/vibe-dashboard.mjs",
+        ".vibe/harness/scripts/vibe-project-report.mjs"
+      ],
+      "impactPatterns": [
+        ".vibe/harness/src/commands/bundle-size.ts",
+        ".vibe/harness/playwright.config.ts",
+        ".vibe/harness/scripts/lib/browser-open.mjs",
+        ".vibe/harness/scripts/lib/dashboard-*.mjs",
+        ".vibe/harness/scripts/lib/project-report-*.mjs",
+        ".vibe/harness/scripts/vibe-browser-smoke.mjs",
+        ".vibe/harness/scripts/vibe-bundle-*.mjs",
+        ".vibe/harness/scripts/vibe-dashboard.mjs",
+        ".vibe/harness/scripts/vibe-project-report.mjs"
+      ]
+    },
+    {
+      "id": "git-sync",
+      "description": "Git commit, sync, migration, version, and upstream bootstrap lifecycle",
+      "tier": "workflow",
+      "runner": "node-test",
+      "testFiles": [
+        ".vibe/harness/test/sprint-commit-lockfile-blacklist.test.ts",
+        ".vibe/harness/test/sprint-commit.test.ts",
+        ".vibe/harness/test/sync-glob.test.ts",
+        ".vibe/harness/test/sync.test.ts",
+        ".vibe/harness/test/upstream-bootstrap.test.ts",
+        ".vibe/harness/test/vibe-sync-bootstrap.test.ts"
+      ],
+      "inputPatterns": [
+        ".vibe/harness/migrations/**",
+        ".vibe/harness/scripts/vibe-sprint-commit.mjs",
+        ".vibe/harness/scripts/vibe-sync-*.mjs",
+        ".vibe/harness/scripts/vibe-version-check.mjs",
+        ".vibe/harness/src/commands/sync.ts",
+        ".vibe/harness/src/lib/sync.ts",
+        ".vibe/sync-manifest.json",
+        "scripts/vibe-sync-bootstrap.mjs"
+      ],
+      "impactPatterns": [
+        ".vibe/harness/migrations/**",
+        ".vibe/harness/scripts/vibe-sprint-commit.mjs",
+        ".vibe/harness/scripts/vibe-sync-*.mjs",
+        ".vibe/harness/scripts/vibe-version-check.mjs",
+        ".vibe/harness/src/commands/sync.ts",
+        ".vibe/harness/src/lib/sync.ts",
+        ".vibe/sync-manifest.json",
+        "scripts/vibe-sync-bootstrap.mjs"
+      ]
+    },
+    {
+      "id": "pro-roundtrip",
+      "description": "GitHub-only Web Pro bridge contracts, transport, and CLI workflow",
+      "tier": "workflow",
+      "runner": "node-test",
+      "testFiles": [
+        ".vibe/harness/test/pro-roundtrip-cli.test.ts",
+        ".vibe/harness/test/pro-roundtrip-contract.test.ts",
+        ".vibe/harness/test/pro-roundtrip-transport.test.ts"
+      ],
+      "inputPatterns": [
+        ".claude/skills/vibe-pro-go/**",
+        ".codex/skills/vibe-pro-go/**",
+        ".vibe/harness/src/commands/pro-roundtrip.ts",
+        ".vibe/harness/scripts/vibe-pro-go.mjs",
+        ".vibe/harness/src/pro-roundtrip/**",
+        "bridge-runbook.md",
+        "docs/context/pro-go-setup.md",
+        "docs/context/workflow-integrity.md",
+        "docs/plans/github-pro-roundtrip/**"
+      ],
+      "impactPatterns": [
+        ".claude/skills/vibe-pro-go/**",
+        ".codex/skills/vibe-pro-go/**",
+        ".vibe/harness/src/commands/pro-roundtrip.ts",
+        ".vibe/harness/scripts/vibe-pro-go.mjs",
+        ".vibe/harness/src/pro-roundtrip/**",
+        "bridge-runbook.md",
+        "docs/context/pro-go-setup.md",
+        "docs/context/workflow-integrity.md",
+        "docs/plans/github-pro-roundtrip/**"
+      ]
+    }
+  ]
+}
