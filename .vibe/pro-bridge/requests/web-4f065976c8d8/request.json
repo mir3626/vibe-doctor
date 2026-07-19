@@ -1,0 +1,33 @@
+{
+  "schemaVersion": "vibe-pro-review-request-v1",
+  "requestId": "web-4f065976c8d8",
+  "kind": "feature_design",
+  "origin": "web",
+  "repository": {
+    "fullName": "mir3626/vibe-doctor",
+    "remoteUrl": "https://github.com/mir3626/vibe-doctor",
+    "defaultBranch": null
+  },
+  "git": {
+    "baseSha": "9b002fe3235185a9a27dddec51bfc4248f768549",
+    "headSha": "9b002fe3235185a9a27dddec51bfc4248f768549",
+    "branch": null,
+    "headVisibleOnGitHub": true,
+    "compareUrlHint": null,
+    "patchAttachmentSha256": null
+  },
+  "goalSource": null,
+  "userGoal": "web-origin live round trip: 브릿지 사용성 개선 아이디어 설계",
+  "reviewPrompt": "# Web-origin feature design\n\nRepository: mir3626/vibe-doctor\nReviewed head: 9b002fe3235185a9a27dddec51bfc4248f768549\nGoal: web-origin live round trip: 브릿지 사용성 개선 아이디어 설계\n\nRequired files: README.md, DESIGN.md, FINDINGS.json, prompt/CLI_MAIN_SESSION_PROMPT.md\nWeb-origin: the review session already holds the design context; this prompt is the durable record and manual fallback.",
+  "outputContract": {
+    "requiredFiles": [
+      "README.md",
+      "DESIGN.md",
+      "FINDINGS.json",
+      "prompt/CLI_MAIN_SESSION_PROMPT.md"
+    ]
+  },
+  "createdAt": "2026-07-15T10:28:13.375Z",
+  "expiresAt": "2026-07-18T10:28:13.375Z",
+  "payloadSha256": "f21899661b8fb4ca86c7ebf6731a8ad4ba7bc555bf7e3bc10d8636edfbd577aa"
+}

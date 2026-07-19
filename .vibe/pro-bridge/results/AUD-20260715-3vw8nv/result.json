@@ -1,0 +1,12 @@
+{
+  "current": 1,
+  "revisions": [
+    {
+      "revision": 1,
+      "manifestSha256": "5e477fbe5ed975631455fe63697f14d82d45d32a3493a1c63faa3f287f8e963d",
+      "resultFilesSha256": "6b9cb0f7ce40490065755a435c6c865bc6e18458dd2b58321d892b39c39756aa",
+      "finalizedAt": "2026-07-16T08:30:47.547Z",
+      "revisionOf": null
+    }
+  ]
+}

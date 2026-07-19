@@ -1,0 +1,21 @@
+{
+  "schemaVersion": "vibe-pro-bridge-provenance-v1",
+  "requestId": "web-f7a3660e259f",
+  "requestPayloadSha256": "2f436622a84c0ffb73b682083edae3e3063b3289f3a3e85b18cddee06261e695",
+  "resultPayloadSha256": "7fa2157ed4804e42eb562d1d1213976953d354fb8798748322f818920cba5bc7",
+  "resultFilesSha256": "3b49d66ee826e697cd52b814ebc5a946efc49e1953ad78870a134db97b76bada",
+  "reviewedBaseSha": "9b002fe3235185a9a27dddec51bfc4248f768549",
+  "reviewedHeadSha": "9b002fe3235185a9a27dddec51bfc4248f768549",
+  "importedAt": "2026-07-15T10:30:46.618Z",
+  "transport": "mcp-mailbox",
+  "reviewerDeclaration": {
+    "surface": "chatgpt-web",
+    "requestedMode": "pro",
+    "githubConnectorUsed": false,
+    "limitations": [
+      "synthetic live-audit round trip"
+    ]
+  },
+  "skippedValidations": [],
+  "folder": "2026-07-15-web-origin-live-design"
+}

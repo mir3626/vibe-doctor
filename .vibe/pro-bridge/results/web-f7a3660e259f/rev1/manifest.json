@@ -1,0 +1,53 @@
+{
+  "schemaVersion": "vibe-pro-review-result-v1",
+  "requestId": "web-f7a3660e259f",
+  "requestPayloadSha256": "2f436622a84c0ffb73b682083edae3e3063b3289f3a3e85b18cddee06261e695",
+  "repositoryFullName": "mir3626/vibe-doctor",
+  "reviewedBaseSha": "9b002fe3235185a9a27dddec51bfc4248f768549",
+  "reviewedHeadSha": "9b002fe3235185a9a27dddec51bfc4248f768549",
+  "resultKind": "design",
+  "proposedFolder": "2026-07-15-web-origin-live-design",
+  "disposition": "approved",
+  "files": [
+    {
+      "path": "README.md",
+      "mediaType": "text/markdown",
+      "byteLength": 33,
+      "sha256": "4bdb6dae70cb8602ffe736af1cce1b7af7c34655af629f7dd8f4bc0731ba9061"
+    },
+    {
+      "path": "DESIGN.md",
+      "mediaType": "text/markdown",
+      "byteLength": 53,
+      "sha256": "5b0b8bff894e98868dac5ddc37636f0207372aa6282dc7679c26bfb0359073a6"
+    },
+    {
+      "path": "FINDINGS.json",
+      "mediaType": "application/json",
+      "byteLength": 46,
+      "sha256": "e9a37e586cc64400cfab74bbe30de95b55805d3259a22b1708f4d590efc50362"
+    },
+    {
+      "path": "prompt/CLI_MAIN_SESSION_PROMPT.md",
+      "mediaType": "text/markdown",
+      "byteLength": 19,
+      "sha256": "8211c93721c6fa0d9defe91b04ed5568f2702511515aa5b761b2bd51b07de98a"
+    }
+  ],
+  "findingsSummary": {
+    "p0": 0,
+    "p1": 0,
+    "p2": 0,
+    "p3": 0
+  },
+  "reviewerDeclaration": {
+    "surface": "chatgpt-web",
+    "requestedMode": "pro",
+    "githubConnectorUsed": false,
+    "limitations": [
+      "synthetic live-audit round trip"
+    ]
+  },
+  "createdAt": "2026-07-15T10:30:46.603Z",
+  "payloadSha256": "7fa2157ed4804e42eb562d1d1213976953d354fb8798748322f818920cba5bc7"
+}

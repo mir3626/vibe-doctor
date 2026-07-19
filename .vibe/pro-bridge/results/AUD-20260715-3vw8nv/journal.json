@@ -1,0 +1,65 @@
+{
+  "schemaVersion": "vibe-pro-bridge-finalize-journal-v1",
+  "revision": 1,
+  "revisionOf": null,
+  "manifestSha256": "5e477fbe5ed975631455fe63697f14d82d45d32a3493a1c63faa3f287f8e963d",
+  "resultFilesSha256": "6b9cb0f7ce40490065755a435c6c865bc6e18458dd2b58321d892b39c39756aa",
+  "manifest": {
+    "schemaVersion": "vibe-pro-review-result-v1",
+    "requestId": "AUD-20260715-3vw8nv",
+    "requestPayloadSha256": "404832ff76844aec7d27022987e6597bc8e54049c695fa97c55e28b8dcf3b570",
+    "repositoryFullName": "mir3626/vibe-doctor",
+    "reviewedBaseSha": "60511059e787301216b4ece7706c4c7b1328e6a7",
+    "reviewedHeadSha": "e63d9d3d2a596a77c171337bf9be0dbadc0ed58f",
+    "resultKind": "audit",
+    "proposedFolder": "2026-07-16-vibe-pro-bridge-remediation-reaudit",
+    "disposition": "remediation-required",
+    "files": [
+      {
+        "path": "README.md",
+        "mediaType": "text/markdown",
+        "byteLength": 2367,
+        "sha256": "02c0c8a6ffaacdc885e4bcfbb5dc63fe93c086e912f4bc4e61d3dd9cd75f63d4"
+      },
+      {
+        "path": "REVIEW.md",
+        "mediaType": "text/markdown",
+        "byteLength": 19928,
+        "sha256": "6780efa4e05363d8175f2437ac2789d8a6a790a94ea09d0bcdc3869775a8a494"
+      },
+      {
+        "path": "FINDINGS.json",
+        "mediaType": "application/json",
+        "byteLength": 14930,
+        "sha256": "6fb6a74518ee02402f3f8101db8c581632848e78c9af4abb4c3087261f90b9bb"
+      },
+      {
+        "path": "prompt/CLI_MAIN_SESSION_PROMPT.md",
+        "mediaType": "text/markdown",
+        "byteLength": 18310,
+        "sha256": "7cd2f0551964f72765b54222a6c6124e724f8d952e20644f1da612cf5248f4a9"
+      }
+    ],
+    "findingsSummary": {
+      "p0": 0,
+      "p1": 2,
+      "p2": 3,
+      "p3": 0
+    },
+    "reviewerDeclaration": {
+      "surface": "chatgpt-web",
+      "requestedMode": "pro",
+      "githubConnectorUsed": true,
+      "limitations": [
+        "Exact-ref GitHub connector reads were used, but the isolated execution environment could not clone github.com because outbound DNS was unavailable; tests and builds were not executed locally.",
+        "The reviewed HEAD has no GitHub combined-status entries or workflow runs.",
+        "No persisted exact-HEAD evidence demonstrates all three real Web Pro journeys, a fresh post-fix independent audit, pristine release state, or v1.8.1 tag binding.",
+        "The request patch bytes were not separately exposed for independent SHA-256 recomputation; GitHub compare confirmed base/head ancestry, commit count, and file roster."
+      ]
+    },
+    "createdAt": "2026-07-16T08:30:47.437Z",
+    "payloadSha256": "5e477fbe5ed975631455fe63697f14d82d45d32a3493a1c63faa3f287f8e963d"
+  },
+  "phase": "committed",
+  "updatedAt": "2026-07-16T08:30:47.565Z"
+}

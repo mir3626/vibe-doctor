@@ -1,0 +1,298 @@
+{
+  "schemaVersion": "vibe-goal-audit-findings-v1",
+  "requestId": "AUD-20260715-3vw8nv",
+  "repository": {
+    "fullName": "mir3626/vibe-doctor",
+    "defaultBranch": "main"
+  },
+  "snapshot": {
+    "baseSha": "60511059e787301216b4ece7706c4c7b1328e6a7",
+    "headSha": "e63d9d3d2a596a77c171337bf9be0dbadc0ed58f",
+    "branch": "main",
+    "commitShas": [
+      "16923cce57e63ac3d964cfd80307173985309261",
+      "3a79cf9dd1424fc42453a26475b9417b5973c9f0",
+      "e63d9d3d2a596a77c171337bf9be0dbadc0ed58f"
+    ],
+    "aheadBy": 3,
+    "behindBy": 0
+  },
+  "goal": "Remediate AUD-20260715-tlo6jc through the full 13-phase contract, then complete real three-journey acceptance, an independent audit, pristine restoration, and a v1.8.1 release.",
+  "disposition": "remediation-required",
+  "goalCompletionAuthorized": false,
+  "releaseAuthorizedFromReviewedSnapshot": false,
+  "summary": {
+    "P0": 0,
+    "P1": 2,
+    "P2": 3,
+    "P3": 0,
+    "total": 5
+  },
+  "reviewerDeclaration": {
+    "surface": "chatgpt-web",
+    "requestedMode": "pro",
+    "githubConnectorUsed": true,
+    "limitations": [
+      "Exact-ref GitHub connector reads were used, but the isolated execution environment could not clone github.com because outbound DNS was unavailable; tests and builds were not executed locally.",
+      "The reviewed HEAD has no GitHub combined-status entries or workflow runs.",
+      "No persisted exact-HEAD evidence demonstrates all three real Web Pro journeys, a fresh post-fix independent audit, pristine release state, or v1.8.1 tag binding.",
+      "The request patch bytes were not separately exposed for independent SHA-256 recomputation; GitHub compare confirmed base/head ancestry, commit count, and file roster."
+    ]
+  },
+  "P0": [],
+  "P1": [
+    {
+      "id": "VPB-REAUD-P1-001",
+      "severity": "P1",
+      "title": "Claim ownership and cross-process fencing are not durably bound",
+      "status": "open",
+      "confidence": "high",
+      "evidenceClass": "observed-plus-inference",
+      "paths": [
+        ".vibe/harness/src/pro-bridge/mailbox/tools.ts",
+        ".vibe/harness/src/pro-bridge/mailbox/store.ts",
+        ".vibe/harness/test/pro-bridge-lifecycle.test.ts"
+      ],
+      "symbols": [
+        "RequestIdInput",
+        "claim_request",
+        "begin_result",
+        "put_result_file",
+        "finalize_result",
+        "StoredStatus",
+        "claimRequest",
+        "beginResult",
+        "acquireLease",
+        "assertLease",
+        "commitJson",
+        "commitBytes"
+      ],
+      "relevantCommits": [
+        "3a79cf9dd1424fc42453a26475b9417b5973c9f0"
+      ],
+      "priorFinding": "VPB-AUD-P1-001",
+      "observedEvidence": [
+        "Claim and result-mutation tools carry no claimant/session token or fencing epoch; they identify authority only by requestId.",
+        "claimRequest persists only the claimed lifecycle state, not an owner record.",
+        "Any authenticated caller with the requestId can begin, upload, or finalize after another caller claimed the request.",
+        "The cross-process lease has a fixed acquiredAt and no heartbeat; a second process deletes it after the stale threshold.",
+        "assertLease and destination rename are separate operations, so the lock fingerprint is not an atomic compare-and-swap fence.",
+        "The stale-owner test replaces a transient lock during one operation and does not model two durable review sessions or an active operation exceeding the lease TTL."
+      ],
+      "inference": "The implementation serializes common calls but cannot prove reviewer ownership or strict stale-owner exclusion across clients and processes. A live operation can be reclaimed by time and an unrelated authorized client can continue another session's claim.",
+      "impact": "Result authorship and mailbox integrity remain vulnerable to credential replay, multiple clients, process stalls, slow filesystems, and long finalization operations.",
+      "requiredRemediation": [
+        "Persist a versioned claim record with an unguessable claim token and monotonic fencing epoch.",
+        "Require the claim token or versioned successor authority on all result mutations.",
+        "Bind upload descriptors, journals, and revisions to the claim epoch and reject stale epochs.",
+        "Use renewable leases or atomic compare-and-swap storage; do not reclaim an active owner solely from fixed age.",
+        "Eliminate the check-then-rename fencing gap by verifying the epoch as part of the durable commit."
+      ],
+      "requiredTests": [
+        "Two independent clients where only the claimant can mutate",
+        "Stale claim token after reclaim",
+        "Finalize lasting longer than lease TTL",
+        "Reclaim racing between fence check and rename",
+        "Restart preserves or explicitly reclaims claim authority",
+        "Credential replay cannot mutate a claimed request"
+      ]
+    },
+    {
+      "id": "VPB-REAUD-P1-002",
+      "severity": "P1",
+      "title": "Mandatory real acceptance, independent audit, and release closure are absent",
+      "status": "open",
+      "confidence": "high",
+      "evidenceClass": "observed",
+      "paths": [
+        "docs/plans/archive/roadmaps/iter-2.md",
+        ".vibe/agent/handoff.md",
+        ".vibe/agent/iteration-history.json",
+        ".vibe/agent/sprint-status.json",
+        ".vibe/archive/prompts/sprint-vpb-09-contract-polish.md",
+        "package.json"
+      ],
+      "symbols": [
+        "Phase 11 real Web Pro acceptance",
+        "Phase 12 independent whole-workflow audit",
+        "Phase 13 release closure",
+        "version",
+        "harnessVersion"
+      ],
+      "relevantCommits": [
+        "16923cce57e63ac3d964cfd80307173985309261",
+        "3a79cf9dd1424fc42453a26475b9417b5973c9f0",
+        "e63d9d3d2a596a77c171337bf9be0dbadc0ed58f"
+      ],
+      "priorFinding": "VPB-AUD-P1-005",
+      "observedEvidence": [
+        "The iteration exit contract still requires three real journeys, a fresh independent audit with no P0/P1, pristine restoration, and v1.8.1.",
+        "Sprint vpb-09 explicitly excludes phases 11 through 13.",
+        "The handoff remains active and states that real GitHub connector and MCP write confirmation is pending.",
+        "package.json remains version 0.1.0 and harnessVersion 1.7.30.",
+        "All three remediation commit messages state Verification: pending.",
+        "GitHub reports no combined statuses and no workflow runs for the reviewed HEAD."
+      ],
+      "inference": null,
+      "impact": "The original goal cannot be marked complete or release-authorized from this snapshot, and unresolved P1 authority defects would be shipped if closure were claimed.",
+      "requiredRemediation": [
+        "Resolve every P1 finding.",
+        "Execute and persist bounded evidence for the real CLI-manual, CLI-mailbox, and Web-origin design journeys.",
+        "Use actual ChatGPT Web Pro, GitHub connector grounding, and Bridge MCP write tools where required.",
+        "Run a fresh-context independent audit after implementation freeze and rerun it after any code change.",
+        "Run the full maintained verification suite and preserve exact exit codes and test counts.",
+        "Restore pristine state, update all version surfaces to a non-colliding semver, create one release commit, and bind a tag exactly to it.",
+        "Do not push without explicit active-user authorization."
+      ],
+      "requiredTests": [
+        "Real CLI-origin manual journey",
+        "Real CLI-origin MCP mailbox journey",
+        "Real Web-origin design journey",
+        "Wrong-repository rejection before write",
+        "Fresh independent whole-workflow audit with P0/P1 zero",
+        "Exact-HEAD full suite and sync audits",
+        "Pristine worktree, version consistency, and tag points-at-HEAD receipt"
+      ]
+    }
+  ],
+  "P2": [
+    {
+      "id": "VPB-REAUD-P2-001",
+      "severity": "P2",
+      "title": "The advertised one-time connector code remains replayable",
+      "status": "open",
+      "confidence": "high",
+      "evidenceClass": "observed",
+      "paths": [
+        ".vibe/harness/src/pro-bridge/mailbox/server.ts",
+        ".vibe/harness/src/commands/pro-bridge.ts",
+        ".vibe/harness/test/pro-bridge-mcp-server.test.ts",
+        "docs/context/pro-bridge-setup.md"
+      ],
+      "symbols": [
+        "createSessionAuth",
+        "connectCode",
+        "sessionToken",
+        "runMcpServer"
+      ],
+      "relevantCommits": [
+        "e63d9d3d2a596a77c171337bf9be0dbadc0ed58f"
+      ],
+      "priorFinding": "VPB-AUD-P2-004",
+      "observedEvidence": [
+        "The connector URL embeds connectCode in the code query parameter and calls it a one-time exchange code.",
+        "After first use, authorize continues accepting the same connectCode until the default 12-hour session TTL expires.",
+        "The generated sessionToken is not returned to the real client by an exchange response.",
+        "Tests deliberately reuse the same query code for initialize and tools/list and expect success.",
+        "Tests deliberately authorize eight concurrent first requests with the same code."
+      ],
+      "inference": "The query code is the reusable session bearer rather than a one-time bootstrap credential.",
+      "impact": "A capability URL leak grants mailbox tool access for the session lifetime and compounds the ownerless mutation defect.",
+      "requiredRemediation": [
+        "Invalidate the bootstrap code atomically on the first successful exchange.",
+        "Return a verified client-usable short-lived credential through OAuth, Authorization configuration, or a connector-supported session mechanism.",
+        "If credential rotation is impossible, document the URL accurately as a bearer, shorten TTL, and strengthen revocation and logging controls rather than claiming one-time semantics."
+      ],
+      "requiredTests": [
+        "Second use of bootstrap code is rejected",
+        "Concurrent exchange has exactly one winner",
+        "Returned session credential works and expires",
+        "Revoked credential is rejected",
+        "No reusable credential is logged"
+      ]
+    },
+    {
+      "id": "VPB-REAUD-P2-002",
+      "severity": "P2",
+      "title": "Request-associated manual bundles bypass the unbound-result gate",
+      "status": "open",
+      "confidence": "high",
+      "evidenceClass": "observed-plus-inference",
+      "paths": [
+        ".vibe/harness/src/commands/pro-bridge.ts",
+        ".vibe/harness/src/pro-bridge/importer.ts",
+        ".vibe/harness/test/pro-bridge-identity.test.ts",
+        ".vibe/harness/test/pro-bridge-importer.test.ts"
+      ],
+      "symbols": [
+        "runBundleSync",
+        "bundleForImport",
+        "unbound",
+        "importReviewResult",
+        "acknowledgeAfterInstall"
+      ],
+      "relevantCommits": [
+        "16923cce57e63ac3d964cfd80307173985309261",
+        "e63d9d3d2a596a77c171337bf9be0dbadc0ed58f"
+      ],
+      "priorFinding": "VPB-AUD-P2-002",
+      "observedEvidence": [
+        "runBundleSync defines unbound only as request metadata being absent.",
+        "A requestId lookup or web-origin --latest can associate the manual bundle with a stored request and rewrite the bundle requestId.",
+        "Without a result manifest, the importer skips result hash, request hash, repository, reviewed-head, file roster, file SHA, and reviewer-declaration validation.",
+        "The explicit accept-unbound flag is not required once a request is found.",
+        "Skipped validations are printed after installation on this path, and out-of-band acknowledgement can mark the request imported.",
+        "Tests characterize this path as a bound Web-origin result despite absent result-manifest binding."
+      ],
+      "inference": "Request association is incorrectly substituted for result authority, allowing stale or substituted package bytes to be installed for a valid request.",
+      "impact": "A syntactically compliant but unverified manual result can become installed and acknowledged without the high-friction trust decision promised by the remediation.",
+      "requiredRemediation": [
+        "Require a result manifest or exported receipt binding repository, reviewed HEAD, request hash, result hash, file roster, per-file hashes, and reviewer declaration before calling a result bound.",
+        "Treat missing result binding as unbound even if request metadata exists.",
+        "Print skipped validations before any write and require explicit acceptance.",
+        "Do not rewrite web-origin to a mailbox requestId without a bound association receipt.",
+        "Do not acknowledge an unbound package as the authoritative imported terminal state."
+      ],
+      "requiredTests": [
+        "Forged bundle against --latest is rejected",
+        "Stale bundle against a newer request is rejected",
+        "Missing manifest requires explicit acceptance before write",
+        "Changed file bytes and wrong request hash are rejected",
+        "Unbound accepted package cannot count as authoritative imported release evidence"
+      ]
+    },
+    {
+      "id": "VPB-REAUD-P2-003",
+      "severity": "P2",
+      "title": "Revision-gap filling records inverted provenance",
+      "status": "open",
+      "confidence": "high",
+      "evidenceClass": "observed",
+      "paths": [
+        ".vibe/harness/src/pro-bridge/importer.ts",
+        ".vibe/harness/test/pro-bridge-importer.test.ts"
+      ],
+      "symbols": [
+        "scanRevisionSlots",
+        "selectedRevision",
+        "predecessor",
+        "revisionOf",
+        "predecessorResultSha256"
+      ],
+      "relevantCommits": [
+        "e63d9d3d2a596a77c171337bf9be0dbadc0ed58f"
+      ],
+      "priorFinding": "VPB-AUD-P3-002",
+      "observedEvidence": [
+        "The importer selects the lowest free revision number but always chooses the highest occupied slot as predecessor.",
+        "With rev1 and rev3 present, filling rev2 records revisionOf=rev3 and rev3's result hash.",
+        "The focused test explicitly asserts that rev2 points to rev3."
+      ],
+      "inference": null,
+      "impact": "The immutable package lineage becomes non-monotonic and can contain forward references or cycles, weakening audit and rollback integrity.",
+      "requiredRemediation": [
+        "Define revision lineage semantics explicitly.",
+        "For gap filling, choose the highest occupied revision lower than the selected revision, or prohibit gap filling and append only after the highest revision.",
+        "Validate that revisionOf resolves to an existing lower revision and that predecessorResultSha256 matches it."
+      ],
+      "requiredTests": [
+        "rev1 plus rev3 gap gives rev2 predecessor rev1",
+        "Multiple gaps remain acyclic",
+        "No forward revision references",
+        "Predecessor hash matches immutable provenance",
+        "Malformed legacy chains are diagnosed"
+      ]
+    }
+  ],
+  "P3": []
+}

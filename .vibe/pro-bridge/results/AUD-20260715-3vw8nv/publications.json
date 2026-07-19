@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "vibe-pro-bridge-publication-v1",
+  "publications": {
+    "AUD-20260715-3vw8nv-reaudit-20260716": {
+      "manifestSha256": "5e477fbe5ed975631455fe63697f14d82d45d32a3493a1c63faa3f287f8e963d",
+      "revision": 1,
+      "resultId": "rev1-5e477fbe5ed9",
+      "fileCount": 4,
+      "totalBytes": 55535,
+      "title": "Vibe Pro Bridge Remediation Re-audit",
+      "recordedAt": "2026-07-16T08:30:47.572Z"
+    }
+  }
+}
