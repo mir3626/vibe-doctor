@@ -6,6 +6,7 @@ This file is project-owned runtime state. Downstream `/vibe-init` rewrites it be
 
 ## Entries
 
+- 2026-07-19T11:16:27.712Z [checkpoint] 사용자 요청으로 최신 `origin/main`(`606d431`)에서 `vibe-pro-bridge`를 분기하고 로컬 `main`을 `f2f9512`로 롤백. 기존 ignore 대상 pro-bridge 요청·결과·리뷰 산출물 41개를 검증(JSON 23개 파싱, UTF-8/mojibake, 알려진 토큰 패턴) 후 `05d13b4`로 커밋해 `origin/vibe-pro-bridge`에 게시.
 - 2026-07-16T08:20:00.000Z [decision] 사용자 실측으로 케이스 B 확정: ChatGPT Pro 모드는 커넥터/커스텀 MCP 도구를 의도적으로 차단. Thinking 모델은 Pro와 통합되어 선택 불가, xhigh reasoning effort 챗에서는 커넥터 정상 연동. 표준 워크플로우 = 도구 왕복은 xhigh 챗 / Pro 필요 시 제출 턴만 xhigh 전환 / 최후 vibe-bundle manual. design.md §12.1 + pro-bridge-setup.md 문구 갱신 완료.
 - 2026-07-16T07:25:00.000Z [checkpoint] upstream harness maintenance: release metadata updated for v1.8.1. iter-2(remediation vpb-07~09: 실 Pro 리뷰 11 findings 코드 폐쇄) + iter-3(MCP write-path vpb-10~12: publish 파사드·카탈로그 audit·oauth scope·persistentCode/tunnelUrl 영속 연결) 합산. 검증: self-test 780 tests 0 fail, 독립 whole-workflow 감사 2회 P0/P1 0, 라이브 실측(code 교환·persistentCode 재시작 생존·14툴). 부수: Stop QA 콘솔 깜빡임 해소(cmd.exe 계층 제거, detach는 Job Object 실측으로 필수 유지), Generator 인용문 역할 혼동 사고 1회(가드 프리앰블로 재발 방지 — Planner 규약에 편입). 사용자 참여 잔여: Developer Mode golden replay + Journey B/C 실측(design.md §12.1 추기 예정).
 
