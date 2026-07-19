@@ -135,7 +135,7 @@ Orchestrator는 Phase 0 네이티브 인터뷰 (`.vibe/harness/scripts/vibe-inte
 |------|---------|------|
 | Sprint 시작 전 | `node .vibe/harness/scripts/vibe-preflight.mjs` | git·deps·provider·product.md·handoff 체크 |
 | Generator 호출 시 | `./.vibe/harness/scripts/run-codex.sh` | `_common-rules.md` 자동 prepend + 명시 참조된 rule/context MD 자동 주입 + UTF-8 + 재시도 |
-| Sprint 완료 시 | `node .vibe/harness/scripts/vibe-sprint-complete.mjs` | sprint-status·handoff·session-log 자동 갱신 |
+| Sprint 완료 시 | `node .vibe/harness/scripts/vibe-sprint-complete.mjs` | sprint-status·handoff·session-log 자동 갱신 + 활성 Pro flow exact-HEAD 누적/최종 보고 gate |
 | Context 압축 전 | `node .vibe/harness/scripts/vibe-checkpoint.mjs --auto-refresh` | handoff stale/outdated(uncommitted 변경 또는 updatedAt 이후 새 커밋) 시 기계적 git 스냅샷(브랜치·HEAD·변경파일·diffstat·최근커밋) 마커 블록 자동 갱신 + `handoff.updatedAt` bump, 이후 freshness/budget/session-log 검증. `--auto-refresh` 미지정 시 검증 전용(기존 동작 불변). 서사(narrative)는 Orchestrator가 작성. first-read 문서(CLAUDE.md·AGENTS.md·GEMINI.md·`_common-rules.md`·docs/context 샤드) `docs.integrity` 체크 포함 — tracked∧exists 문서가 비었거나 64B 미만이면 FAIL, 보고 전용(auto-refresh가 문서를 재작성하지 않음). |
 | 세션 시작 시 | `node .vibe/harness/scripts/vibe-agent-session-start.mjs --hook` | 일일 lifecycle 이벤트 + 버전/model registry 점검. 동일 `session_id + source`의 60초 내 중복 전달은 원자적으로 1회만 실행하고 source 전환은 보존 |
 | 턴 종료 시 (Stop) | `node .vibe/harness/scripts/vibe-stop-qa-gate.mjs` | sync manifest 기준 하네스 소유 변경만 감지 → detached hidden worker에 `vibe:typecheck` + `vibe:self-test` 예약 후 즉시 반환. 제품 QA는 실행하지 않으며 동일 상태·동시 Stop은 잠금/결과 지문으로 중복 제거 |
@@ -155,6 +155,7 @@ Orchestrator는 Phase 0 네이티브 인터뷰 (`.vibe/harness/scripts/vibe-inte
 | Post sprint commit | `node .vibe/harness/scripts/vibe-sprint-commit.mjs --push-tag` | Detects upward harnessVersion deltas and creates annotated `vX.Y.Z` tags; push is opt-in (`gap-release-tag-automation`) |
 | Rule audit | `node .vibe/harness/scripts/vibe-rule-audit.mjs` | Compares CLAUDE.md imperative rules with harness-gaps coverage and retrospective transcript tiering |
 | Context dependency audit | `node .vibe/harness/scripts/vibe-context-audit.mjs` | Report-only scan of skill/runbook path dependencies, hard/soft/ambiguous strength, missing references, and context byte overhead. Never gates preflight, commits, push, or tags. |
+| Web Pro 왕복 | `node .vibe/harness/scripts/vibe-pro-go.mjs` | GitHub append-only flow 최신 이벤트 sync, immutable Sprint packet, evidence/report/approval/close gate |
 | Audit skip directive | `node .vibe/harness/scripts/vibe-audit-skip-set.mjs` | Sets or clears `.vibe/config.local.json` userDirectives.auditSkippedMode and records a session-log `[decision]` |
 | Codex 호출 실패 시 | `.vibe/harness/scripts/run-codex.sh` + `.vibe/agent/codex-unavailable.flag` | 3회 retry 소진 시 flag touch + stderr CODEX_UNAVAILABLE 블록 출력. Orchestrator 는 flag 존재 시 Generator 위임 대신 사용자 승인 분기 진입. 다음 성공 호출 시 flag auto-remove. |
 
@@ -236,10 +237,11 @@ Sprint 프롬프트 **본문은 Planner가 작성**한다 (매 Sprint 소환 시
 상태/핸드오프/재인스턴스화 프로토콜 + Sprint 프롬프트 공용 조각. 파일별 역할은 `.vibe/agent/README.md` 참조. 압축 직후 최우선 읽기 대상은 `handoff.md` + `session-log.md` + `sprint-status.json`.
 
 ## 관련 스킬
-`/vibe-init`, `/vibe-interview`, `/vibe-iterate`, `/vibe-sync`, `/vibe-sprint-mode`, `/vibe-review`, `/goal-to-plan`, `/self-qa`, `/write-report`, `/maintain-context`.
+`/vibe-init`, `/vibe-interview`, `/vibe-iterate`, `/vibe-sync`, `/vibe-sprint-mode`, `/vibe-review`, `/goal-to-plan`, `/self-qa`, `/write-report`, `/maintain-context`, `$vibe-pro-go`.
 
 - `/vibe-iterate`: 최초 Sprint 로드맵 소진 후 재개. handoff + report.html + iteration-history.json 기반 차등 인터뷰 → 새 iteration sprint roadmap append → Sprint 사이클 재돌입. context isolation 유지(Planner 는 여전히 fresh), 사용자는 report.html 의 iteration 타임라인으로 전체 build-up follow-up.
 - `/vibe-review`: 4-tier rubric (🔴/🟡/🟢/🔵) + regression 검증 (이전 리뷰 이슈 3-signal 커버리지) + priority_score 공식 `10·agent + 5·token + 1·user`, recommended_approach `script-wrapper > md-rule > config-default > user-action`.
+- `$vibe-pro-go`: GitHub의 append-only `vibe-pro-bridge`를 통해 Web Pro 상세설계/리뷰와 CLI 구현/보고를 왕복한다. 인자 없이 실행하면 현재 repo/branch의 최신 완료 이벤트를 sync하고 다음 행동을 계속하며, 활성 flow의 Sprint 완료 전 exact-HEAD 누적 보고 게이트를 강제한다.
 <!-- END:HARNESS:sprint-flow -->
 
 <!-- BEGIN:HARNESS:mechanical-overrides -->
@@ -274,6 +276,7 @@ Sprint 프롬프트 **본문은 Planner가 작성**한다 (매 Sprint 소환 시
 - `docs/context/secrets.md` — env, credential, logging, 보안 경계 판단 전에 읽는다.
 - `docs/context/codex-execution.md` — Codex wrapper, UTF-8, Windows sandbox 문제를 다룰 때 읽는다.
 - `docs/context/harness-gaps.md` — rule/script coverage gap 또는 `/vibe-review` evidence 연결 시 읽는다.
+- `docs/context/workflow-integrity.md` — multi-Sprint goal/iteration/Pro flow의 누적 workflow와 consumer/invariant gate를 판단할 때 읽는다.
 - `docs/context/legacy-model-overrides.md` — 현재 세션 모델이 SOTA tier 미만일 때만 읽는다 (구세대 모델용 기계적 오버라이드 전문. SOTA tier 세션은 읽지 않는 것이 규칙).
 <!-- END:EXTENSIONS -->
 

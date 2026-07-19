@@ -5,6 +5,13 @@ import { SprintApiContractsSchema } from './sprint-api-contracts.js';
 import { IterationHistorySchema } from './iteration-history.js';
 import { ModelRegistrySchema } from './model-registry.js';
 import { SidecarArtifactSchema, SidecarInputPacketSchema } from './sidecar.js';
+import {
+  ProRoundtripContractSchema,
+  ProRoundtripEventCompleteSchema,
+  ProRoundtripFindingsSchema,
+  ProRoundtripFlowSchema,
+  ProRoundtripReportInputSchema,
+} from './pro-roundtrip.js';
 
 export const STATE_FILE_SCHEMAS = {
   'sprint-status.json': SprintStatusSchema,
@@ -17,6 +24,10 @@ export const STATE_FILE_SCHEMAS = {
 export const GENERATED_ARTIFACT_SCHEMAS = {
   'sidecar-input.json': SidecarInputPacketSchema,
   'sidecar-artifact.json': SidecarArtifactSchema,
+  'pro-roundtrip-flow.json': ProRoundtripFlowSchema,
+  'pro-roundtrip-contract.json': ProRoundtripContractSchema,
+  'pro-roundtrip-event-complete.json': ProRoundtripEventCompleteSchema,
+  'pro-roundtrip-report-input.json': ProRoundtripReportInputSchema,
 } as const;
 
 export type StateFileName = keyof typeof STATE_FILE_SCHEMAS;
@@ -95,3 +106,15 @@ export {
   type SidecarProvider,
   type SidecarReviewerOutput,
 } from './sidecar.js';
+export {
+  ProRoundtripContractSchema,
+  ProRoundtripEventCompleteSchema,
+  ProRoundtripFindingsSchema,
+  ProRoundtripFlowSchema,
+  ProRoundtripReportInputSchema,
+  type ProRoundtripContract,
+  type ProRoundtripEventComplete,
+  type ProRoundtripFindings,
+  type ProRoundtripFlow,
+  type ProRoundtripReportInput,
+} from './pro-roundtrip.js';

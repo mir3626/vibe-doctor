@@ -16,6 +16,12 @@ context through durable files while keeping each Planner call fresh-context.
 work, accepted decisions, and new user goals without replaying old context into
 Planner.
 
+## Required Shared Policy
+
+Read `docs/context/workflow-integrity.md` before Phase 0. Every Sprint prompt,
+completion report, and final iteration report must preserve its Workflow
+Continuity block and cumulative journey evidence.
+
 ## Phase Shards
 
 Follow these shards in order. The main file is intentionally an index plus the

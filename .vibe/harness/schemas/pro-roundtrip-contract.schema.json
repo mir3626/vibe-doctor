@@ -1,0 +1,315 @@
+{
+  "$ref": "#/definitions/ProRoundtripContract",
+  "definitions": {
+    "ProRoundtripContract": {
+      "type": "object",
+      "properties": {
+        "schemaVersion": {
+          "type": "string",
+          "const": "vibe-pro-contract-v1"
+        },
+        "flowPath": {
+          "type": "string",
+          "pattern": "^flows\\/[0-9]{8}\\/[0-9]{3}-[a-z0-9][a-z0-9-]{1,58}[a-z0-9]$"
+        },
+        "designEventId": {
+          "type": "string",
+          "pattern": "^[0-9]{4}--pro--design--r[0-9]{2}$"
+        },
+        "requirements": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^REQ-[0-9]{3}$"
+              },
+              "title": {
+                "type": "string",
+                "minLength": 1
+              },
+              "statement": {
+                "$ref": "#/definitions/ProRoundtripContract/properties/requirements/items/properties/title"
+              },
+              "priority": {
+                "type": "string",
+                "enum": [
+                  "must",
+                  "should",
+                  "could"
+                ]
+              },
+              "acceptanceCriteria": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/definitions/ProRoundtripContract/properties/requirements/items/properties/title"
+                },
+                "minItems": 1
+              },
+              "ownerSprint": {
+                "type": "string",
+                "pattern": "^SPR-[0-9]{3}$"
+              }
+            },
+            "required": [
+              "id",
+              "title",
+              "statement",
+              "priority",
+              "acceptanceCriteria",
+              "ownerSprint"
+            ],
+            "additionalProperties": false
+          },
+          "minItems": 1
+        },
+        "invariants": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^INV-[0-9]{3}$"
+              },
+              "statement": {
+                "$ref": "#/definitions/ProRoundtripContract/properties/requirements/items/properties/title"
+              },
+              "validation": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/definitions/ProRoundtripContract/properties/requirements/items/properties/title"
+                },
+                "minItems": 1
+              }
+            },
+            "required": [
+              "id",
+              "statement",
+              "validation"
+            ],
+            "additionalProperties": false
+          },
+          "minItems": 1
+        },
+        "workflows": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^WF-[0-9]{3}$"
+              },
+              "title": {
+                "$ref": "#/definitions/ProRoundtripContract/properties/requirements/items/properties/title"
+              },
+              "steps": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/definitions/ProRoundtripContract/properties/requirements/items/properties/title"
+                },
+                "minItems": 2
+              },
+              "expectedOutcome": {
+                "$ref": "#/definitions/ProRoundtripContract/properties/requirements/items/properties/title"
+              },
+              "ownerSprints": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/definitions/ProRoundtripContract/properties/requirements/items/properties/ownerSprint"
+                },
+                "minItems": 1
+              }
+            },
+            "required": [
+              "id",
+              "title",
+              "steps",
+              "expectedOutcome",
+              "ownerSprints"
+            ],
+            "additionalProperties": false
+          },
+          "minItems": 1
+        },
+        "nonFunctionalRequirements": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^NFR-[0-9]{3}$"
+              },
+              "title": {
+                "$ref": "#/definitions/ProRoundtripContract/properties/requirements/items/properties/title"
+              },
+              "statement": {
+                "$ref": "#/definitions/ProRoundtripContract/properties/requirements/items/properties/title"
+              },
+              "validation": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/definitions/ProRoundtripContract/properties/requirements/items/properties/title"
+                },
+                "minItems": 1
+              },
+              "ownerSprint": {
+                "$ref": "#/definitions/ProRoundtripContract/properties/requirements/items/properties/ownerSprint"
+              }
+            },
+            "required": [
+              "id",
+              "title",
+              "statement",
+              "validation",
+              "ownerSprint"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "decisions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^DEC-[0-9]{3}$"
+              },
+              "decision": {
+                "$ref": "#/definitions/ProRoundtripContract/properties/requirements/items/properties/title"
+              },
+              "rationale": {
+                "$ref": "#/definitions/ProRoundtripContract/properties/requirements/items/properties/title"
+              },
+              "alternativesRejected": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/definitions/ProRoundtripContract/properties/requirements/items/properties/title"
+                }
+              }
+            },
+            "required": [
+              "id",
+              "decision",
+              "rationale",
+              "alternativesRejected"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "sprints": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "$ref": "#/definitions/ProRoundtripContract/properties/requirements/items/properties/ownerSprint"
+              },
+              "slug": {
+                "type": "string",
+                "pattern": "^[a-z0-9][a-z0-9-]{1,58}[a-z0-9]$"
+              },
+              "objective": {
+                "$ref": "#/definitions/ProRoundtripContract/properties/requirements/items/properties/title"
+              },
+              "owns": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "pattern": "^(REQ|NFR)-[0-9]{3}$"
+                },
+                "minItems": 1
+              },
+              "preserves": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "pattern": "^INV-[0-9]{3}$"
+                },
+                "minItems": 1
+              },
+              "workflowsAffected": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "pattern": "^WF-[0-9]{3}$"
+                },
+                "minItems": 1
+              },
+              "dependsOn": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/definitions/ProRoundtripContract/properties/requirements/items/properties/ownerSprint"
+                }
+              },
+              "nonGoals": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/definitions/ProRoundtripContract/properties/requirements/items/properties/title"
+                }
+              },
+              "filesLikelyTouched": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/definitions/ProRoundtripContract/properties/requirements/items/properties/title"
+                }
+              },
+              "verification": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/definitions/ProRoundtripContract/properties/requirements/items/properties/title"
+                },
+                "minItems": 1
+              },
+              "cumulativeIntegrationChecks": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/definitions/ProRoundtripContract/properties/requirements/items/properties/title"
+                },
+                "minItems": 1
+              }
+            },
+            "required": [
+              "id",
+              "slug",
+              "objective",
+              "owns",
+              "preserves",
+              "workflowsAffected",
+              "dependsOn",
+              "nonGoals",
+              "filesLikelyTouched",
+              "verification",
+              "cumulativeIntegrationChecks"
+            ],
+            "additionalProperties": false
+          },
+          "minItems": 1,
+          "maxItems": 12
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "flowPath",
+        "designEventId",
+        "requirements",
+        "invariants",
+        "workflows",
+        "nonFunctionalRequirements",
+        "decisions",
+        "sprints",
+        "createdAt"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}

@@ -335,3 +335,33 @@ This harness can be driven by Claude, Codex, Gemini, or another CLI provider. Pr
 - Do not replace direct MD injection with capsule/router/prompt reduction until context coverage observability and fail-closed safeguards have been dogfooded. One-shot prompts may stay terse only when they directly reference MD that the wrapper injects, not by relying on retrieval-only behavior.
 - If the provider has no PreCompact hook, this rule is mandatory process discipline. Do not assume chat history survives; preserve restart instructions in the files above.
 - If a compact/checkpoint cannot be completed, state the reason in the final report and leave the repo in a state that can be resumed by reading `handoff.md` and `session-log.md`.
+
+## §18 Workflow continuity and cumulative completion
+
+Every multi-Sprint goal, iteration, and Web Pro flow must read and enforce
+`docs/context/workflow-integrity.md`. The authoritative design is decomposed for
+execution, but it is not replaced by isolated Sprint summaries.
+
+Every Sprint prompt and Final report must contain:
+
+```text
+## Workflow Continuity
+- Affected workflows:
+- Upstream inputs consumed:
+- Outputs and downstream consumers:
+- Entrypoint-to-output cumulative journey:
+- Preserved invariants:
+- Evidence produced:
+```
+
+Before a Sprint passes, verify its owned acceptance and directly changed seams.
+Before crossing a shared boundary, also verify the cumulative journey through
+all completed Sprints. Before the final Sprint/iteration/goal passes, verify all
+declared workflows and downstream consumers end to end. Sprint-local unit tests
+alone are non-proof for cumulative or final completion.
+
+If `.vibe/agent/pro-roundtrip/ACTIVE.json` is active, use its flow/design/Sprint
+binding, record the matching Pro checkpoint before `vibe-sprint-complete`, and
+prepare the final Web report automatically. The completion script fails closed
+when that required exact-HEAD checkpoint is absent or its cumulative/final gate
+is false.

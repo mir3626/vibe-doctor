@@ -1,0 +1,214 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://vibe-doctor.local/schemas/vibe-pro-event-complete-v1.json",
+  "title": "Vibe Pro Roundtrip Event Completion",
+  "type": "object",
+  "definitions": {
+    "sha": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "eventId": {
+      "type": "string",
+      "pattern": "^[0-9]{4}--(cli|codex|pro)--[a-z0-9][a-z0-9-]*--r[0-9]{2}$"
+    }
+  },
+  "properties": {
+    "schemaVersion": {
+      "const": "vibe-pro-event-complete-v1"
+    },
+    "flowPath": {
+      "type": "string",
+      "pattern": "^flows/[0-9]{8}/[0-9]{3}-[a-z0-9][a-z0-9-]{1,58}[a-z0-9]$"
+    },
+    "eventId": {
+      "$ref": "#/definitions/eventId"
+    },
+    "sequence": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9999,
+      "multipleOf": 10
+    },
+    "actor": {
+      "type": "string",
+      "enum": [
+        "cli",
+        "codex",
+        "pro"
+      ]
+    },
+    "kind": {
+      "type": "string",
+      "enum": [
+        "goal",
+        "design",
+        "implementation-report",
+        "feedback",
+        "remediation-report",
+        "approval",
+        "closed"
+      ]
+    },
+    "revision": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 99
+    },
+    "previousEventId": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/eventId"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "supersedesEventId": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/eventId"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "protocolVersion": {
+      "type": "string",
+      "pattern": "^v[1-9][0-9]*$"
+    },
+    "designEventId": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^[0-9]{4}--pro--design--r[0-9]{2}$"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "sprintId": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^SPR-[0-9]{3}$"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "repositoryFullName": {
+      "type": "string",
+      "pattern": "^[^/\\s]+/[^/\\s]+$"
+    },
+    "codeBranch": {
+      "type": "string",
+      "minLength": 1
+    },
+    "baseSha": {
+      "$ref": "#/definitions/sha"
+    },
+    "headSha": {
+      "$ref": "#/definitions/sha"
+    },
+    "disposition": {
+      "type": "string",
+      "enum": [
+        "complete",
+        "approved",
+        "approved-with-deferrals",
+        "remediation-required",
+        "design-revision-required",
+        "blocked",
+        "closed"
+      ]
+    },
+    "files": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "pattern": "^(?!/)(?!.*\\.\\.)[A-Za-z0-9._/-]+$"
+          },
+          "mediaType": {
+            "type": "string",
+            "enum": [
+              "text/markdown",
+              "application/json",
+              "text/plain"
+            ]
+          }
+        },
+        "required": [
+          "path",
+          "mediaType"
+        ],
+        "additionalProperties": false
+      },
+      "minItems": 1
+    },
+    "limitations": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "nextActor": {
+      "type": "string",
+      "enum": [
+        "cli",
+        "codex",
+        "pro",
+        "user",
+        "none"
+      ]
+    },
+    "nextWriteTarget": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^(?!/)(?!.*\\.\\.)[A-Za-z0-9._/-]+$"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "flowPath",
+    "eventId",
+    "sequence",
+    "actor",
+    "kind",
+    "revision",
+    "previousEventId",
+    "supersedesEventId",
+    "protocolVersion",
+    "designEventId",
+    "sprintId",
+    "repositoryFullName",
+    "codeBranch",
+    "baseSha",
+    "headSha",
+    "disposition",
+    "files",
+    "limitations",
+    "createdAt",
+    "nextActor",
+    "nextWriteTarget"
+  ],
+  "additionalProperties": false
+}

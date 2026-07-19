@@ -1,0 +1,344 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://vibe-doctor.local/schemas/vibe-pro-contract-v1.json",
+  "title": "Vibe Pro Roundtrip Design Contract",
+  "type": "object",
+  "definitions": {
+    "nonEmptyString": {
+      "type": "string",
+      "minLength": 1
+    },
+    "sprintId": {
+      "type": "string",
+      "pattern": "^SPR-[0-9]{3}$"
+    },
+    "requirement": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^REQ-[0-9]{3}$"
+        },
+        "title": {
+          "$ref": "#/definitions/nonEmptyString"
+        },
+        "statement": {
+          "$ref": "#/definitions/nonEmptyString"
+        },
+        "priority": {
+          "type": "string",
+          "enum": [
+            "must",
+            "should",
+            "could"
+          ]
+        },
+        "acceptanceCriteria": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/nonEmptyString"
+          },
+          "minItems": 1
+        },
+        "ownerSprint": {
+          "$ref": "#/definitions/sprintId"
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "statement",
+        "priority",
+        "acceptanceCriteria",
+        "ownerSprint"
+      ],
+      "additionalProperties": false
+    },
+    "invariant": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^INV-[0-9]{3}$"
+        },
+        "statement": {
+          "$ref": "#/definitions/nonEmptyString"
+        },
+        "validation": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/nonEmptyString"
+          },
+          "minItems": 1
+        }
+      },
+      "required": [
+        "id",
+        "statement",
+        "validation"
+      ],
+      "additionalProperties": false
+    },
+    "workflow": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^WF-[0-9]{3}$"
+        },
+        "title": {
+          "$ref": "#/definitions/nonEmptyString"
+        },
+        "steps": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/nonEmptyString"
+          },
+          "minItems": 2
+        },
+        "expectedOutcome": {
+          "$ref": "#/definitions/nonEmptyString"
+        },
+        "ownerSprints": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/sprintId"
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "steps",
+        "expectedOutcome",
+        "ownerSprints"
+      ],
+      "additionalProperties": false
+    },
+    "nonFunctionalRequirement": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^NFR-[0-9]{3}$"
+        },
+        "title": {
+          "$ref": "#/definitions/nonEmptyString"
+        },
+        "statement": {
+          "$ref": "#/definitions/nonEmptyString"
+        },
+        "validation": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/nonEmptyString"
+          },
+          "minItems": 1
+        },
+        "ownerSprint": {
+          "$ref": "#/definitions/sprintId"
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "statement",
+        "validation",
+        "ownerSprint"
+      ],
+      "additionalProperties": false
+    },
+    "decision": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^DEC-[0-9]{3}$"
+        },
+        "decision": {
+          "$ref": "#/definitions/nonEmptyString"
+        },
+        "rationale": {
+          "$ref": "#/definitions/nonEmptyString"
+        },
+        "alternativesRejected": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/nonEmptyString"
+          }
+        }
+      },
+      "required": [
+        "id",
+        "decision",
+        "rationale",
+        "alternativesRejected"
+      ],
+      "additionalProperties": false
+    },
+    "sprint": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/sprintId"
+        },
+        "slug": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9-]{1,58}[a-z0-9]$"
+        },
+        "objective": {
+          "$ref": "#/definitions/nonEmptyString"
+        },
+        "owns": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^(REQ|NFR)-[0-9]{3}$"
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "preserves": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^INV-[0-9]{3}$"
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "workflowsAffected": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^WF-[0-9]{3}$"
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "dependsOn": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/sprintId"
+          },
+          "uniqueItems": true
+        },
+        "nonGoals": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/nonEmptyString"
+          },
+          "uniqueItems": true
+        },
+        "filesLikelyTouched": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/nonEmptyString"
+          },
+          "uniqueItems": true
+        },
+        "verification": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/nonEmptyString"
+          },
+          "minItems": 1
+        },
+        "cumulativeIntegrationChecks": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/nonEmptyString"
+          },
+          "minItems": 1
+        }
+      },
+      "required": [
+        "id",
+        "slug",
+        "objective",
+        "owns",
+        "preserves",
+        "workflowsAffected",
+        "dependsOn",
+        "nonGoals",
+        "filesLikelyTouched",
+        "verification",
+        "cumulativeIntegrationChecks"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "properties": {
+    "schemaVersion": {
+      "const": "vibe-pro-contract-v1"
+    },
+    "flowPath": {
+      "type": "string",
+      "pattern": "^flows/[0-9]{8}/[0-9]{3}-[a-z0-9][a-z0-9-]{1,58}[a-z0-9]$"
+    },
+    "designEventId": {
+      "type": "string",
+      "pattern": "^[0-9]{4}--pro--design--r[0-9]{2}$"
+    },
+    "requirements": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/requirement"
+      },
+      "minItems": 1
+    },
+    "invariants": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/invariant"
+      },
+      "minItems": 1
+    },
+    "workflows": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/workflow"
+      },
+      "minItems": 1
+    },
+    "nonFunctionalRequirements": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/nonFunctionalRequirement"
+      }
+    },
+    "decisions": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/decision"
+      }
+    },
+    "sprints": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/sprint"
+      },
+      "minItems": 1,
+      "maxItems": 12
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "flowPath",
+    "designEventId",
+    "requirements",
+    "invariants",
+    "workflows",
+    "nonFunctionalRequirements",
+    "decisions",
+    "sprints",
+    "createdAt"
+  ],
+  "additionalProperties": false
+}

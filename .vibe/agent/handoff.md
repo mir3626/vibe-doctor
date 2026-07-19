@@ -2,36 +2,41 @@
 
 PROJECT NOT INITIALIZED.
 
-This file is project-owned runtime state. Downstream projects must run `/vibe-init` before product work; init rewrites this placeholder with the current project's handoff.
+This is the upstream `vibe-doctor` template, so downstream product work still requires `/vibe-init`.
 
 ## 1. Identity
 
 - repo: `vibe-doctor`
-- status: template placeholder
+- mode: Codex Orchestrator maintenance
 - harnessVersion: `1.7.30`
+- publication branch/base: `agent/vibe-pro-go` from `f2f9512aeee62f0d13537e8b5fe99c8947a4bdd5`
+- remote state: `origin/main` is intentionally ahead at `606d4317d1614f6531abce90902e0fd9a2411896`; `origin/vibe-pro-bridge` is at `abd624a050fc274da90e1c003fbac3843dce7058`
+- publication state: the verified GitHub-only Pro workflow is committed/pushed on `origin/agent/vibe-pro-go`; no PR was requested
 
-## 2. Status
+## 2. Active Work
 
-The checked-in upstream template intentionally does not ship active project handoff state.
+- Public entrypoint is now `$vibe-pro-go` / `npm run vibe:pro-go`.
+- Bare invocation selects the newest non-closed flow for the current repo/branch by latest completed bridge event, syncs its durable packet, and returns paths plus the next executable action.
+- Web-first entry is supported through root `bridge-runbook.md`: GitHub exact-ref actions only, no Web Search/index/default fallback, Pro-origin goal + design creation, then normal CLI continuation.
+- `bootstrap --publish` verifies the root runbook is already committed/pushed on the bound code branch before publishing immutable `protocol/v1` plus `PROTOCOL.json`.
+- `docs/context/workflow-integrity.md` is the shared anti-overengineering and cross-Sprint contract. Planner, goal-to-plan, goal-iterate, iterate, write-report, common Generator rules, and orchestration docs all reference it.
+- `sync` writes `.vibe/agent/pro-roundtrip/ACTIVE.json`. An active Pro Sprint cannot pass `vibe-sprint-complete` without a design/Sprint/current-HEAD checkpoint whose Sprint/cumulative gates pass; the final Sprint also needs the final workflow gate.
+- A Pro-origin goal/iterate/Sprint automatically prepares its Web implementation/remediation report without another skill invocation. GitHub publication still stops at the explicit external-write authorization boundary.
+- Internal schema/source/local packet identifiers keep `pro-roundtrip` for durable-format compatibility. Historical design documents retain the old public name with a history note.
 
-Maintenance checkpoint: release metadata is set for `v1.7.30`. The harness keeps `docs/plans/sprint-roadmap.md` as an active, current-iteration roadmap and archives completed or inactive iteration sections under `docs/plans/archive/roadmaps/`. Checkpoint enforces a compact `.vibe/agent/handoff.md` budget so downstream handoffs stay current-focused instead of accumulating sprint history.
+## 3. Verification and Risks
 
-Latest maintenance work (v1.7.30): SessionStart now atomically suppresses duplicate deliveries of the same `session_id + source` for 60 seconds while preserving lifecycle source transitions, and daily events include session/source/invocation provenance. Stop harness QA runs nested npm without `shell: true`, keeps Windows child processes hidden, clears `CLAUDE_PROJECT_DIR`, and forces `VIBE_SKIP_AGENT_SESSION_START=1`; only dedicated lifecycle tests opt back in. This prevents the detached self-test from opening repeated foreground consoles or appending real-project SessionStart events. Verification passed 22 focused tests, two full 473-test runs (472 pass, 1 skip), typecheck, build, sync audit, checkpoint, and a live detached Stop smoke (144 ms hook return, zero stdout/stderr, zero real-project daily-log growth).
+- Full `npm run vibe:self-test`: 487 tests, 486 pass, 0 fail, 1 intentional skip.
+- Focused Pro tests include Web-origin goal/design, root-runbook bootstrap gate, bare latest-flow resume, manifest, report/remediation/approval/close, stale HEAD, tamper, collision, and branch isolation.
+- `vibe:typecheck`, `vibe:build`, schema drift check, both skill validations, Codex wrapper audit, iterate shard audit, sync audit, `git diff --check`, and `vibe:pro-go doctor` passed.
+- User completed the live Web M0 on `mir3626/vibe-pro-bridge-m0`: exact non-default read, nested small and ~98 KiB UTF-8 creates, re-read/blob/commit receipts, and sequential convergence all passed without main/PR/update/delete mutation.
+- No real protocol or operational flow was published by this implementation session. Integration writes used temporary bare remotes only.
+- Local `main` is deliberately pinned to `f2f9512`; do not pull, reset, merge, commit, or push it unless the user explicitly requests that action.
 
-Previous maintenance work (v1.7.29): Stop foreground now detects only sync-manifest harness/hybrid changes, atomically schedules one detached hidden worker, and returns hook-silently without waiting for QA. The worker runs only `vibe:typecheck` plus `vibe:self-test`; project-only changes and downstream product QA are out of scope. It clears the parent hook's `CLAUDE_PROJECT_DIR` before nested tests so fixture cwd resolution stays isolated. A schema-v2 SHA-256 result receipt and stale-safe exclusive lease deduplicate identical/concurrent work, while a background failure is retained and reported once as nonblocking JSON on the next Stop.
+## 4. Restart Steps
 
-Previous maintenance work (v1.7.28): Stop QA writes an atomic success-only SHA-256 receipt under ignored `.vibe/runs/`, bound to HEAD, changed code contents, Node platform/version, and supported dependency lockfiles. Repeated Stop events on the same successful state return immediately with empty hook stdout; any relevant state change invalidates the receipt, while failures stay uncached and retryable. v1.7.29 supersedes its synchronous first-state execution path.
-
-Previous maintenance work (v1.7.27): all five Claude harness entrypoints auto-detect their event from stdin in addition to accepting explicit hook flags. This keeps legacy, cached, or partially synced commands inside hook mode, binds runtime roots through `CLAUDE_PROJECT_DIR` or the hook input `cwd`, and prevents manual diagnostics from leaking into provider stdout. PreCompact success is empty stdout, PreCompact validation failure remains stderr/exit 2, and Stop QA failure remains nonblocking with one JSON `systemMessage` and exit 0.
-
-Previous maintenance work (v1.7.26): every Claude harness hook command and runtime root is bound to `${CLAUDE_PROJECT_DIR}`. Hook-mode success/skip paths keep stdout empty, reportable nonblocking outcomes use one JSON `systemMessage`, and PreCompact validation failure uses stderr/exit 2. Stop remains nonblocking on QA failure (exit 0 + log-backed JSON notice); PostToolUse uses the verified npm option order so `--hook` reaches config-audit.
-
-Previous maintenance work (v1.7.25): harness hook kill-switch + legacy-model override shard. Setting `VIBE_HARNESS_HOOKS=off` (also `0`/`false`) in a session's environment makes all five hook entry points (Stop QA gate, SessionStart, Notification, PostToolUse config-audit, PreCompact checkpoint) exit 0 immediately, so harness-unrelated headless agents spawned by downstream product code no longer run `vibe:qa` on every Stop or rewrite the handoff on compaction. Separately, the model-compensation rules moved from CLAUDE.md `HARNESS:mechanical-overrides` into `docs/context/legacy-model-overrides.md` (sync manifest harness list); SOTA-tier sessions skip the shard, only sub-SOTA Orchestrator/Generator models read it. The three tier-independent rules stay in CLAUDE.md.
-
-Previous maintenance work (v1.7.24): `vibe-checkpoint.mjs` gained a `docs.integrity` check after a downstream incident truncated a project CLAUDE.md to 0 bytes and the checkpoint stayed green. Targets fixed first-read docs plus `docs/context/*.md`, tracked-and-exists only, fails on empty/under-64-byte content, report-only in both modes. The `maintain-context` runbook gained native-edit-tools-only and pre-commit `git diff --stat` gate rules.
-
-Previous maintenance work (v1.7.23): `vibe-checkpoint.mjs` opt-in `--auto-refresh` mode wired into the Claude Code `PreCompact` hook; upserts a bounded idempotent `<!-- vibe:auto-state:* -->` git-snapshot block when the handoff is stale or work-outdated, otherwise writes nothing.
-
-## 3. Next Action
-
-Run `/vibe-init` in a new downstream project. Existing downstream projects can sync to `v1.7.30`; agent-mode one-liner initialization should not begin MVP work until `npm run vibe:init-ready` passes. Initialized projects should keep product verification in root `test`/`typecheck`/`lint`/`build` scripts and use explicit `vibe:*` commands for harness verification. Stop no longer substitutes for explicit product verification.
+1. Read `.claude/skills/vibe-pro-go/SKILL.md`, `docs/context/pro-go-setup.md`, and `docs/context/workflow-integrity.md`.
+2. Inspect `agent/vibe-pro-go` and its upstream before new edits. Do not merge it into `main`, rewrite `origin/main`, or combine it with the preserved MCP implementation without an explicit user decision.
+3. Run `npm run vibe:pro-go -- doctor`; do not pass `--publish` without a fresh explicit external-write authorization.
+4. For usage, Web starts with `@GitHub <owner/repo> ... ./bridge-runbook.md`; Codex resumes with bare `$vibe-pro-go`.
+5. A future integration into `main` requires an explicit strategy because `origin/main` has a different, newer MCP-based lineage. Do not infer a PR, merge, reset, or force action.

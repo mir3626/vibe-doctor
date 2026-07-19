@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "vibe-pro-flow-v1",
+  "flowPath": "flows/20260719/001-github-pro-review-loop",
+  "date": "20260719",
+  "sequence": 1,
+  "slug": "github-pro-review-loop",
+  "goal": "Design and review a GitHub-backed Pro roundtrip.",
+  "nonGoals": [
+    "Do not use a custom MCP server."
+  ],
+  "repository": {
+    "fullName": "owner/repo",
+    "remoteUrl": "https://github.com/owner/repo.git"
+  },
+  "bridgeBranch": "vibe-pro-bridge",
+  "codeBranch": "feature/pro-roundtrip",
+  "baseSha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "protocol": {
+    "version": "v1",
+    "commitSha": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "commonHarnessSha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+  },
+  "createdAt": "2026-07-19T11:00:00Z",
+  "timezone": "Asia/Seoul",
+  "createdBy": "cli"
+}

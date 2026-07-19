@@ -1,0 +1,802 @@
+import { readFile, stat } from 'node:fs/promises';
+import path from 'node:path';
+import process from 'node:process';
+import { getBooleanFlag, getStringFlag, parseArgs, type ParsedArgs } from '../lib/args.js';
+import { runMain } from '../lib/cli.js';
+import type {
+  ProRoundtripEventComplete,
+  ProRoundtripFlow,
+} from '../lib/schemas/pro-roundtrip.js';
+import { parseEventDirectory, parseFlowPath } from '../pro-roundtrip/contract.js';
+import {
+  allocateFlowPath,
+  listFlowPaths,
+  loadFlowSnapshot,
+  resolveFlowPath,
+  slugifyGoal,
+  validateSlug,
+} from '../pro-roundtrip/flow-store.js';
+import { publishAdditions } from '../pro-roundtrip/git-branch-transport.js';
+import {
+  packetRootFor,
+  readPacketState,
+  readReportInput,
+  syncFlow,
+} from '../pro-roundtrip/importer.js';
+import { ensureProtocol, loadLocalProtocol, verifyPinnedProtocol } from '../pro-roundtrip/protocol.js';
+import { publishAggregateReport, recordSprintReport } from '../pro-roundtrip/report.js';
+import {
+  inspectBridgeWorktree,
+  prepareBridgeWorktree,
+  resolveRepositoryRoot,
+  runGit,
+} from '../pro-roundtrip/worktree.js';
+
+function usage(): string {
+  return `Usage:
+  vibe-pro-go
+  vibe-pro-go go [flow] [--date YYYYMMDD] [--slug <slug>]
+  vibe-pro-go bootstrap [--repository <owner/repo>] --publish
+  vibe-pro-go start design "<goal>" [--slug <slug>] [--timezone <IANA>] [--repository <owner/repo>] --publish
+  vibe-pro-go start audit [--goal "<goal>"] [--slug <slug>] [--timezone <IANA>] [--repository <owner/repo>] --publish
+  vibe-pro-go status [flow]
+  vibe-pro-go sync [flow]
+  vibe-pro-go report [flow] [--evidence <input.json>] [--publish]
+  vibe-pro-go continue [flow]
+  vibe-pro-go close [flow] --publish
+  vibe-pro-go doctor`;
+}
+
+function output(value: unknown, json = false): void {
+  if (json || typeof value !== 'string') {
+    process.stdout.write(`${JSON.stringify(value, null, 2)}\n`);
+    return;
+  }
+  process.stdout.write(`${value}\n`);
+}
+
+function projectTimezone(args: ParsedArgs): string {
+  const explicit = getStringFlag(args, 'timezone');
+  const timezone = explicit ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
+  if (!timezone) {
+    throw new Error('project timezone is unknown; provide --timezone <IANA>');
+  }
+  try {
+    new Intl.DateTimeFormat('en-US', { timeZone: timezone }).format(new Date());
+  } catch {
+    throw new Error(`invalid IANA timezone: ${timezone}`);
+  }
+  return timezone;
+}
+
+function dateInTimezone(date: Date, timezone: string): string {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: timezone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(date);
+  const values = new Map(parts.map((part) => [part.type, part.value]));
+  return `${values.get('year') ?? ''}${values.get('month') ?? ''}${values.get('day') ?? ''}`;
+}
+
+function repositoryFullName(remoteUrl: string): string {
+  const normalized = remoteUrl.trim().replace(/\.git$/, '');
+  const match =
+    /github\.com[/:](?<owner>[^/:\s]+)\/(?<repo>[^/\s]+)$/.exec(normalized) ??
+    /^(?<owner>[^/\s]+)\/(?<repo>[^/\s]+)$/.exec(normalized);
+  if (!match?.groups?.owner || !match.groups.repo) {
+    throw new Error(`cannot derive GitHub owner/repo from origin URL: ${remoteUrl}`);
+  }
+  return `${match.groups.owner}/${match.groups.repo}`;
+}
+
+function safeRemoteUrl(remoteUrl: string): string {
+  if (/^https?:\/\//i.test(remoteUrl)) {
+    const parsed = new URL(remoteUrl);
+    if (parsed.username || parsed.password) {
+      throw new Error('origin URL contains embedded credentials; refusing to publish it');
+    }
+  }
+  if (/[\r\n]/.test(remoteUrl)) {
+    throw new Error('origin URL contains invalid control characters');
+  }
+  return remoteUrl;
+}
+
+function webPrompt(fullName: string, flowPath: string): string {
+  return `MUST use only the GitHub app's exact-ref fetch/read/compare/create actions.
+MUST NOT use Web Search, browser search, generic search results, URL browsing, or the GitHub search index for repository work.
+MUST NOT fall back to the default branch.
+Fetch ${fullName}@refs/heads/vibe-pro-bridge:protocol/v1/PROTOCOL.json, then read its pinned WEB-RUNBOOK.md and COMMON-HARNESS.md.
+Continue flow ${flowPath} from its latest valid COMPLETE.json.
+Write only new files under the exact nextWriteTarget, create COMPLETE.json last, keep confirmation visible, and stop if exact-ref access is unavailable.`;
+}
+
+async function bootstrapCommand(args: ParsedArgs): Promise<void> {
+  if (!getBooleanFlag(args, 'publish')) {
+    throw new Error(
+      'bootstrap publishes protocol/v1 to GitHub; obtain user authorization and pass --publish',
+    );
+  }
+  const repoRoot = await resolveRepositoryRoot();
+  const remoteUrl = safeRemoteUrl(
+    (await runGit(repoRoot, ['remote', 'get-url', 'origin'])).stdout.trim(),
+  );
+  const explicitRepository = getStringFlag(args, 'repository');
+  if (explicitRepository && !/^[^/\s]+\/[^/\s]+$/.test(explicitRepository)) {
+    throw new Error('--repository must use owner/repo format');
+  }
+  let derivedRepository: string | undefined;
+  try {
+    derivedRepository = repositoryFullName(remoteUrl);
+  } catch {
+    if (!explicitRepository) {
+      throw new Error(
+        'origin is not a GitHub URL; provide --repository only for an authorized local/test transport',
+      );
+    }
+  }
+  if (
+    explicitRepository &&
+    derivedRepository &&
+    explicitRepository !== derivedRepository
+  ) {
+    throw new Error(
+      `--repository does not match origin: explicit=${explicitRepository} origin=${derivedRepository}`,
+    );
+  }
+  const fullName = explicitRepository ?? derivedRepository;
+  if (!fullName) {
+    throw new Error('GitHub repository identity is unavailable');
+  }
+  const codeBranch = (await runGit(repoRoot, ['branch', '--show-current'])).stdout.trim();
+  if (!codeBranch) {
+    throw new Error('bootstrap requires a named code branch, not detached HEAD');
+  }
+  await runGit(repoRoot, [
+    'fetch',
+    'origin',
+    `refs/heads/${codeBranch}:refs/remotes/origin/${codeBranch}`,
+  ]);
+  const localRunbook = await runGit(
+    repoRoot,
+    ['rev-parse', 'HEAD:bridge-runbook.md'],
+    true,
+  );
+  const remoteRunbook = await runGit(
+    repoRoot,
+    ['rev-parse', `refs/remotes/origin/${codeBranch}:bridge-runbook.md`],
+    true,
+  );
+  if (
+    localRunbook.exitCode !== 0 ||
+    remoteRunbook.exitCode !== 0 ||
+    localRunbook.stdout.trim() !== remoteRunbook.stdout.trim()
+  ) {
+    throw new Error(
+      `bridge-runbook.md must be committed and pushed unchanged to ${codeBranch} before Web-first bootstrap`,
+    );
+  }
+  const localHead = (await runGit(repoRoot, ['rev-parse', 'HEAD^{commit}'])).stdout.trim();
+  const remoteHead = (
+    await runGit(repoRoot, [
+      'rev-parse',
+      `refs/remotes/origin/${codeBranch}^{commit}`,
+    ])
+  ).stdout.trim();
+  if (localHead !== remoteHead) {
+    throw new Error(
+      `code branch ${codeBranch} must be pushed at the exact local HEAD before Web-first bootstrap`,
+    );
+  }
+  output({
+    action: 'bootstrap',
+    repository: fullName,
+    branch: 'vibe-pro-bridge',
+    codeBranch,
+    protocol: await ensureProtocol({ cwd: repoRoot, publish: true }),
+    webEntry: 'Read ./bridge-runbook.md from the exact code ref with the GitHub app.',
+  });
+}
+
+async function selectGoFlow(args: ParsedArgs): Promise<string> {
+  const explicit = args.positionals[1];
+  if (explicit) {
+    return explicit;
+  }
+  const requestedDate = getStringFlag(args, 'date');
+  if (requestedDate && !/^[0-9]{8}$/.test(requestedDate)) {
+    throw new Error('--date must use YYYYMMDD');
+  }
+  const requestedSlug = getStringFlag(args, 'slug');
+  const slug = requestedSlug ? validateSlug(requestedSlug) : undefined;
+  const repoRoot = await resolveRepositoryRoot();
+  const codeBranch = (await runGit(repoRoot, ['branch', '--show-current'])).stdout.trim();
+  if (!codeBranch) {
+    throw new Error('go requires a named code branch, not detached HEAD');
+  }
+  const remoteUrl = safeRemoteUrl(
+    (await runGit(repoRoot, ['remote', 'get-url', 'origin'])).stdout.trim(),
+  );
+  let fullName: string | undefined;
+  try {
+    fullName = repositoryFullName(remoteUrl);
+  } catch {
+    // Local integration fixtures may use a non-GitHub origin.
+  }
+  const context = await prepareBridgeWorktree(repoRoot);
+  const paths = await listFlowPaths(context.worktreePath);
+  const candidates: Array<{
+    flowPath: string;
+    latestMarkerCommit: string;
+  }> = [];
+  for (const flowPath of paths) {
+    const parts = parseFlowPath(flowPath);
+    if (requestedDate && parts.date !== requestedDate) {
+      continue;
+    }
+    if (slug && parts.slug !== slug) {
+      continue;
+    }
+    const snapshot = await loadFlowSnapshot(context.worktreePath, flowPath);
+    if (
+      snapshot.flow.codeBranch !== codeBranch ||
+      (fullName && snapshot.flow.repository.fullName !== fullName) ||
+      snapshot.latestEvent.marker.kind === 'closed'
+    ) {
+      continue;
+    }
+    const markerPath =
+      `${flowPath}/${snapshot.latestEvent.directory}/COMPLETE.json`;
+    const latestMarkerCommit = (
+      await runGit(context.worktreePath, [
+        'log',
+        '-1',
+        '--format=%H',
+        'HEAD',
+        '--',
+        markerPath,
+      ])
+    ).stdout.trim();
+    if (!/^[0-9a-f]{40}$/.test(latestMarkerCommit)) {
+      throw new Error(`cannot resolve latest event commit for ${flowPath}`);
+    }
+    candidates.push({ flowPath, latestMarkerCommit });
+  }
+  if (candidates.length > 0) {
+    const bridgeHistory = (
+      await runGit(context.worktreePath, ['rev-list', 'HEAD'])
+    ).stdout
+      .trim()
+      .split(/\r?\n/)
+      .filter(Boolean);
+    const rank = new Map(bridgeHistory.map((commit, index) => [commit, index]));
+    candidates.sort(
+      (left, right) =>
+        (rank.get(left.latestMarkerCommit) ?? Number.MAX_SAFE_INTEGER) -
+          (rank.get(right.latestMarkerCommit) ?? Number.MAX_SAFE_INTEGER) ||
+        right.flowPath.localeCompare(left.flowPath),
+    );
+    return candidates[0]?.flowPath ?? '';
+  }
+  const selector = [
+    `repository=${fullName ?? '<local-origin>'}`,
+    `codeBranch=${codeBranch}`,
+    requestedDate ? `date=${requestedDate}` : null,
+    slug ? `slug=${slug}` : null,
+  ]
+    .filter(Boolean)
+    .join(' ');
+  throw new Error(`no non-closed Pro flow matches ${selector}`);
+}
+
+function nextInstruction(
+  snapshot: Awaited<ReturnType<typeof syncFlow>>['snapshot'],
+  currentSprintId: string | null,
+): string {
+  const marker = snapshot.latestEvent.marker;
+  if (marker.nextActor === 'pro') {
+    return 'Send webPrompt to Web Pro and wait for its completed GitHub event.';
+  }
+  if (marker.nextActor === 'codex' && marker.kind === 'design' && currentSprintId) {
+    return `Implement ${currentSprintId} now from its immutable SPRINT.md; record its checkpoint automatically, then continue remaining Sprints.`;
+  }
+  if (marker.nextActor === 'codex' && marker.kind === 'feedback') {
+    return 'Remediate only validated actionable finding IDs, record remediation evidence, and prepare the Pro report automatically.';
+  }
+  if (marker.nextActor === 'codex') {
+    return 'Prepare the complete Pro implementation report and workflow matrix automatically; request authorization only for publish.';
+  }
+  if (marker.nextActor === 'cli' && marker.kind === 'approval') {
+    return 'Verify the approved HEAD and final matrix, then request authorization for close --publish.';
+  }
+  return `Continue as ${marker.nextActor} at ${marker.nextWriteTarget ?? 'no write target'}.`;
+}
+
+async function goCommand(args: ParsedArgs): Promise<void> {
+  const flowPath = await selectGoFlow(args);
+  const synced = await syncFlow(flowPath);
+  const marker = synced.snapshot.latestEvent.marker;
+  const contract = [...synced.snapshot.events].reverse().find((event) => event.contract)
+    ?.contract;
+  const currentSprint = contract?.sprints.find(
+    ({ id }) => id === synced.state.currentSprintId,
+  );
+  output({
+    action: 'go',
+    flowPath,
+    selection: args.positionals[1] ? 'explicit' : 'latest-non-closed-current-repo-branch',
+    packetRoot: synced.packetRoot,
+    handoffPath: path.join(synced.packetRoot, 'HANDOFF.md'),
+    sprintEnvelopePath: currentSprint
+      ? path.join(
+          synced.packetRoot,
+          'sprints',
+          `${currentSprint.id}-${currentSprint.slug}`,
+          'SPRINT.md',
+        )
+      : null,
+    latestEventId: marker.eventId,
+    latestEventKind: marker.kind,
+    currentSprintId: synced.state.currentSprintId,
+    nextActor: marker.nextActor,
+    nextWriteTarget: marker.nextWriteTarget,
+    autoReportRequired:
+      marker.nextActor === 'codex' && ['design', 'feedback'].includes(marker.kind),
+    instruction: nextInstruction(synced.snapshot, synced.state.currentSprintId),
+    webPrompt:
+      marker.nextActor === 'pro'
+        ? webPrompt(synced.snapshot.flow.repository.fullName, flowPath)
+        : null,
+  });
+}
+
+async function startCommand(args: ParsedArgs): Promise<void> {
+  const mode = args.positionals[1];
+  if (mode !== 'design' && mode !== 'audit') {
+    throw new Error(`start requires design or audit\n${usage()}`);
+  }
+  if (!getBooleanFlag(args, 'publish')) {
+    throw new Error('start publishes to GitHub; obtain user authorization and pass --publish');
+  }
+  const repoRoot = await resolveRepositoryRoot();
+  const goal =
+    mode === 'design'
+      ? args.positionals.slice(2).join(' ').trim()
+      : getStringFlag(args, 'goal', 'Audit the current code branch against its intended workflow.');
+  if (!goal) {
+    throw new Error('start design requires a non-empty goal');
+  }
+  const timezone = projectTimezone(args);
+  const date = dateInTimezone(new Date(), timezone);
+  const slugFlag = getStringFlag(args, 'slug');
+  const slug = slugFlag ? validateSlug(slugFlag) : slugifyGoal(goal);
+  const codeBranch = (await runGit(repoRoot, ['branch', '--show-current'])).stdout.trim();
+  if (!codeBranch) {
+    throw new Error('start requires a named code branch, not detached HEAD');
+  }
+  const baseSha = (await runGit(repoRoot, ['rev-parse', 'HEAD^{commit}'])).stdout.trim();
+  const remoteUrl = safeRemoteUrl(
+    (await runGit(repoRoot, ['remote', 'get-url', 'origin'])).stdout.trim(),
+  );
+  const explicitRepository = getStringFlag(args, 'repository');
+  if (explicitRepository && !/^[^/\s]+\/[^/\s]+$/.test(explicitRepository)) {
+    throw new Error('--repository must use owner/repo format');
+  }
+  let derivedRepository: string | undefined;
+  try {
+    derivedRepository = repositoryFullName(remoteUrl);
+  } catch {
+    if (!explicitRepository) {
+      throw new Error(
+        `origin is not a GitHub URL; provide --repository only for an authorized local/test transport`,
+      );
+    }
+  }
+  if (
+    explicitRepository &&
+    derivedRepository &&
+    explicitRepository !== derivedRepository
+  ) {
+    throw new Error(
+      `--repository does not match origin: explicit=${explicitRepository} origin=${derivedRepository}`,
+    );
+  }
+  const fullName = explicitRepository ?? derivedRepository;
+  if (!fullName) {
+    throw new Error('GitHub repository identity is unavailable');
+  }
+  const protocol = await ensureProtocol({ cwd: repoRoot, publish: true });
+
+  let published:
+    | { flowPath: string; bridgeCommitSha: string; attempts: number }
+    | undefined;
+  let lastError: unknown;
+  for (let allocationAttempt = 1; allocationAttempt <= 3; allocationAttempt += 1) {
+    const context = await prepareBridgeWorktree(repoRoot);
+    const flowPath = await allocateFlowPath(context.worktreePath, date, slug);
+    const flow: ProRoundtripFlow = {
+      schemaVersion: 'vibe-pro-flow-v1',
+      flowPath,
+      date,
+      sequence: Number(path.posix.basename(flowPath).slice(0, 3)),
+      slug,
+      goal,
+      nonGoals: [
+        'Do not use a custom MCP server, tunnel, browser DOM automation, or copied credentials.',
+        'Do not write to the default branch or create a PR for the exchange lane.',
+      ],
+      repository: { fullName, remoteUrl },
+      bridgeBranch: 'vibe-pro-bridge',
+      codeBranch,
+      baseSha,
+      protocol: {
+        version: protocol.version,
+        commitSha: protocol.commitSha,
+        commonHarnessSha256: protocol.commonHarnessSha256,
+      },
+      createdAt: new Date().toISOString(),
+      timezone,
+      createdBy: 'cli',
+    };
+    const goalEventId = '0000--cli--goal--r01';
+    const goalRoot = `${flowPath}/${goalEventId}`;
+    const nextTarget =
+      mode === 'design'
+        ? `${flowPath}/0100--pro--design--r01`
+        : `${flowPath}/0100--codex--implementation-report--r01`;
+    const goalDocument = `# Goal
+
+## Mode
+
+${mode}
+
+## Goal
+
+${goal}
+
+## Binding
+
+- Repository: \`${fullName}\`
+- Code branch: \`${codeBranch}\`
+- Base SHA: \`${baseSha}\`
+- Timezone: \`${timezone}\`
+- Protocol: \`${protocol.version}@${protocol.commitSha}\`
+
+## Non-goals
+
+${flow.nonGoals.map((item) => `- ${item}`).join('\n')}
+`;
+    const marker: ProRoundtripEventComplete = {
+      schemaVersion: 'vibe-pro-event-complete-v1',
+      flowPath,
+      eventId: goalEventId,
+      sequence: 0,
+      actor: 'cli',
+      kind: 'goal',
+      revision: 1,
+      previousEventId: null,
+      supersedesEventId: null,
+      protocolVersion: protocol.version,
+      designEventId: null,
+      sprintId: null,
+      repositoryFullName: fullName,
+      codeBranch,
+      baseSha,
+      headSha: baseSha,
+      disposition: 'complete',
+      files: [{ path: 'GOAL.md', mediaType: 'text/markdown' }],
+      limitations: [],
+      createdAt: new Date().toISOString(),
+      nextActor: mode === 'design' ? 'pro' : 'codex',
+      nextWriteTarget: nextTarget,
+    };
+    const files = new Map<string, string>([
+      [`${flowPath}/FLOW.json`, `${JSON.stringify(flow, null, 2)}\n`],
+      [`${goalRoot}/GOAL.md`, goalDocument],
+      [`${goalRoot}/COMPLETE.json`, `${JSON.stringify(marker, null, 2)}\n`],
+    ]);
+    try {
+      const result = await publishAdditions(
+        files,
+        `docs(pro-go): start ${path.posix.basename(flowPath)}`,
+        { cwd: repoRoot },
+      );
+      published = {
+        flowPath,
+        bridgeCommitSha: result.bridgeCommitSha,
+        attempts: result.attempts,
+      };
+      break;
+    } catch (error) {
+      lastError = error;
+      if (!/append-only collision/.test(error instanceof Error ? error.message : String(error))) {
+        throw error;
+      }
+    }
+  }
+  if (!published) {
+    throw new Error(`flow allocation failed after 3 attempts: ${String(lastError)}`);
+  }
+  output({
+    action: 'start',
+    mode,
+    ...published,
+    protocolBootstrapped: protocol.bootstrapped,
+    nextActor: mode === 'design' ? 'pro' : 'codex',
+    webPrompt: mode === 'design' ? webPrompt(fullName, published.flowPath) : null,
+  });
+}
+
+async function loadRemoteSnapshot(requested?: string) {
+  const context = await prepareBridgeWorktree();
+  const flowPath = await resolveFlowPath(context.worktreePath, requested);
+  const snapshot = await loadFlowSnapshot(context.worktreePath, flowPath);
+  await verifyPinnedProtocol(context.repoRoot, context.worktreePath, snapshot.flow.protocol);
+  return { context, snapshot };
+}
+
+async function statusCommand(args: ParsedArgs): Promise<void> {
+  const { context, snapshot } = await loadRemoteSnapshot(args.positionals[1]);
+  const localState = await readPacketState(context.repoRoot, snapshot.flow.flowPath);
+  output({
+    flowPath: snapshot.flow.flowPath,
+    goal: snapshot.flow.goal,
+    codeBranch: snapshot.flow.codeBranch,
+    baseSha: snapshot.flow.baseSha,
+    bridgeHeadSha: context.remoteTip,
+    latestEvent: snapshot.latestEvent.marker,
+    completedEvents: snapshot.events.map(({ marker }) => marker.eventId),
+    incompleteEvents: snapshot.incompleteEventDirectories,
+    localPacket: localState
+      ? {
+          latestEventId: localState.latestEventId,
+          currentSprintId: localState.currentSprintId,
+          codeHeadSha: localState.codeHeadSha,
+          acknowledgedBridgeSha: localState.lastAcknowledgedBridgeSha,
+        }
+      : null,
+  });
+}
+
+async function syncCommand(args: ParsedArgs): Promise<void> {
+  const result = await syncFlow(args.positionals[1]);
+  output({
+    flowPath: result.snapshot.flow.flowPath,
+    packetRoot: result.packetRoot,
+    importedEventIds: result.importedEventIds,
+    latestEventId: result.state.latestEventId,
+    designEventId: result.state.designEventId,
+    currentSprintId: result.state.currentSprintId,
+    codeHeadSha: result.state.codeHeadSha,
+    nextActor: result.snapshot.latestEvent.marker.nextActor,
+    nextWriteTarget: result.snapshot.latestEvent.marker.nextWriteTarget,
+  });
+}
+
+async function reportCommand(args: ParsedArgs): Promise<void> {
+  let synced = await syncFlow(args.positionals[1]);
+  const evidencePath = getStringFlag(args, 'evidence');
+  let checkpointPath: string | null = null;
+  if (evidencePath) {
+    const input = await readReportInput(path.resolve(evidencePath));
+    const repoRoot = await resolveRepositoryRoot();
+    checkpointPath = await recordSprintReport(
+      repoRoot,
+      synced.snapshot,
+      input,
+    );
+    synced = await syncFlow(synced.snapshot.flow.flowPath);
+  }
+  let publication = null;
+  if (getBooleanFlag(args, 'publish')) {
+    const repoRoot = await resolveRepositoryRoot();
+    publication = await publishAggregateReport(repoRoot, synced.snapshot);
+    synced = await syncFlow(synced.snapshot.flow.flowPath);
+  }
+  output({
+    flowPath: synced.snapshot.flow.flowPath,
+    checkpointPath,
+    published: publication,
+    currentSprintId: synced.state.currentSprintId,
+    latestEventId: synced.state.latestEventId,
+    nextActor: synced.snapshot.latestEvent.marker.nextActor,
+    nextWriteTarget: synced.snapshot.latestEvent.marker.nextWriteTarget,
+  });
+}
+
+async function continueCommand(args: ParsedArgs): Promise<void> {
+  const { snapshot } = await loadRemoteSnapshot(args.positionals[1]);
+  if (snapshot.latestEvent.marker.nextActor === 'pro') {
+    output(webPrompt(snapshot.flow.repository.fullName, snapshot.flow.flowPath));
+    return;
+  }
+  output(
+    `Run $vibe-pro-go for ${snapshot.flow.flowPath}; it will sync and continue as ${snapshot.latestEvent.marker.nextActor} at ${snapshot.latestEvent.marker.nextWriteTarget ?? 'no target'}.`,
+  );
+}
+
+async function closeCommand(args: ParsedArgs): Promise<void> {
+  if (!getBooleanFlag(args, 'publish')) {
+    throw new Error('close publishes to GitHub; obtain user authorization and pass --publish');
+  }
+  const { context, snapshot } = await loadRemoteSnapshot(args.positionals[1]);
+  if (snapshot.latestEvent.marker.kind !== 'approval') {
+    throw new Error('close requires the latest completed event to be a Pro approval');
+  }
+  const codeHead = (await runGit(context.repoRoot, ['rev-parse', 'HEAD^{commit}'])).stdout.trim();
+  if (snapshot.latestEvent.marker.headSha !== codeHead) {
+    throw new Error(
+      `approval HEAD is stale: approval=${snapshot.latestEvent.marker.headSha} current=${codeHead}`,
+    );
+  }
+  const state = await readPacketState(context.repoRoot, snapshot.flow.flowPath);
+  if (!state || state.latestEventId !== snapshot.latestEvent.marker.eventId) {
+    throw new Error('sync the approval event before closing');
+  }
+  const matrixPath = path.join(
+    packetRootFor(context.repoRoot, snapshot.flow.flowPath),
+    'FINAL-WORKFLOW-MATRIX.md',
+  );
+  if (!(await stat(matrixPath).then(() => true, () => false))) {
+    throw new Error('FINAL-WORKFLOW-MATRIX.md is missing from the durable packet');
+  }
+  const matrix = await readFile(matrixPath, 'utf8');
+  if (/\|\s*(missing|partial|blocked)\s*\|/i.test(matrix)) {
+    throw new Error('final workflow matrix contains an incomplete or blocked row');
+  }
+  const target = snapshot.latestEvent.marker.nextWriteTarget;
+  if (!target) {
+    throw new Error('approval event has no close write target');
+  }
+  const eventDirectory = path.posix.basename(target);
+  const eventParts = parseEventDirectory(eventDirectory);
+  if (eventParts.kind !== 'closed' || eventParts.actor !== 'cli') {
+    throw new Error(`approval next target is not a CLI close event: ${target}`);
+  }
+  const summary = `# Closed
+
+- Flow: \`${snapshot.flow.flowPath}\`
+- Goal: ${snapshot.flow.goal}
+- Approved design: ${state.designEventId ? `\`${state.designEventId}\`` : 'audit flow'}
+- Approved code HEAD: \`${codeHead}\`
+- Approval event: \`${snapshot.latestEvent.marker.eventId}\`
+
+The append-only archive is closed. No default-branch write or PR was created by this command.
+`;
+  const marker: ProRoundtripEventComplete = {
+    schemaVersion: 'vibe-pro-event-complete-v1',
+    flowPath: snapshot.flow.flowPath,
+    eventId: eventParts.eventId,
+    sequence: eventParts.sequence,
+    actor: 'cli',
+    kind: 'closed',
+    revision: eventParts.revision,
+    previousEventId: snapshot.latestEvent.marker.eventId,
+    supersedesEventId: null,
+    protocolVersion: snapshot.flow.protocol.version,
+    designEventId: state.designEventId,
+    sprintId: null,
+    repositoryFullName: snapshot.flow.repository.fullName,
+    codeBranch: snapshot.flow.codeBranch,
+    baseSha: snapshot.flow.baseSha,
+    headSha: codeHead,
+    disposition: 'closed',
+    files: [{ path: 'SUMMARY.md', mediaType: 'text/markdown' }],
+    limitations: snapshot.latestEvent.marker.limitations,
+    createdAt: new Date().toISOString(),
+    nextActor: 'none',
+    nextWriteTarget: null,
+  };
+  const files = new Map<string, string>([
+    [`${target}/SUMMARY.md`, summary],
+    [`${target}/COMPLETE.json`, `${JSON.stringify(marker, null, 2)}\n`],
+  ]);
+  const publication = await publishAdditions(files, 'docs(pro-go): close flow', {
+    cwd: context.repoRoot,
+  });
+  const synced = await syncFlow(snapshot.flow.flowPath);
+  output({
+    publication,
+    flowPath: snapshot.flow.flowPath,
+    status: 'closed',
+    latestEventId: synced.state.latestEventId,
+  });
+}
+
+async function doctorCommand(): Promise<void> {
+  const inspection = await inspectBridgeWorktree();
+  const checks: Array<{ id: string; status: 'ok' | 'fail' | 'manual'; detail: string }> = [];
+  checks.push({
+    id: 'bridge-branch',
+    status: inspection.branchExists ? 'ok' : 'fail',
+    detail: inspection.branchExists
+      ? 'origin/vibe-pro-bridge exists'
+      : 'branch creation requires explicit user authorization',
+  });
+  checks.push({
+    id: 'worktree-ownership',
+    status:
+      inspection.worktreeExists === inspection.markerExists &&
+      (inspection.clean === null || inspection.clean)
+        ? 'ok'
+        : 'fail',
+    detail: `worktree=${inspection.worktreeExists} marker=${inspection.markerExists} clean=${inspection.clean}`,
+  });
+  try {
+    const local = await loadLocalProtocol(inspection.repoRoot);
+    checks.push({
+      id: 'local-protocol',
+      status: 'ok',
+      detail: `v1 commonHarnessSha256=${local.commonHarnessSha256}`,
+    });
+  } catch (error) {
+    checks.push({
+      id: 'local-protocol',
+      status: 'fail',
+      detail: error instanceof Error ? error.message : String(error),
+    });
+  }
+  checks.push({
+    id: 'web-pro-m0',
+    status: 'manual',
+    detail:
+      'Must be run in the actual Web Pro session: private repo read, non-default branch nested create, re-read/commit SHA, no default-branch/PR mutation, ~100 KiB UTF-8, sequential create convergence, confirmation UI.',
+  });
+  output({
+    ok: checks.every(({ status }) => status !== 'fail'),
+    checks,
+  });
+  if (checks.some(({ status }) => status === 'fail')) {
+    process.exitCode = 1;
+  }
+}
+
+async function main(): Promise<void> {
+  const args = parseArgs(process.argv.slice(2));
+  const command = args.positionals[0] ?? 'go';
+  if (command === 'help' || getBooleanFlag(args, 'help')) {
+    output(usage());
+    return;
+  }
+  if (command === 'go') {
+    await goCommand(args);
+    return;
+  }
+  if (command === 'bootstrap') {
+    await bootstrapCommand(args);
+    return;
+  }
+  if (command === 'start') {
+    await startCommand(args);
+    return;
+  }
+  if (command === 'status') {
+    await statusCommand(args);
+    return;
+  }
+  if (command === 'sync') {
+    await syncCommand(args);
+    return;
+  }
+  if (command === 'report') {
+    await reportCommand(args);
+    return;
+  }
+  if (command === 'continue') {
+    await continueCommand(args);
+    return;
+  }
+  if (command === 'close') {
+    await closeCommand(args);
+    return;
+  }
+  if (command === 'doctor') {
+    await doctorCommand();
+    return;
+  }
+  throw new Error(`unknown command: ${command}\n${usage()}`);
+}
+
+runMain(main, import.meta.url);

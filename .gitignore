@@ -31,3 +31,5 @@ scripts/tmp-*.mjs
 .vibe/agent/codex-unavailable.flag
 # sidecar advisory artifacts (non-durable runtime output)
 .vibe/sidecars/
+# isolated append-only exchange worktrees
+.vibe/worktrees/

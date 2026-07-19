@@ -1,0 +1,185 @@
+{
+  "$ref": "#/definitions/ProRoundtripReportInput",
+  "definitions": {
+    "ProRoundtripReportInput": {
+      "type": "object",
+      "properties": {
+        "schemaVersion": {
+          "type": "string",
+          "const": "vibe-pro-report-input-v1"
+        },
+        "flowPath": {
+          "type": "string",
+          "pattern": "^flows\\/[0-9]{8}\\/[0-9]{3}-[a-z0-9][a-z0-9-]{1,58}[a-z0-9]$"
+        },
+        "designEventId": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[0-9]{4}--pro--design--r[0-9]{2}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "sprintId": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^SPR-[0-9]{3}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "reportKind": {
+          "type": "string",
+          "enum": [
+            "implementation",
+            "remediation",
+            "audit"
+          ]
+        },
+        "baseSha": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$"
+        },
+        "headSha": {
+          "$ref": "#/definitions/ProRoundtripReportInput/properties/baseSha"
+        },
+        "completedContractIds": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^(REQ|INV|WF|NFR)-[0-9]{3}$"
+          }
+        },
+        "changedFiles": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "verification": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "command": {
+                "$ref": "#/definitions/ProRoundtripReportInput/properties/changedFiles/items"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "passed",
+                  "failed",
+                  "skipped"
+                ]
+              },
+              "summary": {
+                "$ref": "#/definitions/ProRoundtripReportInput/properties/changedFiles/items"
+              }
+            },
+            "required": [
+              "command",
+              "status",
+              "summary"
+            ],
+            "additionalProperties": false
+          },
+          "minItems": 1
+        },
+        "workflowEvidence": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "contractId": {
+                "type": "string",
+                "pattern": "^(REQ|INV|WF|NFR)-[0-9]{3}$"
+              },
+              "implementationEvidence": {
+                "$ref": "#/definitions/ProRoundtripReportInput/properties/changedFiles/items"
+              },
+              "testEvidence": {
+                "$ref": "#/definitions/ProRoundtripReportInput/properties/changedFiles/items"
+              },
+              "integrationEvidence": {
+                "$ref": "#/definitions/ProRoundtripReportInput/properties/changedFiles/items"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "complete",
+                  "partial",
+                  "blocked",
+                  "deferred"
+                ]
+              },
+              "notes": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "contractId",
+              "implementationEvidence",
+              "testEvidence",
+              "integrationEvidence",
+              "status",
+              "notes"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "sprintGatePassed": {
+          "type": "boolean"
+        },
+        "cumulativeGatePassed": {
+          "type": "boolean"
+        },
+        "finalGatePassed": {
+          "type": "boolean"
+        },
+        "resolvedFindingIds": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/ProRoundtripReportInput/properties/changedFiles/items"
+          }
+        },
+        "risks": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/ProRoundtripReportInput/properties/changedFiles/items"
+          }
+        },
+        "nextAction": {
+          "$ref": "#/definitions/ProRoundtripReportInput/properties/changedFiles/items"
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "flowPath",
+        "designEventId",
+        "sprintId",
+        "reportKind",
+        "baseSha",
+        "headSha",
+        "completedContractIds",
+        "changedFiles",
+        "verification",
+        "workflowEvidence",
+        "sprintGatePassed",
+        "cumulativeGatePassed",
+        "finalGatePassed",
+        "resolvedFindingIds",
+        "risks",
+        "nextAction"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}

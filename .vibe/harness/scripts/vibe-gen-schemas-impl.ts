@@ -23,6 +23,12 @@ const outputs: Record<StateFileName, string> = {
 const artifactOutputs = {
   'sidecar-input.json': '.vibe/harness/schemas/sidecar-input.schema.json',
   'sidecar-artifact.json': '.vibe/harness/schemas/sidecar-artifact.schema.json',
+  'pro-roundtrip-flow.json': '.vibe/harness/schemas/pro-roundtrip-flow.schema.json',
+  'pro-roundtrip-contract.json': '.vibe/harness/schemas/pro-roundtrip-contract.schema.json',
+  'pro-roundtrip-event-complete.json':
+    '.vibe/harness/schemas/pro-roundtrip-event-complete.schema.json',
+  'pro-roundtrip-report-input.json':
+    '.vibe/harness/schemas/pro-roundtrip-report-input.schema.json',
 } as const;
 
 const allOutputs = {

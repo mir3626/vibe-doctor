@@ -54,6 +54,7 @@ Narrow exception: if the user explicitly asks for `/vibe-review` or a harness/te
 - `docs/context/conventions.md`
 - `docs/context/architecture.md`
 - `docs/context/qa.md`
+- `docs/context/workflow-integrity.md` (multi-Sprint/iteration/Pro flow)
 <!-- END:HARNESS:agent-memory -->
 
 <!-- BEGIN:PROJECT:custom-rules -->

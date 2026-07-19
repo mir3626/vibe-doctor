@@ -1,0 +1,4 @@
+interface:
+  display_name: "Vibe Pro Go"
+  short_description: "Resume Web Pro design and Codex work automatically."
+  default_prompt: "Use $vibe-pro-go to resume the latest Web Pro flow and continue its next action."

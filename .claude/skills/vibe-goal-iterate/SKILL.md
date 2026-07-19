@@ -7,6 +7,12 @@ description: Convert a fully settled design into repeated /goal + $vibe-iterate 
 
 Use this skill to turn a finalized design discussion into an autonomous sequence of implementation iterations. It is for settled work, not early brainstorming.
 
+## Required Shared Policy
+
+Read and enforce `docs/context/workflow-integrity.md` before decomposing the
+design. The queue is not complete until its entrypoint-to-output journeys,
+cross-item consumers, and preserved invariants pass cumulatively.
+
 ## Operating Rule
 
 Proceed without asking for more prompts when all of these are true:
@@ -48,6 +54,9 @@ This skill narrows verification while the multi-item queue is still running.
    - In a vibe-doctor project, enforce the local `AGENTS.md` initialization boundary before non-init work.
    - Treat this as Orchestrator work until an actual Sprint Generator prompt/spec is created.
    - Load repo-local `$vibe-iterate` and `$goal-to-plan` wrappers when available; use their shared runbooks rather than inventing a parallel process.
+   - If `.vibe/agent/pro-roundtrip/ACTIVE.json` names an active flow, bind the
+     queue to that flow, design event, exact code branch/base, and its `SPR-*`
+     order. Do not substitute locally invented Sprint IDs.
 
 2. Freeze the design into a durable work packet.
    - Create or update a concise handoff/design note before implementation begins.
@@ -64,6 +73,9 @@ This skill narrows verification while the multi-item queue is still running.
    - Use `$goal-to-plan` or the local `/goal` equivalent to convert that item into an implementation plan.
    - If a Planner/Sprint prompt is required by the repo workflow, generate it and then execute the Sprint.
    - Keep each Planner/Sprint fresh-context where the repo's `$vibe-iterate` workflow requires it.
+   - Carry the required `Workflow Continuity` block from
+     `docs/context/workflow-integrity.md`; a Sprint-local green test is not
+     sufficient evidence for a shared boundary.
 
 5. Implement, verify, persist, continue.
    - Implement the current item fully.
@@ -71,11 +83,19 @@ This skill narrows verification while the multi-item queue is still running.
    - Update `.vibe/agent/handoff.md`, `.vibe/agent/session-log.md`, and any project report/checkpoint artifacts after each completed item or before any long transition.
    - Commit/push only when the user has asked for it or the repo's current task explicitly requires it.
    - Re-read the durable queue state, select the next non-completed item, and continue without waiting for another prompt unless blocked.
+   - For an active Pro flow, create and record the matching Pro report input
+     before `vibe-sprint-complete`. On the final queued Sprint, also satisfy the
+     final workflow gate and prepare the aggregate Web review report.
 
 6. Finish with an audit summary.
    - Finish only after checking the authoritative item queue and confirming that no item is still pending.
    - Report completed items, changed files, commits/pushes, verification results, remaining risks, and any deferred items.
    - If a blocker stopped the loop, include the exact item, reason, and required decision/scope expansion.
+   - When this loop originated from `$vibe-pro-go`, do not wait for a second
+     skill invocation: generate the Web Pro implementation/remediation report
+     automatically. Publish it only when the session is authorized to write to
+     GitHub; otherwise leave the complete durable packet and ask only for
+     publish confirmation.
 
 ## Handoff Policy
 

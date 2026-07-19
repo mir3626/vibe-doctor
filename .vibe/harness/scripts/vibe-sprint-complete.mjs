@@ -532,6 +532,117 @@ function syncSessionLog(scriptDir) {
   throw new Error(`session-log-sync exited ${result.status ?? 1}`);
 }
 
+export function validateActiveProSprintCompletion(
+  sprintId,
+  status,
+  root = process.cwd(),
+  currentHead = trySh('git rev-parse HEAD^{commit}'),
+) {
+  const activePath = path.join(root, '.vibe', 'agent', 'pro-roundtrip', 'ACTIVE.json');
+  if (status !== 'passed' || !existsSync(activePath)) {
+    return { required: false, checkpointPath: null };
+  }
+
+  let active;
+  try {
+    active = JSON.parse(readFileSync(activePath, 'utf8'));
+  } catch (error) {
+    throw new Error(`cannot parse active Pro flow state: ${error.message}`);
+  }
+  if (
+    active?.schemaVersion !== 'vibe-pro-active-flow-v1' ||
+    typeof active.flowPath !== 'string' ||
+    !Array.isArray(active.sprintIds)
+  ) {
+    throw new Error(`invalid active Pro flow state: ${activePath}`);
+  }
+  if (
+    active.status === 'closed' ||
+    active.autoReportRequired !== true
+  ) {
+    return { required: false, checkpointPath: null };
+  }
+  if (!active.sprintIds.includes(sprintId)) {
+    throw new Error(
+      `active Pro flow ${active.flowPath} does not contain Sprint ${sprintId}`,
+    );
+  }
+
+  const flowParts = active.flowPath.split('/');
+  if (
+    flowParts.length !== 3 ||
+    flowParts[0] !== 'flows' ||
+    !/^[0-9]{8}$/.test(flowParts[1]) ||
+    !/^[0-9]{3}-[a-z0-9][a-z0-9-]*$/.test(flowParts[2])
+  ) {
+    throw new Error(`invalid active Pro flow path: ${active.flowPath}`);
+  }
+  const packetRoot = path.join(
+    root,
+    '.vibe',
+    'agent',
+    'pro-roundtrip',
+    flowParts[1],
+    flowParts[2],
+  );
+  const sprintRoot =
+    active.latestEventKind === 'feedback'
+      ? path.join(packetRoot, 'remediation', active.latestEventId)
+      : path.join(packetRoot, 'sprints');
+  const matchingDirectories = existsSync(sprintRoot)
+    ? readdirSync(sprintRoot, { withFileTypes: true })
+        .filter(
+          (entry) =>
+            entry.isDirectory() && entry.name.startsWith(`${sprintId}-`),
+        )
+        .map((entry) => entry.name)
+    : [];
+  if (matchingDirectories.length !== 1) {
+    throw new Error(
+      `active Pro Sprint ${sprintId} has ${matchingDirectories.length} durable report directories`,
+    );
+  }
+  const checkpointPath = path.join(
+    sprintRoot,
+    matchingDirectories[0],
+    'CHECKPOINT.json',
+  );
+  if (!existsSync(checkpointPath)) {
+    throw new Error(
+      `record the automatic Pro report checkpoint before closing ${sprintId}: ${checkpointPath}`,
+    );
+  }
+
+  let checkpoint;
+  try {
+    checkpoint = JSON.parse(readFileSync(checkpointPath, 'utf8'));
+  } catch (error) {
+    throw new Error(`cannot parse Pro report checkpoint: ${error.message}`);
+  }
+  const input = checkpoint?.input;
+  const isFinalSprint = active.sprintIds.at(-1) === sprintId;
+  const requiresFinalGate = active.latestEventKind === 'feedback' || isFinalSprint;
+  const invalidReasons = [
+    checkpoint?.schemaVersion !== 'vibe-pro-sprint-checkpoint-v1'
+      ? 'checkpoint schema'
+      : null,
+    input?.flowPath !== active.flowPath ? 'flow binding' : null,
+    input?.designEventId !== active.designEventId ? 'design binding' : null,
+    input?.sprintId !== sprintId ? 'Sprint binding' : null,
+    input?.baseSha !== active.baseSha ? 'base SHA binding' : null,
+    !currentHead || input?.headSha !== currentHead ? 'current HEAD binding' : null,
+    input?.sprintGatePassed !== true ? 'Sprint gate' : null,
+    input?.cumulativeGatePassed !== true ? 'cumulative gate' : null,
+    requiresFinalGate && input?.finalGatePassed !== true ? 'final workflow gate' : null,
+  ].filter(Boolean);
+  if (invalidReasons.length > 0) {
+    throw new Error(
+      `active Pro report checkpoint is not completion-ready: ${invalidReasons.join(', ')}`,
+    );
+  }
+  return { required: true, checkpointPath };
+}
+
 function runCli() {
   const [, , sprintId, status, ...rest] = process.argv;
   if (!sprintId || !status || !['passed', 'failed'].includes(status)) {
@@ -566,6 +677,16 @@ function runCli() {
 
   if (!existsSync(statusPath)) {
     fail(`Missing required file: ${statusPath}`);
+  }
+  try {
+    const proGate = validateActiveProSprintCompletion(sprintId, status);
+    logStep(
+      'pro-report-gate',
+      proGate.required ? 'ok' : 'skip',
+      proGate.checkpointPath ? `checkpoint=${proGate.checkpointPath}` : '',
+    );
+  } catch (error) {
+    fail(`Pro workflow continuity gate failed: ${error.message}`);
   }
 
   let sprintStatus;

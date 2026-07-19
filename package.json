@@ -44,7 +44,8 @@
     "vibe:roadmap-maintenance": "node .vibe/harness/scripts/vibe-roadmap-maintenance.mjs",
     "vibe:dashboard": "node .vibe/harness/scripts/vibe-dashboard.mjs",
     "vibe:session-start": "node .vibe/harness/scripts/vibe-agent-session-start.mjs",
-    "vibe:checkpoint": "node .vibe/harness/scripts/vibe-checkpoint.mjs"
+    "vibe:checkpoint": "node .vibe/harness/scripts/vibe-checkpoint.mjs",
+    "vibe:pro-go": "node .vibe/harness/scripts/vibe-pro-go.mjs"
   },
   "dependencies": {
     "zod": "^3.23.0"

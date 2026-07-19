@@ -21,6 +21,11 @@ Responsibilities:
 - create the target `docs/prompts/sprint-<id>-*.md` prompt for Generator handoff
 - include the required Sprint Contract / Files Generator may touch / Do NOT modify / Verification sections
 - explicitly cover `.vibe/agent/_common-rules.md` §14 Wiring Integration Checklist when new files, scripts, skills, renames, or removals are involved
+- read `docs/context/workflow-integrity.md` and include its `Workflow Continuity`
+  block with upstream inputs, downstream consumers, cumulative journey,
+  preserved invariants, and evidence
+- when `.vibe/agent/pro-roundtrip/ACTIVE.json` is active, bind the prompt to its
+  flow, design event, exact code base/HEAD, and current `SPR-*` envelope
 
 ### Closure rule (universal)
 
@@ -36,6 +41,15 @@ Every generated Sprint prompt must include a `## Sprint Contract` section before
 - Reference-only values: identifiers, labels, paths, external targets, examples, or provenance values that may be cited but must not be converted into new entities or edited as live state.
 - Proof predicates: the exact checks or inspection predicates that prove completion, no stronger than the public contract.
 - Current proof and non-proof: require the Generator final report to separate fresh evidence from skipped, blocked, inferred, proxy, or historical evidence.
+
+### Workflow Continuity block
+
+Every generated Sprint prompt must include `## Workflow Continuity`. Reconcile
+it against the complete approved design/roadmap and prior checkpoints, not only
+the current slot summary. Require targeted Sprint evidence plus the cumulative
+entrypoint-to-output journey whenever a shared schema, config, API, state, or
+consumer boundary changes. The final Sprint must prove all declared workflows;
+Sprint-local unit tests alone are non-proof for that gate.
 
 ### Experiential product evidence rule
 

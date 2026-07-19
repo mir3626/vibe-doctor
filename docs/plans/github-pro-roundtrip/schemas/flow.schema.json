@@ -1,0 +1,125 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://vibe-doctor.local/schemas/vibe-pro-flow-v1.json",
+  "title": "Vibe Pro Roundtrip Flow",
+  "type": "object",
+  "properties": {
+    "schemaVersion": {
+      "const": "vibe-pro-flow-v1"
+    },
+    "flowPath": {
+      "type": "string",
+      "pattern": "^flows/[0-9]{8}/[0-9]{3}-[a-z0-9][a-z0-9-]{1,58}[a-z0-9]$"
+    },
+    "date": {
+      "type": "string",
+      "pattern": "^[0-9]{8}$"
+    },
+    "sequence": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 999
+    },
+    "slug": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]{1,58}[a-z0-9]$"
+    },
+    "goal": {
+      "type": "string",
+      "minLength": 1
+    },
+    "nonGoals": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "repository": {
+      "type": "object",
+      "properties": {
+        "fullName": {
+          "type": "string",
+          "pattern": "^[^/\\s]+/[^/\\s]+$"
+        },
+        "remoteUrl": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "fullName",
+        "remoteUrl"
+      ],
+      "additionalProperties": false
+    },
+    "bridgeBranch": {
+      "const": "vibe-pro-bridge"
+    },
+    "codeBranch": {
+      "type": "string",
+      "minLength": 1
+    },
+    "baseSha": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "protocol": {
+      "type": "object",
+      "properties": {
+        "version": {
+          "type": "string",
+          "pattern": "^v[1-9][0-9]*$"
+        },
+        "commitSha": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$"
+        },
+        "commonHarnessSha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      },
+      "required": [
+        "version",
+        "commitSha",
+        "commonHarnessSha256"
+      ],
+      "additionalProperties": false
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "timezone": {
+      "type": "string",
+      "minLength": 1
+    },
+    "createdBy": {
+      "type": "string",
+      "enum": [
+        "cli",
+        "pro"
+      ]
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "flowPath",
+    "date",
+    "sequence",
+    "slug",
+    "goal",
+    "nonGoals",
+    "repository",
+    "bridgeBranch",
+    "codeBranch",
+    "baseSha",
+    "protocol",
+    "createdAt",
+    "timezone",
+    "createdBy"
+  ],
+  "additionalProperties": false
+}
