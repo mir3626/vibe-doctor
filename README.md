@@ -10,17 +10,17 @@
 
 ## Latest Highlights
 
-### v1.7.17 (2026-05-14) - Injection and sharding safety hardening
+### v1.8.2 (2026-07-20) - GitHub-backed Web Pro round trip
 
-- Adds Codex wrapper Markdown injection diagnostics, including transitive shard injection checks for shared skill runbooks.
-- Splits `/vibe-init`, `/vibe-interview`, `/vibe-iterate`, and `/vibe-review` runbooks into guarded shards with dedicated audit gates wired into preflight and CI.
-- Adds sprint-mode and sync boundary audits, including a guard that prevents full harness ownership of root `README.md`.
-- Splits dashboard/report HTML renderers into dedicated `.vibe/harness/scripts/lib/*` modules while preserving synchronous render flow.
+- Adds `$vibe-pro-go` as the minimal CLI entrypoint for resuming the newest Web Pro design, implementation report, feedback, approval, or close event through a dedicated GitHub branch.
+- Adds a Web-first root `bridge-runbook.md` that requires exact GitHub repository/ref access and forbids Web Search, search-index, default-branch, and implicit fallback behavior.
+- Adds durable flat date/slug flow archives, exact design/Sprint/commit binding, cumulative workflow gates, and automatic Web-facing implementation/remediation reports.
+- Replaces the former MCP bridge runtime while preserving its implementation and historical artifacts on `origin/vibe-pro-bridge`.
 
-### Previous: v1.7.16 (2026-05-11) - Sprint-mode statusline polish
+### Previous: v1.7.30 (2026-07-14) - Session lifecycle and hidden QA hardening
 
-- Hides the sprint-mode statusline segment when mode is `off` so inactive state does not add noise.
-- Shows active sprint-mode states with an emoji segment, for example `🏃 sprint:extended`.
+- Deduplicates repeated SessionStart lifecycle deliveries without merging distinct lifecycle sources.
+- Hides nested Windows Stop-QA children and isolates their lifecycle environment from the real project.
 
 Release history is sharded under [docs/release/README.md](docs/release/README.md); detailed notes live in [docs/release/](docs/release/).
 
@@ -320,7 +320,7 @@ Root `src/**`, `scripts/**`, `test/**`, `app/**`, `components/**`, and `lib/**` 
 
 ## 버전 / tag 정책
 
-현재 릴리스는 `harnessVersion: 1.7.30` 입니다. 릴리스를 자를 때는 `package.json`, `.vibe/config.json`, release note, tag를 같은 버전으로 맞춥니다.
+현재 릴리스는 `harnessVersion: 1.8.2` 입니다. 릴리스를 자를 때는 `package.json`, `.vibe/config.json`, release note, tag를 같은 버전으로 맞춥니다.
 
 - `harnessVersion` 은 `.vibe/config.json` 과 `package.json` 에 semver로 기록합니다.
 - 각 minor/patch 릴리스는 해당 커밋에 `vMAJOR.MINOR.PATCH` git tag를 붙인 뒤 origin에 push합니다.

@@ -218,6 +218,7 @@
     "1.7.3": ".vibe/harness/migrations/1.7.3.mjs",
     "1.7.13": ".vibe/harness/migrations/1.7.13.mjs",
     "1.7.14": ".vibe/harness/migrations/1.7.14.mjs",
-    "1.7.18": ".vibe/harness/migrations/1.7.18.mjs"
+    "1.7.18": ".vibe/harness/migrations/1.7.18.mjs",
+    "1.8.2": ".vibe/harness/migrations/1.8.2.mjs"
   }
 }

@@ -868,6 +868,7 @@ describe('sync manifest', () => {
     assert.equal(manifest.migrations['1.7.3'], '.vibe/harness/migrations/1.7.3.mjs');
     assert.equal(manifest.migrations['1.7.13'], '.vibe/harness/migrations/1.7.13.mjs');
     assert.equal(manifest.migrations['1.7.14'], '.vibe/harness/migrations/1.7.14.mjs');
+    assert.equal(manifest.migrations['1.8.2'], '.vibe/harness/migrations/1.8.2.mjs');
   });
 });
 
@@ -1151,5 +1152,124 @@ describe('v1.7.14 migration', () => {
       await readFile(path.join(root, 'docs', 'reports', 'project-report.html'), 'utf8'),
       '<html>customer project</html>\n',
     );
+  });
+});
+
+describe('v1.8.2 migration', () => {
+  it('removes only proven legacy MCP bridge files and preserves historical results', async () => {
+    const root = await makeTempDir('vibe-migration-182-');
+    const knownLegacyPath = path.join(root, '.vibe', 'harness', 'scripts', 'vibe-pro-bridge.mjs');
+    const trackedLegacyPath = path.join(root, 'docs', 'context', 'pro-bridge-setup.md');
+    const modifiedLegacyPath = path.join(root, '.vibe', 'harness', 'src', 'pro-bridge', 'custom.ts');
+    const historicalResultPath = path.join(root, '.vibe', 'pro-bridge', 'results', 'keep.md');
+
+    for (const filePath of [
+      knownLegacyPath,
+      trackedLegacyPath,
+      modifiedLegacyPath,
+      historicalResultPath,
+    ]) {
+      await mkdir(path.dirname(filePath), { recursive: true });
+    }
+    await writeFile(knownLegacyPath, 'legacy bridge fixture\n', 'utf8');
+    await writeFile(trackedLegacyPath, 'tracked old setup\n', 'utf8');
+    await writeFile(modifiedLegacyPath, 'project-modified legacy harness file\n', 'utf8');
+    await writeFile(historicalResultPath, 'historical bridge evidence\n', 'utf8');
+    await writeJson(path.join(root, '.vibe', 'sync-hashes.json'), {
+      files: {
+        'docs/context/pro-bridge-setup.md': await computeFileHash(trackedLegacyPath),
+      },
+    });
+    await writeJson(path.join(root, '.vibe', 'config.json'), {
+      harnessVersion: '1.8.1',
+      audit: { everyN: 5 },
+      proBridge: {
+        enabled: false,
+        transport: 'manual',
+        resultRoot: 'docs/plans',
+        requestTtlHours: 72,
+        maxPatchBytes: 1048576,
+        openBrowser: true,
+        copyInvocation: true,
+        githubRequired: true,
+        mcp: { port: 18488, tunnel: 'none' },
+        workspaceAgent: { enabled: false, triggerCommand: [] },
+        api: {
+          enabled: false,
+          model: '',
+          effort: 'high',
+          maxInputTokens: 200000,
+          priceInputPerMTok: 0,
+          priceOutputPerMTok: 0,
+          pollIntervalMs: 5000,
+        },
+        apply: { envId: null },
+      },
+    });
+    await writeJson(path.join(root, 'package.json'), {
+      scripts: {
+        'vibe:pro-audit': 'node .vibe/harness/scripts/vibe-pro-bridge.mjs audit',
+        'vibe:pro-design': 'customized command',
+        'vibe:pro-go': 'node .vibe/harness/scripts/vibe-pro-go.mjs',
+      },
+    });
+
+    const migration = path.join(process.cwd(), '.vibe', 'harness', 'migrations', '1.8.2.mjs');
+    const { stdout } = await execFile(process.execPath, [migration, root]);
+
+    assert.match(stdout, /removedLegacyHarness=2/);
+    assert.match(stdout, /retainedLegacyHarness=1/);
+    assert.match(stdout, /config=removed-default/);
+    assert.match(stdout, /packageScripts=removed:1/);
+    await assert.rejects(readFile(knownLegacyPath, 'utf8'), /ENOENT/);
+    await assert.rejects(readFile(trackedLegacyPath, 'utf8'), /ENOENT/);
+    assert.equal(await readFile(modifiedLegacyPath, 'utf8'), 'project-modified legacy harness file\n');
+    assert.equal(await readFile(historicalResultPath, 'utf8'), 'historical bridge evidence\n');
+
+    const config = JSON.parse(await readFile(path.join(root, '.vibe', 'config.json'), 'utf8')) as {
+      audit: { everyN: number };
+      proBridge?: unknown;
+    };
+    const pkg = JSON.parse(await readFile(path.join(root, 'package.json'), 'utf8')) as {
+      scripts: Record<string, string>;
+    };
+    const hashes = JSON.parse(await readFile(path.join(root, '.vibe', 'sync-hashes.json'), 'utf8')) as {
+      files: Record<string, string>;
+    };
+    const report = await readFile(path.join(root, '.vibe', 'harness-migration-1.8.2.md'), 'utf8');
+    assert.equal(config.audit.everyN, 5);
+    assert.equal(config.proBridge, undefined);
+    assert.equal(pkg.scripts['vibe:pro-audit'], undefined);
+    assert.equal(pkg.scripts['vibe:pro-design'], 'customized command');
+    assert.equal(pkg.scripts['vibe:pro-go'], 'node .vibe/harness/scripts/vibe-pro-go.mjs');
+    assert.equal(hashes.files['docs/context/pro-bridge-setup.md'], undefined);
+    assert.match(report, /\.vibe\/harness\/src\/pro-bridge\/custom\.ts/);
+
+    const second = await execFile(process.execPath, [migration, root]);
+    assert.match(second.stdout, /removedLegacyHarness=0/);
+    assert.match(second.stdout, /retainedLegacyHarness=1/);
+    assert.match(second.stdout, /config=idempotent/);
+    assert.match(second.stdout, /packageScripts=removed:0/);
+  });
+
+  it('retains customized legacy bridge configuration', async () => {
+    const root = await makeTempDir('vibe-migration-182-config-');
+    await writeJson(path.join(root, '.vibe', 'config.json'), {
+      proBridge: {
+        enabled: true,
+        transport: 'manual',
+      },
+    });
+
+    const { stdout } = await execFile(process.execPath, [
+      path.join(process.cwd(), '.vibe', 'harness', 'migrations', '1.8.2.mjs'),
+      root,
+    ]);
+    const config = JSON.parse(await readFile(path.join(root, '.vibe', 'config.json'), 'utf8')) as {
+      proBridge: { enabled: boolean };
+    };
+
+    assert.match(stdout, /config=retained-custom/);
+    assert.equal(config.proBridge.enabled, true);
   });
 });
