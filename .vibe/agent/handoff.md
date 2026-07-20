@@ -1,5 +1,30 @@
 # Orchestrator Handoff
 
+<!-- vibe:auto-state:start -->
+> Auto-captured git snapshot (PreCompact); not a substitute for the narrative below.
+> Captured: 2026-07-20T04:16:32.521Z
+> Branch: main @ 9d69d0e chore(release): v1.8.3
+> Uncommitted: 11 file(s)
+> - M .vibe/agent/handoff.md
+> -  M .vibe/agent/session-log.md
+> -  M .vibe/config.json
+> -  M .vibe/harness/scripts/run-codex.sh
+> -  M .vibe/harness/src/pro-roundtrip/report.ts
+> -  M .vibe/harness/test/pro-roundtrip-cli.test.ts
+> -  M .vibe/harness/test/run-codex-wrapper.test.ts
+> -  M README.md
+> -  M docs/release/README.md
+> -  M package.json
+> - ?? docs/release/v1.8.4.md
+> Staged: none; Unstaged: 10 files changed, 346 insertions(+), 40 deletions(-)
+> Recent commits:
+> - 9d69d0e chore(release): v1.8.3
+> - 47e8379 chore(release): v1.8.2
+> - f10c4b7 feat(pro-go): add GitHub-backed Web Pro workflow
+> - f2f9512 fix(hooks): isolate SessionStart from Stop QA
+> - 1ac35d6 fix(hooks): detach harness-only Stop QA
+<!-- vibe:auto-state:end -->
+
 PROJECT NOT INITIALIZED.
 
 This is the upstream `vibe-doctor` template, so downstream product work still requires `/vibe-init`.
@@ -8,13 +33,14 @@ This is the upstream `vibe-doctor` template, so downstream product work still re
 
 - repo: `vibe-doctor`
 - mode: Codex Orchestrator maintenance
-- harnessVersion: `1.8.3`
+- harnessVersion: `1.8.4`
 - publication branch/base: rewritten `main` lineage from `f2f9512aeee62f0d13537e8b5fe99c8947a4bdd5`
 - remote state: `origin/main` carries the GitHub-only Pro workflow through `v1.8.3`; preserved `origin/vibe-pro-bridge` remains isolated and is not part of this release push
 - publication state: the user authorized the complete working tree for direct `main` publication plus annotated `v1.8.3`; no release PR is required
 
 ## 2. Active Work
 
+- v1.8.4 (this session): downstream dogfood (mir3626/osint-stock-screener) reported that a design-less `start audit` flow could not record remediation evidence after Web Pro feedback — `recordSprintReport` expected `audit` kind while the publisher only reads `remediation/<feedback-event>/` checkpoints, so the remediation-report target was unreachable. Fixed the expected-kind derivation (feedback → remediation regardless of contract), dropped the redundant kind clause from the contract-less binding guard, and added a full contract-less remediation roundtrip regression test. Also fixed a v1.7.27 regression found live: `run-codex.sh`'s session-start lifecycle child drained piped prompts via the hook stdin auto-detect (`readFileSync(0)`), breaking every `cat prompt | run-codex.sh -` delegation; now runs with `</dev/null` plus a wrapper regression test.
 - Public entrypoint is now `$vibe-pro-go` / `npm run vibe:pro-go`.
 - Bare invocation selects the newest non-closed flow for the current repo/branch by latest completed bridge event, syncs its durable packet, and returns paths plus the next executable action.
 - Web-first entry is supported through root `bridge-runbook.md`: GitHub exact-ref actions only, no Web Search/index/default fallback, Pro-origin goal + design creation, then normal CLI continuation.

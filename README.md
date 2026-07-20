@@ -10,16 +10,15 @@
 
 ## Latest Highlights
 
-### v1.8.3 (2026-07-20) - Verification reuse and faster Pro E2E
+### v1.8.4 (2026-07-20) - Contract-less remediation reports and piped-prompt guard
 
-- Adds impact-based harness verification groups with semantic success receipts shared by manual, Goal/Sprint, and Stop QA paths.
-- Keeps full self-test and release boundaries forced while unchanged successful groups can be reused safely.
-- Prevents Windows console flashes across descendant self-test child processes.
-- Cuts the isolated real-Git Pro CLI E2E lane from about 100 seconds to about 30 seconds without removing wrapper, transport, stale-HEAD, or tamper coverage.
+- Fixes design-less (contract-less) audit flows so remediation evidence is recorded after Web Pro feedback, unblocking the previously unreachable `remediation-report` publication target.
+- Fixes `run-codex.sh` so the session-start lifecycle hook no longer drains piped prompts, which since v1.7.27 made every `cat prompt.md | run-codex.sh -` delegation fail.
+- Adds regression coverage for the contract-less remediation roundtrip and the piped-stdin protection.
 
-### Previous: v1.8.2 (2026-07-20) - GitHub-backed Web Pro round trip
+### Previous: v1.8.3 (2026-07-20) - Verification reuse and faster Pro E2E
 
-- Adds `$vibe-pro-go`, the GitHub exact-ref Web runbook, append-only flow archives, exact design/Sprint/HEAD binding, and automatic Web-facing reports.
+- Adds impact-based harness verification groups with semantic success receipts, forced full self-test/release boundaries, hidden Windows child consoles, and an approximately 3x faster isolated Pro CLI E2E lane.
 
 Release history is sharded under [docs/release/README.md](docs/release/README.md); detailed notes live in [docs/release/](docs/release/).
 
@@ -319,7 +318,7 @@ Root `src/**`, `scripts/**`, `test/**`, `app/**`, `components/**`, and `lib/**` 
 
 ## 버전 / tag 정책
 
-현재 릴리스는 `harnessVersion: 1.8.3` 입니다. 릴리스를 자를 때는 `package.json`, `.vibe/config.json`, release note, tag를 같은 버전으로 맞춥니다.
+현재 릴리스는 `harnessVersion: 1.8.4` 입니다. 릴리스를 자를 때는 `package.json`, `.vibe/config.json`, release note, tag를 같은 버전으로 맞춥니다.
 
 - `harnessVersion` 은 `.vibe/config.json` 과 `package.json` 에 semver로 기록합니다.
 - 각 minor/patch 릴리스는 해당 커밋에 `vMAJOR.MINOR.PATCH` git tag를 붙인 뒤 origin에 push합니다.
