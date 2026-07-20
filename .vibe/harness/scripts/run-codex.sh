@@ -310,7 +310,7 @@ agent_session_start() {
     return 0
   fi
 
-  node "$script_path" >&2 || true
+  node "$script_path" </dev/null >&2 || true
 }
 
 attention_event() {

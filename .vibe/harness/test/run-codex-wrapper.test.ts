@@ -370,6 +370,40 @@ describe('run-codex.sh wrapper', { skip: bashCommand === null }, () => {
     assert.match(child.stdout, new RegExp(firstRuleLine.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
   });
 
+  it('protects piped stdin from a session-start hook that reads fd 0', async () => {
+    const binDir = await createShellStubBin('stdin');
+    const cwd = await makeTempDir('run-codex-session-start-stdin-');
+    const scriptsDir = path.join(cwd, '.vibe', 'harness', 'scripts');
+    const copiedWrapperPath = path.join(scriptsDir, 'run-codex.sh');
+    const copiedRulesPath = path.join(cwd, '.vibe', 'agent', '_common-rules.md');
+    const rules = await readFile(rulesPath, 'utf8');
+    const firstRuleLine = rules.split('\n')[0] ?? '';
+    await writeExecutable(copiedWrapperPath, await readFile(bashScriptPath, 'utf8'));
+    await writeExecutable(
+      path.join(scriptsDir, 'vibe-agent-session-start.mjs'),
+      "import { readFileSync } from 'node:fs';\nreadFileSync(0, 'utf8');\nconsole.error('session-start stub read fd 0');\n",
+    );
+    await mkdir(path.dirname(copiedRulesPath), { recursive: true });
+    await writeFile(copiedRulesPath, rules, 'utf8');
+
+    const prompt = 'first piped line\nsecond piped line\nfinal piped line';
+    const child = spawnSync(bashCommand ?? 'bash', [copiedWrapperPath, '-'], {
+      cwd,
+      env: shellEnv(binDir, {
+        CODEX_RETRY: '1',
+        VIBE_SKIP_AGENT_SESSION_START: '0',
+        VIBE_SPRINT_ID: '',
+      }),
+      input: prompt,
+      encoding: 'utf8',
+    });
+
+    assert.equal(child.status, 0, child.stderr);
+    assert.match(child.stderr, /session-start stub read fd 0/);
+    assert.equal(child.stdout.endsWith(prompt), true);
+    assert.match(child.stdout, new RegExp(firstRuleLine.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+  });
+
   it('runs provider-neutral session-start before non-health codex execution', async () => {
     const binDir = await createShellStubBin('ok');
     const cwd = await makeTempDir('run-codex-session-start-');
