@@ -601,6 +601,276 @@ describe('vibe-pro-go CLI', { concurrency: true }, () => {
   );
 
   it(
+    'records and publishes contract-less remediation after audit feedback',
+    async (testContext) => {
+      const fixture = await scaffoldRepository(testContext);
+      const started = await runCli(fixture, [
+        'start',
+        'audit',
+        '--goal',
+        'Audit the contract-less remediation fixture',
+        '--slug',
+        'contract-less-remediation',
+        '--timezone',
+        'Asia/Seoul',
+        '--repository',
+        'fixture/repo',
+        '--publish',
+      ]);
+      const flowPath = String(started.flowPath);
+      assert.match(flowPath, /^flows\/[0-9]{8}\/001-contract-less-remediation$/);
+      assert.equal(started.nextActor, 'codex');
+
+      const flow = JSON.parse(
+        await readFile(
+          path.join(fixture.context.worktreePath, ...flowPath.split('/'), 'FLOW.json'),
+          'utf8',
+        ),
+      ) as ProRoundtripFlow;
+      const goalMarker = JSON.parse(
+        await readFile(
+          path.join(
+            fixture.context.worktreePath,
+            ...flowPath.split('/'),
+            '0000--cli--goal--r01',
+            'COMPLETE.json',
+          ),
+          'utf8',
+        ),
+      ) as ProRoundtripEventComplete;
+      assert.equal(
+        goalMarker.nextWriteTarget,
+        `${flowPath}/0100--codex--implementation-report--r01`,
+      );
+
+      const codeHead = await git(fixture.checkout, ['rev-parse', 'HEAD']);
+      const evidencePath = path.join(fixture.checkout, 'audit-evidence.json');
+      const auditEvidence: ProRoundtripReportInput = {
+        schemaVersion: 'vibe-pro-report-input-v1',
+        flowPath,
+        designEventId: null,
+        sprintId: null,
+        reportKind: 'audit',
+        baseSha: flow.baseSha,
+        headSha: codeHead,
+        completedContractIds: [],
+        changedFiles: [],
+        verification: [
+          {
+            command: 'fixture audit verification',
+            status: 'passed',
+            summary: 'fixture audit passed',
+          },
+        ],
+        workflowEvidence: [],
+        sprintGatePassed: true,
+        cumulativeGatePassed: true,
+        finalGatePassed: true,
+        resolvedFindingIds: [],
+        risks: [],
+        nextAction: 'Publish the audit report.',
+      };
+      await writeFile(evidencePath, `${JSON.stringify(auditEvidence, null, 2)}\n`, 'utf8');
+      const auditRecorded = await runCli(fixture, [
+        'report',
+        flowPath,
+        '--evidence',
+        evidencePath,
+      ]);
+      assert.match(String(auditRecorded.checkpointPath), /sprints[\\/]AUDIT$/);
+      const auditPublished = await runCli(fixture, ['report', flowPath, '--publish']);
+      assert.ok(auditPublished.published);
+      await readFile(
+        path.join(
+          fixture.context.worktreePath,
+          ...flowPath.split('/'),
+          '0100--codex--implementation-report--r01',
+          'COMPLETE.json',
+        ),
+        'utf8',
+      );
+
+      const feedbackEventId = '0200--pro--feedback--r01';
+      const feedbackRoot = `${flowPath}/${feedbackEventId}`;
+      const feedbackMarker: ProRoundtripEventComplete = {
+        schemaVersion: 'vibe-pro-event-complete-v1',
+        flowPath,
+        eventId: feedbackEventId,
+        sequence: 200,
+        actor: 'pro',
+        kind: 'feedback',
+        revision: 1,
+        previousEventId: '0100--codex--implementation-report--r01',
+        supersedesEventId: null,
+        protocolVersion: flow.protocol.version,
+        designEventId: null,
+        sprintId: null,
+        repositoryFullName: flow.repository.fullName,
+        codeBranch: flow.codeBranch,
+        baseSha: flow.baseSha,
+        headSha: codeHead,
+        disposition: 'remediation-required',
+        files: [
+          { path: 'FEEDBACK.md', mediaType: 'text/markdown' },
+          { path: 'FINDINGS.json', mediaType: 'application/json' },
+        ],
+        limitations: [],
+        createdAt: new Date().toISOString(),
+        nextActor: 'codex',
+        nextWriteTarget: `${flowPath}/0300--codex--remediation-report--r01`,
+      };
+      await publishAdditions(
+        new Map([
+          [`${feedbackRoot}/FEEDBACK.md`, '# Contract-less remediation required\n'],
+          [
+            `${feedbackRoot}/FINDINGS.json`,
+            `${JSON.stringify(
+              {
+                schemaVersion: 'vibe-pro-findings-v1',
+                flowPath,
+                eventId: feedbackEventId,
+                reviewedHeadSha: codeHead,
+                disposition: 'remediation-required',
+                findings: [
+                  {
+                    id: 'FND-001',
+                    taxonomy: 'implementation-defect',
+                    severity: 'P1',
+                    contractIds: [],
+                    summary: 'First audit defect',
+                    evidence: 'fixture evidence one',
+                    expectedBehavior: 'The first audit defect is remediated.',
+                  },
+                  {
+                    id: 'FND-002',
+                    taxonomy: 'implementation-defect',
+                    severity: 'P1',
+                    contractIds: [],
+                    summary: 'Second audit defect',
+                    evidence: 'fixture evidence two',
+                    expectedBehavior: 'The second audit defect is remediated.',
+                  },
+                ],
+              },
+              null,
+              2,
+            )}\n`,
+          ],
+          [`${feedbackRoot}/COMPLETE.json`, `${JSON.stringify(feedbackMarker, null, 2)}\n`],
+        ]),
+        'test: publish contract-less audit feedback',
+        { context: fixture.context },
+      );
+      const synced = await runCli(fixture, ['sync', flowPath]);
+      assert.equal(synced.latestEventId, feedbackEventId);
+
+      const remediationEvidence: ProRoundtripReportInput = {
+        ...auditEvidence,
+        reportKind: 'remediation',
+        resolvedFindingIds: ['FND-001', 'FND-002'],
+        nextAction: 'Publish the contract-less remediation report.',
+      };
+      await writeFile(
+        evidencePath,
+        `${JSON.stringify(remediationEvidence, null, 2)}\n`,
+        'utf8',
+      );
+      const remediationRecorded = await runCli(fixture, [
+        'report',
+        flowPath,
+        '--evidence',
+        evidencePath,
+      ]);
+      assert.match(
+        String(remediationRecorded.checkpointPath),
+        /remediation[\\/]0200--pro--feedback--r01[\\/]AUDIT$/,
+      );
+      const checkpoint = JSON.parse(
+        await readFile(
+          path.join(String(remediationRecorded.checkpointPath), 'CHECKPOINT.json'),
+          'utf8',
+        ),
+      ) as { input: ProRoundtripReportInput };
+      assert.equal(checkpoint.input.reportKind, 'remediation');
+
+      for (const reportKind of ['audit', 'implementation'] as const) {
+        await writeFile(
+          evidencePath,
+          `${JSON.stringify({ ...remediationEvidence, reportKind }, null, 2)}\n`,
+          'utf8',
+        );
+        await assert.rejects(
+          runCli(fixture, ['report', flowPath, '--evidence', evidencePath]),
+          /report kind does not match flow state/,
+        );
+      }
+
+      const invalidBindings: ProRoundtripReportInput[] = [
+        {
+          ...remediationEvidence,
+          designEventId: '0100--pro--design--r01',
+        },
+        {
+          ...remediationEvidence,
+          sprintId: 'SPR-001',
+        },
+      ];
+      for (const invalidBinding of invalidBindings) {
+        await writeFile(
+          evidencePath,
+          `${JSON.stringify(invalidBinding, null, 2)}\n`,
+          'utf8',
+        );
+        await assert.rejects(
+          runCli(fixture, ['report', flowPath, '--evidence', evidencePath]),
+          /an audit flow report must have null design\/Sprint bindings/,
+        );
+      }
+
+      const partialRemediationEvidence: ProRoundtripReportInput = {
+        ...remediationEvidence,
+        resolvedFindingIds: ['FND-001'],
+      };
+      await writeFile(
+        evidencePath,
+        `${JSON.stringify(partialRemediationEvidence, null, 2)}\n`,
+        'utf8',
+      );
+      await runCli(fixture, ['report', flowPath, '--evidence', evidencePath]);
+      await assert.rejects(
+        runCli(fixture, ['report', flowPath, '--publish']),
+        /blocking actionable finding is unresolved: FND-002/,
+      );
+
+      await writeFile(
+        evidencePath,
+        `${JSON.stringify(remediationEvidence, null, 2)}\n`,
+        'utf8',
+      );
+      await runCli(fixture, ['report', flowPath, '--evidence', evidencePath]);
+      const remediationPublished = await runCli(fixture, [
+        'report',
+        flowPath,
+        '--publish',
+      ]);
+      assert.ok(remediationPublished.published);
+      const publishedMarker = JSON.parse(
+        await readFile(
+          path.join(
+            fixture.context.worktreePath,
+            ...flowPath.split('/'),
+            '0300--codex--remediation-report--r01',
+            'COMPLETE.json',
+          ),
+          'utf8',
+        ),
+      ) as ProRoundtripEventComplete;
+      assert.equal(publishedMarker.kind, 'remediation-report');
+      assert.equal(publishedMarker.previousEventId, feedbackEventId);
+    },
+  );
+
+  it(
     'rejects a Web design that reviewed a stale code HEAD',
     async (testContext) => {
       const fixture = await scaffoldRepository(testContext);

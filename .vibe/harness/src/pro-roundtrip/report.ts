@@ -177,11 +177,14 @@ export async function recordSprintReport(
     throw new Error('report base SHA does not match FLOW.json');
   }
   const contract = latestContract(snapshot);
-  const expectedReportKind = contract
-    ? snapshot.latestEvent.marker.kind === 'feedback'
+  // A feedback event demands remediation evidence even on a design-less audit flow: the
+  // publisher only reads remediation/<feedback-event>/ checkpoints once feedback is latest.
+  const expectedReportKind =
+    snapshot.latestEvent.marker.kind === 'feedback'
       ? 'remediation'
-      : 'implementation'
-    : 'audit';
+      : contract
+        ? 'implementation'
+        : 'audit';
   if (
     expectedReportKind === 'remediation' &&
     snapshot.latestEvent.marker.disposition !== 'remediation-required'
@@ -236,11 +239,7 @@ export async function recordSprintReport(
         throw new Error(`${input.sprintId}: missing owned contract evidence for ${ownedId}`);
       }
     }
-  } else if (
-    input.designEventId !== null ||
-    input.sprintId !== null ||
-    input.reportKind !== 'audit'
-  ) {
+  } else if (input.designEventId !== null || input.sprintId !== null) {
     throw new Error('an audit flow report must have null design/Sprint bindings');
   }
   if (!input.sprintGatePassed || !input.cumulativeGatePassed) {
