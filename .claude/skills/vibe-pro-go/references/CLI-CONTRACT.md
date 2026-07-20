@@ -14,6 +14,8 @@ npm run vibe:pro-go -- report [flow] --evidence <input.json>
 npm run vibe:pro-go -- report [flow] --publish
 npm run vibe:pro-go -- continue [flow]
 npm run vibe:pro-go -- close [flow] --publish
+npm run vibe:pro-go -- confirm-skip on [--reason "<text>"] [--days <1-365>]
+npm run vibe:pro-go -- confirm-skip off|status
 npm run vibe:pro-go -- doctor
 ```
 
@@ -26,6 +28,15 @@ without requiring a full flow path.
 authorizes the repository, branch, target, and file set. `bootstrap` is a
 one-time protocol publication that enables Web-first entry through root
 `bridge-runbook.md`.
+
+`confirm-skip on` records the `userDirectives.proGoAutoPublish` directive in
+`.vibe/config.local.json` (optionally expiring after `--days`) and appends a
+session-log `[decision][pro-go-auto-publish]` entry. While the directive is
+active, `go`/`status` report `autoPublish: true` and the agent may pass
+`--publish` without waiting for per-write authorization, recording
+`[decision][auto-approved]` per publication instead. `confirm-skip off`
+disables it; a missing or malformed directive always falls back to requiring
+confirmation.
 
 ## Durable packet
 

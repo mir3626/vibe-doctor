@@ -308,6 +308,7 @@ describe('vibe-pro-go CLI', { concurrency: true }, () => {
     );
     const resumed = await runCli(fixture, []);
     assert.equal(resumed.action, 'go');
+    assert.equal(resumed.autoPublish, false);
     assert.equal(resumed.flowPath, flowPath);
     assert.equal(resumed.currentSprintId, 'SPR-001');
     assert.equal(resumed.selection, 'latest-non-closed-current-repo-branch');
@@ -869,6 +870,79 @@ describe('vibe-pro-go CLI', { concurrency: true }, () => {
       assert.equal(publishedMarker.previousEventId, feedbackEventId);
     },
   );
+
+  it('toggles the auto-publish confirmation-skip directive', async (testContext) => {
+    const fixture = await scaffoldRepository(testContext);
+    const configLocalPath = path.join(fixture.checkout, '.vibe', 'config.local.json');
+    const sessionLogPath = path.join(fixture.checkout, '.vibe', 'agent', 'session-log.md');
+    await writeText(sessionLogPath, '# Session Log\n\n## Entries\n');
+
+    const initial = await runCli(fixture, ['confirm-skip', 'status']);
+    assert.equal(initial.autoPublish, false);
+    assert.equal(initial.directive, null);
+
+    await assert.rejects(
+      runCli(fixture, ['confirm-skip', 'on', '--reason', 'multi\nline']),
+      /reason must be single-line/,
+    );
+    await assert.rejects(
+      runCli(fixture, ['confirm-skip', 'on', '--days', '0']),
+      /days must be a positive integer/,
+    );
+
+    const enabled = await runCli(fixture, [
+      'confirm-skip',
+      'on',
+      '--reason',
+      'dogfood roundtrip',
+    ]);
+    assert.equal(enabled.autoPublish, true);
+    const written = JSON.parse(await readFile(configLocalPath, 'utf8')) as {
+      userDirectives: {
+        proGoAutoPublish: { enabled: boolean; reason: string; expiresAt: string | null };
+      };
+    };
+    assert.equal(written.userDirectives.proGoAutoPublish.enabled, true);
+    assert.equal(written.userDirectives.proGoAutoPublish.reason, 'dogfood roundtrip');
+    assert.equal(written.userDirectives.proGoAutoPublish.expiresAt, null);
+    assert.match(
+      await readFile(sessionLogPath, 'utf8'),
+      /\[decision\]\[pro-go-auto-publish\] reason=dogfood roundtrip expiresAt=none/,
+    );
+    const active = await runCli(fixture, ['confirm-skip', 'status']);
+    assert.equal(active.autoPublish, true);
+
+    written.userDirectives.proGoAutoPublish.expiresAt = new Date(
+      Date.now() - 1000,
+    ).toISOString();
+    await writeFile(configLocalPath, `${JSON.stringify(written, null, 2)}\n`, 'utf8');
+    const lapsed = await runCli(fixture, ['confirm-skip', 'status']);
+    assert.equal(lapsed.autoPublish, false);
+    assert.equal(lapsed.expired, true);
+
+    const rearmed = await runCli(fixture, ['confirm-skip', 'on', '--days', '7']);
+    assert.equal(rearmed.autoPublish, true);
+    assert.notEqual((rearmed.directive as { expiresAt: string | null }).expiresAt, null);
+
+    const disabled = await runCli(fixture, ['confirm-skip', 'off']);
+    assert.equal(disabled.autoPublish, false);
+    assert.equal(disabled.changed, true);
+    const cleared = JSON.parse(await readFile(configLocalPath, 'utf8')) as {
+      userDirectives: { proGoAutoPublish: { enabled: boolean } };
+    };
+    assert.equal(cleared.userDirectives.proGoAutoPublish.enabled, false);
+    assert.match(
+      await readFile(sessionLogPath, 'utf8'),
+      /\[decision\]\[pro-go-auto-publish-clear\]/,
+    );
+    const repeated = await runCli(fixture, ['confirm-skip', 'off']);
+    assert.equal(repeated.changed, false);
+
+    await assert.rejects(
+      runCli(fixture, ['confirm-skip', 'maybe']),
+      /confirm-skip requires on, off, or status/,
+    );
+  });
 
   it(
     'rejects a Web design that reviewed a stale code HEAD',

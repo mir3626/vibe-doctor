@@ -50,7 +50,9 @@ A flow started or resumed by this skill remains active until Pro handoff or
 close. After every Sprint, create its validated report checkpoint without
 requiring another user skill invocation. After the last Sprint, automatically
 prepare the complete Web Pro report and workflow matrix. Before the GitHub write,
-show the exact bridge target/files and obtain authorization; then publish and
+show the exact bridge target/files and obtain authorization — unless the CLI
+output reports `autoPublish: true`, in which case proceed without waiting and
+record one session-log `[decision][auto-approved]` entry; then publish and
 return the next Web prompt.
 
 Do not claim completion while a checkpoint, contract row, cumulative journey,
@@ -62,6 +64,13 @@ final gate, or actionable P0/P1 finding is missing.
 `close --publish` write to GitHub. Show repository, branch, target, and files
 before passing `--publish`. Never create a PR, modify the default branch, rewrite
 completed events, force-push, or hand-edit `.vibe/worktrees/pro-roundtrip`.
+
+`confirm-skip on|off|status` toggles the `userDirectives.proGoAutoPublish`
+directive in `.vibe/config.local.json`. While `go`/`status` report
+`autoPublish: true`, skip the per-write user authorization wait: still show
+repository, branch, target, and files, then pass `--publish` and record one
+session-log `[decision][auto-approved]` entry per publication. Toggle the
+directive only on an explicit user instruction.
 
 `go`, `status`, `sync`, `continue`, and `doctor` are read/local operations.
 Reject protocol drift, stale HEAD, tamper, unsafe paths, and ambiguous targets.

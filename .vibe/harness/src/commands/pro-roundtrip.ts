@@ -7,6 +7,13 @@ import type {
   ProRoundtripEventComplete,
   ProRoundtripFlow,
 } from '../lib/schemas/pro-roundtrip.js';
+import {
+  disableAutoPublish,
+  enableAutoPublish,
+  readAutoPublishState,
+  validateAutoPublishDays,
+  validateAutoPublishReason,
+} from '../pro-roundtrip/auto-publish.js';
 import { parseEventDirectory, parseFlowPath } from '../pro-roundtrip/contract.js';
 import {
   allocateFlowPath,
@@ -45,6 +52,8 @@ function usage(): string {
   vibe-pro-go report [flow] [--evidence <input.json>] [--publish]
   vibe-pro-go continue [flow]
   vibe-pro-go close [flow] --publish
+  vibe-pro-go confirm-skip on [--reason "<text>"] [--days <1-365>]
+  vibe-pro-go confirm-skip off|status
   vibe-pro-go doctor`;
 }
 
@@ -386,7 +395,8 @@ async function goCommand(
   runtime: ProRoundtripRuntime,
 ): Promise<void> {
   const flowPath = await selectGoFlow(args, runtime);
-  const synced = await syncFlow(flowPath, { context: await bridgeContext(runtime) });
+  const context = await bridgeContext(runtime);
+  const synced = await syncFlow(flowPath, { context });
   const marker = synced.snapshot.latestEvent.marker;
   const contract = [...synced.snapshot.events].reverse().find((event) => event.contract)
     ?.contract;
@@ -396,6 +406,7 @@ async function goCommand(
   emit(runtime, {
     action: 'go',
     flowPath,
+    autoPublish: (await readAutoPublishState(context.repoRoot)).autoPublish,
     selection: args.positionals[1] ? 'explicit' : 'latest-non-closed-current-repo-branch',
     packetRoot: synced.packetRoot,
     handoffPath: path.join(synced.packetRoot, 'HANDOFF.md'),
@@ -621,6 +632,7 @@ async function statusCommand(
   const localState = await readPacketState(context.repoRoot, snapshot.flow.flowPath);
   emit(runtime, {
     flowPath: snapshot.flow.flowPath,
+    autoPublish: (await readAutoPublishState(context.repoRoot)).autoPublish,
     goal: snapshot.flow.goal,
     codeBranch: snapshot.flow.codeBranch,
     baseSha: snapshot.flow.baseSha,
@@ -802,6 +814,43 @@ The append-only archive is closed. No default-branch write or PR was created by 
   });
 }
 
+async function confirmSkipCommand(
+  args: ParsedArgs,
+  runtime: ProRoundtripRuntime,
+): Promise<void> {
+  const repoRoot = await repositoryRoot(runtime);
+  const mode = args.positionals[1] ?? 'status';
+  if (mode === 'status') {
+    const state = await readAutoPublishState(repoRoot);
+    emit(runtime, {
+      action: 'confirm-skip',
+      mode,
+      autoPublish: state.autoPublish,
+      expired: state.expired,
+      directive: state.directive,
+    });
+    return;
+  }
+  if (mode === 'on') {
+    const reason = validateAutoPublishReason(
+      getStringFlag(args, 'reason', 'user directive: skip per-publish confirmation') ?? '',
+    );
+    const rawDays = getStringFlag(args, 'days');
+    const directive = await enableAutoPublish(repoRoot, {
+      reason,
+      ...(rawDays === undefined ? {} : { days: validateAutoPublishDays(rawDays) }),
+    });
+    emit(runtime, { action: 'confirm-skip', mode, autoPublish: true, directive });
+    return;
+  }
+  if (mode === 'off') {
+    const { directive, changed } = await disableAutoPublish(repoRoot);
+    emit(runtime, { action: 'confirm-skip', mode, autoPublish: false, changed, directive });
+    return;
+  }
+  throw new Error(`confirm-skip requires on, off, or status\n${usage()}`);
+}
+
 async function doctorCommand(runtime: ProRoundtripRuntime): Promise<void> {
   const inspection = await inspectBridgeWorktree(runtime.cwd);
   const checks: Array<{ id: string; status: 'ok' | 'fail' | 'manual'; detail: string }> = [];
@@ -901,6 +950,10 @@ export async function executeProRoundtrip(
   }
   if (command === 'close') {
     await closeCommand(args, runtime);
+    return;
+  }
+  if (command === 'confirm-skip') {
+    await confirmSkipCommand(args, runtime);
     return;
   }
   if (command === 'doctor') {
