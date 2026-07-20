@@ -35,8 +35,8 @@ This is the upstream `vibe-doctor` template, so downstream product work still re
 - mode: Codex Orchestrator maintenance
 - harnessVersion: `1.8.4`
 - publication branch/base: rewritten `main` lineage from `f2f9512aeee62f0d13537e8b5fe99c8947a4bdd5`
-- remote state: `origin/main` carries the GitHub-only Pro workflow through `v1.8.3`; preserved `origin/vibe-pro-bridge` remains isolated and is not part of this release push
-- publication state: the user authorized the complete working tree for direct `main` publication plus annotated `v1.8.3`; no release PR is required
+- remote state: `origin/main` carries the GitHub-only Pro workflow through `v1.8.4`; preserved `origin/vibe-pro-bridge` remains isolated and is not part of this release push
+- publication state: v1.8.4 published to `main` with annotated tag per the direct-main release convention; the triggering user directive was the downstream bug report requesting upstream integration and release inclusion. No release PR is required.
 
 ## 2. Active Work
 
