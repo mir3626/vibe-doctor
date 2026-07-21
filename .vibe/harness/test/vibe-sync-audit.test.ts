@@ -169,4 +169,97 @@ describe('vibe-sync-audit', () => {
       true,
     );
   });
+
+  it('warns (without failing) when product code imports harness internals beyond the surface', async () => {
+    const root = await makeTempDir('vibe-sync-audit-ownership-');
+    await scaffoldAuditRoot(root);
+    await writeText(
+      path.join(root, 'src', 'consumer.ts'),
+      [
+        "import { deriveFinalEvidenceManifest } from '../.vibe/harness/src/universal-integrity-core/index.js';",
+        "import { readPacketState } from '../.vibe/harness/src/pro-roundtrip/importer.js';",
+        'export const wired = [deriveFinalEvidenceManifest, readPacketState];',
+        '',
+      ].join('\n'),
+    );
+
+    const result = runAudit(root);
+    const parsed = JSON.parse(result.stdout) as {
+      ok: boolean;
+      warnings: Array<{ id: string; path?: string; target?: string }>;
+      crossBoundaryImports: Array<{ file: string; target: string }>;
+    };
+
+    // Report-only: the ownership signal never gates the audit.
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(parsed.ok, true);
+    assert.equal(
+      parsed.warnings.some(
+        (warning) =>
+          warning.id === 'harness-internal-import' &&
+          warning.path === 'src/consumer.ts' &&
+          warning.target === '.vibe/harness/src/pro-roundtrip/importer.js',
+      ),
+      true,
+    );
+    assert.equal(
+      parsed.crossBoundaryImports.some(
+        (entry) =>
+          entry.file === 'src/consumer.ts' &&
+          entry.target === '.vibe/harness/src/universal-integrity-core/index.js',
+      ),
+      true,
+    );
+
+    // A project-declared allowlist extension silences the warning.
+    await writeJson(path.join(root, '.vibe', 'config.json'), {
+      audit: { harnessImportAllowlist: ['.vibe/harness/src/pro-roundtrip/importer.js'] },
+    });
+    const extended = runAudit(root);
+    const extendedParsed = JSON.parse(extended.stdout) as {
+      warnings: Array<{ id: string }>;
+      crossBoundaryImports: Array<{ target: string }>;
+    };
+    assert.equal(extended.status, 0);
+    assert.equal(extendedParsed.warnings.length, 0);
+    assert.equal(extendedParsed.crossBoundaryImports.length, 2);
+  });
+
+  it('reports declared shared-module mirror drift without failing', async () => {
+    const root = await makeTempDir('vibe-sync-audit-mirror-');
+    await scaffoldAuditRoot(root);
+    await writeText(path.join(root, 'shared', 'core', 'a.js'), 'export const a = 1;\n');
+    await writeText(path.join(root, 'shared', 'core', 'b.js'), 'export const b = 2;\n');
+    await writeText(path.join(root, '.vibe', 'harness', 'src', 'core-mirror', 'a.js'), 'export const a = 1;\n');
+    await writeJson(path.join(root, '.vibe', 'config.json'), {
+      audit: {
+        sharedModuleMirrors: [
+          { projectPath: 'shared/core', harnessPath: '.vibe/harness/src/core-mirror' },
+        ],
+      },
+    });
+
+    const drifted = runAudit(root);
+    const driftedParsed = JSON.parse(drifted.stdout) as {
+      ok: boolean;
+      warnings: Array<{ id: string; path?: string }>;
+      sharedModuleMirrors: Array<{ drifted: string[]; onlyInProject: string[]; onlyInHarness: string[] }>;
+    };
+    assert.equal(drifted.status, 0, drifted.stderr);
+    assert.equal(driftedParsed.ok, true);
+    assert.equal(
+      driftedParsed.warnings.some(
+        (warning) => warning.id === 'shared-module-drift' && warning.path === 'shared/core',
+      ),
+      true,
+    );
+    assert.deepEqual(driftedParsed.sharedModuleMirrors[0]?.onlyInProject, ['b.js']);
+
+    // Identical mirrors report clean.
+    await writeText(path.join(root, '.vibe', 'harness', 'src', 'core-mirror', 'b.js'), 'export const b = 2;\n');
+    const clean = runAudit(root);
+    const cleanParsed = JSON.parse(clean.stdout) as { warnings: Array<{ id: string }> };
+    assert.equal(clean.status, 0);
+    assert.equal(cleanParsed.warnings.filter((warning) => warning.id === 'shared-module-drift').length, 0);
+  });
 });

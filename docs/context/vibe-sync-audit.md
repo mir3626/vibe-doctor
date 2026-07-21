@@ -53,3 +53,23 @@ The gate validates:
   dependency blocks.
 - Do not replace the post-sync harness-only typecheck with a product-wide
   `tsc --noEmit` path when `.vibe/harness/tsconfig.harness.json` exists.
+
+## Report-Only Ownership Signals (v1.10.1)
+
+Two signals observe the shared-module ownership boundary
+(`docs/context/workflow-integrity.md` §11). Both are warnings only — they never
+change the audit exit code, gate preflight, or block CI.
+
+- **`harness-internal-import`** — product code (`src/**`, `scripts/**`,
+  `test/**`, `app/**`, `components/**`, `lib/**`) imports from
+  `.vibe/harness/src/**` beyond the documented cross-boundary surface
+  (`universal-integrity-core/index.js`, `pro-roundtrip/report.js`) plus the
+  project's `.vibe/config.json` `audit.harnessImportAllowlist`. Broad product
+  dependence on harness internals is the observable symptom of an ownership
+  inversion. Sanctioned surface imports are listed as `cross-boundary-import`
+  info lines instead.
+- **`shared-module-drift`** — mirror pairs declared in `.vibe/config.json`
+  `audit.sharedModuleMirrors` (`[{ "projectPath": "...", "harnessPath": "..." }]`)
+  are hash-diffed per file and divergence is reported (changed / project-only /
+  harness-only). Duplication of module mechanics on both sides of the boundary
+  is expected; silent divergence is not.

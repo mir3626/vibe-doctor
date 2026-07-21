@@ -10,15 +10,14 @@
 
 ## Latest Highlights
 
-### v1.10.0 (2026-07-22) - Finding-scope discipline for the Pro review loop
+### v1.10.1 (2026-07-22) - Shared-module ownership boundary
 
-- Web Pro reviews now classify every finding by plane (`product` / `evidence`) and gate P0/P1 severity on explicit impact classes; a design-declared `CONTRACT.json` `productPlane` block arms schema-level enforcement, while historical and design-less audit flows stay exempt.
-- New `backlog-candidate` taxonomy gives real-but-non-blocking observations a destination (with mandatory carry-forward into approval/close deferrals), and the publisher's final-evidence gate now demands fresh evidence only for Sprint-owned/affected contract rows — preserved rows ride the complete gate.
-- Motivated by downstream dogfood: five consecutive evidence-plane P1 rounds (the FND-019..024 series) blocked a product lane for three days without one product-plane finding. The discipline constrains what may block approval, not what may be found.
+- Withdraws the v1.9.0 guidance that told downstreams to delete their own shared module and alias into the harness tree: a downstream that owns an equivalent module keeps it, and imports only the documented cross-boundary symbols (`deriveFinalEvidenceManifest`, `workflowMatrixMarkdown`) from the harness copy — the byte-identity requirement only exists where both sides compute and compare a value.
+- `vibe:sync-audit` gains two report-only signals: a warning when product code imports `.vibe/harness/src/**` beyond the documented surface (ownership-inversion symptom, project-extensible allowlist) and a hash-diff drift report for declared shared-module mirror pairs. Neither changes the exit code.
 
-### Previous: v1.9.0 (2026-07-22) - Pro roundtrip byte-exact transport and design-owned final gate
+### Previous: v1.10.0 (2026-07-22) - Finding-scope discipline for the Pro review loop
 
-- The Pro roundtrip transport pins one bridge commit and reads/copies/receipts every flow/event byte from the immutable Git object store; the publisher independently reconstructs the final-evidence manifest; the QA roster lives in the design's `finalGatePolicy`; `universal-integrity-core` is vendored into the harness.
+- Web Pro reviews classify findings by plane and gate P0/P1 on explicit impact classes armed by a design-declared `productPlane`; `backlog-candidate` gives non-blocking observations a destination; the final-evidence gate demands fresh evidence only for Sprint-owned/affected rows.
 
 Release history is sharded under [docs/release/README.md](docs/release/README.md); detailed notes live in [docs/release/](docs/release/).
 
@@ -333,7 +332,7 @@ Root `src/**`, `scripts/**`, `test/**`, `app/**`, `components/**`, and `lib/**` 
 
 ## 버전 / tag 정책
 
-현재 릴리스는 `harnessVersion: 1.10.0` 입니다. 릴리스를 자를 때는 `package.json`, `.vibe/config.json`, release note, tag를 같은 버전으로 맞춥니다.
+현재 릴리스는 `harnessVersion: 1.10.1` 입니다. 릴리스를 자를 때는 `package.json`, `.vibe/config.json`, release note, tag를 같은 버전으로 맞춥니다.
 
 - `harnessVersion` 은 `.vibe/config.json` 과 `package.json` 에 semver로 기록합니다.
 - 각 minor/patch 릴리스는 해당 커밋에 `vMAJOR.MINOR.PATCH` git tag를 붙인 뒤 origin에 push합니다.

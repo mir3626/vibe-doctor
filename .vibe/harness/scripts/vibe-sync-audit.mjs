@@ -1,11 +1,30 @@
 #!/usr/bin/env node
-import { existsSync, readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 
 const SKILL_PATH = '.claude/skills/vibe-sync/SKILL.md';
 const MANIFEST_PATH = '.vibe/sync-manifest.json';
 const RUNTIME_PATH = '.vibe/harness/src/commands/sync.ts';
+const CONFIG_PATH = '.vibe/config.json';
+
+// Shared-module ownership boundary: product code may import from the harness tree only
+// through the documented cross-boundary surface — module paths whose sanctioned symbols
+// are values BOTH sides compute and compare (FND-020 fail-closed equality):
+//   universal-integrity-core/index.js -> deriveFinalEvidenceManifest (manifest derivation)
+//   pro-roundtrip/report.js           -> workflowMatrixMarkdown (matrix bytes feed
+//                                        workflowMatrixSha256 in that manifest)
+// The audit is path-granular; symbol discipline is documented and guarded downstream.
+// Projects extend this list via `.vibe/config.json` audit.harnessImportAllowlist.
+const CROSS_BOUNDARY_IMPORT_ALLOWLIST = [
+  '.vibe/harness/src/universal-integrity-core/index.js',
+  '.vibe/harness/src/pro-roundtrip/report.js',
+];
+const PRODUCT_CODE_DIRS = ['src', 'scripts', 'test', 'app', 'components', 'lib'];
+const PRODUCT_CODE_EXTENSIONS = new Set(['.ts', '.tsx', '.mts', '.cts', '.js', '.mjs', '.cjs']);
+const HARNESS_OWNED_PRODUCT_FILES = new Set(['scripts/vibe-sync-bootstrap.mjs']);
+const HARNESS_SRC_PREFIX = '.vibe/harness/src/';
 
 const REQUIRED_SKILL_SIGNALS = [
   { id: 'dry-run-first', pattern: /npm run vibe:sync -- --dry-run/ },
@@ -241,6 +260,159 @@ function asStringArray(value) {
 
 function addFinding(findings, id, detail, extra = {}) {
   findings.push({ severity: 'error', id, detail, ...extra });
+}
+
+function addWarning(warnings, id, detail, extra = {}) {
+  warnings.push({ severity: 'warning', id, detail, ...extra });
+}
+
+function readOptionalJson(root, relativePath) {
+  if (!existsSync(path.join(root, relativePath))) {
+    return null;
+  }
+  try {
+    return readJson(root, relativePath);
+  } catch {
+    return null;
+  }
+}
+
+function walkFiles(root, relativeDir, results) {
+  const absolute = path.join(root, relativeDir);
+  if (!existsSync(absolute)) {
+    return;
+  }
+  for (const entry of readdirSync(absolute, { withFileTypes: true })) {
+    if (entry.name.startsWith('.') || entry.name === 'node_modules' || entry.name === 'dist') {
+      continue;
+    }
+    const relative = `${relativeDir}/${entry.name}`;
+    if (entry.isDirectory()) {
+      walkFiles(root, relative, results);
+    } else if (entry.isFile()) {
+      results.push(relative);
+    }
+  }
+}
+
+function extractImportSpecifiers(text) {
+  const specifiers = [];
+  const pattern = /(?:\bfrom\s*|\bimport\s+|\bimport\s*\(\s*|\brequire\s*\(\s*)(['"])([^'"\n]+)\1/g;
+  for (const match of text.matchAll(pattern)) {
+    specifiers.push(match[2]);
+  }
+  return specifiers;
+}
+
+function canonicalHarnessTarget(importerRelativePath, specifier) {
+  const normalizedSpecifier = toPosix(specifier);
+  const resolved = normalizedSpecifier.startsWith('.')
+    ? toPosix(path.posix.normalize(path.posix.join(path.posix.dirname(toPosix(importerRelativePath)), normalizedSpecifier)))
+    : normalizedSpecifier;
+  const index = resolved.indexOf(HARNESS_SRC_PREFIX);
+  return index === -1 ? null : resolved.slice(index);
+}
+
+function isAllowlistedTarget(target, allowlist) {
+  return allowlist.some((entry) =>
+    entry === target || (entry.endsWith('/**') && target.startsWith(entry.slice(0, -2))));
+}
+
+/**
+ * Shared-module ownership signal (report-only): broad product dependence on harness
+ * internals is the observable symptom of an ownership inversion. Imports of the
+ * documented cross-boundary surface are recorded as informational; anything else warns.
+ */
+function checkOwnershipBoundary(root, config, warnings) {
+  const allowlist = [
+    ...CROSS_BOUNDARY_IMPORT_ALLOWLIST,
+    ...asStringArray(config?.audit?.harnessImportAllowlist),
+  ];
+  const files = [];
+  for (const dir of PRODUCT_CODE_DIRS) {
+    walkFiles(root, dir, files);
+  }
+  const crossBoundaryImports = [];
+  for (const file of files) {
+    if (HARNESS_OWNED_PRODUCT_FILES.has(file) || !PRODUCT_CODE_EXTENSIONS.has(path.posix.extname(file))) {
+      continue;
+    }
+    let text;
+    try {
+      text = readText(root, file);
+    } catch {
+      continue;
+    }
+    if (!text.includes(HARNESS_SRC_PREFIX)) {
+      continue;
+    }
+    for (const specifier of extractImportSpecifiers(text)) {
+      const target = canonicalHarnessTarget(file, specifier);
+      if (!target) {
+        continue;
+      }
+      if (isAllowlistedTarget(target, allowlist)) {
+        crossBoundaryImports.push({ file, target });
+      } else {
+        addWarning(
+          warnings,
+          'harness-internal-import',
+          'product code imports harness internals beyond the documented cross-boundary surface (ownership-inversion symptom)',
+          { path: file, target },
+        );
+      }
+    }
+  }
+  return crossBoundaryImports;
+}
+
+/**
+ * Shared-module drift signal (report-only): a downstream that keeps its own copy of a
+ * module the harness also vendors declares the pair in
+ * `.vibe/config.json` audit.sharedModuleMirrors, and this reports divergence without
+ * failing — duplication is expected; silent divergence is not.
+ */
+function checkSharedModuleMirrors(root, config, warnings) {
+  const mirrors = Array.isArray(config?.audit?.sharedModuleMirrors)
+    ? config.audit.sharedModuleMirrors
+    : [];
+  const reports = [];
+  for (const mirror of mirrors) {
+    const projectPath = typeof mirror?.projectPath === 'string' ? toPosix(mirror.projectPath) : null;
+    const harnessPath = typeof mirror?.harnessPath === 'string' ? toPosix(mirror.harnessPath) : null;
+    if (!projectPath || !harnessPath) {
+      addWarning(warnings, 'shared-module-mirror-invalid', 'sharedModuleMirrors entries need projectPath and harnessPath strings', { target: JSON.stringify(mirror) });
+      continue;
+    }
+    if (!existsSync(path.join(root, projectPath)) || !existsSync(path.join(root, harnessPath))) {
+      addWarning(warnings, 'shared-module-mirror-missing', 'declared shared-module mirror side does not exist', { path: projectPath, target: harnessPath });
+      continue;
+    }
+    const hashSide = (base) => {
+      const files = [];
+      walkFiles(root, base, files);
+      const map = new Map();
+      for (const file of files) {
+        map.set(file.slice(base.length + 1), createHash('sha256').update(readFileSync(path.join(root, file))).digest('hex'));
+      }
+      return map;
+    };
+    const project = hashSide(projectPath);
+    const harness = hashSide(harnessPath);
+    const drifted = [...project.keys()].filter((file) => harness.has(file) && harness.get(file) !== project.get(file)).sort();
+    const onlyInProject = [...project.keys()].filter((file) => !harness.has(file)).sort();
+    const onlyInHarness = [...harness.keys()].filter((file) => !project.has(file)).sort();
+    reports.push({ projectPath, harnessPath, drifted, onlyInProject, onlyInHarness });
+    if (drifted.length > 0 || onlyInProject.length > 0 || onlyInHarness.length > 0) {
+      addWarning(
+        warnings,
+        'shared-module-drift',
+        `mirror diverged: ${drifted.length} changed, ${onlyInProject.length} project-only, ${onlyInHarness.length} harness-only (${[...drifted, ...onlyInProject, ...onlyInHarness].slice(0, 5).join(', ')})`,
+        { path: projectPath, target: harnessPath },
+      );
+    }
+  }
+  return reports;
 }
 
 function checkSignals(text, signals, target, findings) {
@@ -488,6 +660,12 @@ function audit(root) {
     }
   }
 
+  // Report-only ownership/drift signals: never gate the audit exit code.
+  const warnings = [];
+  const config = readOptionalJson(root, CONFIG_PATH);
+  const crossBoundaryImports = checkOwnershipBoundary(root, config, warnings);
+  const sharedModuleMirrors = checkSharedModuleMirrors(root, config, warnings);
+
   return {
     ok: findings.length === 0,
     skillPath: SKILL_PATH,
@@ -496,16 +674,26 @@ function audit(root) {
     skillSignals,
     runtimeSignals,
     ...manifestReport,
+    crossBoundaryImports,
+    sharedModuleMirrors,
     findings,
+    warnings,
   };
 }
 
 function printText(report) {
   const status = report.ok ? 'OK' : 'FAIL';
-  process.stdout.write(`[vibe-sync-audit] ${status} harness=${report.harnessCount} hybrid=${report.hybridCount} project=${report.projectCount} migrations=${report.migrationCount} skillSignals=${report.skillSignals.length} runtimeSignals=${report.runtimeSignals.length}\n`);
+  process.stdout.write(`[vibe-sync-audit] ${status} harness=${report.harnessCount} hybrid=${report.hybridCount} project=${report.projectCount} migrations=${report.migrationCount} skillSignals=${report.skillSignals.length} runtimeSignals=${report.runtimeSignals.length} warnings=${report.warnings.length}\n`);
   for (const finding of report.findings) {
     const target = finding.path ?? finding.target ?? finding.signal ?? '';
     process.stdout.write(`- ${finding.severity}: ${finding.id}${target ? ` ${target}` : ''} - ${finding.detail}\n`);
+  }
+  for (const warning of report.warnings) {
+    const target = warning.path ?? warning.target ?? '';
+    process.stdout.write(`- ${warning.severity}: ${warning.id}${target ? ` ${target}` : ''} - ${warning.detail}\n`);
+  }
+  for (const entry of report.crossBoundaryImports) {
+    process.stdout.write(`- info: cross-boundary-import ${entry.file} -> ${entry.target}\n`);
   }
 }
 

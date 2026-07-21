@@ -1,11 +1,12 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 // The universal integrity core is VENDORED inside the harness (plain dependency-free ESM
-// + checked .d.ts) so the Pro publisher and any project-side manifest builder can share
-// the manifest derivation byte-for-byte. Downstream projects that build manifests from
-// product code should alias (e.g. package.json#imports "#universal-integrity-core") to
-// THIS vendored path — never to a second implementation. This test freezes the canonical
-// divergence vector and the fail-closed profile contract from the harness side.
+// + checked .d.ts). Shared-module ownership boundary (workflow-integrity §11): a
+// downstream that owns an equivalent module KEEPS it and its alias, importing only the
+// documented cross-boundary symbols (deriveFinalEvidenceManifest here) from this vendored
+// copy; a downstream with no such module aliases #universal-integrity-core to this path.
+// This test freezes the canonical divergence vector and the fail-closed profile contract
+// from the harness side.
 import { canonicalJsonV1, hashWithProfile } from '../src/universal-integrity-core/index.js';
 
 describe('universal-integrity-core harness resolution', () => {

@@ -207,3 +207,36 @@ Complete a normal goal/iteration only when its contract is covered, final
 workflows pass, and risks are recorded. Complete a Pro flow only when those
 conditions also include no unresolved P0/P1, exact-HEAD approval, and a
 published close event.
+
+## 11. Shared-module ownership boundary
+
+The harness vendors its own copy of any module it needs at runtime and imports
+it relatively. That copy is harness-owned and sync-replaced. A downstream that
+owns an equivalent module KEEPS it: the harness never instructs a downstream to
+delete a project-owned module or to repoint a project-wide alias into the
+harness tree, because that inverts ownership — product-correctness code becomes
+sync-volatile, non-extensible, and coupled to the harness release cadence. A
+downstream with no such module simply aliases into the harness copy; that is
+the simplest correct choice for it.
+
+Only values that BOTH sides independently compute and then compare must be
+byte-identical across the boundary. For those, downstream product code imports
+THAT SYMBOL ONLY, explicitly, from the harness copy. The documented
+cross-boundary surface is:
+
+| Harness module | Sanctioned symbol | Compared value |
+|---|---|---|
+| `.vibe/harness/src/universal-integrity-core/index.js` | `deriveFinalEvidenceManifest` | final-evidence manifest self-hash (FND-020) |
+| `.vibe/harness/src/pro-roundtrip/report.js` | `workflowMatrixMarkdown` | matrix bytes feeding `workflowMatrixSha256` in that manifest |
+
+This surface is a compatibility contract: removing, renaming, or changing the
+semantics of a sanctioned symbol is a breaking change for downstreams (adding
+one is not). Two copies of the remaining mechanics are acceptable and expected —
+each side uses its own, no cross-side comparison depends on them, and the
+downstream pins its behavior with its own frozen conformance vectors.
+
+`vibe:sync-audit` observes this boundary report-only: product code importing
+`.vibe/harness/src/**` beyond the surface (plus the project's
+`audit.harnessImportAllowlist`) warns as an ownership-inversion symptom, and
+mirror pairs declared in `audit.sharedModuleMirrors` are diffed and reported
+without failing.
