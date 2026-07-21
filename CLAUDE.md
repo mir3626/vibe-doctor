@@ -241,7 +241,7 @@ Sprint 프롬프트 **본문은 Planner가 작성**한다 (매 Sprint 소환 시
 
 - `/vibe-iterate`: 최초 Sprint 로드맵 소진 후 재개. handoff + report.html + iteration-history.json 기반 차등 인터뷰 → 새 iteration sprint roadmap append → Sprint 사이클 재돌입. context isolation 유지(Planner 는 여전히 fresh), 사용자는 report.html 의 iteration 타임라인으로 전체 build-up follow-up.
 - `/vibe-review`: 4-tier rubric (🔴/🟡/🟢/🔵) + regression 검증 (이전 리뷰 이슈 3-signal 커버리지) + priority_score 공식 `10·agent + 5·token + 1·user`, recommended_approach `script-wrapper > md-rule > config-default > user-action`.
-- `$vibe-pro-go`: GitHub의 append-only `vibe-pro-bridge`를 통해 Web Pro 상세설계/리뷰와 CLI 구현/보고를 왕복한다. 인자 없이 실행하면 현재 repo/branch의 최신 완료 이벤트를 sync하고 다음 행동을 계속하며, 활성 flow의 Sprint 완료 전 exact-HEAD 누적 보고 게이트를 강제한다.
+- `$vibe-pro-go`: GitHub의 append-only `vibe-pro-bridge`를 통해 Web Pro 상세설계/리뷰와 CLI 구현/보고를 왕복한다. 인자 없이 실행하면 현재 repo/branch의 최신 완료 이벤트를 sync하고 다음 행동을 계속하며, 활성 flow의 Sprint 완료 전 exact-HEAD 누적 보고 게이트를 강제한다. `confirm-skip on|off|status`로 `.vibe/config.local.json`의 `userDirectives.proGoAutoPublish`를 토글하며, `go`/`status`가 `autoPublish: true`를 보고하면 발행 전 사용자 확인 대기를 생략하고 발행마다 session-log `[decision][auto-approved]`를 기록한다.
 <!-- END:HARNESS:sprint-flow -->
 
 <!-- BEGIN:HARNESS:mechanical-overrides -->

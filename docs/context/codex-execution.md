@@ -208,7 +208,7 @@ vibe-doctor를 베이스로 새 프로젝트를 만들 때:
 
 Codex does not expose the same `SessionStart` and `PreCompact` hooks as Claude Code. The harness therefore routes Codex through generic lifecycle scripts where possible:
 
-- `.vibe/harness/scripts/run-codex.sh` calls `node .vibe/harness/scripts/vibe-agent-session-start.mjs` before non-health Codex runs.
+- `.vibe/harness/scripts/run-codex.sh` calls `node .vibe/harness/scripts/vibe-agent-session-start.mjs` before non-health Codex runs, with the child's stdin redirected to `/dev/null`. The redirection is load-bearing: since v1.7.27 the session-start script auto-detects Claude hook events by reading fd 0, and without the guard it drained piped prompts (`cat prompt.md | run-codex.sh -`) before the wrapper buffered them (fixed in v1.8.4).
 - `.vibe/harness/scripts/run-codex.sh` and `.vibe/harness/scripts/run-codex.cmd` append dashboard attention events when a Codex wrapper run completes or fails. This is a wrapper-level completion signal, not a native Codex permission hook.
 - `npm run vibe:run-agent -- --provider codex ...` also calls the same session-start entrypoint before executing the provider command.
 - Sprint Generator invocations are short-lived and normally do not need context-threshold checkpoint automation; they hand state back through the completion report and Orchestrator-owned sprint scripts.

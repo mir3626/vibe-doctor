@@ -97,7 +97,7 @@ rm vibe-sync-bootstrap.mjs
 
 ### B-3. bootstrap 가 하는 일
 
-1. 업스트림 (`mir3626/vibe-doctor`) 을 `--ref main` 또는 `--ref v1.3.0` 으로 shallow clone.
+1. 업스트림 (`mir3626/vibe-doctor`) 을 `--ref main` 또는 `--ref v1.8.5` 같은 release tag 로 shallow clone.
 2. 핵심 파일 복사 + 기존 파일은 `.vibe/sync-backup/bootstrap-<timestamp>/` 로 백업:
    - `.vibe/harness/src/commands/sync.ts`, `.vibe/harness/src/lib/sync.ts` 및 관련 라이브러리
    - `.vibe/harness/scripts/vibe-*.mjs`, `.vibe/harness/scripts/run-*.{sh,cmd}`
@@ -115,7 +115,7 @@ rm vibe-sync-bootstrap.mjs
 ```bash
 node .vibe/harness/scripts/vibe-preflight.mjs --bootstrap   # all OK 확인
 npm test                                       # 기존 테스트 그대로 통과
-cat .vibe/config.json | grep harnessVersion    # "1.7.0" 출력
+cat .vibe/config.json | grep harnessVersion    # 동기화한 release 버전 출력 (예: "1.8.5")
 ```
 
 ## 경로 C — 완전 fresh restart (최후 수단)

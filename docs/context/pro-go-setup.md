@@ -11,7 +11,11 @@ copied credentials, or direct model-to-model calls.
 - Exchange artifacts stay on `vibe-pro-bridge`.
 - The bridge is not merged and does not get a PR.
 - Completed events and pinned protocol versions are immutable.
-- CLI writes require `--publish`, which is passed only after user authorization.
+- CLI writes require `--publish`, which is passed only after user authorization —
+  or without a per-write wait while the opt-in
+  `vibe-pro-go confirm-skip on` directive (`userDirectives.proGoAutoPublish` in
+  gitignored `.vibe/config.local.json`) is active; each auto-approved
+  publication is recorded as a session-log `[decision][auto-approved]` entry.
 - Web writes retain the GitHub app's visible confirmation.
 - A CLI GitHub integration result cannot prove Web Pro connector behavior.
 
