@@ -10,14 +10,15 @@
 
 ## Latest Highlights
 
-### v1.8.5 (2026-07-20) - Pro-go publish confirmation skip directive
+### v1.9.0 (2026-07-22) - Pro roundtrip byte-exact transport and design-owned final gate
 
-- Adds `vibe-pro-go confirm-skip on|off|status`: an opt-in, user-local `.vibe/config.local.json` directive that lets `$vibe-pro-go` pass `--publish` without a per-write confirmation stop, with session-log `[decision]` entries on toggle and per auto-approved publication.
-- `go`/`status` output now surfaces the effective `autoPublish` state; missing, malformed, or expired directives fall back to requiring explicit authorization.
+- The Web Pro roundtrip transport now pins one bridge commit and reads, copies, and receipts every flow/event byte — including the `FLOW.json`/`COMPLETE.json` control documents — from the immutable Git object store through a binary-safe path, closing the adversarial-review findings FND-019/020/022/024 from downstream dogfood.
+- The report publisher independently reconstructs the expected final-evidence manifest (derived compare status, no skipped checks, canonical self-hash equality), so a self-consistent rehash forgery cannot publish; the frozen mandatory QA roster now lives in the design event itself as a `CONTRACT.json` `finalGatePolicy` block (FND-023).
+- The dependency-free `universal-integrity-core` (hash/shape/time profiles, bounded single reads, manifest codec) is vendored into the harness so downstream manifest builders can share the derivation byte-for-byte via a `#universal-integrity-core` alias.
 
-### Previous: v1.8.4 (2026-07-20) - Contract-less remediation reports and piped-prompt guard
+### Previous: v1.8.5 (2026-07-20) - Pro-go publish confirmation skip directive
 
-- Fixes design-less audit flows so remediation evidence is recorded after Web Pro feedback, and fixes `run-codex.sh` so the session-start hook no longer drains piped prompts; both with regression coverage.
+- Adds `vibe-pro-go confirm-skip on|off|status`, an opt-in user-local directive that lets `$vibe-pro-go` publish without a per-write confirmation stop, with session-log `[decision]` entries on toggle and per auto-approved publication.
 
 Release history is sharded under [docs/release/README.md](docs/release/README.md); detailed notes live in [docs/release/](docs/release/).
 
@@ -332,7 +333,7 @@ Root `src/**`, `scripts/**`, `test/**`, `app/**`, `components/**`, and `lib/**` 
 
 ## 버전 / tag 정책
 
-현재 릴리스는 `harnessVersion: 1.8.5` 입니다. 릴리스를 자를 때는 `package.json`, `.vibe/config.json`, release note, tag를 같은 버전으로 맞춥니다.
+현재 릴리스는 `harnessVersion: 1.9.0` 입니다. 릴리스를 자를 때는 `package.json`, `.vibe/config.json`, release note, tag를 같은 버전으로 맞춥니다.
 
 - `harnessVersion` 은 `.vibe/config.json` 과 `package.json` 에 semver로 기록합니다.
 - 각 minor/patch 릴리스는 해당 커밋에 `vMAJOR.MINOR.PATCH` git tag를 붙인 뒤 origin에 push합니다.

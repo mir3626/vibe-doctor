@@ -6,6 +6,7 @@ and in version-specific notes.
 
 ## Current
 
+- [v1.9.0](v1.9.0.md) - Pro roundtrip byte-exact transport and design-owned final gate
 - [v1.8.5](v1.8.5.md) - Pro-go publish confirmation skip directive
 - [v1.8.4](v1.8.4.md) - Contract-less remediation reports and piped-prompt guard
 - [v1.8.3](v1.8.3.md) - Verification reuse and faster Pro E2E
