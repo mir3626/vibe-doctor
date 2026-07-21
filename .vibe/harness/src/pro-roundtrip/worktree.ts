@@ -59,6 +59,27 @@ export async function runGit(
   }
 }
 
+/**
+ * r04 FND-022: binary-safe Git execution — returns raw stdout as a Buffer and NEVER
+ * configures a text encoding, so blob bytes are preserved exactly (no UTF-8
+ * normalization, no replacement characters). Bounded by maxBytes; stdout larger than the
+ * bound aborts before the buffer grows past it.
+ */
+export async function runGitBinary(
+  cwd: string,
+  args: string[],
+  maxBytes: number,
+): Promise<Buffer> {
+  const result = await execFileAsync('git', args, {
+    cwd,
+    encoding: 'buffer',
+    maxBuffer: maxBytes,
+    windowsHide: true,
+  });
+  const stdout = result.stdout;
+  return Buffer.isBuffer(stdout) ? stdout : Buffer.from(stdout as unknown as Uint8Array);
+}
+
 async function pathExists(candidate: string): Promise<boolean> {
   try {
     await stat(candidate);

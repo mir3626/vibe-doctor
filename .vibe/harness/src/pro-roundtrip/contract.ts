@@ -1,5 +1,6 @@
-import { readdir, readFile, stat } from 'node:fs/promises';
+import { readdir } from 'node:fs/promises';
 import path from 'node:path';
+import { readBoundedFileOnce } from '../universal-integrity-core/index.js';
 import {
   ProRoundtripContractSchema,
   ProRoundtripEventCompleteSchema,
@@ -8,6 +9,31 @@ import {
   type ProRoundtripEventComplete,
   type ProRoundtripFlow,
 } from '../lib/schemas/pro-roundtrip.js';
+
+/** Fixed byte bound for local packet/state/checkpoint/manifest/evidence files (r07 FND-019). */
+export const MAX_PACKET_FILE_BYTES = 16 * 1024 * 1024;
+
+/**
+ * r07 FND-019: ONE descriptor-bound single read for every bridge/packet payload — no
+ * stat-then-readFile pair, no repeated readFile, no symlink following, parent chain
+ * anchored while the descriptor is held. Callers validate the returned bytes and never
+ * re-read the path.
+ */
+export async function readFlowFileOnce(
+  rootAbsolute: string,
+  relativePosixPath: string,
+  maxByteSize: number,
+  label: string,
+): Promise<Buffer> {
+  return readBoundedFileOnce({
+    rootAbsolute,
+    relativePath: relativePosixPath,
+    maxByteSize,
+    maxRelativePathLength: 512,
+    messagePrefix: 'pro roundtrip',
+    label,
+  });
+}
 
 export interface FlowPathParts {
   date: string;
@@ -297,10 +323,28 @@ async function listPayloadFiles(root: string, relative = ''): Promise<string[]> 
   return files.sort();
 }
 
+/**
+ * r08 FND-019: payload access is abstracted so the flow transport can read event bytes
+ * from the IMMUTABLE Git object store at a pinned bridge commit; the default accessor
+ * uses the descriptor-bound single-read primitive for plain-directory callers.
+ */
+export interface EventPayloadAccessor {
+  list(): Promise<string[]>;
+  read(relativePath: string): Promise<Buffer>;
+}
+
+function directoryPayloadAccessor(eventDirectory: string, maxPayloadBytes: number): EventPayloadAccessor {
+  return {
+    list: () => listPayloadFiles(eventDirectory),
+    read: (relativePath) => readFlowFileOnce(eventDirectory, relativePath, maxPayloadBytes, relativePath),
+  };
+}
+
 export async function validateEventRoster(
   eventDirectory: string,
   event: ProRoundtripEventComplete,
   maxPayloadBytes = 1_048_576,
+  accessor: EventPayloadAccessor = directoryPayloadAccessor(eventDirectory, maxPayloadBytes),
 ): Promise<void> {
   const declared = event.files.map(({ path: filePath }) => assertSafePayloadPath(filePath)).sort();
   assertUnique(`${event.eventId} file roster`, declared);
@@ -318,17 +362,13 @@ export async function validateEventRoster(
       throw new Error(`${event.eventId}: required payload is missing: ${required}`);
     }
   }
-  const actual = await listPayloadFiles(eventDirectory);
+  const actual = await accessor.list();
   if (declared.length !== actual.length || declared.some((value, index) => value !== actual[index])) {
     throw new Error(
       `${event.eventId}: file roster mismatch; declared=${declared.join(',')} actual=${actual.join(',')}`,
     );
   }
   for (const relativePath of actual) {
-    const file = await stat(path.join(eventDirectory, relativePath));
-    if (file.size > maxPayloadBytes) {
-      throw new Error(`${event.eventId}: payload exceeds ${maxPayloadBytes} bytes: ${relativePath}`);
-    }
     const declaration = event.files.find(({ path: filePath }) => filePath === relativePath);
     if (!declaration) {
       throw new Error(`${event.eventId}: missing declaration for ${relativePath}`);
@@ -339,11 +379,24 @@ export async function validateEventRoster(
     ) {
       throw new Error(`${event.eventId}: media type does not match ${relativePath}`);
     }
+    // r07/r08 FND-019: one bounded read of the exact payload bytes through the accessor
+    // (immutable Git blob at the pinned commit for the bridge transport; descriptor-bound
+    // single read otherwise) — the SAME bytes are validated and never re-read.
+    let bytes: Buffer;
+    try {
+      bytes = await accessor.read(relativePath);
+    } catch (error) {
+      if (error instanceof Error && /exceeds the fixed byte bound/u.test(error.message)) {
+        throw new Error(`${event.eventId}: payload exceeds ${maxPayloadBytes} bytes: ${relativePath}`);
+      }
+      throw error;
+    }
+    if (bytes.length > maxPayloadBytes) {
+      throw new Error(`${event.eventId}: payload exceeds ${maxPayloadBytes} bytes: ${relativePath}`);
+    }
     let content: string;
     try {
-      content = new TextDecoder('utf-8', { fatal: true }).decode(
-        await readFile(path.join(eventDirectory, relativePath)),
-      );
+      content = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
     } catch {
       throw new Error(`${event.eventId}: payload is not valid UTF-8: ${relativePath}`);
     }
@@ -453,5 +506,9 @@ export async function readValidatedJson<T>(
   filePath: string,
   parser: (content: string) => T,
 ): Promise<T> {
-  return parser(await readFile(filePath, 'utf8'));
+  // r07 FND-019: even this unconsumed utility reads through the descriptor-bound reader.
+  const bytes = await readFlowFileOnce(
+    path.dirname(filePath), path.basename(filePath), MAX_PACKET_FILE_BYTES, 'validated JSON',
+  );
+  return parser(bytes.toString('utf8'));
 }

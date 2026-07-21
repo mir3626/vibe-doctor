@@ -23,6 +23,7 @@ import {
 const execFile = promisify(execFileCallback);
 const sourceRoot = process.cwd();
 const cliPath = path.resolve('.vibe', 'harness', 'scripts', 'vibe-pro-go.mjs');
+const fixtureRoot = path.resolve('.vibe', 'harness', 'test', 'fixtures', 'pro-roundtrip');
 
 async function git(cwd: string, args: string[]): Promise<string> {
   const result = await execFile('git', args, {
@@ -121,7 +122,7 @@ async function publishDesignEvent(
   ) as ProRoundtripFlow;
   const contractTemplate = JSON.parse(
     await readFile(
-      path.join(sourceRoot, 'docs', 'plans', 'github-pro-roundtrip', 'examples', 'CONTRACT.json'),
+      path.join(fixtureRoot, 'CONTRACT.json'),
       'utf8',
     ),
   ) as ProRoundtripContract;

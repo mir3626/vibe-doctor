@@ -90,6 +90,17 @@ components, rejected abstractions, invariants/non-goals, failure/recovery,
 security, verification, risk, and deferral. Validate the contract schema and
 cross-references. Re-read every file, then create `COMPLETE.json` last.
 
+When the design mandates a final-evidence manifest gate, declare the frozen QA
+command roster in `CONTRACT.json` itself:
+
+```json
+"finalGatePolicy": { "mandatoryCommands": ["exact command", "…"] }
+```
+
+The roster is immutable through the pinned design blob and there is no default:
+without this block the CLI publisher refuses any `FINAL-EVIDENCE-MANIFEST.json`
+as approval-eligible evidence.
+
 Do not correct a completed design in place. Publish a new revision with
 `supersedesEventId`.
 

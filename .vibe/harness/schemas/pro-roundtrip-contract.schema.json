@@ -291,6 +291,22 @@
           "minItems": 1,
           "maxItems": 12
         },
+        "finalGatePolicy": {
+          "type": "object",
+          "properties": {
+            "mandatoryCommands": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/ProRoundtripContract/properties/requirements/items/properties/title"
+              },
+              "minItems": 1
+            }
+          },
+          "required": [
+            "mandatoryCommands"
+          ],
+          "additionalProperties": false
+        },
         "createdAt": {
           "type": "string",
           "format": "date-time"

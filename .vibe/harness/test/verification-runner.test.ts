@@ -254,7 +254,7 @@ describe('verification group manifest and planner', () => {
     };
     assert.equal(plan.mode, 'changed');
     assert.equal(plan.baseSha, currentHead.trim());
-    assert.equal(plan.groups.length, 7);
+    assert.equal(plan.groups.length, 8); // +universal-integrity-core
     assert.equal(
       plan.groups.every((entry) =>
         entry.reasons.includes('global invalidator: .vibe/harness/src/commands/verify.ts')),

@@ -346,6 +346,8 @@
         ".vibe/harness/src/commands/pro-roundtrip.ts",
         ".vibe/harness/scripts/vibe-pro-go.mjs",
         ".vibe/harness/src/pro-roundtrip/**",
+        ".vibe/harness/src/universal-integrity-core/**",
+        ".vibe/harness/test/fixtures/pro-roundtrip/**",
         "bridge-runbook.md",
         "docs/context/pro-go-setup.md",
         "docs/context/workflow-integrity.md",
@@ -357,10 +359,28 @@
         ".vibe/harness/src/commands/pro-roundtrip.ts",
         ".vibe/harness/scripts/vibe-pro-go.mjs",
         ".vibe/harness/src/pro-roundtrip/**",
+        ".vibe/harness/src/universal-integrity-core/**",
+        ".vibe/harness/test/fixtures/pro-roundtrip/**",
         "bridge-runbook.md",
         "docs/context/pro-go-setup.md",
         "docs/context/workflow-integrity.md",
         "docs/plans/github-pro-roundtrip/**"
+      ]
+    },
+    {
+      "id": "universal-integrity-core",
+      "description": "Vendored universal integrity core: hash/shape/time profiles, bounded reads, and the final-evidence manifest codec",
+      "tier": "fast",
+      "runner": "node-test",
+      "testFiles": [
+        ".vibe/harness/test/universal-integrity-core-resolution.test.ts"
+      ],
+      "inputPatterns": [
+        ".vibe/harness/src/universal-integrity-core/**",
+        ".vibe/harness/test/universal-integrity-core-resolution.test.ts"
+      ],
+      "impactPatterns": [
+        ".vibe/harness/src/universal-integrity-core/**"
       ]
     }
   ]

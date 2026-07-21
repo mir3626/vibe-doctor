@@ -1,4 +1,10 @@
-import { readdir, readFile, stat } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
+import { readdir, stat } from 'node:fs/promises';
+import {
+  deriveFinalEvidenceManifest,
+  validateFinalEvidenceManifest,
+  type FinalEvidenceManifestCheckpointInput,
+} from '../universal-integrity-core/index.js';
 import path from 'node:path';
 import type {
   ProRoundtripContract,
@@ -6,7 +12,9 @@ import type {
   ProRoundtripReportInput,
 } from '../lib/schemas/pro-roundtrip.js';
 import { ProRoundtripReportInputSchema } from '../lib/schemas/pro-roundtrip.js';
-import { parseEventDirectory } from './contract.js';
+import {
+  MAX_PACKET_FILE_BYTES,
+  readFlowFileOnce, parseEventDirectory } from './contract.js';
 import { publishAdditions, type PublishResult } from './git-branch-transport.js';
 import {
   packetRootFor,
@@ -302,7 +310,9 @@ async function loadRecordedInputs(
     if (!(await exists(checkpointPath))) {
       continue;
     }
-    const parsed = JSON.parse(await readFile(checkpointPath, 'utf8')) as {
+    const parsed = JSON.parse((await readFlowFileOnce(
+      path.dirname(checkpointPath), path.basename(checkpointPath), MAX_PACKET_FILE_BYTES, 'CHECKPOINT.json',
+    )).toString('utf8')) as {
       schemaVersion?: string;
       recordedAt?: string;
       evidenceHash?: string;
@@ -328,6 +338,99 @@ function nextFeedbackTarget(snapshot: FlowSnapshot, reportSequence: number): str
   const feedbackRevision =
     snapshot.events.filter(({ marker }) => marker.kind === 'feedback').length + 1;
   return `${snapshot.flow.flowPath}/${String(reportSequence + 100).padStart(4, '0')}--pro--feedback--r${String(feedbackRevision).padStart(2, '0')}`;
+}
+
+/**
+ * r08 FND-020: the publisher DERIVES the product-to-current comparison itself from the
+ * final product HEAD, the actual current HEAD, and the exact changed paths — the
+ * supplied manifest is never the source of its own compare status. Any non-agent-state
+ * delta after the final gate fails closed.
+ */
+export function deriveCompareStatus(
+  finalProductHeadSha: string,
+  currentHeadSha: string,
+  changedPaths: readonly string[],
+): string {
+  if (currentHeadSha === finalProductHeadSha) {
+    return 'identical';
+  }
+  if (changedPaths.length === 0 || !changedPaths.every((file) => file.startsWith('.vibe/agent/'))) {
+    throw new Error('product bytes changed after the final gate (rerun the complete gate)');
+  }
+  return `agent-state-only: ${changedPaths.join(', ')}`;
+}
+
+/**
+ * r08 FND-020: ONE independent reconstruction of the complete expected manifest from the
+ * normalized checkpoint inputs, the EXACT bytes being published, the derived compare
+ * status, an EMPTY skipped-check list (required for approval eligibility), and the
+ * complete design-required mandatory command roster. The caller must require self-hash
+ * equality with the supplied manifest.
+ */
+export function reconstructExpectedManifest(input: {
+  flowPath: string;
+  protocolVersion: string;
+  designEventId: string;
+  flowBaseSha: string;
+  currentHeadSha: string;
+  changedPathsSinceFinalHead: readonly string[];
+  contract: ProRoundtripContract;
+  recorded: readonly { input: ProRoundtripReportInput; recordedAt: string }[];
+  publishedCheckpointBytes: ReadonlyMap<string, string>;
+  matrix: string;
+}): Record<string, unknown> & { payloadSha256: string } {
+  // FND-023 (upstream shape): the frozen mandatory command roster lives in the design
+  // event itself — CONTRACT.json's finalGatePolicy block — so it is authored by Web Pro,
+  // immutable through the pinned bridge blob, and never a harness-side registry that
+  // needs editing per flow. There is NO default roster: a design that declares no
+  // finalGatePolicy cannot produce an approval-eligible manifest.
+  const finalGatePolicy = input.contract.finalGatePolicy;
+  if (!finalGatePolicy) {
+    throw new Error(
+      `design ${input.designEventId} declares no finalGatePolicy: approval-eligible publication is impossible`,
+    );
+  }
+  const owners = new Map<string, string>();
+  for (const sprint of input.contract.sprints) {
+    for (const id of [...sprint.owns, ...sprint.preserves, ...sprint.workflowsAffected]) {
+      if (!owners.has(id)) owners.set(id, sprint.id);
+    }
+  }
+  const contractRows = requiredContractIds(input.contract)
+    .map((contractId) => ({ contractId, ownerSprintId: owners.get(contractId) ?? 'audit' }));
+  const finalProductHeadSha = input.recorded.at(-1)?.input.headSha;
+  if (!finalProductHeadSha) {
+    throw new Error('final evidence manifest reconstruction requires recorded checkpoints');
+  }
+  const checkpoints = input.recorded.map(({ input: reportInput, recordedAt }) => {
+    const directory = `${reportInput.sprintId}-${input.contract.sprints.find(({ id }) => id === reportInput.sprintId)?.slug}`;
+    const publishedBytes = input.publishedCheckpointBytes.get(directory);
+    if (publishedBytes === undefined) {
+      throw new Error(`final evidence manifest checkpoint is not being published: ${directory}`);
+    }
+    return {
+      directory,
+      checkpointFileSha256: createHash('sha256').update(publishedBytes, 'utf8').digest('hex'),
+      recordedAt,
+      evidenceHash: stableEvidenceHash(reportInput),
+      input: reportInput as unknown as FinalEvidenceManifestCheckpointInput['input'],
+    };
+  });
+  return deriveFinalEvidenceManifest({
+    flowPath: input.flowPath,
+    protocolVersion: input.protocolVersion,
+    designEventId: input.designEventId,
+    flowBaseSha: input.flowBaseSha,
+    currentReviewedHeadSha: input.currentHeadSha,
+    productToCurrentCompareStatus: deriveCompareStatus(
+      finalProductHeadSha, input.currentHeadSha, input.changedPathsSinceFinalHead,
+    ),
+    checkpoints,
+    contractRows,
+    workflowMatrixSha256: createHash('sha256').update(input.matrix, 'utf8').digest('hex'),
+    skippedChecks: [],
+    mandatoryCommands: finalGatePolicy.mandatoryCommands,
+  }) as Record<string, unknown> & { payloadSha256: string };
 }
 
 export async function publishAggregateReport(
@@ -410,6 +513,94 @@ export async function publishAggregateReport(
   const matrix = workflowMatrixMarkdown(contract, inputs);
   await writeTextAtomic(path.join(packetRoot, 'FINAL-WORKFLOW-MATRIX.md'), matrix);
   files.set(`${reportRoot}/WORKFLOW-MATRIX.md`, matrix);
+  // Optional canonical final-evidence manifest (e.g. FinalWorkflowEvidenceManifestV1 —
+  // design-mandated exact-HEAD evidence): when the flow's tooling has generated one next
+  // to the recorded checkpoints, publish it as part of the event roster so the reviewer
+  // can validate every report/checkpoint/matrix file against a single self-hashed source.
+  // SPR-003 (universal-integrity-core §8.8): the harness never trusts the prebuilt file —
+  // it re-validates roster + canonical self-hash through the shared codec and reconciles
+  // the manifest's current HEAD, checkpoint file hashes, and matrix hash against the
+  // exact bytes THIS publication is writing.
+  const manifestSource = isRemediation
+    ? path.join(
+        packetRoot,
+        'remediation',
+        snapshot.latestEvent.marker.eventId,
+        'FINAL-EVIDENCE-MANIFEST.json',
+      )
+    : path.join(packetRoot, 'sprints', 'FINAL-EVIDENCE-MANIFEST.json');
+  if (await exists(manifestSource)) {
+    const manifestText = (await readFlowFileOnce(
+      path.dirname(manifestSource), path.basename(manifestSource), MAX_PACKET_FILE_BYTES, 'FINAL-EVIDENCE-MANIFEST.json',
+    )).toString('utf8');
+    let parsedManifest: unknown;
+    try {
+      parsedManifest = JSON.parse(manifestText);
+    } catch {
+      throw new Error('final evidence manifest is not valid JSON');
+    }
+    validateFinalEvidenceManifest(parsedManifest);
+    const manifest = parsedManifest as {
+      currentReviewedHeadSha: string;
+      skippedChecks: readonly string[];
+      payloadSha256: string;
+    };
+    if (manifest.currentReviewedHeadSha !== headSha) {
+      throw new Error('final evidence manifest is not bound to the current code HEAD');
+    }
+    // r08 FND-020: an approval-eligible manifest may not represent ANY check as skipped.
+    if (manifest.skippedChecks.length > 0) {
+      throw new Error('final evidence manifest may not declare skipped checks');
+    }
+    // r08 FND-020: the publisher INDEPENDENTLY reconstructs the complete expected
+    // manifest through the ONE shared pure derivation, over the normalized checkpoint
+    // inputs and the EXACT checkpoint/matrix bytes this publication is writing, with the
+    // COMPLETE design-required mandatory command roster enforced inside the derivation
+    // and the compare status DERIVED from git facts (never from the supplied manifest).
+    // Self-hash equality over the exact-keys canonical form is required, so a
+    // self-consistent rehashed manifest that omits mandatory QA, a contract row, a
+    // checkpoint, alters compare status or skipped checks, or alters any
+    // flow/design/base/final binding cannot publish.
+    if (!state.designEventId) {
+      throw new Error('final evidence manifest requires a design-bound flow');
+    }
+    if (!contract) {
+      throw new Error('final evidence manifest requires the active design contract');
+    }
+    const category = isRemediation ? 'remediation' : 'sprints';
+    const publishedCheckpointBytes = new Map<string, string>();
+    for (const [filePath, content] of files) {
+      const match = filePath.match(new RegExp(`^${reportRoot}/${category}/([^/]+)/CHECKPOINT\\.json$`, 'u'));
+      if (match) publishedCheckpointBytes.set(match[1]!, content);
+    }
+    const finalHead = recorded.at(-1)?.input.headSha ?? headSha;
+    const changedPathsSinceFinalHead = finalHead === headSha
+      ? []
+      : (await runGit(repoRoot, ['diff', '--name-only', `${finalHead}..${headSha}`]))
+          .stdout.split('\n').map((line) => line.trim()).filter(Boolean);
+    let expected: { payloadSha256: string };
+    try {
+      expected = reconstructExpectedManifest({
+        flowPath: snapshot.flow.flowPath,
+        protocolVersion: snapshot.flow.protocol.version,
+        designEventId: state.designEventId,
+        flowBaseSha: snapshot.flow.baseSha,
+        currentHeadSha: headSha,
+        changedPathsSinceFinalHead,
+        contract,
+        recorded,
+        publishedCheckpointBytes,
+        matrix,
+      });
+    } catch (error) {
+      throw new Error(`final evidence manifest reconstruction failed: ${
+        error instanceof Error ? error.message : String(error)}`);
+    }
+    if (expected.payloadSha256 !== manifest.payloadSha256) {
+      throw new Error('final evidence manifest does not match its independent reconstruction');
+    }
+    files.set(`${reportRoot}/FINAL-EVIDENCE-MANIFEST.json`, manifestText);
+  }
   files.set(
     `${reportRoot}/REPORT.md`,
     `# ${kind === 'remediation-report' ? 'Remediation' : 'Implementation'} report

@@ -1,0 +1,37 @@
+{
+  "schemaVersion": "vibe-pro-event-complete-v1",
+  "flowPath": "flows/20260719/001-github-pro-review-loop",
+  "eventId": "0100--pro--design--r01",
+  "sequence": 100,
+  "actor": "pro",
+  "kind": "design",
+  "revision": 1,
+  "previousEventId": "0000--cli--goal--r01",
+  "supersedesEventId": null,
+  "protocolVersion": "v1",
+  "designEventId": "0100--pro--design--r01",
+  "sprintId": null,
+  "repositoryFullName": "owner/repo",
+  "codeBranch": "feature/pro-roundtrip",
+  "baseSha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "headSha": "dddddddddddddddddddddddddddddddddddddddd",
+  "disposition": "complete",
+  "files": [
+    {
+      "path": "DESIGN.md",
+      "mediaType": "text/markdown"
+    },
+    {
+      "path": "CONTRACT.json",
+      "mediaType": "application/json"
+    },
+    {
+      "path": "SPRINTS.md",
+      "mediaType": "text/markdown"
+    }
+  ],
+  "limitations": [],
+  "createdAt": "2026-07-19T11:10:00Z",
+  "nextActor": "codex",
+  "nextWriteTarget": "flows/20260719/001-github-pro-review-loop/0200--codex--implementation-report--r01"
+}

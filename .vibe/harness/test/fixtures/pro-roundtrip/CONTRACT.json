@@ -1,0 +1,92 @@
+{
+  "schemaVersion": "vibe-pro-contract-v1",
+  "flowPath": "flows/20260719/001-github-pro-review-loop",
+  "designEventId": "0100--pro--design--r01",
+  "requirements": [
+    {
+      "id": "REQ-001",
+      "title": "Roundtrip",
+      "statement": "Exchange design and implementation evidence through GitHub.",
+      "priority": "must",
+      "acceptanceCriteria": [
+        "A completed design event can be imported by exact revision."
+      ],
+      "ownerSprint": "SPR-001"
+    }
+  ],
+  "invariants": [
+    {
+      "id": "INV-001",
+      "statement": "Completed events are append-only.",
+      "validation": [
+        "Reject modified or deleted completed event paths."
+      ]
+    }
+  ],
+  "workflows": [
+    {
+      "id": "WF-001",
+      "title": "Design to implementation",
+      "steps": [
+        "Web Pro publishes a completed design event.",
+        "Codex imports the exact design revision."
+      ],
+      "expectedOutcome": "Codex implements the design revision bound to the flow.",
+      "ownerSprints": [
+        "SPR-001"
+      ]
+    }
+  ],
+  "nonFunctionalRequirements": [
+    {
+      "id": "NFR-001",
+      "title": "No force push",
+      "statement": "Bridge publishing never force pushes.",
+      "validation": [
+        "Inspect transport arguments and non-fast-forward recovery tests."
+      ],
+      "ownerSprint": "SPR-001"
+    }
+  ],
+  "decisions": [
+    {
+      "id": "DEC-001",
+      "decision": "Use an append-only bridge branch.",
+      "rationale": "It separates code changes from exchange artifacts.",
+      "alternativesRejected": [
+        "A mutable shared status document."
+      ]
+    }
+  ],
+  "sprints": [
+    {
+      "id": "SPR-001",
+      "slug": "end-to-end",
+      "objective": "Implement the minimum complete GitHub roundtrip.",
+      "owns": [
+        "REQ-001",
+        "NFR-001"
+      ],
+      "preserves": [
+        "INV-001"
+      ],
+      "workflowsAffected": [
+        "WF-001"
+      ],
+      "dependsOn": [],
+      "nonGoals": [
+        "Do not add MCP."
+      ],
+      "filesLikelyTouched": [
+        ".vibe/harness/src/pro-roundtrip/**"
+      ],
+      "verification": [
+        "Run focused contract and transport tests."
+      ],
+      "cumulativeIntegrationChecks": [
+        "Exercise flow creation through design import."
+      ]
+    }
+  ],
+  "createdAt": "2026-07-19T11:05:00Z"
+}

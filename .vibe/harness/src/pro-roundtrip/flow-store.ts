@@ -1,6 +1,8 @@
-import { readdir, readFile } from 'node:fs/promises';
+import { readdir } from 'node:fs/promises';
 import path from 'node:path';
 import {
+  MAX_PACKET_FILE_BYTES,
+  readFlowFileOnce,
   parseContractJson,
   parseEventCompleteJson,
   parseEventDirectory,
@@ -20,18 +22,29 @@ import type {
   ProRoundtripFlow,
 } from '../lib/schemas/pro-roundtrip.js';
 import { ProRoundtripFindingsSchema } from '../lib/schemas/pro-roundtrip.js';
+import { runGit, runGitBinary } from './worktree.js';
 
 export interface CompletedEvent {
   directory: string;
   absoluteDirectory: string;
   marker: ProRoundtripEventComplete;
+  /** Immutable payload reader bound to the snapshot's pinned bridge commit (r08 FND-019). */
+  readPayload: (relativePosixPath: string) => Promise<Buffer>;
+  /** Exact immutable blob record (raw bytes + object identity) for copy + receipt (r04 FND-022). */
+  readPayloadExact: (relativePosixPath: string) => Promise<ExactBlob>;
+  /** The event's COMPLETE.json exact blob — copied byte-exactly and receipted (r10 FND-024). */
+  markerBlob: ExactBlob;
   contract?: ProRoundtripContract;
   findings?: ProRoundtripFindings;
 }
 
 export interface FlowSnapshot {
   root: string;
+  /** The exact bridge commit every event byte of this snapshot was read from (r08 FND-019). */
+  bridgeHeadSha: string;
   flow: ProRoundtripFlow;
+  /** The flow-root FLOW.json exact blob — copied byte-exactly and receipted (r10 FND-024). */
+  flowBlob: ExactBlob;
   events: CompletedEvent[];
   incompleteEventDirectories: string[];
   latestEvent: CompletedEvent;
@@ -158,6 +171,31 @@ export async function resolveFlowPath(
   return latest;
 }
 
+/** An exact immutable Git blob record (r04 FND-022): raw bytes plus their object identity. */
+export interface ExactBlob {
+  blobSha: string;
+  byteSize: number;
+  bytes: Buffer;
+}
+
+/**
+ * r04 FND-022: fatal UTF-8 decode of exact blob bytes for text payloads. Invalid UTF-8
+ * and NUL fail closed BEFORE any parse or copy; no replacement characters are ever
+ * introduced.
+ */
+export function decodeExactBlobText(blob: ExactBlob, label: string): string {
+  let text: string;
+  try {
+    text = new TextDecoder('utf-8', { fatal: true }).decode(blob.bytes);
+  } catch {
+    throw new Error(`${label}: payload is not valid UTF-8`);
+  }
+  if (text.includes('\u0000')) {
+    throw new Error(`${label}: payload contains NUL bytes`);
+  }
+  return text;
+}
+
 export async function loadFlowSnapshot(
   bridgeRoot: string,
   flowPath: string,
@@ -165,53 +203,106 @@ export async function loadFlowSnapshot(
   const normalizedFlowPath = toPosixPath(flowPath);
   parseFlowPath(normalizedFlowPath);
   const root = path.join(bridgeRoot, ...normalizedFlowPath.split('/'));
-  const flow = parseFlowJson(await readFile(path.join(root, 'FLOW.json'), 'utf8'));
+  // r08 FND-019 / r04 FND-022: every event byte of the snapshot is read from the
+  // IMMUTABLE Git object store at ONE pinned bridge commit through a BINARY-SAFE path —
+  // the transport never trusts mutable worktree files, and blob bytes are preserved
+  // exactly (the object SHA + declared size are verified; no UTF-8 normalization occurs
+  // before validation, copy, or receipt binding).
+  const bridgeHeadSha = (await runGit(bridgeRoot, ['rev-parse', 'HEAD^{commit}'])).stdout.trim();
+  const readExactBlob = async (posixPath: string): Promise<ExactBlob> => {
+    const spec = `${bridgeHeadSha}:${posixPath}`;
+    // Resolve the exact blob object SHA and its declared byte size (bounded ASCII text).
+    const blobSha = (await runGit(bridgeRoot, ['rev-parse', `${spec}`])).stdout.trim();
+    if (!/^[a-f0-9]{40}$/u.test(blobSha)) {
+      throw new Error(`pro roundtrip blob object is not a Git blob: ${posixPath}`);
+    }
+    const objectType = (await runGit(bridgeRoot, ['cat-file', '-t', blobSha])).stdout.trim();
+    if (objectType !== 'blob') {
+      throw new Error(`pro roundtrip object is not a blob: ${posixPath}`);
+    }
+    const declaredSize = Number((await runGit(bridgeRoot, ['cat-file', '-s', blobSha])).stdout.trim());
+    if (!Number.isSafeInteger(declaredSize) || declaredSize < 0 || declaredSize > MAX_PACKET_FILE_BYTES) {
+      throw new Error(`pro roundtrip blob exceeds the fixed byte bound: ${posixPath}`);
+    }
+    // Fetch the raw blob content through the binary path (never a text encoding).
+    const bytes = await runGitBinary(bridgeRoot, ['cat-file', 'blob', blobSha], MAX_PACKET_FILE_BYTES + 1);
+    if (bytes.length !== declaredSize) {
+      throw new Error(`pro roundtrip blob size mismatch: ${posixPath}`);
+    }
+    return { blobSha, byteSize: declaredSize, bytes };
+  };
+  const readBlobText = async (posixPath: string, label = posixPath): Promise<string> =>
+    decodeExactBlobText(await readExactBlob(posixPath), label);
+  const flowBlob = await readExactBlob(`${normalizedFlowPath}/FLOW.json`);
+  const flow = parseFlowJson(decodeExactBlobText(flowBlob, `${normalizedFlowPath}/FLOW.json`));
   validateFlowBinding(flow);
   if (flow.flowPath !== normalizedFlowPath) {
     throw new Error('requested flow path does not match FLOW.json');
   }
 
-  const entries = await readdir(root, { withFileTypes: true });
+  // Event directories and every payload byte come from the pinned commit's tree.
+  const treeListing = (await runGit(bridgeRoot, [
+    'ls-tree', '--name-only', bridgeHeadSha, `${normalizedFlowPath}/`,
+  ])).stdout.split('\n').map((line) => line.trim()).filter(Boolean);
+  const eventDirectoryNames = treeListing
+    .map((line) => line.slice(normalizedFlowPath.length + 1))
+    .filter((name) => name.length > 0 && !name.includes('/'))
+    .sort();
+  const listEventFiles = async (eventName: string): Promise<string[]> =>
+    (await runGit(bridgeRoot, [
+      'ls-tree', '-r', '--name-only', bridgeHeadSha, `${normalizedFlowPath}/${eventName}/`,
+    ])).stdout.split('\n').map((line) => line.trim()).filter(Boolean)
+      .map((line) => line.slice(`${normalizedFlowPath}/${eventName}/`.length))
+      .filter((name) => name.length > 0 && name !== 'COMPLETE.json')
+      .sort();
   const events: CompletedEvent[] = [];
   const incompleteEventDirectories: string[] = [];
-  for (const entry of entries) {
-    if (!entry.isDirectory()) {
-      continue;
-    }
+  for (const entryName of eventDirectoryNames) {
     try {
-      parseEventDirectory(entry.name);
+      parseEventDirectory(entryName);
     } catch {
       continue;
     }
-    const absoluteDirectory = path.join(root, entry.name);
-    let markerContent: string;
+    const absoluteDirectory = path.join(root, entryName);
+    const readPayloadExact = (relativePosixPath: string): Promise<ExactBlob> =>
+      readExactBlob(`${normalizedFlowPath}/${entryName}/${relativePosixPath}`);
+    // r04 FND-022: the roster validator consumes the RAW blob bytes (its own fatal UTF-8
+    // check runs on exactly these bytes); the importer copies the same exact bytes.
+    const readPayload = async (relativePosixPath: string): Promise<Buffer> =>
+      (await readPayloadExact(relativePosixPath)).bytes;
+    let markerBlob: ExactBlob;
     try {
-      markerContent = await readFile(path.join(absoluteDirectory, 'COMPLETE.json'), 'utf8');
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-        incompleteEventDirectories.push(entry.name);
-        continue;
-      }
-      throw error;
+      markerBlob = await readExactBlob(`${normalizedFlowPath}/${entryName}/COMPLETE.json`);
+    } catch {
+      incompleteEventDirectories.push(entryName);
+      continue;
     }
-    const marker = parseEventCompleteJson(markerContent);
-    validateEventBinding(flow, entry.name, marker);
-    await validateEventRoster(absoluteDirectory, marker);
+    const marker = parseEventCompleteJson(
+      decodeExactBlobText(markerBlob, `${normalizedFlowPath}/${entryName}/COMPLETE.json`),
+    );
+    validateEventBinding(flow, entryName, marker);
+    await validateEventRoster(absoluteDirectory, marker, undefined, {
+      list: () => listEventFiles(entryName),
+      read: readPayload,
+    });
     const completed: CompletedEvent = {
-      directory: entry.name,
+      directory: entryName,
       absoluteDirectory,
       marker,
+      readPayload,
+      readPayloadExact,
+      markerBlob,
     };
     if (marker.kind === 'design') {
       const contract = parseContractJson(
-        await readFile(path.join(absoluteDirectory, 'CONTRACT.json'), 'utf8'),
+        await readBlobText(`${normalizedFlowPath}/${entryName}/CONTRACT.json`),
       );
       validateContractSemantics(flow, marker, contract);
       completed.contract = contract;
     }
     if (marker.kind === 'feedback') {
       const findings = ProRoundtripFindingsSchema.parse(
-        JSON.parse(await readFile(path.join(absoluteDirectory, 'FINDINGS.json'), 'utf8')) as unknown,
+        JSON.parse(await readBlobText(`${normalizedFlowPath}/${entryName}/FINDINGS.json`)) as unknown,
       );
       if (
         findings.flowPath !== flow.flowPath ||
@@ -267,6 +358,8 @@ export async function loadFlowSnapshot(
   }
   return {
     root,
+    bridgeHeadSha,
+    flowBlob,
     flow,
     events,
     incompleteEventDirectories: incompleteEventDirectories.sort(),

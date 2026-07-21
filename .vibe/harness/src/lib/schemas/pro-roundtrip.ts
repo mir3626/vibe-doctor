@@ -109,6 +109,15 @@ const SprintSchema = z
   })
   .strict();
 
+// FND-023: the design event owns its final-gate QA policy. The roster is immutable via
+// the pinned CONTRACT.json blob; the publisher fails closed when the block is absent, so
+// there is never a default or harness-side roster.
+const FinalGatePolicySchema = z
+  .object({
+    mandatoryCommands: z.array(NonEmptyStringSchema).min(1),
+  })
+  .strict();
+
 export const ProRoundtripContractSchema = z
   .object({
     schemaVersion: z.literal('vibe-pro-contract-v1'),
@@ -120,6 +129,7 @@ export const ProRoundtripContractSchema = z
     nonFunctionalRequirements: z.array(NonFunctionalRequirementSchema),
     decisions: z.array(DecisionSchema),
     sprints: z.array(SprintSchema).min(1).max(12),
+    finalGatePolicy: FinalGatePolicySchema.optional(),
     createdAt: DateTimeSchema,
   })
   .strict();

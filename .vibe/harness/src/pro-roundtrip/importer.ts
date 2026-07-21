@@ -1,5 +1,7 @@
 import { createHash } from 'node:crypto';
-import { mkdir, readFile, rename, stat, writeFile } from 'node:fs/promises';
+import { HASH_PROFILE_ORDERED_JSON_V1, hashWithProfile } from '../universal-integrity-core/index.js';
+import { mkdir, rename, stat, writeFile } from 'node:fs/promises';
+import { MAX_PACKET_FILE_BYTES, readFlowFileOnce } from './contract.js';
 import path from 'node:path';
 import {
   ProRoundtripReportInputSchema,
@@ -19,11 +21,21 @@ import {
 export interface EventReceipt {
   eventId: string;
   sourceBridgeCommitSha: string;
+  /**
+   * The event's COMPLETE.json blob identity — copied byte-exactly (r10 FND-024).
+   * Required in packet-state v2; absent in legacy v1 receipts written before the
+   * control-document guarantee existed (prior evidence is never rewritten, INV-014).
+   */
+  markerBlobSha?: string;
   payloadBlobs: Array<{ path: string; gitBlobSha: string }>;
 }
 
 export interface RoundtripPacketState {
-  schemaVersion: 'vibe-pro-packet-state-v1';
+  /**
+   * r10 FND-024: v2 packets bind the control-document blob identities. v1 packets remain
+   * historical-readable exactly as written; every NEW write is v2.
+   */
+  schemaVersion: 'vibe-pro-packet-state-v1' | 'vibe-pro-packet-state-v2';
   flowPath: string;
   lastAcknowledgedBridgeSha: string;
   designEventId: string | null;
@@ -31,6 +43,8 @@ export interface RoundtripPacketState {
   codeHeadSha: string;
   latestEventId: string;
   latestEventKind: ProRoundtripEventComplete['kind'];
+  /** The FLOW.json blob identity this packet was copied from (r10 FND-024; v2 only). */
+  flowBlobSha?: string;
   eventReceipts: EventReceipt[];
   updatedAt: string;
 }
@@ -91,6 +105,14 @@ export async function writeTextAtomic(filePath: string, content: string): Promis
   await rename(temporary, filePath);
 }
 
+/** r04 FND-022: atomically write EXACT raw bytes without any string round-tripping. */
+export async function writeBytesAtomic(filePath: string, bytes: Buffer): Promise<void> {
+  await mkdir(path.dirname(filePath), { recursive: true });
+  const temporary = `${filePath}.tmp-${process.pid}`;
+  await writeFile(temporary, bytes);
+  await rename(temporary, filePath);
+}
+
 export async function writeJsonAtomic(filePath: string, value: unknown): Promise<void> {
   await writeTextAtomic(filePath, `${JSON.stringify(value, null, 2)}\n`);
 }
@@ -103,9 +125,12 @@ export async function readPacketState(
   if (!(await exists(filePath))) {
     return null;
   }
-  const parsed = JSON.parse(await readFile(filePath, 'utf8')) as RoundtripPacketState;
+  const parsed = JSON.parse((await readFlowFileOnce(
+    path.dirname(filePath), path.basename(filePath), MAX_PACKET_FILE_BYTES, 'STATE.json',
+  )).toString('utf8')) as RoundtripPacketState;
+  const isV2 = parsed.schemaVersion === 'vibe-pro-packet-state-v2';
   if (
-    parsed.schemaVersion !== 'vibe-pro-packet-state-v1' ||
+    (parsed.schemaVersion !== 'vibe-pro-packet-state-v1' && !isV2) ||
     parsed.flowPath !== flowPath ||
     !/^[0-9a-f]{40}$/.test(parsed.lastAcknowledgedBridgeSha) ||
     !/^[0-9a-f]{40}$/.test(parsed.codeHeadSha) ||
@@ -115,6 +140,8 @@ export async function readPacketState(
     (parsed.designEventId !== null &&
       !/^[0-9]{4}--pro--design--r[0-9]{2}$/.test(parsed.designEventId)) ||
     (parsed.currentSprintId !== null && !/^SPR-[0-9]{3}$/.test(parsed.currentSprintId)) ||
+    // r10 FND-024: v2 packets MUST bind the FLOW.json blob identity.
+    (isV2 && !/^[0-9a-f]{40}$/.test(parsed.flowBlobSha ?? '')) ||
     !Array.isArray(parsed.eventReceipts)
   ) {
     throw new Error(`invalid local packet state: ${filePath}`);
@@ -124,6 +151,13 @@ export async function readPacketState(
     if (
       receiptIds.has(receipt.eventId) ||
       !/^[0-9a-f]{40}$/.test(receipt.sourceBridgeCommitSha) ||
+      // r10 FND-024: a receipt records what was verified AT IMPORT TIME. Receipts
+      // created by this code always bind the COMPLETE.json blob identity (and
+      // copyImportedEvent fails closed on any mismatch before publication); receipts
+      // carried over from imports that predate the guarantee legitimately lack it and
+      // are never rewritten (INV-014). Validate the format whenever the field exists.
+      (receipt.markerBlobSha !== undefined &&
+        !/^[0-9a-f]{40}$/.test(receipt.markerBlobSha)) ||
       !Array.isArray(receipt.payloadBlobs) ||
       receipt.payloadBlobs.some(
         (blob) =>
@@ -148,7 +182,9 @@ export async function readActiveFlowState(
   if (!(await exists(filePath))) {
     return null;
   }
-  const parsed = JSON.parse(await readFile(filePath, 'utf8')) as ProActiveFlowState;
+  const parsed = JSON.parse((await readFlowFileOnce(
+    path.dirname(filePath), path.basename(filePath), MAX_PACKET_FILE_BYTES, 'active flow state',
+  )).toString('utf8')) as ProActiveFlowState;
   if (
     parsed.schemaVersion !== 'vibe-pro-active-flow-v1' ||
     typeof parsed.flowPath !== 'string' ||
@@ -230,6 +266,14 @@ async function eventReceipt(
   if (!/^[0-9a-f]{40}$/.test(sourceBridgeCommitSha)) {
     throw new Error(`${event.marker.eventId}: cannot resolve source bridge commit`);
   }
+  const markerBlob = await runGit(worktreePath, [
+    'rev-parse',
+    `${sourceBridgeCommitSha}:${markerRelative}`,
+  ]);
+  const markerBlobSha = markerBlob.stdout.trim();
+  if (!/^[0-9a-f]{40}$/.test(markerBlobSha)) {
+    throw new Error(`${event.marker.eventId}: cannot resolve COMPLETE.json blob identity`);
+  }
   const payloadBlobs = [];
   for (const file of event.marker.files) {
     const relativePath = `${snapshot.flow.flowPath}/${event.directory}/${file.path}`;
@@ -239,20 +283,35 @@ async function eventReceipt(
     ]);
     payloadBlobs.push({ path: file.path, gitBlobSha: blob.stdout.trim() });
   }
-  return { eventId: event.marker.eventId, sourceBridgeCommitSha, payloadBlobs };
+  return { eventId: event.marker.eventId, sourceBridgeCommitSha, markerBlobSha, payloadBlobs };
 }
 
 async function copyImportedEvent(
   packetRoot: string,
   event: FlowSnapshot['events'][number],
+  receipt: EventReceipt,
 ): Promise<void> {
   const targetRoot = path.join(packetRoot, 'events', event.directory);
+  const receiptBlobs = new Map(receipt.payloadBlobs.map((blob) => [blob.path, blob.gitBlobSha]));
   for (const file of event.marker.files) {
-    const source = path.join(event.absoluteDirectory, ...file.path.split('/'));
     const target = path.join(targetRoot, ...file.path.split('/'));
-    await writeTextAtomic(target, await readFile(source, 'utf8'));
+    // r08 FND-019 / r04 FND-022: the bridge event payload is copied as the EXACT raw
+    // blob bytes from the snapshot's pinned bridge commit (no string round-trip), and the
+    // copied blob SHA must equal the receipt's blob SHA — a disagreement between the
+    // accessor blob and the receipted blob fails before packet publication.
+    const exact = await event.readPayloadExact(file.path);
+    if (exact.blobSha !== receiptBlobs.get(file.path)) {
+      throw new Error(`${event.marker.eventId}: payload blob identity disagrees with the receipt: ${file.path}`);
+    }
+    await writeBytesAtomic(target, exact.bytes);
   }
-  await writeJsonAtomic(path.join(targetRoot, 'COMPLETE.json'), event.marker);
+  // r10 FND-024: COMPLETE.json is a CONTROL DOCUMENT — copy its exact pinned blob bytes
+  // (never a re-serialization of the parsed marker) and require the copied blob identity
+  // to equal the receipted one before any state/receipt publication.
+  if (event.markerBlob.blobSha !== receipt.markerBlobSha) {
+    throw new Error(`${event.marker.eventId}: COMPLETE.json blob identity disagrees with the receipt`);
+  }
+  await writeBytesAtomic(path.join(targetRoot, 'COMPLETE.json'), event.markerBlob.bytes);
 }
 
 function latestDesign(snapshot: FlowSnapshot): FlowSnapshot['events'][number] | undefined {
@@ -389,15 +448,21 @@ export async function syncFlow(
   const importedEventIds: string[] = [];
   for (const event of snapshot.events) {
     if (!knownReceipts.has(event.marker.eventId)) {
-      await copyImportedEvent(packetRoot, event);
+      const receipt = await eventReceipt(context.worktreePath, snapshot, event);
+      // r04 FND-022: copy the EXACT raw blob bytes and require every copied blob SHA to
+      // equal the receipt's blob SHA before the receipt is recorded — the bytes
+      // validated, the bytes copied, and the bytes receipted are one and the same.
+      await copyImportedEvent(packetRoot, event, receipt);
       knownReceipts.set(
         event.marker.eventId,
-        await eventReceipt(context.worktreePath, snapshot, event),
+        receipt,
       );
       importedEventIds.push(event.marker.eventId);
     }
   }
-  await writeJsonAtomic(path.join(packetRoot, 'FLOW.json'), snapshot.flow);
+  // r10 FND-024: FLOW.json is a CONTROL DOCUMENT — the packet carries its exact pinned
+  // blob bytes, and the packet state receipts that blob identity.
+  await writeBytesAtomic(path.join(packetRoot, 'FLOW.json'), snapshot.flowBlob.bytes);
 
   const design = latestDesign(snapshot);
   const contract = design?.contract;
@@ -421,7 +486,7 @@ export async function syncFlow(
 
   const nextSprintId = await currentSprintId(contract, packetRoot);
   const state: RoundtripPacketState = {
-    schemaVersion: 'vibe-pro-packet-state-v1',
+    schemaVersion: 'vibe-pro-packet-state-v2',
     flowPath,
     lastAcknowledgedBridgeSha: context.remoteTip,
     designEventId: design?.marker.eventId ?? null,
@@ -429,6 +494,7 @@ export async function syncFlow(
     codeHeadSha,
     latestEventId: snapshot.latestEvent.marker.eventId,
     latestEventKind: snapshot.latestEvent.marker.kind,
+    flowBlobSha: snapshot.flowBlob.blobSha,
     eventReceipts: [...knownReceipts.values()],
     updatedAt: new Date().toISOString(),
   };
@@ -471,9 +537,13 @@ Re-run \`npm run vibe:pro-go -- go ${flowPath}\` before continuing after a conte
 }
 
 export async function readReportInput(filePath: string): Promise<ProRoundtripReportInput> {
-  return ProRoundtripReportInputSchema.parse(JSON.parse(await readFile(filePath, 'utf8')) as unknown);
+  return ProRoundtripReportInputSchema.parse(JSON.parse((await readFlowFileOnce(
+    path.dirname(filePath), path.basename(filePath), MAX_PACKET_FILE_BYTES, 'report evidence',
+  )).toString('utf8')) as unknown);
 }
 
+// SPR-003 (universal-integrity-core): stableEvidenceHash is the shared ordered-json-v1
+// profile — a compatibility wrapper preserving the exact historical bytes and name.
 export function stableEvidenceHash(input: ProRoundtripReportInput): string {
-  return createHash('sha256').update(JSON.stringify(input), 'utf8').digest('hex');
+  return hashWithProfile(HASH_PROFILE_ORDERED_JSON_V1, input);
 }
