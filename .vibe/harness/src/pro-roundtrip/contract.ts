@@ -7,6 +7,7 @@ import {
   ProRoundtripFlowSchema,
   type ProRoundtripContract,
   type ProRoundtripEventComplete,
+  type ProRoundtripFindings,
   type ProRoundtripFlow,
 } from '../lib/schemas/pro-roundtrip.js';
 
@@ -511,4 +512,35 @@ export async function readValidatedJson<T>(
     path.dirname(filePath), path.basename(filePath), MAX_PACKET_FILE_BYTES, 'validated JSON',
   );
   return parser(bytes.toString('utf8'));
+}
+
+/**
+ * Finding-scope discipline: when the active design declares a productPlane, every
+ * P0/P1 finding must claim at least one impact class and every claimed class must be
+ * one the design declared. Flows without a productPlane (historical flows, design-less
+ * audit flows) are exempt — the design opts a flow into the discipline.
+ */
+export function validateFindingScopeDiscipline(
+  findings: ProRoundtripFindings['findings'],
+  productPlane: ProRoundtripContract['productPlane'],
+): void {
+  if (!productPlane) {
+    return;
+  }
+  const declared = new Set<string>(productPlane.impactClasses);
+  for (const finding of findings) {
+    const impactClasses = finding.impactClasses ?? [];
+    if (['P0', 'P1'].includes(finding.severity) && impactClasses.length === 0) {
+      throw new Error(
+        `${finding.id}: a P0/P1 finding must declare at least one impact class under the design's productPlane`,
+      );
+    }
+    for (const impactClass of impactClasses) {
+      if (!declared.has(impactClass)) {
+        throw new Error(
+          `${finding.id}: impact class ${impactClass} is not declared by the design's productPlane`,
+        );
+      }
+    }
+  }
 }

@@ -113,9 +113,14 @@ function workflowMatrixMarkdown(
       }
     }
   }
+  const fresh = contract ? freshEvidenceIds(contract) : null;
   const body = ids.map((id) => {
     const evidence = rows.get(id);
-    return `| ${cell(id)} | ${cell(owners.get(id) ?? 'audit')} | ${cell(evidence?.implementationEvidence ?? 'missing')} | ${cell(evidence?.testEvidence ?? 'missing')} | ${cell(evidence?.integrationEvidence ?? 'missing')} | ${cell(evidence?.status ?? 'missing')} | ${cell(evidence?.notes ?? '')} |`;
+    // Evidence proportionality: a preserved-only row without fresh evidence is covered
+    // by the complete gate passing, not "missing".
+    const fallback = fresh && !fresh.has(id) ? 'preserved by cumulative gate' : 'missing';
+    const statusFallback = fresh && !fresh.has(id) ? 'preserved' : 'missing';
+    return `| ${cell(id)} | ${cell(owners.get(id) ?? 'audit')} | ${cell(evidence?.implementationEvidence ?? fallback)} | ${cell(evidence?.testEvidence ?? fallback)} | ${cell(evidence?.integrationEvidence ?? fallback)} | ${cell(evidence?.status ?? statusFallback)} | ${cell(evidence?.notes ?? '')} |`;
   });
   return `# Workflow Matrix
 
@@ -132,6 +137,17 @@ function requiredContractIds(contract: ProRoundtripContract): string[] {
     ...contract.workflows.map(({ id }) => id),
     ...contract.nonFunctionalRequirements.map(({ id }) => id),
   ];
+}
+
+/**
+ * Evidence proportionality: only contract rows a Sprint actively touches (owns or
+ * workflowsAffected) require fresh implementation/test/integration evidence. Rows that
+ * are merely preserved are evidenced by the complete gate passing.
+ */
+function freshEvidenceIds(contract: ProRoundtripContract): Set<string> {
+  return new Set(
+    contract.sprints.flatMap((sprint) => [...sprint.owns, ...sprint.workflowsAffected]),
+  );
 }
 
 function assertFinalEvidence(
@@ -161,9 +177,16 @@ function assertFinalEvidence(
       input.workflowEvidence.map((row) => [row.contractId, row] as const),
     ),
   );
+  const fresh = freshEvidenceIds(contract);
   for (const id of requiredContractIds(contract)) {
     const row = evidence.get(id);
-    if (!row || row.status !== 'complete') {
+    if (fresh.has(id)) {
+      if (!row || row.status !== 'complete') {
+        throw new Error(`final workflow evidence is incomplete for ${id}`);
+      }
+    } else if (row && row.status !== 'complete') {
+      // A preserved row needs no fresh evidence, but an EXPLICIT non-complete row is a
+      // recorded problem and still blocks.
       throw new Error(`final workflow evidence is incomplete for ${id}`);
     }
   }
@@ -656,4 +679,4 @@ Review every Sprint report and \`WORKFLOW-MATRIX.md\` against the exact code HEA
   );
 }
 
-export { workflowMatrixMarkdown };
+export { assertFinalEvidence, workflowMatrixMarkdown };

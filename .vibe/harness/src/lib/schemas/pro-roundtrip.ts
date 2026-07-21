@@ -118,6 +118,33 @@ const FinalGatePolicySchema = z
   })
   .strict();
 
+// Finding-scope discipline: the six impact classes a P0/P1 finding must claim at least
+// one of when the design declares a productPlane. The runbook supplies the mechanism;
+// the design event supplies the domain.
+export const IMPACT_CLASSES = [
+  'silent-incorrectness',
+  'overstated-validation',
+  'real-world-effect',
+  'irreproducibility',
+  'untrusted-boundary',
+  'unrecoverable-loss',
+] as const;
+
+const ImpactClassSchema = z.enum(IMPACT_CLASSES);
+
+// Design-authored product-plane declaration: what this flow exists to build, which
+// impact classes apply to it, and where input genuinely crosses the trust boundary.
+// Optional so historical contracts keep parsing; when present it arms the P0/P1
+// impact-class validation on later feedback events.
+const ProductPlaneSchema = z
+  .object({
+    description: NonEmptyStringSchema,
+    correctnessCritical: z.array(NonEmptyStringSchema).min(1),
+    impactClasses: z.array(ImpactClassSchema).min(1),
+    untrustedBoundaries: z.array(NonEmptyStringSchema),
+  })
+  .strict();
+
 export const ProRoundtripContractSchema = z
   .object({
     schemaVersion: z.literal('vibe-pro-contract-v1'),
@@ -130,6 +157,7 @@ export const ProRoundtripContractSchema = z
     decisions: z.array(DecisionSchema),
     sprints: z.array(SprintSchema).min(1).max(12),
     finalGatePolicy: FinalGatePolicySchema.optional(),
+    productPlane: ProductPlaneSchema.optional(),
     createdAt: DateTimeSchema,
   })
   .strict();
@@ -250,14 +278,33 @@ export const ProRoundtripFindingsSchema = z
             'missing-test',
             'scope-extension',
             'evidence-missing',
+            'backlog-candidate',
           ]),
           severity: z.enum(['P0', 'P1', 'P2', 'P3']),
           contractIds: z.array(z.string().regex(/^(REQ|INV|WF|NFR)-[0-9]{3}$/)),
           summary: NonEmptyStringSchema,
           evidence: NonEmptyStringSchema,
           expectedBehavior: NonEmptyStringSchema,
+          // Finding-scope discipline (optional for historical compatibility; the
+          // productPlane-armed subset/severity rules live in the flow validator).
+          plane: z.enum(['product', 'evidence']).optional(),
+          impactClasses: z.array(ImpactClassSchema).optional(),
+          threatModel: z
+            .object({
+              actor: NonEmptyStringSchema,
+              requiredCapability: NonEmptyStringSchema,
+              productConsequence: NonEmptyStringSchema,
+            })
+            .strict()
+            .optional(),
         })
-        .strict(),
+        .strict()
+        .refine(
+          (finding) =>
+            !(finding.taxonomy === 'backlog-candidate' &&
+              ['P0', 'P1'].includes(finding.severity)),
+          { message: 'a backlog-candidate finding cannot be P0/P1' },
+        ),
     ),
   })
   .strict();

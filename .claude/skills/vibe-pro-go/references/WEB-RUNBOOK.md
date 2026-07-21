@@ -101,6 +101,23 @@ The roster is immutable through the pinned design blob and there is no default:
 without this block the CLI publisher refuses any `FINAL-EVIDENCE-MANIFEST.json`
 as approval-eligible evidence.
 
+Declare the flow's product plane once, in `CONTRACT.json`:
+
+```json
+"productPlane": {
+  "description": "what this flow is building, in one line",
+  "correctnessCritical": ["the domain classes that must never silently break"],
+  "impactClasses": ["silent-incorrectness", "overstated-validation"],
+  "untrustedBoundaries": ["where input genuinely crosses into the trust domain"]
+}
+```
+
+This arms the finding scope and severity discipline in §5: every P0/P1 raised
+under this design must claim at least one declared impact class, and receipts /
+fail-closed comparisons are proportionate only at the declared untrusted
+boundaries. `impactClasses` is the subset of the six §5 classes that apply to
+this flow.
+
 Do not correct a completed design in place. Publish a new revision with
 `supersedesEventId`.
 
@@ -133,21 +150,106 @@ Use this `FINDINGS.json` shape:
       "contractIds": ["REQ-001", "WF-001"],
       "summary": "Concise defect statement",
       "evidence": "Exact file/line or behavior evidence",
-      "expectedBehavior": "Observable corrected behavior"
+      "expectedBehavior": "Observable corrected behavior",
+      "plane": "product",
+      "impactClasses": ["silent-incorrectness"],
+      "threatModel": {
+        "actor": "who exploits it",
+        "requiredCapability": "what they must already hold",
+        "productConsequence": "the product-visible outcome"
+      }
     }
   ]
 }
 ```
 
 Use taxonomy `implementation-defect`, `design-defect`, `missing-test`,
-`scope-extension`, or `evidence-missing`; severity `P0` through `P3`. Contract
-IDs must exist in the active contract. A design-less audit uses an empty
-`contractIds` array.
+`scope-extension`, `evidence-missing`, or `backlog-candidate`; severity `P0`
+through `P3`. Contract IDs must exist in the active contract. A design-less
+audit uses an empty `contractIds` array. `plane`, `impactClasses`, and
+`threatModel` follow the discipline below; a `backlog-candidate` finding can
+never be `P0`/`P1`.
 
 Use `approved`, `approved-with-deferrals`, `remediation-required`,
 `design-revision-required`, or `blocked`. Classify a new requirement as
 `scope-extension`. After remediation, allocate the next feedback sequence and
 increment its revision; never reuse/update the old directory.
+
+### Finding scope and severity discipline
+
+PLANE. Every finding declares a plane.
+
+- `product`: the artifact this flow exists to build — its correctness, outputs,
+  persisted data semantics, user- or caller-visible behavior, and its
+  boundaries with input arriving from outside the trust domain.
+- `evidence`: the machinery that reviews, records, transports, or attests to
+  that artifact — flow packets, receipts, manifests, event chains, transport
+  encoding, worktree and filesystem handling, close coordination.
+
+Evidence-plane findings are capped at P2 and never block approval unless they
+pass the impact gate below.
+
+IMPACT GATE. A P0 or P1 requires at least one of these, stated explicitly in
+the finding's `impactClasses`:
+
+- `silent-incorrectness` — the product can produce a wrong result that presents
+  as correct;
+- `overstated-validation` — a test, benchmark, or measurement can report better
+  than reality;
+- `real-world-effect` — production behavior, external side effects, or
+  published output can change;
+- `irreproducibility` — the same inputs and code no longer yield the same
+  result;
+- `untrusted-boundary` — the defect sits where data or code crosses into the
+  trust domain from outside it;
+- `unrecoverable-loss` — data or state can be destroyed without recovery.
+
+None of these → maximum P2, taxonomy `backlog-candidate`, non-blocking.
+
+PRODUCT-PLANE DECLARATION. The design event declares once, in
+`CONTRACT.json.productPlane` (§4), what belongs to the product plane for this
+flow and which impact classes apply. The runbook stays domain-neutral; the
+design supplies the domain. In a design-bound flow whose contract carries no
+declaration, do not raise a P0/P1 on product-plane grounds — request the
+declaration through a design revision instead. A design-less audit flow is
+exempt: apply the impact gate directly, without a declared subset.
+
+TRUST BOUNDARY. Cryptographic receipts, byte-exactness requirements, and
+fail-closed comparisons are proportionate at `untrusted-boundary` crossings.
+Artifacts the process itself just produced and owns — its own packet files,
+its own worktree, its own temporary staging — receive ordinary validation. Do
+not require an attestation for your own output.
+
+THREAT MODEL. A finding demanding a NEW invariant names the actor, the
+capability that actor must already have, and the product-visible consequence
+(`threatModel`). If the actor holds equal-or-greater capability by other means,
+it is not a new threat and not a finding.
+
+SELF-REFERENCE. The review machinery itself is out of scope for the flow that
+uses it. Report defects there as a `harness-backlog` note in `FEEDBACK.md` (or
+a `backlog-candidate` finding), never as a blocking finding of the flow under
+review; the CLI side carries them upstream through a harness handoff report.
+
+CONTRACT BUDGET. Do not grow the contract monotonically. A superseding design
+may add an invariant only by retiring or subsuming an existing one, or by
+marking it deferred. State the row count before and after.
+
+EVIDENCE PROPORTIONALITY. Only contract rows a Sprint owns or affects require
+fresh implementation/test/integration evidence. Preserved rows are evidenced by
+the complete gate passing and appear as `preserved` in the matrix.
+
+ROUND CAP. After two remediation rounds on one finding ID, do not open a third.
+Accept it as a documented residual risk, or state that the contract itself is
+wrong and propose retiring the invariant.
+
+BACKLOG CARRY-FORWARD. `backlog-candidate` findings and `harness-backlog` notes
+must be restated in the approval/close event's deferrals so they land in a
+durable backlog. A non-blocking channel that silently drops its contents is not
+a channel.
+
+COMPLETION. When the design's declared product-plane criteria are all satisfied
+and the complete gate passes, further hardening proposals are backlog items,
+not findings.
 
 ## 6. Approval
 

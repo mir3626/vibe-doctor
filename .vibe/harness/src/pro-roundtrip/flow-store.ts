@@ -13,6 +13,7 @@ import {
   validateEventBinding,
   validateEventChain,
   validateEventRoster,
+  validateFindingScopeDiscipline,
   validateFlowBinding,
 } from './contract.js';
 import type {
@@ -332,6 +333,12 @@ export async function loadFlowSnapshot(
       activeContract = event.contract;
     }
     if (event.findings) {
+      // Finding-scope discipline is armed by the ACTIVE design as of this feedback
+      // event, so historical findings recorded before a productPlane existed stay valid.
+      validateFindingScopeDiscipline(
+        event.findings.findings,
+        activeContract?.productPlane,
+      );
       const contractIds = activeContract
         ? new Set([
             ...activeContract.requirements.map(({ id }) => id),

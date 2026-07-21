@@ -6,6 +6,7 @@ and in version-specific notes.
 
 ## Current
 
+- [v1.10.0](v1.10.0.md) - Finding-scope discipline for the Pro review loop
 - [v1.9.0](v1.9.0.md) - Pro roundtrip byte-exact transport and design-owned final gate
 - [v1.8.5](v1.8.5.md) - Pro-go publish confirmation skip directive
 - [v1.8.4](v1.8.4.md) - Contract-less remediation reports and piped-prompt guard

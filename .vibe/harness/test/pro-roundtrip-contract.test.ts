@@ -648,3 +648,164 @@ describe('r10 control-document byte exactness', () => {
     );
   });
 });
+
+// Finding-scope discipline: plane/impact-class classification, the productPlane-armed
+// P0/P1 gate, backlog-candidate, and evidence proportionality in the publisher.
+describe('finding-scope discipline', async () => {
+  const { ProRoundtripContractSchema, ProRoundtripFindingsSchema } =
+    await import('../src/lib/schemas/pro-roundtrip.js');
+  const { validateFindingScopeDiscipline } = await import('../src/pro-roundtrip/contract.js');
+  const { assertFinalEvidence, workflowMatrixMarkdown } =
+    await import('../src/pro-roundtrip/report.js');
+
+  const baseFinding = {
+    id: 'FND-001',
+    taxonomy: 'implementation-defect',
+    severity: 'P1',
+    contractIds: [],
+    summary: 'a defect',
+    evidence: 'file:line',
+    expectedBehavior: 'correct behavior',
+  };
+  const findingsDocument = (finding: Record<string, unknown>) => ({
+    schemaVersion: 'vibe-pro-findings-v1',
+    flowPath: 'flows/20260722/001-sample-flow',
+    eventId: '0300--pro--feedback--r01',
+    reviewedHeadSha: 'a'.repeat(40),
+    disposition: 'remediation-required',
+    findings: [finding],
+  });
+
+  it('contract schema accepts a productPlane block and rejects empty class lists', async () => {
+    const fixture = JSON.parse(
+      await readFile(path.join(fixtureRoot, 'CONTRACT.json'), 'utf8'),
+    ) as Record<string, unknown>;
+    const productPlane = {
+      description: 'the artifact this flow builds',
+      correctnessCritical: ['output semantics'],
+      impactClasses: ['silent-incorrectness', 'unrecoverable-loss'],
+      untrustedBoundaries: ['external API ingest'],
+    };
+    const parsed = ProRoundtripContractSchema.parse({ ...fixture, productPlane });
+    assert.deepEqual(parsed.productPlane?.impactClasses, productPlane.impactClasses);
+    assert.throws(() => ProRoundtripContractSchema.parse({
+      ...fixture,
+      productPlane: { ...productPlane, impactClasses: [] },
+    }));
+    assert.throws(() => ProRoundtripContractSchema.parse({
+      ...fixture,
+      productPlane: { ...productPlane, correctnessCritical: [] },
+    }));
+  });
+
+  it('findings schema accepts classification fields and bars P0/P1 backlog-candidates', () => {
+    const classified = ProRoundtripFindingsSchema.parse(findingsDocument({
+      ...baseFinding,
+      plane: 'product',
+      impactClasses: ['silent-incorrectness'],
+      threatModel: {
+        actor: 'pipeline operator',
+        requiredCapability: 'repository write access',
+        productConsequence: 'wrong published output',
+      },
+    }));
+    assert.equal(classified.findings[0]?.plane, 'product');
+    // Historical findings without the fields keep validating.
+    assert.doesNotThrow(() => ProRoundtripFindingsSchema.parse(findingsDocument(baseFinding)));
+    // backlog-candidate is inherently non-blocking.
+    assert.doesNotThrow(() => ProRoundtripFindingsSchema.parse(findingsDocument({
+      ...baseFinding, taxonomy: 'backlog-candidate', severity: 'P2',
+    })));
+    assert.throws(() => ProRoundtripFindingsSchema.parse(findingsDocument({
+      ...baseFinding, taxonomy: 'backlog-candidate', severity: 'P1',
+    })), /cannot be P0\/P1/u);
+  });
+
+  it('arms the P0/P1 impact gate only when the design declares a productPlane', () => {
+    type Findings = import('../src/lib/schemas/pro-roundtrip.js').ProRoundtripFindings['findings'];
+    const plainP1 = [baseFinding] as unknown as Findings;
+    // No declaration (historical flows, design-less audits): exempt.
+    assert.doesNotThrow(() => validateFindingScopeDiscipline(plainP1, undefined));
+    const productPlane = {
+      description: 'the artifact this flow builds',
+      correctnessCritical: ['output semantics'],
+      impactClasses: ['silent-incorrectness'],
+      untrustedBoundaries: [],
+    } as import('../src/lib/schemas/pro-roundtrip.js').ProRoundtripContract['productPlane'];
+    assert.throws(
+      () => validateFindingScopeDiscipline(plainP1, productPlane),
+      /must declare at least one impact class/u,
+    );
+    assert.throws(
+      () => validateFindingScopeDiscipline(
+        [{ ...baseFinding, impactClasses: ['real-world-effect'] }] as unknown as Findings,
+        productPlane,
+      ),
+      /not declared by the design's productPlane/u,
+    );
+    assert.doesNotThrow(() => validateFindingScopeDiscipline(
+      [{ ...baseFinding, impactClasses: ['silent-incorrectness'] }] as unknown as Findings,
+      productPlane,
+    ));
+    // Non-P0/P1 findings need no impact class even when armed.
+    assert.doesNotThrow(() => validateFindingScopeDiscipline(
+      [{ ...baseFinding, severity: 'P2' }] as unknown as Findings,
+      productPlane,
+    ));
+  });
+
+  it('requires fresh evidence only for owned/affected rows; preserved rows ride the gate', () => {
+    type Contract = import('../src/lib/schemas/pro-roundtrip.js').ProRoundtripContract;
+    type ReportInput = import('../src/lib/schemas/pro-roundtrip.js').ProRoundtripReportInput;
+    const contract = {
+      schemaVersion: 'vibe-pro-contract-v1',
+      flowPath: 'flows/20260722/001-sample-flow',
+      designEventId: '0100--pro--design--r01',
+      requirements: [{ id: 'REQ-001' }],
+      invariants: [{ id: 'INV-001' }],
+      workflows: [{ id: 'WF-001' }],
+      nonFunctionalRequirements: [],
+      sprints: [{
+        id: 'SPR-001', slug: 'sample',
+        owns: ['REQ-001'], preserves: ['INV-001'], workflowsAffected: ['WF-001'],
+      }],
+    } as unknown as Contract;
+    const evidenceRow = (contractId: string, status = 'complete') => ({
+      contractId, implementationEvidence: 'impl', testEvidence: 'test',
+      integrationEvidence: 'integration', status, notes: '',
+    });
+    const input = (workflowEvidence: unknown[]) => [{
+      sprintId: 'SPR-001',
+      sprintGatePassed: true,
+      cumulativeGatePassed: true,
+      finalGatePassed: true,
+      workflowEvidence,
+    }] as unknown as ReportInput[];
+    // Preserved INV-001 without fresh evidence: covered by the complete gate.
+    assert.doesNotThrow(() =>
+      assertFinalEvidence(contract, input([evidenceRow('REQ-001'), evidenceRow('WF-001')])));
+    // Owned/affected rows still demand complete evidence.
+    assert.throws(
+      () => assertFinalEvidence(contract, input([evidenceRow('WF-001')])),
+      /incomplete for REQ-001/u,
+    );
+    assert.throws(
+      () => assertFinalEvidence(contract, input([evidenceRow('REQ-001')])),
+      /incomplete for WF-001/u,
+    );
+    // An EXPLICIT non-complete row on a preserved invariant is a recorded problem.
+    assert.throws(
+      () => assertFinalEvidence(contract, input([
+        evidenceRow('REQ-001'), evidenceRow('WF-001'), evidenceRow('INV-001', 'partial'),
+      ])),
+      /incomplete for INV-001/u,
+    );
+    // The matrix renders preserved-only rows as preserved, not missing.
+    const matrix = workflowMatrixMarkdown(
+      contract,
+      input([evidenceRow('REQ-001'), evidenceRow('WF-001')]) as never,
+    );
+    assert.match(matrix, /INV-001.*preserved by cumulative gate.*preserved/u);
+    assert.doesNotMatch(matrix, /INV-001.*missing/u);
+  });
+});

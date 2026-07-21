@@ -307,6 +307,49 @@
           ],
           "additionalProperties": false
         },
+        "productPlane": {
+          "type": "object",
+          "properties": {
+            "description": {
+              "$ref": "#/definitions/ProRoundtripContract/properties/requirements/items/properties/title"
+            },
+            "correctnessCritical": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/ProRoundtripContract/properties/requirements/items/properties/title"
+              },
+              "minItems": 1
+            },
+            "impactClasses": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "silent-incorrectness",
+                  "overstated-validation",
+                  "real-world-effect",
+                  "irreproducibility",
+                  "untrusted-boundary",
+                  "unrecoverable-loss"
+                ]
+              },
+              "minItems": 1
+            },
+            "untrustedBoundaries": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/ProRoundtripContract/properties/requirements/items/properties/title"
+              }
+            }
+          },
+          "required": [
+            "description",
+            "correctnessCritical",
+            "impactClasses",
+            "untrustedBoundaries"
+          ],
+          "additionalProperties": false
+        },
         "createdAt": {
           "type": "string",
           "format": "date-time"

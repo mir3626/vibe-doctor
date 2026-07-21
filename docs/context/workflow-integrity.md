@@ -152,12 +152,40 @@ project report.
 ## 8. Feedback and termination
 
 Classify findings as `implementation-defect`, `design-defect`, `missing-test`,
-`scope-extension`, or `evidence-missing`. Remediate implementation defects and
-missing tests here; repair evidence without code when possible; revise design for
-design defects; move scope extensions to a new flow. Resolve P0/P1 before approval.
+`scope-extension`, `evidence-missing`, or `backlog-candidate` (real but
+non-blocking; never P0/P1). Remediate implementation defects and missing tests
+here; repair evidence without code when possible; revise design for design
+defects; move scope extensions to a new flow. Resolve P0/P1 before approval.
+
+Apply the same scope discipline the Web reviewer applies (WEB-RUNBOOK §5), when
+self-reviewing and when deciding what to implement:
+
+- **Plane.** Findings about the artifact the flow exists to build are product
+  plane; findings about the review/transport/packet/manifest machinery are
+  evidence plane. Evidence-plane findings block only when they pass the impact
+  gate (e.g. a manifest forgery that overstates validation).
+- **Impact gate.** A P0/P1 must claim at least one impact class:
+  silent-incorrectness, overstated-validation, real-world-effect,
+  irreproducibility, untrusted-boundary, unrecoverable-loss. When the active
+  design declares `productPlane`, the claim must be a declared class — the flow
+  loader enforces this. None → P2 `backlog-candidate`.
+- **Trust boundary.** Receipts, byte-exactness, and fail-closed comparisons are
+  proportionate where input crosses into the trust domain — not on artifacts
+  the process just wrote and owns.
+- **Threat model.** A new invariant names the actor, the capability the actor
+  must already hold, and the product-visible consequence. An actor with
+  equal-or-greater capability by other means is not a new threat.
+- **Self-reference.** Defects in the review machinery itself go to a
+  `harness-backlog` note and an upstream harness handoff, never into the flow's
+  blocking findings.
+- **Carry-forward.** `backlog-candidate` findings and `harness-backlog` notes
+  must be restated in the approval/close deferrals; the non-blocking channel
+  may not silently drop its contents.
 
 After two cycles repeat the same defect, stop patching. Re-diagnose, revise the
-design, or split a new flow.
+design, or split a new flow. After two remediation rounds on one finding ID, do
+not open a third — accept a documented residual risk or propose retiring the
+invariant through a design revision.
 
 ## 9. Git and Pro archive safety
 
