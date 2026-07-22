@@ -6,6 +6,7 @@ and in version-specific notes.
 
 ## Current
 
+- [v1.11.0](v1.11.0.md) - Coordinated cross-flow close
 - [v1.10.1](v1.10.1.md) - Shared-module ownership boundary
 - [v1.10.0](v1.10.0.md) - Finding-scope discipline for the Pro review loop
 - [v1.9.0](v1.9.0.md) - Pro roundtrip byte-exact transport and design-owned final gate

@@ -809,3 +809,325 @@ describe('finding-scope discipline', async () => {
     assert.doesNotMatch(matrix, /INV-001.*missing/u);
   });
 });
+
+// Coordinated cross-flow close: approval-declared set, by-reference member close,
+// chain carve-out, and pinned-commit cross-flow validation.
+describe('coordinated cross-flow close', async () => {
+  const { validateCoordinatedCloseDeclaration } = await import('../src/pro-roundtrip/contract.js');
+  const { ProRoundtripEventCompleteSchema } = await import('../src/lib/schemas/pro-roundtrip.js');
+  type EventMarker = ProRoundtripEventComplete;
+
+  const sha = (character: string) => character.repeat(40);
+
+  const markerFor = (
+    flow: { flowPath: string; repository: { fullName: string }; codeBranch: string; baseSha: string; createdAt: string },
+    overrides: Partial<EventMarker> & { eventId: string; sequence: number; actor: EventMarker['actor']; kind: EventMarker['kind'] },
+  ): EventMarker => ({
+    schemaVersion: 'vibe-pro-event-complete-v1',
+    flowPath: flow.flowPath,
+    revision: 1,
+    previousEventId: null,
+    supersedesEventId: null,
+    protocolVersion: 'v1',
+    designEventId: null,
+    sprintId: null,
+    repositoryFullName: flow.repository.fullName,
+    codeBranch: flow.codeBranch,
+    baseSha: flow.baseSha,
+    headSha: flow.baseSha,
+    disposition: 'complete',
+    files: [{ path: 'GOAL.md', mediaType: 'text/markdown' }],
+    limitations: [],
+    createdAt: flow.createdAt,
+    nextActor: 'none',
+    nextWriteTarget: null,
+    ...overrides,
+  } as EventMarker);
+
+  it('schema places coordination fields on the right event kinds only', async () => {
+    const flow = parseFlowJson(await readFile(path.join(fixtureRoot, 'FLOW.json'), 'utf8'));
+    const declaration = {
+      jointInvariant: true as const,
+      primaryFlowPath: flow.flowPath,
+      flows: [
+        { flowPath: flow.flowPath, approvedBoundarySha: flow.baseSha },
+        { flowPath: 'flows/20260722/009-coordinated', approvedBoundarySha: sha('b') },
+      ],
+    };
+    const approval = markerFor(flow, {
+      eventId: '0300--pro--approval--r01', sequence: 300, actor: 'pro', kind: 'approval',
+      disposition: 'approved', previousEventId: '0200--pro--feedback--r01',
+      files: [{ path: 'APPROVAL.md', mediaType: 'text/markdown' }],
+      nextActor: 'cli', nextWriteTarget: `${flow.flowPath}/9900--cli--closed--r01`,
+      coordinatedClose: declaration,
+    });
+    assert.doesNotThrow(() => ProRoundtripEventCompleteSchema.parse(approval));
+    // coordinatedClose is approval-only.
+    assert.throws(() => ProRoundtripEventCompleteSchema.parse(
+      markerFor(flow, {
+        eventId: '0000--cli--goal--r01', sequence: 0, actor: 'cli', kind: 'goal',
+        coordinatedClose: declaration,
+      }),
+    ), /approval event/u);
+    // Authorization fields are closed-only and paired.
+    const closedBase = {
+      eventId: '9900--cli--closed--r01', sequence: 9900, actor: 'cli' as const, kind: 'closed' as const,
+      disposition: 'closed' as const, previousEventId: '0100--codex--implementation-report--r01',
+      files: [{ path: 'SUMMARY.md', mediaType: 'text/markdown' as const }],
+    };
+    assert.doesNotThrow(() => ProRoundtripEventCompleteSchema.parse(markerFor(flow, {
+      ...closedBase,
+      authorizedByFlowPath: flow.flowPath,
+      authorizedByEventId: '0300--pro--approval--r01',
+      coordinatedWith: [flow.flowPath],
+    })));
+    assert.throws(() => ProRoundtripEventCompleteSchema.parse(markerFor(flow, {
+      ...closedBase,
+      authorizedByFlowPath: flow.flowPath,
+    })), /declared together/u);
+    assert.throws(() => ProRoundtripEventCompleteSchema.parse(markerFor(flow, {
+      eventId: '0000--cli--goal--r01', sequence: 0, actor: 'cli', kind: 'goal',
+      coordinatedWith: [flow.flowPath],
+    })), /closed event/u);
+  });
+
+  it('validates the coordination declaration in isolation', async () => {
+    const flow = parseFlowJson(await readFile(path.join(fixtureRoot, 'FLOW.json'), 'utf8'));
+    const approvalWith = (declaration: unknown) => markerFor(flow, {
+      eventId: '0300--pro--approval--r01', sequence: 300, actor: 'pro', kind: 'approval',
+      disposition: 'approved',
+      files: [{ path: 'APPROVAL.md', mediaType: 'text/markdown' }],
+      nextActor: 'cli', nextWriteTarget: `${flow.flowPath}/9900--cli--closed--r01`,
+      coordinatedClose: declaration as EventMarker['coordinatedClose'],
+    });
+    const member = { flowPath: 'flows/20260722/009-coordinated', approvedBoundarySha: sha('b') };
+    const valid = {
+      jointInvariant: true,
+      primaryFlowPath: flow.flowPath,
+      flows: [{ flowPath: flow.flowPath, approvedBoundarySha: flow.baseSha }, member],
+    };
+    assert.doesNotThrow(() => validateCoordinatedCloseDeclaration(approvalWith(valid)));
+    assert.throws(() => validateCoordinatedCloseDeclaration(approvalWith({
+      ...valid, primaryFlowPath: member.flowPath,
+    })), /primary must be the approval's own flow/u);
+    assert.throws(() => validateCoordinatedCloseDeclaration(approvalWith({
+      ...valid, flows: [member, { flowPath: 'flows/20260722/008-other', approvedBoundarySha: sha('c') }],
+    })), /primary flow must be a coordination member/u);
+    assert.throws(() => validateCoordinatedCloseDeclaration(approvalWith({
+      ...valid,
+      flows: [{ flowPath: flow.flowPath, approvedBoundarySha: sha('d') }, member],
+    })), /must equal the approval's frozen HEAD/u);
+    assert.throws(() => validateCoordinatedCloseDeclaration(approvalWith({
+      ...valid, flows: [...valid.flows, member],
+    })), /duplicate coordinated flow/u);
+  });
+
+  it('allows report -> closed only with a by-reference authorization', async () => {
+    const flow = parseFlowJson(await readFile(path.join(fixtureRoot, 'FLOW.json'), 'utf8'));
+    const goal = markerFor(flow, {
+      eventId: '0000--cli--goal--r01', sequence: 0, actor: 'cli', kind: 'goal',
+      nextActor: 'codex', nextWriteTarget: `${flow.flowPath}/0100--codex--implementation-report--r01`,
+    });
+    const report = markerFor(flow, {
+      eventId: '0100--codex--implementation-report--r01', sequence: 100, actor: 'codex',
+      kind: 'implementation-report', previousEventId: goal.eventId,
+      files: [
+        { path: 'REPORT.md', mediaType: 'text/markdown' },
+        { path: 'WORKFLOW-MATRIX.md', mediaType: 'text/markdown' },
+      ],
+      nextActor: 'pro', nextWriteTarget: `${flow.flowPath}/0200--pro--feedback--r01`,
+    });
+    const closed = (withAuthorization: boolean) => markerFor(flow, {
+      eventId: '9900--cli--closed--r01', sequence: 9900, actor: 'cli', kind: 'closed',
+      disposition: 'closed', previousEventId: report.eventId,
+      files: [{ path: 'SUMMARY.md', mediaType: 'text/markdown' }],
+      ...(withAuthorization
+        ? {
+            authorizedByFlowPath: 'flows/20260722/001-primary',
+            authorizedByEventId: '0300--pro--approval--r01',
+          }
+        : {}),
+    });
+    assert.doesNotThrow(() => validateEventChain([goal, report, closed(true)]));
+    assert.throws(() => validateEventChain([goal, report, closed(false)]), /invalid event transition/u);
+  });
+
+  it('loads a coordinated two-flow set from one pinned commit and fails closed on tampering', async () => {
+    const { execFile } = await import('node:child_process');
+    const { promisify } = await import('node:util');
+    const execFileAsync = promisify(execFile);
+    const fixtureFlow = JSON.parse(await readFile(path.join(fixtureRoot, 'FLOW.json'), 'utf8')) as Record<string, unknown> & {
+      flowPath: string;
+    };
+    const [, fixtureDate] = fixtureFlow.flowPath.split('/');
+
+    const build = async (options: {
+      mutateMemberClosed?: (marker: Record<string, unknown>) => void;
+      declaredMemberPath?: string;
+    } = {}): Promise<{
+      root: string; primaryPath: string; coordinatedPath: string;
+    }> => {
+      const root = await makeTempDir();
+      const primaryPath = `flows/${fixtureDate}/101-joint-primary`;
+      const coordinatedPath = `flows/${fixtureDate}/102-joint-member`;
+      const flowJson = (flowPath: string) => {
+        const [, date, directoryName] = flowPath.split('/');
+        return {
+          ...fixtureFlow,
+          flowPath,
+          date,
+          sequence: Number(directoryName?.slice(0, 3)),
+          slug: directoryName?.slice(4),
+        };
+      };
+      const flowA = parseFlowJson(JSON.stringify(flowJson(primaryPath)));
+      const flowB = parseFlowJson(JSON.stringify(flowJson(coordinatedPath)));
+      const boundary = flowA.baseSha;
+      const declaration = {
+        jointInvariant: true,
+        primaryFlowPath: primaryPath,
+        flows: [
+          { flowPath: primaryPath, approvedBoundarySha: boundary },
+          {
+            flowPath: options.declaredMemberPath ?? coordinatedPath,
+            approvedBoundarySha: boundary,
+          },
+        ],
+      };
+      const writeEvent = async (
+        flow: typeof flowA,
+        directory: string,
+        marker: EventMarker,
+        payloads: Record<string, string>,
+      ): Promise<void> => {
+        const eventRoot = path.join(root, ...flow.flowPath.split('/'), directory);
+        for (const [name, content] of Object.entries(payloads)) {
+          await writeText(path.join(eventRoot, name), content);
+        }
+        await writeText(path.join(eventRoot, 'COMPLETE.json'), `${JSON.stringify(marker, null, 2)}\n`);
+      };
+
+      for (const flow of [flowA, flowB]) {
+        await writeText(
+          path.join(root, ...flow.flowPath.split('/'), 'FLOW.json'),
+          `${JSON.stringify(flowJson(flow.flowPath), null, 2)}\n`,
+        );
+        await writeEvent(flow, '0000--cli--goal--r01', markerFor(flow, {
+          eventId: '0000--cli--goal--r01', sequence: 0, actor: 'cli', kind: 'goal',
+          nextActor: 'codex', nextWriteTarget: `${flow.flowPath}/0100--codex--implementation-report--r01`,
+        }), { 'GOAL.md': '# Goal\n' });
+        await writeEvent(flow, '0100--codex--implementation-report--r01', markerFor(flow, {
+          eventId: '0100--codex--implementation-report--r01', sequence: 100, actor: 'codex',
+          kind: 'implementation-report', previousEventId: '0000--cli--goal--r01',
+          headSha: boundary,
+          files: [
+            { path: 'REPORT.md', mediaType: 'text/markdown' },
+            { path: 'WORKFLOW-MATRIX.md', mediaType: 'text/markdown' },
+          ],
+          nextActor: 'pro', nextWriteTarget: `${flow.flowPath}/0200--pro--feedback--r01`,
+        }), { 'REPORT.md': '# Report\n', 'WORKFLOW-MATRIX.md': '# Matrix\n' });
+      }
+
+      const feedback = markerFor(flowA, {
+        eventId: '0200--pro--feedback--r01', sequence: 200, actor: 'pro', kind: 'feedback',
+        disposition: 'approved', previousEventId: '0100--codex--implementation-report--r01',
+        headSha: boundary,
+        files: [
+          { path: 'FEEDBACK.md', mediaType: 'text/markdown' },
+          { path: 'FINDINGS.json', mediaType: 'application/json' },
+        ],
+        nextActor: 'pro', nextWriteTarget: `${primaryPath}/0300--pro--approval--r01`,
+      });
+      await writeEvent(flowA, '0200--pro--feedback--r01', feedback, {
+        'FEEDBACK.md': '# Feedback\n',
+        'FINDINGS.json': `${JSON.stringify({
+          schemaVersion: 'vibe-pro-findings-v1',
+          flowPath: primaryPath,
+          eventId: feedback.eventId,
+          reviewedHeadSha: boundary,
+          disposition: 'approved',
+          findings: [],
+        }, null, 2)}\n`,
+      });
+      await writeEvent(flowA, '0300--pro--approval--r01', markerFor(flowA, {
+        eventId: '0300--pro--approval--r01', sequence: 300, actor: 'pro', kind: 'approval',
+        disposition: 'approved', previousEventId: '0200--pro--feedback--r01',
+        headSha: boundary,
+        files: [{ path: 'APPROVAL.md', mediaType: 'text/markdown' }],
+        nextActor: 'cli', nextWriteTarget: `${primaryPath}/9900--cli--closed--r01`,
+        coordinatedClose: declaration as EventMarker['coordinatedClose'],
+      }), { 'APPROVAL.md': '# Approval\n' });
+      await writeEvent(flowA, '9900--cli--closed--r01', markerFor(flowA, {
+        eventId: '9900--cli--closed--r01', sequence: 9900, actor: 'cli', kind: 'closed',
+        disposition: 'closed', previousEventId: '0300--pro--approval--r01',
+        headSha: boundary,
+        files: [{ path: 'SUMMARY.md', mediaType: 'text/markdown' }],
+        coordinatedWith: [coordinatedPath],
+      }), { 'SUMMARY.md': '# Closed\n' });
+
+      const memberClosed = markerFor(flowB, {
+        eventId: '9900--cli--closed--r01', sequence: 9900, actor: 'cli', kind: 'closed',
+        disposition: 'closed', previousEventId: '0100--codex--implementation-report--r01',
+        headSha: boundary,
+        files: [{ path: 'SUMMARY.md', mediaType: 'text/markdown' }],
+        authorizedByFlowPath: primaryPath,
+        authorizedByEventId: '0300--pro--approval--r01',
+        coordinatedWith: [primaryPath],
+      }) as unknown as Record<string, unknown>;
+      options.mutateMemberClosed?.(memberClosed);
+      await writeEvent(flowB, '9900--cli--closed--r01', memberClosed as unknown as EventMarker, {
+        'SUMMARY.md': '# Closed (coordinated)\n',
+      });
+
+      const git = (gitArgs: string[]) => execFileAsync('git', gitArgs, { cwd: root, windowsHide: true });
+      await git(['init', '--initial-branch=main']);
+      await git(['config', 'user.name', 'Roundtrip Test']);
+      await git(['config', 'user.email', 'roundtrip@example.invalid']);
+      await git(['add', '-A']);
+      await git(['commit', '-m', 'coordinated-fixture']);
+      return { root, primaryPath, coordinatedPath };
+    };
+
+    // Valid set: both flows load from the same pinned commit; the member's close is
+    // authorized by-reference and both snapshots agree on the boundary.
+    const valid = await build();
+    const primary = await loadFlowSnapshot(valid.root, valid.primaryPath);
+    assert.equal(primary.latestEvent.marker.kind, 'closed');
+    const coordinated = await loadFlowSnapshot(valid.root, valid.coordinatedPath);
+    assert.equal(coordinated.latestEvent.marker.kind, 'closed');
+    assert.equal(coordinated.latestEvent.marker.authorizedByEventId, '0300--pro--approval--r01');
+
+    // Tamper 1: the member close claims a boundary the approval never approved.
+    const wrongBoundary = await build({
+      mutateMemberClosed: (marker) => {
+        marker.headSha = 'c'.repeat(40);
+      },
+    });
+    await assert.rejects(
+      loadFlowSnapshot(wrongBoundary.root, wrongBoundary.coordinatedPath),
+      /does not match the approved boundary/u,
+    );
+
+    // Tamper 2: the referenced approval never declared this flow as a member.
+    const nonMember = await build({
+      declaredMemberPath: `flows/${fixtureDate}/103-unrelated`,
+    });
+    await assert.rejects(
+      loadFlowSnapshot(nonMember.root, nonMember.coordinatedPath),
+      /not a member of the referenced coordination set/u,
+    );
+
+    // Tamper 3: stripping the authorization entirely reverts to the plain transition
+    // rule — a report -> closed member without a reference fails the chain.
+    const unauthorized = await build({
+      mutateMemberClosed: (marker) => {
+        delete marker.authorizedByFlowPath;
+        delete marker.authorizedByEventId;
+      },
+    });
+    await assert.rejects(
+      loadFlowSnapshot(unauthorized.root, unauthorized.coordinatedPath),
+      /invalid event transition/u,
+    );
+  });
+});

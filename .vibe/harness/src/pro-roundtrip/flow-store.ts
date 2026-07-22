@@ -10,6 +10,7 @@ import {
   parseFlowPath,
   toPosixPath,
   validateContractSemantics,
+  validateCoordinatedCloseDeclaration,
   validateEventBinding,
   validateEventChain,
   validateEventRoster,
@@ -300,6 +301,43 @@ export async function loadFlowSnapshot(
       );
       validateContractSemantics(flow, marker, contract);
       completed.contract = contract;
+    }
+    if (marker.kind === 'approval') {
+      validateCoordinatedCloseDeclaration(marker);
+    }
+    if (marker.kind === 'closed' && marker.authorizedByEventId && marker.authorizedByFlowPath) {
+      // By-reference close: the authorization lives in the primary flow's approval.
+      // Read that approval from the SAME pinned bridge commit (never the worktree) and
+      // require it to declare this flow as a member at this exact boundary.
+      const referenceLabel = `${marker.authorizedByFlowPath}/${marker.authorizedByEventId}/COMPLETE.json`;
+      let approval: ProRoundtripEventComplete;
+      try {
+        approval = parseEventCompleteJson(await readBlobText(referenceLabel));
+      } catch (error) {
+        throw new Error(
+          `${marker.eventId}: cannot resolve authorizing approval ${referenceLabel}: ${
+            error instanceof Error ? error.message : String(error)}`,
+        );
+      }
+      if (
+        approval.kind !== 'approval' ||
+        approval.eventId !== marker.authorizedByEventId ||
+        approval.flowPath !== marker.authorizedByFlowPath
+      ) {
+        throw new Error(`${marker.eventId}: referenced event is not the declared approval`);
+      }
+      validateCoordinatedCloseDeclaration(approval);
+      const declaration = approval.coordinatedClose;
+      if (!declaration) {
+        throw new Error(`${marker.eventId}: referenced approval declares no coordinatedClose`);
+      }
+      const member = declaration.flows.find((entry) => entry.flowPath === flow.flowPath);
+      if (!member) {
+        throw new Error(`${marker.eventId}: this flow is not a member of the referenced coordination set`);
+      }
+      if (member.approvedBoundarySha !== marker.headSha) {
+        throw new Error(`${marker.eventId}: close HEAD does not match the approved boundary`);
+      }
     }
     if (marker.kind === 'feedback') {
       const findings = ProRoundtripFindingsSchema.parse(

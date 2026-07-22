@@ -10,14 +10,14 @@
 
 ## Latest Highlights
 
-### v1.10.1 (2026-07-22) - Shared-module ownership boundary
+### v1.11.0 (2026-07-22) - Coordinated cross-flow close
 
-- Withdraws the v1.9.0 guidance that told downstreams to delete their own shared module and alias into the harness tree: a downstream that owns an equivalent module keeps it, and imports only the documented cross-boundary symbols (`deriveFinalEvidenceManifest`, `workflowMatrixMarkdown`) from the harness copy — the byte-identity requirement only exists where both sides compute and compare a value.
-- `vibe:sync-audit` gains two report-only signals: a warning when product code imports `.vibe/harness/src/**` beyond the documented surface (ownership-inversion symptom, project-extensible allowlist) and a hash-diff drift report for declared shared-module mirror pairs. Neither changes the exit code.
+- When one Pro approval decides several flows jointly, the approval now declares the set machine-readably (`coordinatedClose` in its `COMPLETE.json`) and `close` enforces it atomically: every remaining member closes in one append-only bridge commit, already-closed members count as satisfied, and any close that would leave the set partial is refused.
+- A coordinated member's close marker is authorized by-reference (`authorizedByFlowPath`/`authorizedByEventId` pointing at the primary approval) and validated against the same pinned bridge commit — closing the gap where a jointly approved flow had no closeable approval in its own chain and stayed permanently open.
 
-### Previous: v1.10.0 (2026-07-22) - Finding-scope discipline for the Pro review loop
+### Previous: v1.10.1 (2026-07-22) - Shared-module ownership boundary
 
-- Web Pro reviews classify findings by plane and gate P0/P1 on explicit impact classes armed by a design-declared `productPlane`; `backlog-candidate` gives non-blocking observations a destination; the final-evidence gate demands fresh evidence only for Sprint-owned/affected rows.
+- Withdraws the v1.9.0 "delete local copy + repoint alias" guidance: downstreams keep their own module and import only the documented cross-boundary symbols from the harness copy; `vibe:sync-audit` gains report-only ownership and mirror-drift signals.
 
 Release history is sharded under [docs/release/README.md](docs/release/README.md); detailed notes live in [docs/release/](docs/release/).
 
@@ -332,7 +332,7 @@ Root `src/**`, `scripts/**`, `test/**`, `app/**`, `components/**`, and `lib/**` 
 
 ## 버전 / tag 정책
 
-현재 릴리스는 `harnessVersion: 1.10.1` 입니다. 릴리스를 자를 때는 `package.json`, `.vibe/config.json`, release note, tag를 같은 버전으로 맞춥니다.
+현재 릴리스는 `harnessVersion: 1.11.0` 입니다. 릴리스를 자를 때는 `package.json`, `.vibe/config.json`, release note, tag를 같은 버전으로 맞춥니다.
 
 - `harnessVersion` 은 `.vibe/config.json` 과 `package.json` 에 semver로 기록합니다.
 - 각 minor/patch 릴리스는 해당 커밋에 `vMAJOR.MINOR.PATCH` git tag를 붙인 뒤 origin에 push합니다.

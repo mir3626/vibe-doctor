@@ -162,6 +162,30 @@ export const ProRoundtripContractSchema = z
   })
   .strict();
 
+const ApprovalEventIdSchema = z.string().regex(/^[0-9]{4}--pro--approval--r[0-9]{2}$/);
+
+// Coordinated cross-flow close: the approving reviewer declares, once and
+// machine-readably, which flows were decided jointly at which frozen boundaries. The
+// close command enforces the set atomically; absent the block, single-flow close is
+// unchanged.
+const CoordinatedCloseSchema = z
+  .object({
+    jointInvariant: z.literal(true),
+    primaryFlowPath: FlowPathSchema,
+    flows: z
+      .array(
+        z
+          .object({
+            flowPath: FlowPathSchema,
+            approvedBoundarySha: ShaSchema,
+            authorizedByEventId: ApprovalEventIdSchema.optional(),
+          })
+          .strict(),
+      )
+      .min(2),
+  })
+  .strict();
+
 export const ProRoundtripEventCompleteSchema = z
   .object({
     schemaVersion: z.literal('vibe-pro-event-complete-v1'),
@@ -211,8 +235,29 @@ export const ProRoundtripEventCompleteSchema = z
     createdAt: DateTimeSchema,
     nextActor: z.enum(['cli', 'codex', 'pro', 'user', 'none']),
     nextWriteTarget: SafeRelativePathSchema.nullable(),
+    // Approval-only: the joint-close declaration (optional for compatibility).
+    coordinatedClose: CoordinatedCloseSchema.optional(),
+    // Closed-only: by-reference authorization for a coordinated member whose approval
+    // lives in the primary flow, plus the other member flows for self-description.
+    authorizedByFlowPath: FlowPathSchema.optional(),
+    authorizedByEventId: ApprovalEventIdSchema.optional(),
+    coordinatedWith: z.array(FlowPathSchema).optional(),
   })
-  .strict();
+  .strict()
+  .superRefine((event, ctx) => {
+    if (event.coordinatedClose !== undefined && event.kind !== 'approval') {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'coordinatedClose may only appear on an approval event' });
+    }
+    if ((event.authorizedByFlowPath !== undefined) !== (event.authorizedByEventId !== undefined)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'authorizedByFlowPath and authorizedByEventId must be declared together' });
+    }
+    if (
+      (event.authorizedByEventId !== undefined || event.coordinatedWith !== undefined) &&
+      event.kind !== 'closed'
+    ) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'close authorization fields may only appear on a closed event' });
+    }
+  });
 
 const VerificationEvidenceSchema = z
   .object({

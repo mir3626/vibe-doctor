@@ -442,7 +442,18 @@ export function validateEventChain(events: ProRoundtripEventComplete[]): void {
         throw new Error(`${event.eventId}: previousEventId must reference ${previous.eventId}`);
       }
       if (!transitions.get(previous.kind)?.has(event.kind)) {
-        throw new Error(`invalid event transition: ${previous.kind} -> ${event.kind}`);
+        // Coordinated cross-flow close: a member flow's authorization lives in the
+        // primary flow's approval, so its close marker legally follows its own
+        // implementation boundary — but ONLY with an explicit by-reference
+        // authorization (the flow loader verifies the reference against the same
+        // pinned bridge commit).
+        const byReferenceClose =
+          event.kind === 'closed' &&
+          event.authorizedByEventId !== undefined &&
+          ['implementation-report', 'remediation-report'].includes(previous.kind);
+        if (!byReferenceClose) {
+          throw new Error(`invalid event transition: ${previous.kind} -> ${event.kind}`);
+        }
       }
       if (event.sequence <= previous.sequence && event.eventId !== previous.eventId) {
         throw new Error(`${event.eventId}: event sequence must increase`);
@@ -512,6 +523,47 @@ export async function readValidatedJson<T>(
     path.dirname(filePath), path.basename(filePath), MAX_PACKET_FILE_BYTES, 'validated JSON',
   );
   return parser(bytes.toString('utf8'));
+}
+
+/**
+ * Coordinated cross-flow close: validate an approval's coordinatedClose declaration in
+ * isolation (no cross-flow reads). The approval must live in the declared primary flow,
+ * the primary must be a member whose approved boundary is the approval's own frozen
+ * HEAD, and member flow paths must be unique.
+ */
+export function validateCoordinatedCloseDeclaration(
+  approval: ProRoundtripEventComplete,
+): void {
+  const declaration = approval.coordinatedClose;
+  if (!declaration) {
+    return;
+  }
+  if (approval.kind !== 'approval') {
+    throw new Error(`${approval.eventId}: coordinatedClose may only be declared by an approval`);
+  }
+  if (declaration.primaryFlowPath !== approval.flowPath) {
+    throw new Error(
+      `${approval.eventId}: coordinatedClose primary must be the approval's own flow`,
+    );
+  }
+  const seen = new Set<string>();
+  for (const member of declaration.flows) {
+    if (seen.has(member.flowPath)) {
+      throw new Error(`${approval.eventId}: duplicate coordinated flow ${member.flowPath}`);
+    }
+    seen.add(member.flowPath);
+  }
+  const primary = declaration.flows.find(
+    (member) => member.flowPath === declaration.primaryFlowPath,
+  );
+  if (!primary) {
+    throw new Error(`${approval.eventId}: the primary flow must be a coordination member`);
+  }
+  if (primary.approvedBoundarySha !== approval.headSha) {
+    throw new Error(
+      `${approval.eventId}: primary approved boundary must equal the approval's frozen HEAD`,
+    );
+  }
 }
 
 /**

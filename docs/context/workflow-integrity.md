@@ -208,6 +208,13 @@ workflows pass, and risks are recorded. Complete a Pro flow only when those
 conditions also include no unresolved P0/P1, exact-HEAD approval, and a
 published close event.
 
+When an approval declares a `coordinatedClose` set, no member flow may be
+represented as approved or closed independently: the close command closes the
+whole set in one append-only commit (already-closed members count as
+satisfied), a coordinated member's close is authorized by-reference to the
+primary approval and validated against the same pinned bridge commit, and any
+close that would leave the set partial is refused.
+
 ## 11. Shared-module ownership boundary
 
 The harness vendors its own copy of any module it needs at runtime and imports

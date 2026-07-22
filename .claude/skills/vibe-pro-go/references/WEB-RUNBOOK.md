@@ -260,6 +260,30 @@ Create a new approval event containing `APPROVAL.md`, then `COMPLETE.json`.
 Record approved design, approved HEAD, deferrals, residual risks, and a sequence
 `9900` CLI close target.
 
+When one decision approves SEVERAL flows jointly, declare the set
+machine-readably in the approval's `COMPLETE.json` instead of prose:
+
+```json
+"coordinatedClose": {
+  "jointInvariant": true,
+  "primaryFlowPath": "flows/YYYYMMDD/NNN-primary",
+  "flows": [
+    { "flowPath": "flows/YYYYMMDD/NNN-primary",
+      "approvedBoundarySha": "the approval's frozen HEAD" },
+    { "flowPath": "flows/YYYYMMDD/NNN-coordinated",
+      "approvedBoundarySha": "that flow's approved implementation boundary" }
+  ]
+}
+```
+
+The approval must live in the declared primary flow and list it as a member at
+the approval's own frozen HEAD. The CLI then closes the WHOLE set in one
+append-only commit — a coordinated member's close marker carries
+`authorizedByFlowPath`/`authorizedByEventId` referencing this approval instead
+of a local one — and refuses any close that would leave the set partially
+closed. Already-closed members are accepted as satisfied and only the remainder
+is closed. Without the block, single-flow close is unchanged.
+
 ## 7. Append-only write rules
 
 - Write only to `vibe-pro-bridge` and the exact new target.

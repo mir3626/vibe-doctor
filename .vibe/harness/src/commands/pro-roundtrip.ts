@@ -14,7 +14,11 @@ import {
   validateAutoPublishDays,
   validateAutoPublishReason,
 } from '../pro-roundtrip/auto-publish.js';
-import { parseEventDirectory, parseFlowPath } from '../pro-roundtrip/contract.js';
+import {
+  parseEventDirectory,
+  parseFlowPath,
+  validateCoordinatedCloseDeclaration,
+} from '../pro-roundtrip/contract.js';
 import {
   allocateFlowPath,
   listFlowPaths,
@@ -731,6 +735,194 @@ async function closeCommand(
     throw new Error('close publishes to GitHub; obtain user authorization and pass --publish');
   }
   const { context, snapshot } = await loadRemoteSnapshot(runtime, args.positionals[1]);
+  const latest = snapshot.latestEvent.marker;
+
+  // Resolve the governing approval. A closed latest event is only acceptable for the
+  // idempotent completion of a coordination set whose primary was already closed.
+  let approval: ProRoundtripEventComplete;
+  if (latest.kind === 'approval') {
+    approval = latest;
+  } else if (latest.kind === 'closed') {
+    const approvalEvent = [...snapshot.events]
+      .reverse()
+      .find((event) => event.marker.kind === 'approval');
+    if (!approvalEvent?.marker.coordinatedClose) {
+      throw new Error('flow is already closed');
+    }
+    approval = approvalEvent.marker;
+  } else {
+    throw new Error('close requires the latest completed event to be a Pro approval');
+  }
+
+  if (!approval.coordinatedClose) {
+    await closeSingleFlow(runtime, context, snapshot);
+    return;
+  }
+
+  // Coordinated cross-flow close: the approval declares the set; enforce it atomically.
+  validateCoordinatedCloseDeclaration(approval);
+  const declaration = approval.coordinatedClose;
+  if (declaration.primaryFlowPath !== snapshot.flow.flowPath) {
+    throw new Error(
+      `coordinated close must be invoked on the primary flow ${declaration.primaryFlowPath}`,
+    );
+  }
+  const memberFlowPaths = declaration.flows.map(({ flowPath }) => flowPath);
+  const files = new Map<string, string>();
+  const closingNow: string[] = [];
+  const alreadyClosed: string[] = [];
+  for (const member of declaration.flows) {
+    const isPrimary = member.flowPath === declaration.primaryFlowPath;
+    const memberSnapshot = isPrimary
+      ? snapshot
+      : await loadFlowSnapshot(context.worktreePath, member.flowPath);
+    const memberLatest = memberSnapshot.latestEvent.marker;
+    if (memberLatest.kind === 'closed') {
+      // Idempotent set completion: an already-closed member satisfies its part of the
+      // joint invariant; only the remainder is closed (in one commit).
+      alreadyClosed.push(member.flowPath);
+      continue;
+    }
+    let target: string;
+    let previousEventId: string;
+    let designEventId: string | null;
+    if (isPrimary) {
+      if (memberLatest.eventId !== approval.eventId) {
+        throw new Error('primary flow latest event must be the coordinating approval');
+      }
+      const codeHead = (await runGit(context.repoRoot, ['rev-parse', 'HEAD^{commit}'])).stdout.trim();
+      if (approval.headSha !== codeHead) {
+        throw new Error(
+          `approval HEAD is stale: approval=${approval.headSha} current=${codeHead}`,
+        );
+      }
+      const state = await readPacketState(context.repoRoot, snapshot.flow.flowPath);
+      if (!state || state.latestEventId !== approval.eventId) {
+        throw new Error('sync the approval event before closing');
+      }
+      const matrixPath = path.join(
+        packetRootFor(context.repoRoot, snapshot.flow.flowPath),
+        'FINAL-WORKFLOW-MATRIX.md',
+      );
+      if (!(await stat(matrixPath).then(() => true, () => false))) {
+        throw new Error('FINAL-WORKFLOW-MATRIX.md is missing from the durable packet');
+      }
+      const matrix = await readFile(matrixPath, 'utf8');
+      if (/\|\s*(missing|partial|blocked)\s*\|/i.test(matrix)) {
+        throw new Error('final workflow matrix contains an incomplete or blocked row');
+      }
+      const declaredTarget = approval.nextWriteTarget;
+      if (!declaredTarget) {
+        throw new Error('approval event has no close write target');
+      }
+      target = declaredTarget;
+      previousEventId = approval.eventId;
+      designEventId = state.designEventId;
+    } else {
+      if (!['implementation-report', 'remediation-report'].includes(memberLatest.kind)) {
+        throw new Error(
+          `${member.flowPath}: latest event is not a closeable implementation boundary (${memberLatest.kind})`,
+        );
+      }
+      if (memberLatest.headSha !== member.approvedBoundarySha) {
+        throw new Error(
+          `${member.flowPath}: implementation boundary does not match the approved boundary`,
+        );
+      }
+      if (memberLatest.sequence >= 9900) {
+        throw new Error(`${member.flowPath}: no close sequence is available`);
+      }
+      const closeDirectory = '9900--cli--closed--r01';
+      if (memberSnapshot.incompleteEventDirectories.includes(closeDirectory)) {
+        throw new Error(`${member.flowPath}: close target collision: ${closeDirectory}`);
+      }
+      target = `${member.flowPath}/${closeDirectory}`;
+      previousEventId = memberLatest.eventId;
+      designEventId =
+        [...memberSnapshot.events].reverse().find((event) => event.marker.kind === 'design')
+          ?.marker.eventId ?? null;
+    }
+    const eventParts = parseEventDirectory(path.posix.basename(target));
+    if (eventParts.kind !== 'closed' || eventParts.actor !== 'cli') {
+      throw new Error(`close target is not a CLI close event: ${target}`);
+    }
+    const summary = `# Closed (coordinated)
+
+- Flow: \`${member.flowPath}\`
+- Goal: ${memberSnapshot.flow.goal}
+- Joint approval: \`${approval.eventId}\` in \`${declaration.primaryFlowPath}\`
+- Approved boundary: \`${member.approvedBoundarySha}\`
+- Coordinated with: ${memberFlowPaths
+      .filter((flowPath) => flowPath !== member.flowPath)
+      .map((flowPath) => `\`${flowPath}\``)
+      .join(', ')}
+
+The append-only archive is closed under the joint-close invariant. No default-branch
+write or PR was created by this command.
+`;
+    const marker: ProRoundtripEventComplete = {
+      schemaVersion: 'vibe-pro-event-complete-v1',
+      flowPath: member.flowPath,
+      eventId: eventParts.eventId,
+      sequence: eventParts.sequence,
+      actor: 'cli',
+      kind: 'closed',
+      revision: eventParts.revision,
+      previousEventId,
+      supersedesEventId: null,
+      protocolVersion: memberSnapshot.flow.protocol.version,
+      designEventId,
+      sprintId: null,
+      repositoryFullName: memberSnapshot.flow.repository.fullName,
+      codeBranch: memberSnapshot.flow.codeBranch,
+      baseSha: memberSnapshot.flow.baseSha,
+      headSha: member.approvedBoundarySha,
+      disposition: 'closed',
+      files: [{ path: 'SUMMARY.md', mediaType: 'text/markdown' }],
+      limitations: memberLatest.limitations,
+      createdAt: new Date().toISOString(),
+      nextActor: 'none',
+      nextWriteTarget: null,
+      coordinatedWith: memberFlowPaths.filter((flowPath) => flowPath !== member.flowPath),
+      ...(isPrimary
+        ? {}
+        : {
+            authorizedByFlowPath: declaration.primaryFlowPath,
+            authorizedByEventId: approval.eventId,
+          }),
+    };
+    files.set(`${target}/SUMMARY.md`, summary);
+    files.set(`${target}/COMPLETE.json`, `${JSON.stringify(marker, null, 2)}\n`);
+    closingNow.push(member.flowPath);
+  }
+
+  if (closingNow.length === 0) {
+    emit(runtime, {
+      flowPath: snapshot.flow.flowPath,
+      status: 'closed',
+      coordinatedClose: { closed: [], alreadyClosed },
+    });
+    return;
+  }
+  // One append-only bridge commit closes every remaining member — all or none.
+  const publication = await publishAdditions(files, 'docs(pro-go): close coordinated flows', {
+    context,
+  });
+  const synced = await syncFlow(snapshot.flow.flowPath, { context });
+  emit(runtime, {
+    publication,
+    flowPath: snapshot.flow.flowPath,
+    status: 'closed',
+    latestEventId: synced.state.latestEventId,
+    coordinatedClose: { closed: closingNow, alreadyClosed },
+  });
+}
+
+async function closeSingleFlow(
+  runtime: ProRoundtripRuntime,
+  context: WorktreeContext,
+  snapshot: Awaited<ReturnType<typeof loadFlowSnapshot>>,
+): Promise<void> {
   if (snapshot.latestEvent.marker.kind !== 'approval') {
     throw new Error('close requires the latest completed event to be a Pro approval');
   }

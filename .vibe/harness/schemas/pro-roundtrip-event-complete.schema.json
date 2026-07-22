@@ -175,6 +175,60 @@
               "type": "null"
             }
           ]
+        },
+        "coordinatedClose": {
+          "type": "object",
+          "properties": {
+            "jointInvariant": {
+              "type": "boolean",
+              "const": true
+            },
+            "primaryFlowPath": {
+              "$ref": "#/definitions/ProRoundtripEventComplete/properties/flowPath"
+            },
+            "flows": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "flowPath": {
+                    "$ref": "#/definitions/ProRoundtripEventComplete/properties/flowPath"
+                  },
+                  "approvedBoundarySha": {
+                    "$ref": "#/definitions/ProRoundtripEventComplete/properties/baseSha"
+                  },
+                  "authorizedByEventId": {
+                    "type": "string",
+                    "pattern": "^[0-9]{4}--pro--approval--r[0-9]{2}$"
+                  }
+                },
+                "required": [
+                  "flowPath",
+                  "approvedBoundarySha"
+                ],
+                "additionalProperties": false
+              },
+              "minItems": 2
+            }
+          },
+          "required": [
+            "jointInvariant",
+            "primaryFlowPath",
+            "flows"
+          ],
+          "additionalProperties": false
+        },
+        "authorizedByFlowPath": {
+          "$ref": "#/definitions/ProRoundtripEventComplete/properties/flowPath"
+        },
+        "authorizedByEventId": {
+          "$ref": "#/definitions/ProRoundtripEventComplete/properties/coordinatedClose/properties/flows/items/properties/authorizedByEventId"
+        },
+        "coordinatedWith": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/ProRoundtripEventComplete/properties/flowPath"
+          }
         }
       },
       "required": [
