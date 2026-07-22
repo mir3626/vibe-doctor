@@ -2,8 +2,11 @@
 
 Apply this contract to every multi-Sprint goal, iteration, and Pro bridge flow.
 Actor runbooks and Sprint prompts may add constraints but may not weaken it.
-For a Pro bridge flow, `protocol/v1/COMMON-HARNESS.md` is the immutable pinned
-copy of this document.
+For a Pro bridge flow, the flow's pinned `protocol/<version>/COMMON-HARNESS.md`
+is the immutable pinned copy of this document. Protocol versions are
+content-addressed (`v1-<hash8>`, derived from the protocol source bytes): any
+change to protocol source content bootstraps a new append-only namespace, and
+each flow stays bound to the namespace it pinned at creation.
 
 ## 1. Authority and trust
 

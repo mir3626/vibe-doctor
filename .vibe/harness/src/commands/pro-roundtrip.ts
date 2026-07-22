@@ -177,11 +177,11 @@ function safeRemoteUrl(remoteUrl: string): string {
   return remoteUrl;
 }
 
-function webPrompt(fullName: string, flowPath: string): string {
+function webPrompt(fullName: string, flowPath: string, protocolVersion: string): string {
   return `MUST use only the GitHub app's exact-ref fetch/read/compare/create actions.
 MUST NOT use Web Search, browser search, generic search results, URL browsing, or the GitHub search index for repository work.
 MUST NOT fall back to the default branch.
-Fetch ${fullName}@refs/heads/vibe-pro-bridge:protocol/v1/PROTOCOL.json, then read its pinned WEB-RUNBOOK.md and COMMON-HARNESS.md.
+Fetch ${fullName}@refs/heads/vibe-pro-bridge:protocol/${protocolVersion}/PROTOCOL.json, then read its pinned WEB-RUNBOOK.md and COMMON-HARNESS.md.
 Continue flow ${flowPath} from its latest valid COMPLETE.json.
 Write only new files under the exact nextWriteTarget, create COMPLETE.json last, keep confirmation visible, and stop if exact-ref access is unavailable.`;
 }
@@ -192,7 +192,7 @@ async function bootstrapCommand(
 ): Promise<void> {
   if (!getBooleanFlag(args, 'publish')) {
     throw new Error(
-      'bootstrap publishes protocol/v1 to GitHub; obtain user authorization and pass --publish',
+      'bootstrap publishes the pinned protocol namespace to GitHub; obtain user authorization and pass --publish',
     );
   }
   const repoRoot = await repositoryRoot(runtime);
@@ -432,7 +432,11 @@ async function goCommand(
     instruction: nextInstruction(synced.snapshot, synced.state.currentSprintId),
     webPrompt:
       marker.nextActor === 'pro'
-        ? webPrompt(synced.snapshot.flow.repository.fullName, flowPath)
+        ? webPrompt(
+            synced.snapshot.flow.repository.fullName,
+            flowPath,
+            synced.snapshot.flow.protocol.version,
+          )
         : null,
   });
 }
@@ -613,7 +617,10 @@ ${flow.nonGoals.map((item) => `- ${item}`).join('\n')}
     ...published,
     protocolBootstrapped: protocol.bootstrapped,
     nextActor: mode === 'design' ? 'pro' : 'codex',
-    webPrompt: mode === 'design' ? webPrompt(fullName, published.flowPath) : null,
+    webPrompt:
+      mode === 'design'
+        ? webPrompt(fullName, published.flowPath, protocol.version)
+        : null,
   });
 }
 
@@ -718,7 +725,14 @@ async function continueCommand(
 ): Promise<void> {
   const { snapshot } = await loadRemoteSnapshot(runtime, args.positionals[1]);
   if (snapshot.latestEvent.marker.nextActor === 'pro') {
-    emit(runtime, webPrompt(snapshot.flow.repository.fullName, snapshot.flow.flowPath));
+    emit(
+      runtime,
+      webPrompt(
+        snapshot.flow.repository.fullName,
+        snapshot.flow.flowPath,
+        snapshot.flow.protocol.version,
+      ),
+    );
     return;
   }
   emit(
@@ -1067,7 +1081,7 @@ async function doctorCommand(runtime: ProRoundtripRuntime): Promise<void> {
     checks.push({
       id: 'local-protocol',
       status: 'ok',
-      detail: `v1 commonHarnessSha256=${local.commonHarnessSha256}`,
+      detail: `${local.version} commonHarnessSha256=${local.commonHarnessSha256}`,
     });
   } catch (error) {
     checks.push({

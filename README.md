@@ -10,14 +10,14 @@
 
 ## Latest Highlights
 
-### v1.11.0 (2026-07-22) - Coordinated cross-flow close
+### v1.12.0 (2026-07-23) - Content-addressed Pro protocol namespaces
+
+- The Pro bridge protocol version is now derived from protocol content (`v1-<hash8>`): a harness release that changes any protocol source simply bootstraps a new append-only `protocol/<version>/` namespace under the existing `--publish` authorization, instead of permanently stranding every previously bootstrapped bridge with `protocol hash/content mismatch`.
+- Flows pinned to a different protocol generation fail with an error naming both versions (pinned vs local); closed flows keep their namespace forever, legacy `"v1"` documents still parse, and Web Pro discovers the newest namespace via the updated runbooks.
+
+### Previous: v1.11.0 (2026-07-22) - Coordinated cross-flow close
 
 - When one Pro approval decides several flows jointly, the approval now declares the set machine-readably (`coordinatedClose` in its `COMPLETE.json`) and `close` enforces it atomically: every remaining member closes in one append-only bridge commit, already-closed members count as satisfied, and any close that would leave the set partial is refused.
-- A coordinated member's close marker is authorized by-reference (`authorizedByFlowPath`/`authorizedByEventId` pointing at the primary approval) and validated against the same pinned bridge commit — closing the gap where a jointly approved flow had no closeable approval in its own chain and stayed permanently open.
-
-### Previous: v1.10.1 (2026-07-22) - Shared-module ownership boundary
-
-- Withdraws the v1.9.0 "delete local copy + repoint alias" guidance: downstreams keep their own module and import only the documented cross-boundary symbols from the harness copy; `vibe:sync-audit` gains report-only ownership and mirror-drift signals.
 
 Release history is sharded under [docs/release/README.md](docs/release/README.md); detailed notes live in [docs/release/](docs/release/).
 

@@ -54,9 +54,12 @@ Perform only when the user explicitly starts a flow in Web.
    code-branch HEAD for both.
 4. Use the timezone declared by root `bridge-runbook.md` unless the user supplies
    another real IANA timezone.
-5. Fetch `protocol/v1/PROTOCOL.json`, every declared protocol file, and the
-   immutable commit that added them. Stop with `PROTOCOL_BOOTSTRAP_REQUIRED` if
-   the protocol is absent, partial, mutable, or cannot be pinned.
+5. List `protocol/` on `vibe-pro-bridge` and select the newest namespace — the
+   `protocol/<version>/` directory whose files were added by the most recent
+   commit (versions are content-addressed, e.g. `v1-3fa9c2d1`). Fetch its
+   `PROTOCOL.json`, every declared protocol file, and the immutable commit that
+   added them. Stop with `PROTOCOL_BOOTSTRAP_REQUIRED` if no namespace exists or
+   the selected one is partial, mutable, or cannot be pinned.
 6. Treat a request such as “review this project”, “review work since commit X”,
    or “find changes/improvements” as a new review-to-design flow unless the user
    explicitly names an existing flow to continue.

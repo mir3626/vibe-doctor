@@ -7,7 +7,8 @@ design without a CLI-generated prompt.
 
 - Exchange branch: `vibe-pro-bridge`
 - Default timezone: `Asia/Seoul`
-- Protocol root: `protocol/v1`
+- Protocol root: the newest `protocol/<version>/` namespace on `vibe-pro-bridge`
+  (content-addressed versions, e.g. `protocol/v1-3fa9c2d1`)
 - Archive root: `flows/YYYYMMDD/NNN-slug`
 
 ## Mandatory transport
@@ -26,7 +27,9 @@ visible.
 
 1. Resolve the repository from the user's `@GitHub` target.
 2. Fetch this file again from the exact bound code ref.
-3. Fetch `protocol/v1/PROTOCOL.json` from `vibe-pro-bridge`.
+3. List `protocol/` on `vibe-pro-bridge`, select the newest namespace (the one
+   whose files were added by the most recent commit), and fetch its
+   `PROTOCOL.json`.
 4. Fetch every protocol file declared by that manifest, including
    `WEB-RUNBOOK.md`, `COMMON-HARNESS.md`, and JSON schemas.
 5. Resolve the single immutable commit that added the protocol files. Stop with

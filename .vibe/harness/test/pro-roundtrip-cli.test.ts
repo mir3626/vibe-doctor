@@ -15,6 +15,11 @@ import type {
 import { publishAdditions } from '../src/pro-roundtrip/git-branch-transport.js';
 import { packetRootFor } from '../src/pro-roundtrip/importer.js';
 import {
+  ensureProtocol,
+  loadLocalProtocol,
+  verifyPinnedProtocol,
+} from '../src/pro-roundtrip/protocol.js';
+import {
   prepareBridgeWorktree,
   runGit,
   type WorktreeContext,
@@ -24,6 +29,14 @@ const execFile = promisify(execFileCallback);
 const sourceRoot = process.cwd();
 const cliPath = path.resolve('.vibe', 'harness', 'scripts', 'vibe-pro-go.mjs');
 const fixtureRoot = path.resolve('.vibe', 'harness', 'test', 'fixtures', 'pro-roundtrip');
+const protocolSourcePaths = [
+  'docs/context/workflow-integrity.md',
+  '.claude/skills/vibe-pro-go/references/WEB-RUNBOOK.md',
+  '.vibe/harness/schemas/pro-roundtrip-flow.schema.json',
+  '.vibe/harness/schemas/pro-roundtrip-contract.schema.json',
+  '.vibe/harness/schemas/pro-roundtrip-event-complete.schema.json',
+] as const;
+const protocolMutationSource = protocolSourcePaths[0];
 
 async function git(cwd: string, args: string[]): Promise<string> {
   const result = await execFile('git', args, {
@@ -40,14 +53,7 @@ async function writeText(filePath: string, content: string): Promise<void> {
 }
 
 async function copyProtocolSources(checkout: string): Promise<void> {
-  const paths = [
-    'docs/context/workflow-integrity.md',
-    '.claude/skills/vibe-pro-go/references/WEB-RUNBOOK.md',
-    '.vibe/harness/schemas/pro-roundtrip-flow.schema.json',
-    '.vibe/harness/schemas/pro-roundtrip-contract.schema.json',
-    '.vibe/harness/schemas/pro-roundtrip-event-complete.schema.json',
-  ];
-  for (const relativePath of paths) {
+  for (const relativePath of protocolSourcePaths) {
     await writeText(
       path.join(checkout, ...relativePath.split('/')),
       await readFile(path.join(sourceRoot, ...relativePath.split('/')), 'utf8'),
@@ -208,6 +214,216 @@ describe('vibe-pro-go CLI', { concurrency: true }, () => {
     );
   });
 
+  it('derives a deterministic normalized content-addressed protocol version', async (testContext) => {
+    const fixture = await scaffoldRepository(testContext);
+    const sourcePath = path.join(fixture.checkout, protocolMutationSource);
+    const original = await readFile(sourcePath, 'utf8');
+    const first = await loadLocalProtocol(fixture.checkout);
+    const second = await loadLocalProtocol(fixture.checkout);
+
+    assert.match(first.version, /^v1-[0-9a-f]{8}$/u);
+    assert.equal(second.version, first.version);
+    assert.equal(first.root, `protocol/${first.version}`);
+    assert.ok(
+      [...first.files.keys()].every((relativePath) => relativePath.startsWith(`${first.root}/`)),
+    );
+
+    const crlf = original.replace(/\r\n/g, '\n').replace(/\n/g, '\r\n');
+    await writeFile(sourcePath, crlf, 'utf8');
+    const crlfProtocol = await loadLocalProtocol(fixture.checkout);
+    assert.equal(crlfProtocol.version, first.version);
+  });
+
+  it('changes the protocol namespace when one source changes', async (testContext) => {
+    const fixture = await scaffoldRepository(testContext);
+    const before = await loadLocalProtocol(fixture.checkout);
+
+    for (const relativePath of protocolSourcePaths) {
+      const sourcePath = path.join(fixture.checkout, ...relativePath.split('/'));
+      const original = await readFile(sourcePath, 'utf8');
+      await writeFile(
+        sourcePath,
+        `${original}\ncontent-addressed generation fixture: ${relativePath}\n`,
+        'utf8',
+      );
+      const after = await loadLocalProtocol(fixture.checkout);
+      await writeFile(sourcePath, original, 'utf8');
+      const restored = await loadLocalProtocol(fixture.checkout);
+
+      assert.notEqual(after.version, before.version, relativePath);
+      assert.notEqual(after.root, before.root, relativePath);
+      assert.equal(restored.version, before.version, relativePath);
+    }
+  });
+
+  it('accepts CRLF-materialized files in an existing protocol namespace', async (testContext) => {
+    const fixture = await scaffoldRepository(testContext);
+    const local = await loadLocalProtocol(fixture.checkout);
+    const bootstrap = await ensureProtocol({ context: fixture.context, publish: true });
+    const relativePath = `${local.root}/COMMON-HARNESS.md`;
+    const target = path.join(fixture.context.worktreePath, ...relativePath.split('/'));
+    const original = await readFile(target, 'utf8');
+    const crlf = original.replace(/\r\n/g, '\n').replace(/\n/g, '\r\n');
+
+    assert.equal(bootstrap.bootstrapped, true);
+    await writeFile(target, crlf, 'utf8');
+    const binding = await ensureProtocol({ context: fixture.context, publish: false });
+
+    assert.equal(binding.bootstrapped, false);
+    assert.equal(binding.version, local.version);
+  });
+
+  it('rejects fully present protocol content that differs from local bytes', async (testContext) => {
+    const fixture = await scaffoldRepository(testContext);
+    const localA = await loadLocalProtocol(fixture.checkout);
+    await ensureProtocol({ context: fixture.context, publish: true });
+
+    const sourcePath = path.join(fixture.checkout, protocolMutationSource);
+    const original = await readFile(sourcePath, 'utf8');
+    await writeFile(sourcePath, `${original}\ncontent mismatch generation fixture\n`, 'utf8');
+    const localB = await loadLocalProtocol(fixture.checkout);
+    const tamperedFiles = new Map(localB.files);
+    const tamperedPath = `${localB.root}/COMMON-HARNESS.md`;
+    const expected = tamperedFiles.get(tamperedPath);
+    if (expected === undefined) {
+      throw new Error(`missing protocol test fixture: ${tamperedPath}`);
+    }
+    tamperedFiles.set(tamperedPath, `${expected}\ntampered bridge content\n`);
+
+    assert.notEqual(localB.version, localA.version);
+    assert.equal(tamperedFiles.size, 6);
+    await publishAdditions(tamperedFiles, 'test: publish tampered protocol namespace', {
+      context: fixture.context,
+    });
+    await assert.rejects(
+      ensureProtocol({ context: fixture.context, publish: true }),
+      /protocol hash\/content mismatch: /u,
+    );
+  });
+
+  it('rejects a partially present protocol namespace', async (testContext) => {
+    const fixture = await scaffoldRepository(testContext);
+    const localA = await loadLocalProtocol(fixture.checkout);
+    await ensureProtocol({ context: fixture.context, publish: true });
+
+    const sourcePath = path.join(fixture.checkout, protocolMutationSource);
+    const original = await readFile(sourcePath, 'utf8');
+    await writeFile(sourcePath, `${original}\npartial generation fixture\n`, 'utf8');
+    const localB = await loadLocalProtocol(fixture.checkout);
+    const partialFiles = new Map([...localB.files.entries()].slice(0, -1));
+
+    assert.notEqual(localB.version, localA.version);
+    assert.equal(localB.files.size, 6);
+    assert.equal(partialFiles.size, 5);
+    await publishAdditions(partialFiles, 'test: publish partial protocol namespace', {
+      context: fixture.context,
+    });
+    await assert.rejects(
+      ensureProtocol({ context: fixture.context, publish: true }),
+      /is partial; append-only recovery requires a new protocol namespace/u,
+    );
+  });
+
+  it('bootstraps changed protocol content into a new append-only namespace', async (testContext) => {
+    const fixture = await scaffoldRepository(testContext);
+    const localA = await loadLocalProtocol(fixture.checkout);
+    const bindingA = await ensureProtocol({ context: fixture.context, publish: true });
+    const generationABytes = new Map<string, string>();
+    for (const relativePath of localA.files.keys()) {
+      generationABytes.set(
+        relativePath,
+        await readFile(
+          path.join(fixture.context.worktreePath, ...relativePath.split('/')),
+          'utf8',
+        ),
+      );
+    }
+
+    assert.equal(bindingA.bootstrapped, true);
+    assert.equal(bindingA.version, localA.version);
+
+    const sourcePath = path.join(fixture.checkout, protocolMutationSource);
+    const original = await readFile(sourcePath, 'utf8');
+    await writeFile(sourcePath, `${original}\nnew protocol generation fixture\n`, 'utf8');
+    const localB = await loadLocalProtocol(fixture.checkout);
+
+    assert.notEqual(localB.version, localA.version);
+    await assert.rejects(
+      ensureProtocol({ context: fixture.context, publish: false }),
+      new RegExp(
+        `protocol/${localB.version} is not bootstrapped; rerun only after user authorizes --publish`,
+        'u',
+      ),
+    );
+
+    const bindingB = await ensureProtocol({ context: fixture.context, publish: true });
+    assert.equal(bindingB.bootstrapped, true);
+    assert.equal(bindingB.version, localB.version);
+    assert.notEqual(bindingB.version, bindingA.version);
+
+    for (const [relativePath, expected] of generationABytes) {
+      assert.equal(
+        await readFile(
+          path.join(fixture.context.worktreePath, ...relativePath.split('/')),
+          'utf8',
+        ),
+        expected,
+      );
+    }
+
+    const manifest = JSON.parse(
+      await readFile(
+        path.join(fixture.context.worktreePath, ...localB.root.split('/'), 'PROTOCOL.json'),
+        'utf8',
+      ),
+    ) as { version: string };
+    assert.equal(manifest.version, localB.version);
+  });
+
+  it('rejects a flow pinned to a different local protocol generation', async (testContext) => {
+    const fixture = await scaffoldRepository(testContext);
+    const started = await runCli(fixture, [
+      'start',
+      'audit',
+      '--goal',
+      'Protocol generation mismatch fixture',
+      '--slug',
+      'protocol-generation-mismatch',
+      '--timezone',
+      'Asia/Seoul',
+      '--repository',
+      'fixture/repo',
+      '--publish',
+    ]);
+    const flowPath = started.flowPath as string;
+    const flow = JSON.parse(
+      await readFile(
+        path.join(fixture.context.worktreePath, ...flowPath.split('/'), 'FLOW.json'),
+        'utf8',
+      ),
+    ) as ProRoundtripFlow;
+    const sourcePath = path.join(fixture.checkout, protocolMutationSource);
+    const original = await readFile(sourcePath, 'utf8');
+    await writeFile(sourcePath, `${original}\nlocal protocol generation changed\n`, 'utf8');
+    const local = await loadLocalProtocol(fixture.checkout);
+
+    assert.notEqual(local.version, flow.protocol.version);
+    await assert.rejects(
+      verifyPinnedProtocol(
+        fixture.checkout,
+        fixture.context.worktreePath,
+        flow.protocol,
+      ),
+      (error: unknown) => {
+        assert.ok(error instanceof Error);
+        assert.ok(error.message.includes(flow.protocol.version));
+        assert.ok(error.message.includes(local.version));
+        assert.match(error.message, /different protocol generation/u);
+        return true;
+      },
+    );
+  });
+
   it(
     'requires the root Web entry runbook on the pushed code branch before bootstrap',
     async (testContext) => {
@@ -280,19 +496,31 @@ describe('vibe-pro-go CLI', { concurrency: true }, () => {
       '--publish',
     ]);
     const flowPath = String(started.flowPath);
+    const localProtocol = await loadLocalProtocol(fixture.checkout);
     assert.match(flowPath, /^flows\/[0-9]{8}\/001-roundtrip-fixture$/);
     assert.equal(started.nextActor, 'pro');
     assert.match(String(started.webPrompt), /MUST NOT use Web Search/);
-    assert.match(String(started.webPrompt), /protocol\/v1\/PROTOCOL\.json/);
+    assert.ok(
+      String(started.webPrompt).includes(`${localProtocol.root}/PROTOCOL.json`),
+    );
 
     const protocolContext = fixture.context;
     const protocolManifest = JSON.parse(
       await readFile(
-        path.join(protocolContext.worktreePath, 'protocol', 'v1', 'PROTOCOL.json'),
+        path.join(
+          protocolContext.worktreePath,
+          ...localProtocol.root.split('/'),
+          'PROTOCOL.json',
+        ),
         'utf8',
       ),
-    ) as { schemaVersion: string; files: Array<{ path: string; sha256: string }> };
+    ) as {
+      schemaVersion: string;
+      version: string;
+      files: Array<{ path: string; sha256: string }>;
+    };
     assert.equal(protocolManifest.schemaVersion, 'vibe-pro-protocol-manifest-v1');
+    assert.equal(protocolManifest.version, localProtocol.version);
     assert.equal(protocolManifest.files.length, 5);
 
     const { flow, contract } = await publishDesignEvent(fixture, flowPath);

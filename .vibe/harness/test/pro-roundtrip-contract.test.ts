@@ -10,7 +10,11 @@ import {
   validateContractSemantics,
   validateEventChain,
 } from '../src/pro-roundtrip/contract.js';
-import type { ProRoundtripEventComplete } from '../src/lib/schemas/pro-roundtrip.js';
+import {
+  ProRoundtripEventCompleteSchema,
+  ProRoundtripFlowSchema,
+  type ProRoundtripEventComplete,
+} from '../src/lib/schemas/pro-roundtrip.js';
 import {
   allocateDailyFlowPath,
   loadFlowSnapshot,
@@ -53,6 +57,35 @@ describe('pro roundtrip contract', () => {
     );
 
     assert.doesNotThrow(() => validateContractSemantics(flow, event, contract));
+  });
+
+  it('accepts legacy and content-addressed protocol versions with exact suffix format', async () => {
+    const flow = parseFlowJson(
+      await readFile(path.join(fixtureRoot, 'FLOW.json'), 'utf8'),
+    );
+    const event = parseEventCompleteJson(
+      await readFile(path.join(fixtureRoot, 'COMPLETE.json'), 'utf8'),
+    );
+    const parseVersion = (version: string): void => {
+      ProRoundtripFlowSchema.parse({
+        ...flow,
+        protocol: { ...flow.protocol, version },
+      });
+      ProRoundtripEventCompleteSchema.parse({ ...event, protocolVersion: version });
+    };
+
+    for (const version of ['v1', 'v1-0123abcd']) {
+      assert.doesNotThrow(() => parseVersion(version));
+    }
+    for (const version of [
+      'v1-',
+      'v1-0123abc',
+      'v1-0123abcde',
+      'v1-0123abCD',
+      'v10123abcd',
+    ]) {
+      assert.throws(() => parseVersion(version));
+    }
   });
 
   it('rejects duplicate ownership and Sprint dependency cycles', async () => {

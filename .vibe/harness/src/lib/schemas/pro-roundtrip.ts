@@ -34,7 +34,7 @@ export const ProRoundtripFlowSchema = z
     baseSha: ShaSchema,
     protocol: z
       .object({
-        version: z.string().regex(/^v[1-9][0-9]*$/),
+        version: z.string().regex(/^v[1-9][0-9]*(-[0-9a-f]{8})?$/),
         commitSha: ShaSchema,
         commonHarnessSha256: z.string().regex(/^[0-9a-f]{64}$/),
       })
@@ -205,7 +205,7 @@ export const ProRoundtripEventCompleteSchema = z
     revision: z.number().int().min(1).max(99),
     previousEventId: EventIdSchema.nullable(),
     supersedesEventId: EventIdSchema.nullable(),
-    protocolVersion: z.string().regex(/^v[1-9][0-9]*$/),
+    protocolVersion: z.string().regex(/^v[1-9][0-9]*(-[0-9a-f]{8})?$/),
     designEventId: z.string().regex(/^[0-9]{4}--pro--design--r[0-9]{2}$/).nullable(),
     sprintId: SprintIdSchema.nullable(),
     repositoryFullName: z.string().regex(/^[^/\s]+\/[^/\s]+$/),
