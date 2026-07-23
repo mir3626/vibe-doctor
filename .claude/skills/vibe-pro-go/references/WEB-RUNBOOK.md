@@ -121,6 +121,23 @@ fail-closed comparisons are proportionate only at the declared untrusted
 boundaries. `impactClasses` is the subset of the six §5 classes that apply to
 this flow.
 
+Formalize the user's goal as intents, in `CONTRACT.json`:
+
+```json
+"intents": [
+  { "id": "INT-001",
+    "statement": "what the user asked for, in the user's own product language",
+    "rationale": "why the user wants it" }
+]
+```
+
+New designs MUST declare `intents` and give every `REQ/INV/WF/NFR` item a
+non-empty `intentIds` array referencing them. The CLI validates both directions
+fail-closed: items without `intentIds` and references to undeclared intents are
+rejected once the block exists. Intents are the anchor the CLI uses to brief the
+user on how each design element serves the original request; a design element
+with no honest intent path belongs in the deferral section, not in the contract.
+
 Do not correct a completed design in place. Publish a new revision with
 `supersedesEventId`.
 
@@ -177,6 +194,16 @@ Use `approved`, `approved-with-deferrals`, `remediation-required`,
 `design-revision-required`, or `blocked`. Classify a new requirement as
 `scope-extension`. After remediation, allocate the next feedback sequence and
 increment its revision; never reuse/update the old directory.
+
+When the review finds nothing blocking — zero `P0`/`P1` findings and no design
+revision required — publish the feedback event with disposition `approved` or
+`approved-with-deferrals` and its non-blocking findings, then publish the
+`approval` event (§6) immediately in the SAME Web turn (`feedback → approval` is
+a legal transition), restating every non-blocking finding as a deferral. Never
+skip the feedback event: an approval must follow a feedback in the event chain.
+If the session ends after the feedback, the CLI may close it by explicit user
+acceptance (`reviewAcceptance`) recorded as a cli-actor approval — no extra Web
+roundtrip needed.
 
 ### Finding scope and severity discipline
 
@@ -286,6 +313,14 @@ append-only commit — a coordinated member's close marker carries
 of a local one — and refuses any close that would leave the set partially
 closed. Already-closed members are accepted as satisfied and only the remainder
 is closed. Without the block, single-flow close is unchanged.
+
+A `cli`-actor approval carrying `reviewAcceptance` is the CLI-side user-accepted
+review close: after a feedback whose findings are all mechanically non-blocking
+(zero `P0`/`P1`, no design revision), the user may accept every finding as a
+deferral from the CLI without another Web roundtrip. The CLI enforces
+eligibility fail-closed at every load (exact reviewed HEAD, full-set deferral).
+`coordinatedClose` remains a Pro-only surface: a cli acceptance approval can
+never coordinate or authorize multi-flow closes.
 
 ## 7. Append-only write rules
 

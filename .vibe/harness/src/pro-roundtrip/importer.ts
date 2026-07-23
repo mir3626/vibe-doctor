@@ -46,6 +46,7 @@ export interface RoundtripPacketState {
   /** The FLOW.json blob identity this packet was copied from (r10 FND-024; v2 only). */
   flowBlobSha?: string;
   eventReceipts: EventReceipt[];
+  briefRequiredEventIds?: string[];
   updatedAt: string;
 }
 
@@ -142,7 +143,15 @@ export async function readPacketState(
     (parsed.currentSprintId !== null && !/^SPR-[0-9]{3}$/.test(parsed.currentSprintId)) ||
     // r10 FND-024: v2 packets MUST bind the FLOW.json blob identity.
     (isV2 && !/^[0-9a-f]{40}$/.test(parsed.flowBlobSha ?? '')) ||
-    !Array.isArray(parsed.eventReceipts)
+    !Array.isArray(parsed.eventReceipts) ||
+    (parsed.briefRequiredEventIds !== undefined &&
+      (!Array.isArray(parsed.briefRequiredEventIds) ||
+        new Set(parsed.briefRequiredEventIds).size !== parsed.briefRequiredEventIds.length ||
+        parsed.briefRequiredEventIds.some(
+          (eventId) =>
+            typeof eventId !== 'string' ||
+            !/^[0-9]{4}--(cli|codex|pro)--[a-z0-9][a-z0-9-]*--r[0-9]{2}$/.test(eventId),
+        )))
   ) {
     throw new Error(`invalid local packet state: ${filePath}`);
   }
@@ -485,6 +494,23 @@ export async function syncFlow(
   }
 
   const nextSprintId = await currentSprintId(contract, packetRoot);
+  // Only events imported after this feature arms them. Previously receipted events remain
+  // exempt, while a from-scratch import conservatively arms every imported Pro document.
+  const importedEventIdSet = new Set(importedEventIds);
+  const newlyRequiredBriefEventIds = snapshot.events
+    .filter(
+      ({ marker }) =>
+        importedEventIdSet.has(marker.eventId) &&
+        marker.actor === 'pro' &&
+        (marker.kind === 'design' || marker.kind === 'feedback'),
+    )
+    .map(({ marker }) => marker.eventId);
+  const briefRequiredEventIds = [
+    ...new Set([
+      ...(previousState?.briefRequiredEventIds ?? []),
+      ...newlyRequiredBriefEventIds,
+    ]),
+  ].sort();
   const state: RoundtripPacketState = {
     schemaVersion: 'vibe-pro-packet-state-v2',
     flowPath,
@@ -496,6 +522,7 @@ export async function syncFlow(
     latestEventKind: snapshot.latestEvent.marker.kind,
     flowBlobSha: snapshot.flowBlob.blobSha,
     eventReceipts: [...knownReceipts.values()],
+    briefRequiredEventIds,
     updatedAt: new Date().toISOString(),
   };
   await writeJsonAtomic(path.join(packetRoot, 'STATE.json'), state);

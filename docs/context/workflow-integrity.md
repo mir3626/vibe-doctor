@@ -250,3 +250,38 @@ downstream pins its behavior with its own frozen conformance vectors.
 `audit.harnessImportAllowlist`) warns as an ownership-inversion symptom, and
 mirror pairs declared in `audit.sharedModuleMirrors` are diffed and reported
 without failing.
+
+## 12. Alignment briefing and user acceptance
+
+The failure mode this section guards is silent intent drift, not bugs: the user
+owns product intent, deep design rounds drift technical, and the top question at
+every Pro↔CLI boundary is "is this still what the user intended".
+
+- A design formalizes the user's goal as `intents` (`INT-###`) in
+  `CONTRACT.json`; once the block is declared, every REQ/INV/WF/NFR item must
+  trace to at least one intent (`intentIds`), both directions fail-closed.
+- Every Pro-authored design or feedback document pulled by the CLI requires a
+  user-language alignment brief (`BRIEF.md` + machine-checkable `BRIEF.json` in
+  the flow's durable packet) BEFORE any state-changing command (`report`,
+  `accept-review`, `close`). The brief covers every contract item or finding
+  exactly — no silent omission — classifying each as
+  core/supporting/hardening/speculative/off-track with its intent path (or an
+  explicit no-intent-path marker) and a user-language purpose.
+- Briefs propose; users decide. A brief that requests user decisions or proposes
+  return-to-pro blocks until the user's rulings are recorded
+  (`decisions.confirmedBy: "user"`). The harness validates structure only —
+  never language, never the judgment itself.
+- User trim/defer rulings bind subsequent Pro rounds: they are injected into the
+  next Web prompt as "User scope rulings" and trimmed or deferred scope must not
+  be reintroduced. Pro contests a ruling only through a new P0/P1 finding that
+  declares an intent path.
+- A `cli`-actor approval with `reviewAcceptance` closes a review by explicit
+  user acceptance. Eligibility is mechanical and fail-closed at every snapshot
+  load: the previous event is a pro feedback, zero P0/P1 findings, disposition
+  not design-revision-required/blocked, the approval HEAD equals the reviewed
+  HEAD, and the accepted finding set matches the feedback exactly (full-set
+  deferral). Acceptance and `coordinatedClose` are mutually exclusive;
+  multi-flow coordination stays Pro-only.
+- No model may auto-decide: `--user-approved` and brief rulings are never
+  derivable from configuration (`proGoAutoPublish` covers only the git-publish
+  authorization wait).

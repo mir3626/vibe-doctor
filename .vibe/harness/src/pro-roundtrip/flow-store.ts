@@ -16,6 +16,7 @@ import {
   validateEventRoster,
   validateFindingScopeDiscipline,
   validateFlowBinding,
+  validateReviewAcceptance,
 } from './contract.js';
 import type {
   ProRoundtripContract,
@@ -366,9 +367,17 @@ export async function loadFlowSnapshot(
   );
   validateEventChain(events.map(({ marker }) => marker));
   let activeContract: ProRoundtripContract | undefined;
+  let previousCompletedEvent: CompletedEvent | undefined;
   for (const event of events) {
     if (event.contract) {
       activeContract = event.contract;
+    }
+    if (event.marker.kind === 'approval') {
+      validateReviewAcceptance(
+        event.marker,
+        previousCompletedEvent?.marker,
+        previousCompletedEvent?.findings?.findings,
+      );
     }
     if (event.findings) {
       // Finding-scope discipline is armed by the ACTIVE design as of this feedback
@@ -396,6 +405,7 @@ export async function loadFlowSnapshot(
         }
       }
     }
+    previousCompletedEvent = event;
   }
   const latestEvent = events.at(-1);
   if (!latestEvent) {

@@ -25,6 +25,8 @@ const artifactOutputs = {
   'sidecar-artifact.json': '.vibe/harness/schemas/sidecar-artifact.schema.json',
   'pro-roundtrip-flow.json': '.vibe/harness/schemas/pro-roundtrip-flow.schema.json',
   'pro-roundtrip-contract.json': '.vibe/harness/schemas/pro-roundtrip-contract.schema.json',
+  'pro-roundtrip-alignment-brief.json':
+    '.vibe/harness/schemas/pro-roundtrip-alignment-brief.schema.json',
   'pro-roundtrip-event-complete.json':
     '.vibe/harness/schemas/pro-roundtrip-event-complete.schema.json',
   'pro-roundtrip-report-input.json':

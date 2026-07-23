@@ -218,6 +218,33 @@
           ],
           "additionalProperties": false
         },
+        "reviewAcceptance": {
+          "type": "object",
+          "properties": {
+            "authorizedBy": {
+              "type": "string",
+              "const": "user"
+            },
+            "acceptedFindingIds": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^FND-[0-9]{3}$"
+              }
+            },
+            "reason": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 500
+            }
+          },
+          "required": [
+            "authorizedBy",
+            "acceptedFindingIds",
+            "reason"
+          ],
+          "additionalProperties": false
+        },
         "authorizedByFlowPath": {
           "$ref": "#/definitions/ProRoundtripEventComplete/properties/flowPath"
         },

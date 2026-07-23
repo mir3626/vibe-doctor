@@ -78,7 +78,7 @@ export async function readAutoPublishState(repoRoot: string): Promise<AutoPublis
   return { autoPublish: !expired, directive, expired };
 }
 
-async function appendSessionLogDecision(repoRoot: string, entry: string): Promise<void> {
+export async function appendSessionLogDecision(repoRoot: string, entry: string): Promise<void> {
   const logPath = sessionLogPath(repoRoot);
   let content: string;
   try {

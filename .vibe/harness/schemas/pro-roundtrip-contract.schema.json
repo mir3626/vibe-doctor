@@ -50,6 +50,14 @@
               "ownerSprint": {
                 "type": "string",
                 "pattern": "^SPR-[0-9]{3}$"
+              },
+              "intentIds": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "pattern": "^INT-[0-9]{3}$"
+                },
+                "minItems": 1
               }
             },
             "required": [
@@ -80,6 +88,13 @@
                 "type": "array",
                 "items": {
                   "$ref": "#/definitions/ProRoundtripContract/properties/requirements/items/properties/title"
+                },
+                "minItems": 1
+              },
+              "intentIds": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/definitions/ProRoundtripContract/properties/requirements/items/properties/intentIds/items"
                 },
                 "minItems": 1
               }
@@ -121,6 +136,13 @@
                   "$ref": "#/definitions/ProRoundtripContract/properties/requirements/items/properties/ownerSprint"
                 },
                 "minItems": 1
+              },
+              "intentIds": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/definitions/ProRoundtripContract/properties/requirements/items/properties/intentIds/items"
+                },
+                "minItems": 1
               }
             },
             "required": [
@@ -158,6 +180,13 @@
               },
               "ownerSprint": {
                 "$ref": "#/definitions/ProRoundtripContract/properties/requirements/items/properties/ownerSprint"
+              },
+              "intentIds": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/definitions/ProRoundtripContract/properties/requirements/items/properties/intentIds/items"
+                },
+                "minItems": 1
               }
             },
             "required": [
@@ -290,6 +319,30 @@
           },
           "minItems": 1,
           "maxItems": 12
+        },
+        "intents": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "$ref": "#/definitions/ProRoundtripContract/properties/requirements/items/properties/intentIds/items"
+              },
+              "statement": {
+                "$ref": "#/definitions/ProRoundtripContract/properties/requirements/items/properties/title"
+              },
+              "rationale": {
+                "$ref": "#/definitions/ProRoundtripContract/properties/requirements/items/properties/title"
+              }
+            },
+            "required": [
+              "id",
+              "statement",
+              "rationale"
+            ],
+            "additionalProperties": false
+          },
+          "minItems": 1
         },
         "finalGatePolicy": {
           "type": "object",

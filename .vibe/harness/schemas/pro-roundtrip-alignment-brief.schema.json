@@ -1,0 +1,177 @@
+{
+  "$ref": "#/definitions/ProRoundtripAlignmentBrief",
+  "definitions": {
+    "ProRoundtripAlignmentBrief": {
+      "type": "object",
+      "properties": {
+        "schemaVersion": {
+          "type": "string",
+          "const": "vibe-pro-alignment-brief-v1"
+        },
+        "flowPath": {
+          "type": "string",
+          "pattern": "^flows\\/[0-9]{8}\\/[0-9]{3}-[a-z0-9][a-z0-9-]{1,58}[a-z0-9]$"
+        },
+        "eventId": {
+          "type": "string",
+          "pattern": "^[0-9]{4}--(cli|codex|pro)--[a-z0-9][a-z0-9-]*--r[0-9]{2}$"
+        },
+        "eventKind": {
+          "type": "string",
+          "enum": [
+            "design",
+            "feedback"
+          ]
+        },
+        "authoredAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "entries": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "itemId": {
+                "type": "string",
+                "pattern": "^(REQ|INV|WF|NFR|FND)-[0-9]{3}$"
+              },
+              "classification": {
+                "type": "string",
+                "enum": [
+                  "core",
+                  "supporting",
+                  "hardening",
+                  "speculative",
+                  "off-track"
+                ]
+              },
+              "intentIds": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "pattern": "^INT-[0-9]{3}$"
+                },
+                "minItems": 1
+              },
+              "noIntentPath": {
+                "type": "boolean",
+                "const": true
+              },
+              "purpose": {
+                "type": "string",
+                "minLength": 1
+              },
+              "costNote": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "itemId",
+              "classification",
+              "purpose"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "proposal": {
+          "type": "object",
+          "properties": {
+            "recommendation": {
+              "type": "string",
+              "enum": [
+                "proceed",
+                "return-to-pro"
+              ]
+            },
+            "trim": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/ProRoundtripAlignmentBrief/properties/entries/items/properties/itemId"
+              }
+            },
+            "defer": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/ProRoundtripAlignmentBrief/properties/entries/items/properties/itemId"
+              }
+            },
+            "userDecisionNeeded": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/ProRoundtripAlignmentBrief/properties/entries/items/properties/itemId"
+              }
+            }
+          },
+          "required": [
+            "recommendation",
+            "trim",
+            "defer",
+            "userDecisionNeeded"
+          ],
+          "additionalProperties": false
+        },
+        "decisions": {
+          "type": "object",
+          "properties": {
+            "rulings": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "itemId": {
+                    "$ref": "#/definitions/ProRoundtripAlignmentBrief/properties/entries/items/properties/itemId"
+                  },
+                  "ruling": {
+                    "type": "string",
+                    "enum": [
+                      "keep",
+                      "trim",
+                      "defer"
+                    ]
+                  },
+                  "note": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "itemId",
+                  "ruling"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "confirmedBy": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "const": "user"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "rulings",
+            "confirmedBy"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "flowPath",
+        "eventId",
+        "eventKind",
+        "authoredAt",
+        "entries",
+        "proposal",
+        "decisions"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}

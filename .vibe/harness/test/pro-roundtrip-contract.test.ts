@@ -9,11 +9,22 @@ import {
   parseFlowJson,
   validateContractSemantics,
   validateEventChain,
+  validateReviewAcceptance,
 } from '../src/pro-roundtrip/contract.js';
 import {
+  alignmentBriefSkeleton,
+  validateAlignmentBrief,
+} from '../src/pro-roundtrip/alignment-brief.js';
+import {
+  ProRoundtripAlignmentBriefSchema,
+  ProRoundtripContractSchema,
   ProRoundtripEventCompleteSchema,
   ProRoundtripFlowSchema,
+  type ProRoundtripAlignmentBrief,
+  type ProRoundtripContract,
   type ProRoundtripEventComplete,
+  type ProRoundtripFindings,
+  type ProRoundtripFlow,
 } from '../src/lib/schemas/pro-roundtrip.js';
 import {
   allocateDailyFlowPath,
@@ -44,6 +55,83 @@ async function writeText(filePath: string, content: string): Promise<void> {
   await writeFile(filePath, content, 'utf8');
 }
 
+async function goldenContractBinding(): Promise<{
+  flow: ProRoundtripFlow;
+  contract: ProRoundtripContract;
+  event: ProRoundtripEventComplete;
+}> {
+  return {
+    flow: parseFlowJson(await readFile(path.join(fixtureRoot, 'FLOW.json'), 'utf8')),
+    contract: parseContractJson(
+      await readFile(path.join(fixtureRoot, 'CONTRACT.json'), 'utf8'),
+    ),
+    event: parseEventCompleteJson(
+      await readFile(path.join(fixtureRoot, 'COMPLETE.json'), 'utf8'),
+    ),
+  };
+}
+
+function contractWithIntents(contract: ProRoundtripContract): ProRoundtripContract {
+  return ProRoundtripContractSchema.parse({
+    ...structuredClone(contract),
+    intents: [
+      {
+        id: 'INT-001',
+        statement: 'Keep the user-visible workflow aligned with the stated goal.',
+        rationale: 'Every contract item must retain an explicit intent path.',
+      },
+    ],
+    requirements: contract.requirements.map((item) => ({
+      ...structuredClone(item),
+      intentIds: ['INT-001'],
+    })),
+    invariants: contract.invariants.map((item) => ({
+      ...structuredClone(item),
+      intentIds: ['INT-001'],
+    })),
+    workflows: contract.workflows.map((item) => ({
+      ...structuredClone(item),
+      intentIds: ['INT-001'],
+    })),
+    nonFunctionalRequirements: contract.nonFunctionalRequirements.map((item) => ({
+      ...structuredClone(item),
+      intentIds: ['INT-001'],
+    })),
+  });
+}
+
+function designBrief(
+  event: ProRoundtripEventComplete,
+  contract: ProRoundtripContract,
+): ProRoundtripAlignmentBrief {
+  const itemIds = [
+    ...contract.requirements.map(({ id }) => id),
+    ...contract.invariants.map(({ id }) => id),
+    ...contract.workflows.map(({ id }) => id),
+    ...contract.nonFunctionalRequirements.map(({ id }) => id),
+  ];
+  return ProRoundtripAlignmentBriefSchema.parse({
+    schemaVersion: 'vibe-pro-alignment-brief-v1',
+    flowPath: event.flowPath,
+    eventId: event.eventId,
+    eventKind: 'design',
+    authoredAt: event.createdAt,
+    entries: itemIds.map((itemId) => ({
+      itemId,
+      classification: 'core',
+      intentIds: ['INT-001'],
+      purpose: `Preserve the intent path for ${itemId}.`,
+    })),
+    proposal: {
+      recommendation: 'proceed',
+      trim: [],
+      defer: [],
+      userDecisionNeeded: [],
+    },
+    decisions: { rulings: [], confirmedBy: null },
+  });
+}
+
 describe('pro roundtrip contract', () => {
   it('validates the golden flow, design event, and semantic contract', async () => {
     const flow = parseFlowJson(
@@ -57,6 +145,383 @@ describe('pro roundtrip contract', () => {
     );
 
     assert.doesNotThrow(() => validateContractSemantics(flow, event, contract));
+  });
+
+  it('arms contract intent semantics without invalidating legacy contracts', async () => {
+    const { flow, contract, event } = await goldenContractBinding();
+    assert.doesNotThrow(() => validateContractSemantics(flow, event, contract));
+
+    const missing = contractWithIntents(contract);
+    delete missing.requirements[0]?.intentIds;
+    assert.throws(
+      () => validateContractSemantics(flow, event, missing),
+      new Error('REQ-001: intentIds are required when the contract declares intents'),
+    );
+
+    const unknown = contractWithIntents(contract);
+    const unknownRequirement = unknown.requirements[0];
+    assert.ok(unknownRequirement);
+    unknownRequirement.intentIds = ['INT-999'];
+    assert.throws(
+      () => validateContractSemantics(flow, event, unknown),
+      new Error('REQ-001: unknown intent ID INT-999'),
+    );
+
+    const duplicate = contractWithIntents(contract);
+    duplicate.intents?.push({
+      id: 'INT-001',
+      statement: 'Duplicate intent.',
+      rationale: 'Exercise semantic uniqueness.',
+    });
+    assert.throws(
+      () => validateContractSemantics(flow, event, duplicate),
+      new Error('duplicate intent ID: INT-001'),
+    );
+
+    const undeclared = structuredClone(contract);
+    const undeclaredRequirement = undeclared.requirements[0];
+    assert.ok(undeclaredRequirement);
+    undeclaredRequirement.intentIds = ['INT-001'];
+    assert.throws(
+      () => validateContractSemantics(flow, event, undeclared),
+      new Error('REQ-001: intentIds require a declared intents block'),
+    );
+  });
+
+  it('validates alignment brief V1-V8 rules and complete design briefs', async () => {
+    const { contract: legacyContract, event } = await goldenContractBinding();
+    const contract = contractWithIntents(legacyContract);
+    const complete = designBrief(event, contract);
+    const ctx = { event, contract };
+    assert.doesNotThrow(() => validateAlignmentBrief(complete, ctx));
+
+    assert.throws(
+      () =>
+        validateAlignmentBrief(
+          { ...complete, flowPath: 'flows/20260719/999-other-flow' },
+          ctx,
+        ),
+      new Error(`alignment brief is not bound to ${event.flowPath}/${event.eventId}`),
+    );
+
+    assert.throws(
+      () =>
+        validateAlignmentBrief(
+          { ...complete, entries: [...complete.entries, complete.entries[0]!] },
+          ctx,
+        ),
+      new Error('duplicate brief entry: REQ-001'),
+    );
+
+    assert.throws(
+      () =>
+        validateAlignmentBrief(
+          {
+            ...complete,
+            entries: [
+              ...complete.entries.filter(({ itemId }) => itemId !== 'REQ-001'),
+              {
+                itemId: 'FND-999',
+                classification: 'off-track',
+                intentIds: ['INT-001'],
+                purpose: 'Unexpected design entry.',
+              },
+            ],
+          },
+          ctx,
+        ),
+      new Error(
+        'alignment brief must cover every contract item exactly; missing=REQ-001 extra=FND-999',
+      ),
+    );
+
+    const unknownIntent = structuredClone(complete);
+    const firstEntry = unknownIntent.entries[0];
+    assert.ok(firstEntry);
+    firstEntry.intentIds = ['INT-999'];
+    assert.throws(
+      () => validateAlignmentBrief(unknownIntent, ctx),
+      new Error('REQ-001: unknown intent ID INT-999'),
+    );
+
+    assert.throws(
+      () => validateAlignmentBrief(complete, { event, contract: legacyContract }),
+      new Error('REQ-001: intent claims require the contract to declare intents'),
+    );
+
+    assert.throws(
+      () =>
+        validateAlignmentBrief(
+          {
+            ...complete,
+            proposal: { ...complete.proposal, trim: ['FND-999'] },
+          },
+          ctx,
+        ),
+      new Error('FND-999: proposal or decision references an item outside this brief'),
+    );
+
+    assert.throws(
+      () =>
+        validateAlignmentBrief(
+          {
+            ...complete,
+            proposal: {
+              ...complete.proposal,
+              userDecisionNeeded: ['REQ-001'],
+            },
+          },
+          ctx,
+        ),
+      new Error('alignment brief gate: user decision pending for REQ-001'),
+    );
+
+    assert.throws(
+      () =>
+        validateAlignmentBrief(
+          {
+            ...complete,
+            proposal: {
+              ...complete.proposal,
+              recommendation: 'return-to-pro',
+            },
+          },
+          ctx,
+        ),
+      new Error(
+        'alignment brief proposes return-to-pro; a user ruling (decisions.confirmedBy) is required to proceed',
+      ),
+    );
+  });
+
+  it('validates feedback roster alignment including zero-finding feedback', async () => {
+    const { contract: legacyContract, event: designEvent } = await goldenContractBinding();
+    const contract = contractWithIntents(legacyContract);
+    const feedbackEvent: ProRoundtripEventComplete = {
+      ...designEvent,
+      eventId: '0200--pro--feedback--r01',
+      sequence: 200,
+      kind: 'feedback',
+      previousEventId: designEvent.eventId,
+      designEventId: designEvent.eventId,
+      disposition: 'approved',
+      files: [
+        { path: 'FEEDBACK.md', mediaType: 'text/markdown' },
+        { path: 'FINDINGS.json', mediaType: 'application/json' },
+      ],
+      nextActor: 'cli',
+      nextWriteTarget: `${designEvent.flowPath}/0300--pro--approval--r01`,
+    };
+    const findings: ProRoundtripFindings = {
+      schemaVersion: 'vibe-pro-findings-v1',
+      flowPath: feedbackEvent.flowPath,
+      eventId: feedbackEvent.eventId,
+      reviewedHeadSha: feedbackEvent.headSha,
+      disposition: 'approved-with-deferrals',
+      findings: [
+        {
+          id: 'FND-001',
+          taxonomy: 'scope-extension',
+          severity: 'P2',
+          contractIds: [],
+          summary: 'First finding.',
+          evidence: 'First evidence.',
+          expectedBehavior: 'First expected behavior.',
+        },
+        {
+          id: 'FND-002',
+          taxonomy: 'scope-extension',
+          severity: 'P2',
+          contractIds: [],
+          summary: 'Second finding.',
+          evidence: 'Second evidence.',
+          expectedBehavior: 'Second expected behavior.',
+        },
+      ],
+    };
+    const incomplete = ProRoundtripAlignmentBriefSchema.parse({
+      schemaVersion: 'vibe-pro-alignment-brief-v1',
+      flowPath: feedbackEvent.flowPath,
+      eventId: feedbackEvent.eventId,
+      eventKind: 'feedback',
+      authoredAt: feedbackEvent.createdAt,
+      entries: [
+        {
+          itemId: 'FND-001',
+          classification: 'supporting',
+          intentIds: ['INT-001'],
+          purpose: 'Classify the first finding.',
+        },
+        {
+          itemId: 'REQ-999',
+          classification: 'off-track',
+          intentIds: ['INT-001'],
+          purpose: 'Unexpected roster entry.',
+        },
+      ],
+      proposal: {
+        recommendation: 'proceed',
+        trim: [],
+        defer: [],
+        userDecisionNeeded: [],
+      },
+      decisions: { rulings: [], confirmedBy: null },
+    });
+    assert.throws(
+      () =>
+        validateAlignmentBrief(incomplete, {
+          event: feedbackEvent,
+          contract,
+          findings,
+        }),
+      new Error(
+        'alignment brief must cover every finding exactly; missing=FND-002 extra=REQ-999',
+      ),
+    );
+
+    const emptyFindings: ProRoundtripFindings = {
+      ...findings,
+      disposition: 'approved',
+      findings: [],
+    };
+    const emptyBrief = ProRoundtripAlignmentBriefSchema.parse({
+      ...incomplete,
+      entries: [],
+    });
+    assert.doesNotThrow(() =>
+      validateAlignmentBrief(emptyBrief, {
+        event: feedbackEvent,
+        contract,
+        findings: emptyFindings,
+      }),
+    );
+  });
+
+  it('builds schema-valid intent fields for design and feedback brief skeletons', async () => {
+    const { contract: legacyContract, event: designEvent } =
+      await goldenContractBinding();
+    const contract = contractWithIntents(legacyContract);
+    assert.ok(contract.intents);
+    contract.intents.push(
+      {
+        id: 'INT-002',
+        statement: 'Keep the implementation path explicit.',
+        rationale: 'Exercise item-specific intent assignment.',
+      },
+      {
+        id: 'INT-003',
+        statement: 'Keep feedback traceable across contract boundaries.',
+        rationale: 'Exercise finding intent union and ordering.',
+      },
+    );
+    const requirement = contract.requirements[0];
+    const invariant = contract.invariants[0];
+    const workflow = contract.workflows[0];
+    const nonFunctionalRequirement = contract.nonFunctionalRequirements[0];
+    assert.ok(requirement);
+    assert.ok(invariant);
+    assert.ok(workflow);
+    assert.ok(nonFunctionalRequirement);
+    requirement.intentIds = ['INT-002', 'INT-001'];
+    invariant.intentIds = ['INT-003'];
+    workflow.intentIds = ['INT-002', 'INT-003'];
+    nonFunctionalRequirement.intentIds = ['INT-001'];
+
+    const designSkeleton = alignmentBriefSkeleton({
+      event: designEvent,
+      contract,
+    });
+    const designBrief = ProRoundtripAlignmentBriefSchema.parse({
+      ...designSkeleton,
+      entries: designSkeleton.entries.map((entry) => ({
+        ...entry,
+        purpose: `Explain ${entry.itemId} in user language.`,
+      })),
+    });
+    const designEntries = new Map(
+      designBrief.entries.map((entry) => [entry.itemId, entry] as const),
+    );
+    assert.equal(designEntries.size, 4);
+    assert.deepEqual(designEntries.get('REQ-001')?.intentIds, [
+      'INT-002',
+      'INT-001',
+    ]);
+    assert.deepEqual(designEntries.get('INV-001')?.intentIds, ['INT-003']);
+    assert.deepEqual(designEntries.get('WF-001')?.intentIds, [
+      'INT-002',
+      'INT-003',
+    ]);
+    assert.deepEqual(designEntries.get('NFR-001')?.intentIds, ['INT-001']);
+    for (const entry of designBrief.entries) {
+      assert.equal(entry.noIntentPath, undefined);
+    }
+
+    const feedbackEvent: ProRoundtripEventComplete = {
+      ...designEvent,
+      eventId: '0200--pro--feedback--r01',
+      sequence: 200,
+      kind: 'feedback',
+      previousEventId: designEvent.eventId,
+      designEventId: designEvent.eventId,
+      disposition: 'approved',
+      files: [
+        { path: 'FEEDBACK.md', mediaType: 'text/markdown' },
+        { path: 'FINDINGS.json', mediaType: 'application/json' },
+      ],
+      nextActor: 'cli',
+      nextWriteTarget: `${designEvent.flowPath}/0300--pro--approval--r01`,
+    };
+    const findings: ProRoundtripFindings = {
+      schemaVersion: 'vibe-pro-findings-v1',
+      flowPath: feedbackEvent.flowPath,
+      eventId: feedbackEvent.eventId,
+      reviewedHeadSha: feedbackEvent.headSha,
+      disposition: 'approved-with-deferrals',
+      findings: [
+        {
+          id: 'FND-001',
+          taxonomy: 'implementation-defect',
+          severity: 'P2',
+          contractIds: ['REQ-001', 'INV-001', 'WF-001'],
+          summary: 'Finding linked to several contract items.',
+          evidence: 'The linked items exercise overlapping intent paths.',
+          expectedBehavior: 'The brief contains their sorted unique intent union.',
+        },
+        {
+          id: 'FND-002',
+          taxonomy: 'scope-extension',
+          severity: 'P2',
+          contractIds: [],
+          summary: 'Finding without a contract link.',
+          evidence: 'No contract item resolves for this finding.',
+          expectedBehavior: 'The brief records the explicit no-intent path.',
+        },
+      ],
+    };
+    const feedbackSkeleton = alignmentBriefSkeleton({
+      event: feedbackEvent,
+      contract,
+      findings,
+    });
+    const feedbackBrief = ProRoundtripAlignmentBriefSchema.parse({
+      ...feedbackSkeleton,
+      entries: feedbackSkeleton.entries.map((entry) => ({
+        ...entry,
+        purpose: `Explain ${entry.itemId} in user language.`,
+      })),
+    });
+    const feedbackEntries = new Map(
+      feedbackBrief.entries.map((entry) => [entry.itemId, entry] as const),
+    );
+    assert.equal(feedbackEntries.size, 2);
+    assert.deepEqual(feedbackEntries.get('FND-001')?.intentIds, [
+      'INT-001',
+      'INT-002',
+      'INT-003',
+    ]);
+    assert.equal(feedbackEntries.get('FND-001')?.noIntentPath, undefined);
+    assert.equal(feedbackEntries.get('FND-002')?.intentIds, undefined);
+    assert.equal(feedbackEntries.get('FND-002')?.noIntentPath, true);
   });
 
   it('accepts legacy and content-addressed protocol versions with exact suffix format', async () => {
@@ -1161,6 +1626,226 @@ describe('coordinated cross-flow close', async () => {
     await assert.rejects(
       loadFlowSnapshot(unauthorized.root, unauthorized.coordinatedPath),
       /invalid event transition/u,
+    );
+  });
+});
+
+describe('user-accepted review approval', () => {
+  type EventMarker = ProRoundtripEventComplete;
+  type Findings = NonNullable<Parameters<typeof validateReviewAcceptance>[2]>;
+
+  const flowPath = 'flows/20260723/001-review-acceptance';
+  const reviewedHeadSha = 'a'.repeat(40);
+  const event = (
+    overrides: Partial<EventMarker> &
+      Pick<EventMarker, 'eventId' | 'sequence' | 'actor' | 'kind'>,
+  ): EventMarker => {
+    const { eventId, sequence, actor, kind, ...rest } = overrides;
+    return {
+      schemaVersion: 'vibe-pro-event-complete-v1',
+      flowPath,
+      eventId,
+      sequence,
+      actor,
+      kind,
+      revision: 1,
+      previousEventId: null,
+      supersedesEventId: null,
+      protocolVersion: 'v1',
+      designEventId: '0100--pro--design--r01',
+      sprintId: null,
+      repositoryFullName: 'owner/repo',
+      codeBranch: 'main',
+      baseSha: reviewedHeadSha,
+      headSha: reviewedHeadSha,
+      disposition: 'complete',
+      files: [{ path: 'GOAL.md', mediaType: 'text/markdown' }],
+      limitations: [],
+      createdAt: '2026-07-23T12:00:00Z',
+      nextActor: 'none',
+      nextWriteTarget: null,
+      ...rest,
+    };
+  };
+  const finding = (id: string, severity: Findings[number]['severity']): Findings[number] => ({
+    id,
+    taxonomy: 'backlog-candidate',
+    severity,
+    contractIds: [],
+    summary: `${id} summary`,
+    evidence: `${id} evidence`,
+    expectedBehavior: `${id} expected behavior`,
+  });
+  const feedback = event({
+    eventId: '0300--pro--feedback--r01',
+    sequence: 300,
+    actor: 'pro',
+    kind: 'feedback',
+    previousEventId: '0200--codex--implementation-report--r01',
+    disposition: 'remediation-required',
+    files: [
+      { path: 'FEEDBACK.md', mediaType: 'text/markdown' },
+      { path: 'FINDINGS.json', mediaType: 'application/json' },
+    ],
+    nextActor: 'codex',
+    nextWriteTarget: `${flowPath}/0400--codex--remediation-report--r01`,
+  });
+  const approval = (
+    acceptedFindingIds: string[],
+    disposition: EventMarker['disposition'] = 'approved-with-deferrals',
+  ): EventMarker => event({
+    eventId: '0400--cli--approval--r01',
+    sequence: 400,
+    actor: 'cli',
+    kind: 'approval',
+    previousEventId: feedback.eventId,
+    disposition,
+    files: [{ path: 'APPROVAL.md', mediaType: 'text/markdown' }],
+    nextActor: 'cli',
+    nextWriteTarget: `${flowPath}/9900--cli--closed--r01`,
+    reviewAcceptance: {
+      authorizedBy: 'user',
+      acceptedFindingIds,
+      reason: 'user directive: accept review findings as deferrals',
+    },
+  });
+  const schemaMessages = (candidate: unknown): string[] => {
+    const parsed = ProRoundtripEventCompleteSchema.safeParse(candidate);
+    assert.equal(parsed.success, false);
+    return parsed.error.issues.map(({ message }) => message);
+  };
+  const assertExactError = (run: () => void, message: string): void => {
+    assert.throws(
+      run,
+      (error: unknown) => error instanceof Error && error.message === message,
+      `expected exact error: ${message}`,
+    );
+  };
+
+  it('enforces every reviewAcceptance schema placement rule without changing plain Pro approvals', () => {
+    const valid = approval(['FND-001']);
+    assert.deepEqual(
+      schemaMessages({ ...valid, kind: 'feedback' }),
+      ['reviewAcceptance may only appear on an approval event'],
+    );
+    assert.deepEqual(
+      schemaMessages({
+        ...valid,
+        actor: 'pro',
+        eventId: '0400--pro--approval--r01',
+      }),
+      ['only a cli approval may declare reviewAcceptance'],
+    );
+    const { reviewAcceptance: _reviewAcceptance, ...cliWithoutAcceptance } = valid;
+    assert.deepEqual(
+      schemaMessages(cliWithoutAcceptance),
+      ['a cli approval must declare reviewAcceptance'],
+    );
+    assert.deepEqual(
+      schemaMessages({
+        ...valid,
+        coordinatedClose: {
+          jointInvariant: true,
+          primaryFlowPath: flowPath,
+          flows: [
+            { flowPath, approvedBoundarySha: reviewedHeadSha },
+            {
+              flowPath: 'flows/20260723/002-review-member',
+              approvedBoundarySha: reviewedHeadSha,
+            },
+          ],
+        },
+      }),
+      ['reviewAcceptance and coordinatedClose are mutually exclusive'],
+    );
+    assert.doesNotThrow(() => ProRoundtripEventCompleteSchema.parse({
+      ...cliWithoutAcceptance,
+      actor: 'pro',
+      eventId: '0400--pro--approval--r01',
+    }));
+    assert.deepEqual(
+      schemaMessages({
+        ...valid,
+        reviewAcceptance: {
+          ...valid.reviewAcceptance,
+          acceptedFindingIds: ['FND-001', 'FND-001'],
+        },
+      }),
+      ['acceptedFindingIds must be unique'],
+    );
+  });
+
+  it('fails review acceptance at the first violated eligibility or binding rule', () => {
+    const p2Findings = [finding('FND-001', 'P2'), finding('FND-002', 'P2')];
+    const validApproval = approval(['FND-001', 'FND-002']);
+    const prefix = `${validApproval.eventId}: `;
+
+    assertExactError(
+      () => validateReviewAcceptance(validApproval, { ...feedback, actor: 'cli' }, p2Findings),
+      `${prefix}reviewAcceptance requires the previous completed event to be a pro feedback`,
+    );
+    assertExactError(
+      () => validateReviewAcceptance(
+        validApproval,
+        { ...feedback, actor: 'codex', kind: 'implementation-report' },
+        p2Findings,
+      ),
+      `${prefix}reviewAcceptance requires the previous completed event to be a pro feedback`,
+    );
+    for (const severity of ['P0', 'P1'] as const) {
+      assertExactError(
+        () => validateReviewAcceptance(
+          approval(['FND-009']),
+          feedback,
+          [finding('FND-009', severity)],
+        ),
+        `${prefix}reviewAcceptance is not eligible: finding FND-009 is ${severity}`,
+      );
+    }
+    for (const disposition of ['design-revision-required', 'blocked'] as const) {
+      assertExactError(
+        () => validateReviewAcceptance(
+          validApproval,
+          { ...feedback, disposition },
+          p2Findings,
+        ),
+        `${prefix}reviewAcceptance is not eligible: feedback disposition is ${disposition}`,
+      );
+    }
+    assertExactError(
+      () => validateReviewAcceptance(
+        { ...validApproval, headSha: 'b'.repeat(40) },
+        feedback,
+        p2Findings,
+      ),
+      `${prefix}reviewAcceptance HEAD must equal the accepted feedback HEAD`,
+    );
+    assertExactError(
+      () => validateReviewAcceptance(approval(['FND-001']), feedback, p2Findings),
+      `${prefix}acceptedFindingIds must exactly match the feedback finding IDs; missing=FND-002 extra=none`,
+    );
+    assertExactError(
+      () => validateReviewAcceptance(
+        approval(['FND-001', 'FND-002', 'FND-003']),
+        feedback,
+        p2Findings,
+      ),
+      `${prefix}acceptedFindingIds must exactly match the feedback finding IDs; missing=none extra=FND-003`,
+    );
+    assertExactError(
+      () => validateReviewAcceptance(
+        approval(['FND-001', 'FND-002'], 'approved'),
+        feedback,
+        p2Findings,
+      ),
+      `${prefix}acceptance disposition must be approved-with-deferrals`,
+    );
+    assertExactError(
+      () => validateReviewAcceptance(approval([], 'approved-with-deferrals'), feedback, []),
+      `${prefix}acceptance disposition must be approved`,
+    );
+    assert.doesNotThrow(() =>
+      validateReviewAcceptance(approval([], 'approved'), { ...feedback, disposition: 'approved' }, []),
     );
   });
 });

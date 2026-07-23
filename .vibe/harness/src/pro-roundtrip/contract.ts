@@ -203,6 +203,36 @@ export function validateContractSemantics(
     ...sprintIds,
   ]);
 
+  const intentLinkedItems = [
+    ...contract.requirements,
+    ...contract.invariants,
+    ...contract.workflows,
+    ...contract.nonFunctionalRequirements,
+  ];
+  if (contract.intents) {
+    const intentIds = contract.intents.map(({ id }) => id);
+    assertUnique('intent ID', intentIds);
+    const intentSet = new Set(intentIds);
+    for (const item of intentLinkedItems) {
+      if (!item.intentIds || item.intentIds.length === 0) {
+        throw new Error(
+          `${item.id}: intentIds are required when the contract declares intents`,
+        );
+      }
+      for (const intentId of item.intentIds) {
+        if (!intentSet.has(intentId)) {
+          throw new Error(`${item.id}: unknown intent ID ${intentId}`);
+        }
+      }
+    }
+  } else {
+    for (const item of intentLinkedItems) {
+      if (item.intentIds !== undefined) {
+        throw new Error(`${item.id}: intentIds require a declared intents block`);
+      }
+    }
+  }
+
   const sprintSet = new Set(sprintIds);
   const invariantSet = new Set(invariantIds);
   const workflowSet = new Set(workflowIds);
@@ -563,6 +593,59 @@ export function validateCoordinatedCloseDeclaration(
     throw new Error(
       `${approval.eventId}: primary approved boundary must equal the approval's frozen HEAD`,
     );
+  }
+}
+
+/**
+ * User-accepted review close: validate a CLI approval against the immediately preceding
+ * Pro feedback and its immutable FINDINGS.json payload.
+ */
+export function validateReviewAcceptance(
+  approval: ProRoundtripEventComplete,
+  previous: ProRoundtripEventComplete | undefined,
+  previousFindings: ProRoundtripFindings['findings'] | undefined,
+): void {
+  const acceptance = approval.reviewAcceptance;
+  if (!acceptance) {
+    return;
+  }
+  const fail = (message: string): never => {
+    throw new Error(`${approval.eventId}: ${message}`);
+  };
+  if (!previous || previous.kind !== 'feedback' || previous.actor !== 'pro') {
+    throw new Error(
+      `${approval.eventId}: reviewAcceptance requires the previous completed event to be a pro feedback`,
+    );
+  }
+  if (!previousFindings) {
+    throw new Error(
+      `${approval.eventId}: reviewAcceptance is not eligible: previous feedback findings are unavailable`,
+    );
+  }
+  const blockingFinding = previousFindings.find(({ severity }) =>
+    severity === 'P0' || severity === 'P1');
+  if (blockingFinding) {
+    fail(`reviewAcceptance is not eligible: finding ${blockingFinding.id} is ${blockingFinding.severity}`);
+  }
+  if (previous.disposition === 'design-revision-required' || previous.disposition === 'blocked') {
+    fail(`reviewAcceptance is not eligible: feedback disposition is ${previous.disposition}`);
+  }
+  if (approval.headSha !== previous.headSha) {
+    fail('reviewAcceptance HEAD must equal the accepted feedback HEAD');
+  }
+  const acceptedIds = new Set(acceptance.acceptedFindingIds);
+  const findingIds = new Set(previousFindings.map(({ id }) => id));
+  const missing = [...findingIds].filter((id) => !acceptedIds.has(id)).sort();
+  const extra = [...acceptedIds].filter((id) => !findingIds.has(id)).sort();
+  if (missing.length > 0 || extra.length > 0) {
+    fail(
+      `acceptedFindingIds must exactly match the feedback finding IDs; missing=${missing.join(',') || 'none'} extra=${extra.join(',') || 'none'}`,
+    );
+  }
+  const expectedDisposition =
+    previousFindings.length === 0 ? 'approved' : 'approved-with-deferrals';
+  if (approval.disposition !== expectedDisposition) {
+    fail(`acceptance disposition must be ${expectedDisposition}`);
   }
 }
 

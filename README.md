@@ -10,14 +10,14 @@
 
 ## Latest Highlights
 
-### v1.12.0 (2026-07-23) - Content-addressed Pro protocol namespaces
+### v1.13.0 (2026-07-23) - Intent-alignment briefing + user-accepted review close
+
+- Every Web Pro design/feedback pulled by the CLI now requires a user-language alignment brief before any state-changing command: each contract item or finding is classified (core/supporting/hardening/speculative/off-track) against the contract's declared user intents (`INT-###`), briefs propose while users decide, and trim/defer rulings bind the next Pro round via an injected "User scope rulings" section — guarding the loop against silent intent drift and over-engineering.
+- A mechanically non-blocking review (zero P0/P1, no design revision) can now close from the CLI: `accept-review --publish --user-approved` publishes a cli-actor approval carrying `reviewAcceptance` (full-set deferral at the exact reviewed HEAD, validated fail-closed at every snapshot load), then `close` runs unchanged — no Web roundtrip just to fetch an approval.
+
+### Previous: v1.12.0 (2026-07-23) - Content-addressed Pro protocol namespaces
 
 - The Pro bridge protocol version is now derived from protocol content (`v1-<hash8>`): a harness release that changes any protocol source simply bootstraps a new append-only `protocol/<version>/` namespace under the existing `--publish` authorization, instead of permanently stranding every previously bootstrapped bridge with `protocol hash/content mismatch`.
-- Flows pinned to a different protocol generation fail with an error naming both versions (pinned vs local); closed flows keep their namespace forever, legacy `"v1"` documents still parse, and Web Pro discovers the newest namespace via the updated runbooks.
-
-### Previous: v1.11.0 (2026-07-22) - Coordinated cross-flow close
-
-- When one Pro approval decides several flows jointly, the approval now declares the set machine-readably (`coordinatedClose` in its `COMPLETE.json`) and `close` enforces it atomically: every remaining member closes in one append-only bridge commit, already-closed members count as satisfied, and any close that would leave the set partial is refused.
 
 Release history is sharded under [docs/release/README.md](docs/release/README.md); detailed notes live in [docs/release/](docs/release/).
 

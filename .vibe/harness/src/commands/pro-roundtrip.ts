@@ -3,11 +3,13 @@ import path from 'node:path';
 import process from 'node:process';
 import { getBooleanFlag, getStringFlag, parseArgs, type ParsedArgs } from '../lib/args.js';
 import { runMain } from '../lib/cli.js';
-import type {
-  ProRoundtripEventComplete,
-  ProRoundtripFlow,
+import {
+  ProRoundtripEventCompleteSchema,
+  type ProRoundtripEventComplete,
+  type ProRoundtripFlow,
 } from '../lib/schemas/pro-roundtrip.js';
 import {
+  appendSessionLogDecision,
   disableAutoPublish,
   enableAutoPublish,
   readAutoPublishState,
@@ -15,9 +17,18 @@ import {
   validateAutoPublishReason,
 } from '../pro-roundtrip/auto-publish.js';
 import {
+  alignmentBriefPathsFor,
+  alignmentBriefSkeleton,
+  alignmentBriefStatus,
+  assertAlignmentBriefGate,
+  collectScopeRulings,
+  type AlignmentBriefContext,
+} from '../pro-roundtrip/alignment-brief.js';
+import {
   parseEventDirectory,
   parseFlowPath,
   validateCoordinatedCloseDeclaration,
+  validateReviewAcceptance,
 } from '../pro-roundtrip/contract.js';
 import {
   allocateFlowPath,
@@ -53,8 +64,11 @@ function usage(): string {
   vibe-pro-go start audit [--goal "<goal>"] [--slug <slug>] [--timezone <IANA>] [--repository <owner/repo>] --publish
   vibe-pro-go status [flow]
   vibe-pro-go sync [flow]
+  vibe-pro-go brief [flow]
   vibe-pro-go report [flow] [--evidence <input.json>] [--publish]
   vibe-pro-go continue [flow]
+  vibe-pro-go accept-review [flow]
+  vibe-pro-go accept-review [flow] --publish --user-approved [--reason "<text>"]
   vibe-pro-go close [flow] --publish
   vibe-pro-go confirm-skip on [--reason "<text>"] [--days <1-365>]
   vibe-pro-go confirm-skip off|status
@@ -177,13 +191,20 @@ function safeRemoteUrl(remoteUrl: string): string {
   return remoteUrl;
 }
 
-function webPrompt(fullName: string, flowPath: string, protocolVersion: string): string {
+function webPrompt(
+  fullName: string,
+  flowPath: string,
+  protocolVersion: string,
+  scopeRulings: string[] = [],
+): string {
   return `MUST use only the GitHub app's exact-ref fetch/read/compare/create actions.
 MUST NOT use Web Search, browser search, generic search results, URL browsing, or the GitHub search index for repository work.
 MUST NOT fall back to the default branch.
 Fetch ${fullName}@refs/heads/vibe-pro-bridge:protocol/${protocolVersion}/PROTOCOL.json, then read its pinned WEB-RUNBOOK.md and COMMON-HARNESS.md.
 Continue flow ${flowPath} from its latest valid COMPLETE.json.
-Write only new files under the exact nextWriteTarget, create COMPLETE.json last, keep confirmation visible, and stop if exact-ref access is unavailable.`;
+Write only new files under the exact nextWriteTarget, create COMPLETE.json last, keep confirmation visible, and stop if exact-ref access is unavailable.${scopeRulings.length > 0
+    ? `\n\nUser scope rulings (binding):\n${scopeRulings.join('\n')}\nDo not reintroduce trimmed or deferred scope. Contest a ruling only through a new P0/P1 finding that declares an intent path (intentIds).`
+    : ''}`;
 }
 
 async function bootstrapCommand(
@@ -407,6 +428,12 @@ async function goCommand(
   const currentSprint = contract?.sprints.find(
     ({ id }) => id === synced.state.currentSprintId,
   );
+  const scopeRulings = await collectScopeRulings(synced.packetRoot);
+  const briefStatus = await alignmentBriefStatus(
+    synced.packetRoot,
+    synced.snapshot,
+    synced.state,
+  );
   emit(runtime, {
     action: 'go',
     flowPath,
@@ -429,6 +456,7 @@ async function goCommand(
     nextWriteTarget: marker.nextWriteTarget,
     autoReportRequired:
       marker.nextActor === 'codex' && ['design', 'feedback'].includes(marker.kind),
+    alignmentBrief: briefStatus,
     instruction: nextInstruction(synced.snapshot, synced.state.currentSprintId),
     webPrompt:
       marker.nextActor === 'pro'
@@ -436,6 +464,7 @@ async function goCommand(
             synced.snapshot.flow.repository.fullName,
             flowPath,
             synced.snapshot.flow.protocol.version,
+            scopeRulings,
           )
         : null,
   });
@@ -619,7 +648,7 @@ ${flow.nonGoals.map((item) => `- ${item}`).join('\n')}
     nextActor: mode === 'design' ? 'pro' : 'codex',
     webPrompt:
       mode === 'design'
-        ? webPrompt(fullName, published.flowPath, protocol.version)
+        ? webPrompt(fullName, published.flowPath, protocol.version, [])
         : null,
   });
 }
@@ -641,6 +670,11 @@ async function statusCommand(
 ): Promise<void> {
   const { context, snapshot } = await loadRemoteSnapshot(runtime, args.positionals[1]);
   const localState = await readPacketState(context.repoRoot, snapshot.flow.flowPath);
+  const briefStatus = await alignmentBriefStatus(
+    packetRootFor(context.repoRoot, snapshot.flow.flowPath),
+    snapshot,
+    localState,
+  );
   emit(runtime, {
     flowPath: snapshot.flow.flowPath,
     autoPublish: (await readAutoPublishState(context.repoRoot)).autoPublish,
@@ -651,6 +685,7 @@ async function statusCommand(
     latestEvent: snapshot.latestEvent.marker,
     completedEvents: snapshot.events.map(({ marker }) => marker.eventId),
     incompleteEvents: snapshot.incompleteEventDirectories,
+    alignmentBrief: briefStatus,
     localPacket: localState
       ? {
           latestEventId: localState.latestEventId,
@@ -659,6 +694,73 @@ async function statusCommand(
           acknowledgedBridgeSha: localState.lastAcknowledgedBridgeSha,
         }
       : null,
+  });
+}
+
+function alignmentContextForSnapshot(
+  snapshot: Awaited<ReturnType<typeof loadFlowSnapshot>>,
+): AlignmentBriefContext {
+  const latest = snapshot.latestEvent;
+  if (latest.marker.kind === 'design') {
+    return {
+      event: latest.marker,
+      ...(latest.contract ? { contract: latest.contract } : {}),
+    };
+  }
+  if (latest.marker.kind === 'feedback') {
+    const design = snapshot.events.find(
+      ({ marker }) => marker.eventId === latest.marker.designEventId,
+    );
+    return {
+      event: latest.marker,
+      ...(design?.contract ? { contract: design.contract } : {}),
+      ...(latest.findings ? { findings: latest.findings } : {}),
+    };
+  }
+  return { event: latest.marker };
+}
+
+async function briefCommand(
+  args: ParsedArgs,
+  runtime: ProRoundtripRuntime,
+): Promise<void> {
+  const { context, snapshot } = await loadRemoteSnapshot(runtime, args.positionals[1]);
+  const marker = snapshot.latestEvent.marker;
+  if (
+    marker.actor !== 'pro' ||
+    (marker.kind !== 'design' && marker.kind !== 'feedback')
+  ) {
+    throw new Error('brief requires the latest completed event to be a Pro design or feedback');
+  }
+  const state = await readPacketState(context.repoRoot, snapshot.flow.flowPath);
+  const packetRoot = packetRootFor(context.repoRoot, snapshot.flow.flowPath);
+  const ctx = alignmentContextForSnapshot(snapshot);
+  const status = await alignmentBriefStatus(packetRoot, snapshot, state);
+  const paths = alignmentBriefPathsFor(packetRoot, marker.eventId);
+  const roster =
+    marker.kind === 'design'
+      ? [
+          ...(ctx.contract?.requirements.map(({ id }) => id) ?? []),
+          ...(ctx.contract?.invariants.map(({ id }) => id) ?? []),
+          ...(ctx.contract?.workflows.map(({ id }) => id) ?? []),
+          ...(ctx.contract?.nonFunctionalRequirements.map(({ id }) => id) ?? []),
+        ]
+      : (ctx.findings?.findings.map(({ id }) => id) ?? []);
+  emit(runtime, {
+    action: 'brief',
+    flowPath: snapshot.flow.flowPath,
+    eventId: marker.eventId,
+    eventKind: marker.kind,
+    required: status.requiredForEventId === marker.eventId,
+    status: status.status,
+    detail: status.detail,
+    roster,
+    intents: ctx.contract?.intents?.map(({ id, statement }) => ({ id, statement })) ?? [],
+    briefJsonPath: paths.briefJson,
+    briefMdPath: paths.briefMd,
+    skeleton: alignmentBriefSkeleton(ctx),
+    guidance:
+      'Author BRIEF.md in the session language and BRIEF.json from a fresh evaluator context reading GOAL/intents plus the Pro document; the harness validates structure only. Briefs propose; users decide.',
   });
 }
 
@@ -688,6 +790,12 @@ async function reportCommand(
 ): Promise<void> {
   const context = await bridgeContext(runtime);
   let synced = await syncFlow(args.positionals[1], { context });
+  await assertAlignmentBriefGate(
+    synced.packetRoot,
+    synced.snapshot,
+    synced.state,
+    'report',
+  );
   const evidencePath = getStringFlag(args, 'evidence');
   let checkpointPath: string | null = null;
   if (evidencePath) {
@@ -723,14 +831,18 @@ async function continueCommand(
   args: ParsedArgs,
   runtime: ProRoundtripRuntime,
 ): Promise<void> {
-  const { snapshot } = await loadRemoteSnapshot(runtime, args.positionals[1]);
+  const { context, snapshot } = await loadRemoteSnapshot(runtime, args.positionals[1]);
   if (snapshot.latestEvent.marker.nextActor === 'pro') {
+    const scopeRulings = await collectScopeRulings(
+      packetRootFor(context.repoRoot, snapshot.flow.flowPath),
+    );
     emit(
       runtime,
       webPrompt(
         snapshot.flow.repository.fullName,
         snapshot.flow.flowPath,
         snapshot.flow.protocol.version,
+        scopeRulings,
       ),
     );
     return;
@@ -741,6 +853,210 @@ async function continueCommand(
   );
 }
 
+const acceptReviewConfirmation =
+  'Re-run with --publish --user-approved after the user explicitly confirms accepting every listed finding as a deferral. proGoAutoPublish never covers this confirmation.';
+
+function buildReviewAcceptanceMarker(
+  snapshot: Awaited<ReturnType<typeof loadFlowSnapshot>>,
+  reason: string,
+): {
+  marker: ProRoundtripEventComplete;
+  findings: NonNullable<typeof snapshot.latestEvent.findings>['findings'];
+} {
+  const feedbackEvent = snapshot.latestEvent;
+  const feedback = feedbackEvent.marker;
+  const findings = feedbackEvent.findings?.findings;
+  if (!findings) {
+    throw new Error(`${feedback.eventId}: feedback findings are unavailable`);
+  }
+  const sequence = feedback.sequence + 100;
+  if (sequence >= 9900) {
+    throw new Error('no approval sequence is available');
+  }
+  const revision =
+    snapshot.events.filter(({ marker }) => marker.kind === 'approval').length + 1;
+  const approvalEventId =
+    `${String(sequence).padStart(4, '0')}--cli--approval--r${String(revision).padStart(2, '0')}`;
+  const acceptedFindingIds = findings.map(({ id }) => id).sort();
+  const disposition =
+    acceptedFindingIds.length === 0 ? 'approved' : 'approved-with-deferrals';
+  return {
+    findings,
+    marker: {
+      schemaVersion: 'vibe-pro-event-complete-v1',
+      flowPath: snapshot.flow.flowPath,
+      eventId: approvalEventId,
+      sequence,
+      actor: 'cli',
+      kind: 'approval',
+      revision,
+      previousEventId: feedback.eventId,
+      supersedesEventId: null,
+      protocolVersion: snapshot.flow.protocol.version,
+      designEventId: feedback.designEventId,
+      sprintId: null,
+      repositoryFullName: snapshot.flow.repository.fullName,
+      codeBranch: snapshot.flow.codeBranch,
+      baseSha: snapshot.flow.baseSha,
+      headSha: feedback.headSha,
+      disposition,
+      files: [{ path: 'APPROVAL.md', mediaType: 'text/markdown' }],
+      limitations: [],
+      createdAt: new Date().toISOString(),
+      nextActor: 'cli',
+      nextWriteTarget: `${snapshot.flow.flowPath}/9900--cli--closed--r01`,
+      reviewAcceptance: {
+        authorizedBy: 'user',
+        acceptedFindingIds,
+        reason,
+      },
+    },
+  };
+}
+
+async function acceptReviewCommand(
+  args: ParsedArgs,
+  runtime: ProRoundtripRuntime,
+): Promise<void> {
+  const { context, snapshot } = await loadRemoteSnapshot(runtime, args.positionals[1]);
+  const packetState = await readPacketState(context.repoRoot, snapshot.flow.flowPath);
+  await assertAlignmentBriefGate(
+    packetRootFor(context.repoRoot, snapshot.flow.flowPath),
+    snapshot,
+    packetState,
+    'accept-review',
+  );
+  const feedback = snapshot.latestEvent.marker;
+  if (feedback.kind !== 'feedback' || feedback.actor !== 'pro') {
+    throw new Error('accept-review requires the latest completed event to be a Pro feedback');
+  }
+  const publishing = getBooleanFlag(args, 'publish');
+  if (
+    publishing &&
+    !getBooleanFlag(args, 'user-approved')
+  ) {
+    throw new Error(
+      'accept-review records a user decision; pass --user-approved only after the user explicitly confirms accepting every listed finding as a deferral. The proGoAutoPublish directive never covers this confirmation.',
+    );
+  }
+
+  if (!publishing) {
+    const reason = validateAutoPublishReason(
+      getStringFlag(
+        args,
+        'reason',
+        'user directive: accept review findings as deferrals',
+      ) ?? '',
+    );
+    const { marker, findings } = buildReviewAcceptanceMarker(snapshot, reason);
+    const blockers: string[] = [];
+    try {
+      validateReviewAcceptance(marker, feedback, findings);
+    } catch (error) {
+      blockers.push(error instanceof Error ? error.message : String(error));
+    }
+    const eligible = blockers.length === 0;
+    emit(runtime, {
+      action: 'accept-review',
+      flowPath: snapshot.flow.flowPath,
+      feedbackEventId: feedback.eventId,
+      reviewedHeadSha: feedback.headSha,
+      disposition: marker.disposition,
+      eligible,
+      blockers,
+      findings: [...findings]
+        .sort((left, right) => left.id.localeCompare(right.id))
+        .map(({ id, severity, taxonomy, summary }) => ({ id, severity, taxonomy, summary })),
+      recommendation: eligible
+        ? 'Publish only after the user explicitly accepts every listed finding as a deferral.'
+        : 'Do not publish this acceptance until every blocker is resolved.',
+      requiredConfirmation: acceptReviewConfirmation,
+      autoPublish: (await readAutoPublishState(context.repoRoot)).autoPublish,
+    });
+    return;
+  }
+
+  const codeHead = (await runGit(
+    context.repoRoot,
+    ['rev-parse', 'HEAD^{commit}'],
+  )).stdout.trim();
+  if (codeHead !== feedback.headSha) {
+    throw new Error(`accepted HEAD is stale: feedback=${feedback.headSha} current=${codeHead}`);
+  }
+  if (!packetState || packetState.latestEventId !== feedback.eventId) {
+    throw new Error('sync the feedback event before accepting');
+  }
+  if (feedback.sequence + 100 >= 9900) {
+    throw new Error('no approval sequence is available');
+  }
+  const closeDirectory = '9900--cli--closed--r01';
+  if (snapshot.incompleteEventDirectories.includes(closeDirectory)) {
+    throw new Error(`close target collision: ${closeDirectory}`);
+  }
+  const reason = validateAutoPublishReason(
+    getStringFlag(
+      args,
+      'reason',
+      'user directive: accept review findings as deferrals',
+    ) ?? '',
+  );
+  const { marker: candidate, findings } = buildReviewAcceptanceMarker(snapshot, reason);
+  // The chain grammar validates kind transitions but never binds a successor to the
+  // previous event's declared nextWriteTarget; feedback -> approval lives in transitions.
+  const marker = ProRoundtripEventCompleteSchema.parse(
+    JSON.parse(JSON.stringify(candidate)) as unknown,
+  );
+  validateReviewAcceptance(marker, feedback, findings);
+
+  const acceptedFindingIds = marker.reviewAcceptance?.acceptedFindingIds ?? [];
+  const deferrals = [...findings]
+    .sort((left, right) => left.id.localeCompare(right.id))
+    .map(
+      ({ id, severity, taxonomy, summary }) =>
+        `- \`${id}\` [${severity}/${taxonomy}] ${summary}`,
+    );
+  const approvalDocument = `# Approved (user-accepted review)
+
+- Flow: \`${snapshot.flow.flowPath}\`
+- Goal: ${snapshot.flow.goal}
+- Accepted feedback event: \`${feedback.eventId}\`
+- Approved code HEAD: \`${feedback.headSha}\`
+- Authorized by: user (CLI acceptance)
+- Reason: ${reason}
+
+## Deferrals (restated from the accepted review)
+
+${deferrals.length > 0 ? deferrals.join('\n') : '- none'}
+
+These findings land in the durable backlog as deferrals. Multi-flow coordination remains
+a Pro decision surface.
+`;
+  const approvalRoot = `${snapshot.flow.flowPath}/${marker.eventId}`;
+  const publication = await publishAdditions(
+    new Map([
+      [`${approvalRoot}/APPROVAL.md`, approvalDocument],
+      [`${approvalRoot}/COMPLETE.json`, `${JSON.stringify(marker, null, 2)}\n`],
+    ]),
+    `docs(pro-go): user-accepted review close ${path.posix.basename(snapshot.flow.flowPath)}`,
+    { context },
+  );
+  await appendSessionLogDecision(
+    context.repoRoot,
+    `- ${new Date().toISOString()} [decision][review-accepted] flow=${snapshot.flow.flowPath} event=${marker.eventId} findings=${acceptedFindingIds.join(',') || 'none'} reason=${reason}`,
+  );
+  const synced = await syncFlow(snapshot.flow.flowPath, { context });
+  emit(runtime, {
+    action: 'accept-review',
+    publication,
+    flowPath: snapshot.flow.flowPath,
+    approvalEventId: marker.eventId,
+    disposition: marker.disposition,
+    acceptedFindingIds,
+    latestEventId: synced.state.latestEventId,
+    nextAction: 'close --publish',
+  });
+}
+
 async function closeCommand(
   args: ParsedArgs,
   runtime: ProRoundtripRuntime,
@@ -749,6 +1065,12 @@ async function closeCommand(
     throw new Error('close publishes to GitHub; obtain user authorization and pass --publish');
   }
   const { context, snapshot } = await loadRemoteSnapshot(runtime, args.positionals[1]);
+  await assertAlignmentBriefGate(
+    packetRootFor(context.repoRoot, snapshot.flow.flowPath),
+    snapshot,
+    await readPacketState(context.repoRoot, snapshot.flow.flowPath),
+    'close',
+  );
   const latest = snapshot.latestEvent.marker;
 
   // Resolve the governing approval. A closed latest event is only acceptable for the
@@ -1146,12 +1468,20 @@ export async function executeProRoundtrip(
     await syncCommand(args, runtime);
     return;
   }
+  if (command === 'brief') {
+    await briefCommand(args, runtime);
+    return;
+  }
   if (command === 'report') {
     await reportCommand(args, runtime);
     return;
   }
   if (command === 'continue') {
     await continueCommand(args, runtime);
+    return;
+  }
+  if (command === 'accept-review') {
+    await acceptReviewCommand(args, runtime);
     return;
   }
   if (command === 'close') {

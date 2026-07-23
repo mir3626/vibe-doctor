@@ -58,9 +58,35 @@ return the next Web prompt.
 Do not claim completion while a checkpoint, contract row, cumulative journey,
 final gate, or actionable P0/P1 finding is missing.
 
+## Alignment briefing
+
+When `go`/`status` report an `alignmentBrief` status of `missing` or `invalid`,
+author the brief BEFORE any state-changing command: run
+`npm run vibe:pro-go -- brief <flow>` for the exact item roster, declared
+intents, paths, and a skeleton. Author `BRIEF.md` in the session language
+(Korean for this user) from a FRESH evaluator sub-agent context that reads only
+the flow goal, declared intents, and the Pro document — not the accumulated main
+context. Explain per item how it serves the user's original request, classify it
+(core/supporting/hardening/speculative/off-track), and end with a proposal.
+Briefs propose; users decide: record the user's answers into `BRIEF.json`
+`decisions` (JSON artifact edit) with `confirmedBy: "user"` only after the user
+actually ruled. Never fabricate rulings; `proGoAutoPublish` never covers brief
+decisions.
+
+## Accepting a review from the CLI
+
+When Pro leaves a feedback whose findings are all non-blocking (zero P0/P1) and
+the user judges them deferrable: run `accept-review [flow]` (dry-run), show the
+user the findings table and recommendation, and only after the user explicitly
+confirms run `accept-review [flow] --publish --user-approved`, then
+`close --publish`. Never pass `--user-approved` without a fresh explicit user
+confirmation — `proGoAutoPublish` does not cover this judgment. The CLI records
+the `[decision][review-accepted]` session-log entry itself.
+
 ## Writes and safety
 
-`bootstrap --publish`, `start --publish`, `report --publish`, and
+`bootstrap --publish`, `start --publish`, `report --publish`,
+`accept-review --publish --user-approved`, and
 `close --publish` write to GitHub. Show repository, branch, target, and files
 before passing `--publish`. Never create a PR, modify the default branch, rewrite
 completed events, force-push, or hand-edit `.vibe/worktrees/pro-roundtrip`.
@@ -72,5 +98,6 @@ repository, branch, target, and files, then pass `--publish` and record one
 session-log `[decision][auto-approved]` entry per publication. Toggle the
 directive only on an explicit user instruction.
 
-`go`, `status`, `sync`, `continue`, and `doctor` are read/local operations.
+`go`, `status`, `sync`, `continue`, `brief`, and `doctor` are read/local
+operations.
 Reject protocol drift, stale HEAD, tamper, unsafe paths, and ambiguous targets.

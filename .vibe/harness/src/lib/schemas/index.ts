@@ -6,6 +6,7 @@ import { IterationHistorySchema } from './iteration-history.js';
 import { ModelRegistrySchema } from './model-registry.js';
 import { SidecarArtifactSchema, SidecarInputPacketSchema } from './sidecar.js';
 import {
+  ProRoundtripAlignmentBriefSchema,
   ProRoundtripContractSchema,
   ProRoundtripEventCompleteSchema,
   ProRoundtripFindingsSchema,
@@ -26,6 +27,7 @@ export const GENERATED_ARTIFACT_SCHEMAS = {
   'sidecar-artifact.json': SidecarArtifactSchema,
   'pro-roundtrip-flow.json': ProRoundtripFlowSchema,
   'pro-roundtrip-contract.json': ProRoundtripContractSchema,
+  'pro-roundtrip-alignment-brief.json': ProRoundtripAlignmentBriefSchema,
   'pro-roundtrip-event-complete.json': ProRoundtripEventCompleteSchema,
   'pro-roundtrip-report-input.json': ProRoundtripReportInputSchema,
 } as const;
@@ -107,11 +109,13 @@ export {
   type SidecarReviewerOutput,
 } from './sidecar.js';
 export {
+  ProRoundtripAlignmentBriefSchema,
   ProRoundtripContractSchema,
   ProRoundtripEventCompleteSchema,
   ProRoundtripFindingsSchema,
   ProRoundtripFlowSchema,
   ProRoundtripReportInputSchema,
+  type ProRoundtripAlignmentBrief,
   type ProRoundtripContract,
   type ProRoundtripEventComplete,
   type ProRoundtripFindings,

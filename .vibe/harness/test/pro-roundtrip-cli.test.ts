@@ -7,8 +7,10 @@ import { describe, it, type TestContext } from 'node:test';
 import { promisify } from 'node:util';
 import { executeProRoundtrip } from '../src/commands/pro-roundtrip.js';
 import type {
+  ProRoundtripAlignmentBrief,
   ProRoundtripContract,
   ProRoundtripEventComplete,
+  ProRoundtripFindings,
   ProRoundtripFlow,
   ProRoundtripReportInput,
 } from '../src/lib/schemas/pro-roundtrip.js';
@@ -121,7 +123,12 @@ async function runCli(
 async function publishDesignEvent(
   fixture: CliFixture,
   flowPath: string,
-): Promise<{ flow: ProRoundtripFlow; contract: ProRoundtripContract }> {
+  overrides: Partial<ProRoundtripContract> = {},
+): Promise<{
+  flow: ProRoundtripFlow;
+  contract: ProRoundtripContract;
+  designMarker: ProRoundtripEventComplete;
+}> {
   const { context } = fixture;
   const flow = JSON.parse(
     await readFile(path.join(context.worktreePath, ...flowPath.split('/'), 'FLOW.json'), 'utf8'),
@@ -137,7 +144,27 @@ async function publishDesignEvent(
     flowPath,
     designEventId: '0100--pro--design--r01',
     createdAt: new Date().toISOString(),
+    ...overrides,
   };
+  const primaryIntentId = contract.intents?.[0]?.id;
+  if (primaryIntentId) {
+    contract.requirements = contract.requirements.map((item) => ({
+      ...item,
+      intentIds: item.intentIds ?? [primaryIntentId],
+    }));
+    contract.invariants = contract.invariants.map((item) => ({
+      ...item,
+      intentIds: item.intentIds ?? [primaryIntentId],
+    }));
+    contract.workflows = contract.workflows.map((item) => ({
+      ...item,
+      intentIds: item.intentIds ?? [primaryIntentId],
+    }));
+    contract.nonFunctionalRequirements = contract.nonFunctionalRequirements.map((item) => ({
+      ...item,
+      intentIds: item.intentIds ?? [primaryIntentId],
+    }));
+  }
   const designRoot = `${flowPath}/0100--pro--design--r01`;
   const designMarker: ProRoundtripEventComplete = {
     schemaVersion: 'vibe-pro-event-complete-v1',
@@ -177,7 +204,353 @@ async function publishDesignEvent(
     'test: publish Web design',
     { context },
   );
-  return { flow, contract };
+  return { flow, contract, designMarker };
+}
+
+async function writeAlignmentBrief(
+  fixture: CliFixture,
+  flowPath: string,
+  event: ProRoundtripEventComplete,
+  options: {
+    contract?: ProRoundtripContract;
+    findings?: ProRoundtripFindings['findings'];
+    recommendation?: 'proceed' | 'return-to-pro';
+    trim?: string[];
+    defer?: string[];
+    userDecisionNeeded?: string[];
+    rulings?: ProRoundtripAlignmentBrief['decisions']['rulings'];
+    confirmedBy?: 'user' | null;
+  } = {},
+): Promise<{ briefJsonPath: string; briefMdPath: string }> {
+  if (event.kind !== 'design' && event.kind !== 'feedback') {
+    throw new Error(`cannot write an alignment brief for ${event.kind}`);
+  }
+  const contractItems = options.contract
+    ? [
+        ...options.contract.requirements,
+        ...options.contract.invariants,
+        ...options.contract.workflows,
+        ...options.contract.nonFunctionalRequirements,
+      ]
+    : [];
+  const itemIds =
+    event.kind === 'design'
+      ? contractItems.map(({ id }) => id)
+      : (options.findings?.map(({ id }) => id) ?? []);
+  const contractItemById = new Map(
+    contractItems.map((item) => [item.id, item]),
+  );
+  const fallbackIntentIds = options.contract?.intents?.map(({ id }) => id);
+  const brief: ProRoundtripAlignmentBrief = {
+    schemaVersion: 'vibe-pro-alignment-brief-v1',
+    flowPath,
+    eventId: event.eventId,
+    eventKind: event.kind,
+    authoredAt: event.createdAt,
+    entries: itemIds.map((itemId) => {
+      const intentIds =
+        contractItemById.get(itemId)?.intentIds ??
+        (fallbackIntentIds && fallbackIntentIds.length > 0
+          ? fallbackIntentIds
+          : undefined);
+      return {
+        itemId,
+        classification: 'core',
+        purpose: `Explain ${itemId} in the user's language.`,
+        ...(intentIds ? { intentIds } : { noIntentPath: true as const }),
+      };
+    }),
+    proposal: {
+      recommendation: options.recommendation ?? 'proceed',
+      trim: options.trim ?? [],
+      defer: options.defer ?? [],
+      userDecisionNeeded: options.userDecisionNeeded ?? [],
+    },
+    decisions: {
+      rulings: options.rulings ?? [],
+      confirmedBy: options.confirmedBy ?? null,
+    },
+  };
+  const briefRoot = path.join(
+    packetRootFor(fixture.checkout, flowPath),
+    'briefs',
+    event.eventId,
+  );
+  const briefJsonPath = path.join(briefRoot, 'BRIEF.json');
+  const briefMdPath = path.join(briefRoot, 'BRIEF.md');
+  await writeText(briefMdPath, `# Alignment brief for ${event.eventId}\n`);
+  await writeText(briefJsonPath, `${JSON.stringify(brief, null, 2)}\n`);
+  return { briefJsonPath, briefMdPath };
+}
+
+interface ReviewedFlowFixture {
+  fixture: CliFixture;
+  flowPath: string;
+  flow: ProRoundtripFlow;
+  contract: ProRoundtripContract;
+  implementedHead: string;
+  feedbackMarker: ProRoundtripEventComplete;
+  findings: ProRoundtripFindings['findings'];
+}
+
+async function prepareReviewedFlow(
+  testContext: TestContext,
+  options: {
+    findings?: ProRoundtripFindings['findings'];
+    syncFeedback?: boolean;
+    slug?: string;
+  } = {},
+): Promise<ReviewedFlowFixture> {
+  const fixture = await scaffoldRepository(testContext);
+  await writeText(
+    path.join(fixture.checkout, '.vibe', 'agent', 'session-log.md'),
+    '# Session Log\n\n## Entries\n',
+  );
+  const slug = options.slug ?? 'review-acceptance';
+  const started = await runCli(fixture, [
+    'start',
+    'design',
+    'Accept a mechanically non-blocking Web review',
+    '--slug',
+    slug,
+    '--timezone',
+    'Asia/Seoul',
+    '--repository',
+    'fixture/repo',
+    '--publish',
+  ]);
+  const flowPath = String(started.flowPath);
+  const { flow, contract, designMarker } = await publishDesignEvent(fixture, flowPath, {
+    finalGatePolicy: { mandatoryCommands: ['fixture verification'] },
+  });
+  await runCli(fixture, ['sync', flowPath]);
+  await writeAlignmentBrief(fixture, flowPath, designMarker, { contract });
+
+  const implementationPath = path.join(fixture.checkout, 'reviewed-implementation.txt');
+  await writeFile(implementationPath, 'reviewed implementation\n', 'utf8');
+  await git(fixture.checkout, ['add', 'reviewed-implementation.txt']);
+  await git(fixture.checkout, ['commit', '-m', 'feat: reviewed implementation']);
+  const implementedHead = await git(fixture.checkout, ['rev-parse', 'HEAD']);
+  const evidence: ProRoundtripReportInput = {
+    schemaVersion: 'vibe-pro-report-input-v1',
+    flowPath,
+    designEventId: contract.designEventId,
+    sprintId: 'SPR-001',
+    reportKind: 'implementation',
+    baseSha: flow.baseSha,
+    headSha: implementedHead,
+    completedContractIds: ['REQ-001', 'NFR-001'],
+    changedFiles: ['reviewed-implementation.txt'],
+    verification: [
+      {
+        command: 'fixture verification',
+        status: 'passed',
+        summary: 'fixture passed',
+      },
+    ],
+    workflowEvidence: [
+      {
+        contractId: 'REQ-001',
+        implementationEvidence: 'fixture',
+        testEvidence: 'fixture',
+        integrationEvidence: 'fixture',
+        status: 'complete',
+        notes: '',
+      },
+      {
+        contractId: 'INV-001',
+        implementationEvidence: 'fixture',
+        testEvidence: 'fixture',
+        integrationEvidence: 'fixture',
+        status: 'complete',
+        notes: '',
+      },
+      {
+        contractId: 'WF-001',
+        implementationEvidence: 'fixture',
+        testEvidence: 'fixture',
+        integrationEvidence: 'fixture',
+        status: 'complete',
+        notes: '',
+      },
+      {
+        contractId: 'NFR-001',
+        implementationEvidence: 'fixture',
+        testEvidence: 'fixture',
+        integrationEvidence: 'fixture',
+        status: 'complete',
+        notes: '',
+      },
+    ],
+    sprintGatePassed: true,
+    cumulativeGatePassed: true,
+    finalGatePassed: true,
+    resolvedFindingIds: [],
+    risks: [],
+    nextAction: 'Request Web Pro review.',
+  };
+  const evidencePath = path.join(fixture.checkout, 'review-acceptance-evidence.json');
+  await writeFile(evidencePath, `${JSON.stringify(evidence, null, 2)}\n`, 'utf8');
+  await runCli(fixture, ['report', flowPath, '--evidence', evidencePath]);
+  await runCli(fixture, ['report', flowPath, '--publish']);
+
+  const findings = options.findings ?? [
+    {
+      id: 'FND-101',
+      taxonomy: 'backlog-candidate',
+      severity: 'P2',
+      contractIds: ['REQ-001'],
+      summary: 'Defer the optional review polish',
+      evidence: 'reviewed-implementation.txt',
+      expectedBehavior: 'Track the polish in the durable backlog.',
+    },
+    {
+      id: 'FND-102',
+      taxonomy: 'missing-test',
+      severity: 'P2',
+      contractIds: ['WF-001'],
+      summary: 'Defer an additional non-blocking regression case',
+      evidence: 'The final matrix records the current workflow proof.',
+      expectedBehavior: 'Add the regression case in a later scoped Sprint.',
+    },
+  ];
+  const feedbackEventId = '0300--pro--feedback--r01';
+  const feedbackRoot = `${flowPath}/${feedbackEventId}`;
+  const feedbackMarker: ProRoundtripEventComplete = {
+    schemaVersion: 'vibe-pro-event-complete-v1',
+    flowPath,
+    eventId: feedbackEventId,
+    sequence: 300,
+    actor: 'pro',
+    kind: 'feedback',
+    revision: 1,
+    previousEventId: '0200--codex--implementation-report--r01',
+    supersedesEventId: null,
+    protocolVersion: flow.protocol.version,
+    designEventId: contract.designEventId,
+    sprintId: null,
+    repositoryFullName: flow.repository.fullName,
+    codeBranch: flow.codeBranch,
+    baseSha: flow.baseSha,
+    headSha: implementedHead,
+    disposition: 'remediation-required',
+    files: [
+      { path: 'FEEDBACK.md', mediaType: 'text/markdown' },
+      { path: 'FINDINGS.json', mediaType: 'application/json' },
+    ],
+    limitations: [],
+    createdAt: new Date().toISOString(),
+    nextActor: 'codex',
+    nextWriteTarget: `${flowPath}/0400--codex--remediation-report--r01`,
+  };
+  await publishAdditions(
+    new Map([
+      [`${feedbackRoot}/FEEDBACK.md`, '# Mechanically non-blocking review findings\n'],
+      [
+        `${feedbackRoot}/FINDINGS.json`,
+        `${JSON.stringify({
+          schemaVersion: 'vibe-pro-findings-v1',
+          flowPath,
+          eventId: feedbackEventId,
+          reviewedHeadSha: implementedHead,
+          disposition: feedbackMarker.disposition,
+          findings,
+        }, null, 2)}\n`,
+      ],
+      [`${feedbackRoot}/COMPLETE.json`, `${JSON.stringify(feedbackMarker, null, 2)}\n`],
+    ]),
+    'test: publish non-blocking Web feedback',
+    { context: fixture.context },
+  );
+  if (options.syncFeedback !== false) {
+    await runCli(fixture, ['sync', flowPath]);
+    await writeAlignmentBrief(fixture, flowPath, feedbackMarker, {
+      contract,
+      findings,
+      defer: findings.map(({ id }) => id),
+      rulings: findings.map(({ id }) => ({
+        itemId: id,
+        ruling: 'defer',
+        note: `Defer ${id} by user ruling.`,
+      })),
+      confirmedBy: 'user',
+    });
+  }
+  return { fixture, flowPath, flow, contract, implementedHead, feedbackMarker, findings };
+}
+
+function acceptanceMarker(
+  reviewed: ReviewedFlowFixture,
+  overrides: Partial<ProRoundtripEventComplete> = {},
+): ProRoundtripEventComplete {
+  const acceptedFindingIds = reviewed.findings.map(({ id }) => id).sort();
+  return {
+    schemaVersion: 'vibe-pro-event-complete-v1',
+    flowPath: reviewed.flowPath,
+    eventId: '0400--cli--approval--r01',
+    sequence: 400,
+    actor: 'cli',
+    kind: 'approval',
+    revision: 1,
+    previousEventId: reviewed.feedbackMarker.eventId,
+    supersedesEventId: null,
+    protocolVersion: reviewed.flow.protocol.version,
+    designEventId: reviewed.contract.designEventId,
+    sprintId: null,
+    repositoryFullName: reviewed.flow.repository.fullName,
+    codeBranch: reviewed.flow.codeBranch,
+    baseSha: reviewed.flow.baseSha,
+    headSha: reviewed.implementedHead,
+    disposition: acceptedFindingIds.length === 0 ? 'approved' : 'approved-with-deferrals',
+    files: [{ path: 'APPROVAL.md', mediaType: 'text/markdown' }],
+    limitations: [],
+    createdAt: new Date().toISOString(),
+    nextActor: 'cli',
+    nextWriteTarget: `${reviewed.flowPath}/9900--cli--closed--r01`,
+    reviewAcceptance: {
+      authorizedBy: 'user',
+      acceptedFindingIds,
+      reason: 'user directive: accept review findings as deferrals',
+    },
+    ...overrides,
+  };
+}
+
+async function publishForgedApproval(
+  reviewed: ReviewedFlowFixture,
+  marker: ProRoundtripEventComplete,
+): Promise<void> {
+  const approvalRoot = `${reviewed.flowPath}/${marker.eventId}`;
+  await publishAdditions(
+    new Map([
+      [`${approvalRoot}/APPROVAL.md`, '# Forged approval\n'],
+      [`${approvalRoot}/COMPLETE.json`, `${JSON.stringify(marker, null, 2)}\n`],
+    ]),
+    'test: publish forged review acceptance',
+    { context: reviewed.fixture.context },
+  );
+}
+
+async function assertRejectsExactly(
+  promise: Promise<unknown>,
+  message: string,
+): Promise<void> {
+  await assert.rejects(
+    promise,
+    (error: unknown) => error instanceof Error && error.message === message,
+    `expected exact error: ${message}`,
+  );
+}
+
+async function assertRejectsWithIssue(
+  promise: Promise<unknown>,
+  message: string,
+): Promise<void> {
+  await assert.rejects(
+    promise,
+    (error: unknown) => error instanceof Error && error.message.includes(`"message": "${message}"`),
+    `expected schema issue: ${message}`,
+  );
 }
 
 describe('vibe-pro-go CLI', { concurrency: true }, () => {
@@ -479,6 +852,91 @@ describe('vibe-pro-go CLI', { concurrency: true }, () => {
     },
   );
 
+  it('does not retroactively arm a previously receipted Pro design event', async (testContext) => {
+    const fixture = await scaffoldRepository(testContext);
+    const started = await runCli(fixture, [
+      'start',
+      'design',
+      'Preserve a pre-feature packet without retroactive briefing',
+      '--slug',
+      'legacy-brief-exemption',
+      '--timezone',
+      'Asia/Seoul',
+      '--repository',
+      'fixture/repo',
+      '--publish',
+    ]);
+    const flowPath = String(started.flowPath);
+    const { flow, contract } = await publishDesignEvent(fixture, flowPath);
+    await runCli(fixture, ['sync', flowPath]);
+    const statePath = path.join(
+      packetRootFor(fixture.checkout, flowPath),
+      'STATE.json',
+    );
+    const legacyState = JSON.parse(
+      await readFile(statePath, 'utf8'),
+    ) as Record<string, unknown>;
+    delete legacyState.briefRequiredEventIds;
+    await writeText(statePath, `${JSON.stringify(legacyState, null, 2)}\n`);
+    await runCli(fixture, ['sync', flowPath]);
+    const resyncedState = JSON.parse(
+      await readFile(statePath, 'utf8'),
+    ) as { briefRequiredEventIds?: string[] };
+    assert.deepEqual(resyncedState.briefRequiredEventIds, []);
+
+    await writeFile(
+      path.join(fixture.checkout, 'legacy-implementation.txt'),
+      'legacy implementation\n',
+      'utf8',
+    );
+    await git(fixture.checkout, ['add', 'legacy-implementation.txt']);
+    await git(fixture.checkout, ['commit', '-m', 'feat: legacy packet implementation']);
+    const implementedHead = await git(fixture.checkout, ['rev-parse', 'HEAD']);
+    const evidence: ProRoundtripReportInput = {
+      schemaVersion: 'vibe-pro-report-input-v1',
+      flowPath,
+      designEventId: contract.designEventId,
+      sprintId: 'SPR-001',
+      reportKind: 'implementation',
+      baseSha: flow.baseSha,
+      headSha: implementedHead,
+      completedContractIds: ['REQ-001', 'NFR-001'],
+      changedFiles: ['legacy-implementation.txt'],
+      verification: [
+        {
+          command: 'legacy fixture verification',
+          status: 'passed',
+          summary: 'legacy fixture passed',
+        },
+      ],
+      workflowEvidence: [
+        ...['REQ-001', 'INV-001', 'WF-001', 'NFR-001'].map((contractId) => ({
+          contractId,
+          implementationEvidence: 'legacy fixture',
+          testEvidence: 'legacy fixture',
+          integrationEvidence: 'legacy fixture',
+          status: 'complete' as const,
+          notes: '',
+        })),
+      ],
+      sprintGatePassed: true,
+      cumulativeGatePassed: true,
+      finalGatePassed: false,
+      resolvedFindingIds: [],
+      risks: [],
+      nextAction: 'Continue the legacy packet.',
+    };
+    const evidencePath = path.join(fixture.checkout, 'legacy-evidence.json');
+    await writeText(evidencePath, `${JSON.stringify(evidence, null, 2)}\n`);
+    const recorded = await runCli(fixture, [
+      'report',
+      flowPath,
+      '--evidence',
+      evidencePath,
+    ]);
+    assert.match(String(recorded.checkpointPath), /SPR-001-end-to-end$/);
+  });
+
   it(
     'runs start → Web design import → Sprint checkpoint → aggregate publication',
     async (testContext) => {
@@ -500,6 +958,7 @@ describe('vibe-pro-go CLI', { concurrency: true }, () => {
     assert.match(flowPath, /^flows\/[0-9]{8}\/001-roundtrip-fixture$/);
     assert.equal(started.nextActor, 'pro');
     assert.match(String(started.webPrompt), /MUST NOT use Web Search/);
+    assert.doesNotMatch(String(started.webPrompt), /User scope rulings \(binding\):/);
     assert.ok(
       String(started.webPrompt).includes(`${localProtocol.root}/PROTOCOL.json`),
     );
@@ -523,7 +982,15 @@ describe('vibe-pro-go CLI', { concurrency: true }, () => {
     assert.equal(protocolManifest.version, localProtocol.version);
     assert.equal(protocolManifest.files.length, 5);
 
-    const { flow, contract } = await publishDesignEvent(fixture, flowPath);
+    const { flow, contract, designMarker } = await publishDesignEvent(fixture, flowPath, {
+      intents: [
+        {
+          id: 'INT-001',
+          statement: 'Keep the roundtrip aligned with the user-requested workflow.',
+          rationale: 'Every design item needs an explicit product-intent anchor.',
+        },
+      ],
+    });
 
     const synced = await runCli(fixture, ['sync', flowPath]);
     assert.deepEqual(synced.importedEventIds, [
@@ -531,6 +998,109 @@ describe('vibe-pro-go CLI', { concurrency: true }, () => {
       '0100--pro--design--r01',
     ]);
     const packetRoot = packetRootFor(fixture.checkout, flowPath);
+    const packetStatePath = path.join(packetRoot, 'STATE.json');
+    const packetState = JSON.parse(
+      await readFile(packetStatePath, 'utf8'),
+    ) as { briefRequiredEventIds?: string[] };
+    assert.deepEqual(packetState.briefRequiredEventIds, [designMarker.eventId]);
+    const designBriefJsonPath = path.join(
+      packetRoot,
+      'briefs',
+      designMarker.eventId,
+      'BRIEF.json',
+    );
+    await assertRejectsExactly(
+      runCli(fixture, ['report', flowPath, '--evidence', 'REFUSED']),
+      `alignment brief gate: report is blocked until a valid alignment brief exists for ${designMarker.eventId}.\n` +
+        `Expected: ${designBriefJsonPath} (+ BRIEF.md).\n` +
+        `Run: npm run vibe:pro-go -- brief ${flowPath}  (prints the required item roster, declared intents, and a skeleton).\n` +
+        'Detail: brief is missing',
+    );
+    const stateBeforeBriefCommand = await readFile(packetStatePath, 'utf8');
+    const briefCommand = await runCli(fixture, ['brief', flowPath]);
+    assert.equal(briefCommand.action, 'brief');
+    assert.equal(briefCommand.required, true);
+    assert.equal(briefCommand.status, 'missing');
+    assert.deepEqual(briefCommand.roster, ['REQ-001', 'INV-001', 'WF-001', 'NFR-001']);
+    assert.deepEqual(briefCommand.intents, [
+      {
+        id: 'INT-001',
+        statement: 'Keep the roundtrip aligned with the user-requested workflow.',
+      },
+    ]);
+    assert.equal(await readFile(packetStatePath, 'utf8'), stateBeforeBriefCommand);
+
+    await writeAlignmentBrief(fixture, flowPath, designMarker, { contract });
+    const completeDesignBrief = JSON.parse(
+      await readFile(designBriefJsonPath, 'utf8'),
+    ) as ProRoundtripAlignmentBrief;
+    await writeText(
+      designBriefJsonPath,
+      `${JSON.stringify(
+        {
+          ...completeDesignBrief,
+          entries: completeDesignBrief.entries.slice(1),
+        },
+        null,
+        2,
+      )}\n`,
+    );
+    await assert.rejects(
+      runCli(fixture, ['report', flowPath, '--evidence', 'REFUSED']),
+      (error: unknown) =>
+        error instanceof Error &&
+        error.message.includes(
+          'Detail: alignment brief must cover every contract item exactly; missing=REQ-001 extra=none',
+        ),
+    );
+    const emptyPurposeBrief = structuredClone(completeDesignBrief);
+    const emptyPurposeEntry = emptyPurposeBrief.entries[0];
+    assert.ok(emptyPurposeEntry);
+    emptyPurposeEntry.purpose = '';
+    await writeText(
+      designBriefJsonPath,
+      `${JSON.stringify(emptyPurposeBrief, null, 2)}\n`,
+    );
+    await assert.rejects(
+      runCli(fixture, ['report', flowPath, '--evidence', 'REFUSED']),
+      (error: unknown) =>
+        error instanceof Error &&
+        error.message.includes('"too_small"') &&
+        error.message.includes('"entries"') &&
+        error.message.includes('"purpose"'),
+    );
+    const missingClassificationBrief = structuredClone(completeDesignBrief) as {
+      entries: Array<Record<string, unknown>>;
+    };
+    delete missingClassificationBrief.entries[0]?.classification;
+    await writeText(
+      designBriefJsonPath,
+      `${JSON.stringify(missingClassificationBrief, null, 2)}\n`,
+    );
+    await assert.rejects(
+      runCli(fixture, ['report', flowPath, '--evidence', 'REFUSED']),
+      (error: unknown) =>
+        error instanceof Error &&
+        error.message.includes('"message": "Required"'),
+    );
+    const pendingDecisionBrief = structuredClone(completeDesignBrief);
+    pendingDecisionBrief.proposal.userDecisionNeeded = ['REQ-001'];
+    await writeText(
+      designBriefJsonPath,
+      `${JSON.stringify(pendingDecisionBrief, null, 2)}\n`,
+    );
+    await assert.rejects(
+      runCli(fixture, ['report', flowPath, '--evidence', 'REFUSED']),
+      (error: unknown) =>
+        error instanceof Error &&
+        error.message.includes(
+          'Detail: alignment brief gate: user decision pending for REQ-001',
+        ),
+    );
+    await writeText(
+      designBriefJsonPath,
+      `${JSON.stringify(completeDesignBrief, null, 2)}\n`,
+    );
     assert.match(
       await readFile(path.join(packetRoot, 'sprints', 'SPR-001-end-to-end', 'SPRINT.md'), 'utf8'),
       /Design event: `0100--pro--design--r01`/,
@@ -540,6 +1110,10 @@ describe('vibe-pro-go CLI', { concurrency: true }, () => {
     assert.equal(resumed.autoPublish, false);
     assert.equal(resumed.flowPath, flowPath);
     assert.equal(resumed.currentSprintId, 'SPR-001');
+    assert.equal(
+      (resumed.alignmentBrief as Record<string, unknown>).status,
+      'valid',
+    );
     assert.equal(resumed.selection, 'latest-non-closed-current-repo-branch');
     assert.match(String(resumed.handoffPath), /HANDOFF\.md$/);
     assert.match(String(resumed.sprintEnvelopePath), /SPR-001-end-to-end[\\/]SPRINT\.md$/);
@@ -684,6 +1258,17 @@ describe('vibe-pro-go CLI', { concurrency: true }, () => {
       nextActor: 'codex',
       nextWriteTarget: `${flowPath}/0400--codex--remediation-report--r01`,
     };
+    const remediationFindings: ProRoundtripFindings['findings'] = [
+      {
+        id: 'FND-001',
+        taxonomy: 'implementation-defect',
+        severity: 'P1',
+        contractIds: ['REQ-001'],
+        summary: 'Fixture defect',
+        evidence: 'implemented.txt',
+        expectedBehavior: 'Fixture is remediated.',
+      },
+    ];
     await publishAdditions(
       new Map([
         [`${feedbackRoot}/FEEDBACK.md`, '# Remediation required\n'],
@@ -696,17 +1281,7 @@ describe('vibe-pro-go CLI', { concurrency: true }, () => {
               eventId: feedbackMarker.eventId,
               reviewedHeadSha: implementedHead,
               disposition: 'remediation-required',
-              findings: [
-                {
-                  id: 'FND-001',
-                  taxonomy: 'implementation-defect',
-                  severity: 'P1',
-                  contractIds: ['REQ-001'],
-                  summary: 'Fixture defect',
-                  evidence: 'implemented.txt',
-                  expectedBehavior: 'Fixture is remediated.',
-                },
-              ],
+              findings: remediationFindings,
             },
             null,
             2,
@@ -718,6 +1293,27 @@ describe('vibe-pro-go CLI', { concurrency: true }, () => {
       { context: fixture.context },
     );
     await runCli(fixture, ['sync', flowPath]);
+    await assert.rejects(
+      runCli(fixture, ['report', flowPath, '--evidence', 'REFUSED']),
+      (error: unknown) =>
+        error instanceof Error &&
+        error.message.includes(
+          `alignment brief gate: report is blocked until a valid alignment brief exists for ${feedbackMarker.eventId}.`,
+        ),
+    );
+    await writeAlignmentBrief(fixture, flowPath, feedbackMarker, {
+      contract,
+      findings: remediationFindings,
+      trim: ['FND-001'],
+      rulings: [
+        {
+          itemId: 'FND-001',
+          ruling: 'trim',
+          note: 'User trimmed the fixture defect.',
+        },
+      ],
+      confirmedBy: 'user',
+    });
     const remediationEvidence: ProRoundtripReportInput = {
       ...evidence,
       reportKind: 'remediation',
@@ -737,6 +1333,16 @@ describe('vibe-pro-go CLI', { concurrency: true }, () => {
       remediationEvidencePath,
     ]);
     await runCli(fixture, ['report', flowPath, '--publish']);
+    const rulingPrompt = await runCli(fixture, ['go', flowPath]);
+    assert.match(
+      String(rulingPrompt.webPrompt),
+      /User scope rulings \(binding\):/,
+    );
+    assert.ok(
+      String(rulingPrompt.webPrompt).includes(
+        `- ${feedbackMarker.eventId} FND-001: trim — User trimmed the fixture defect.`,
+      ),
+    );
 
     const secondFeedbackRoot = `${flowPath}/0500--pro--feedback--r02`;
     const secondFeedbackMarker: ProRoundtripEventComplete = {
@@ -949,6 +1555,26 @@ describe('vibe-pro-go CLI', { concurrency: true }, () => {
         nextActor: 'codex',
         nextWriteTarget: `${flowPath}/0300--codex--remediation-report--r01`,
       };
+      const auditFindings: ProRoundtripFindings['findings'] = [
+        {
+          id: 'FND-001',
+          taxonomy: 'implementation-defect',
+          severity: 'P1',
+          contractIds: [],
+          summary: 'First audit defect',
+          evidence: 'fixture evidence one',
+          expectedBehavior: 'The first audit defect is remediated.',
+        },
+        {
+          id: 'FND-002',
+          taxonomy: 'implementation-defect',
+          severity: 'P1',
+          contractIds: [],
+          summary: 'Second audit defect',
+          evidence: 'fixture evidence two',
+          expectedBehavior: 'The second audit defect is remediated.',
+        },
+      ];
       await publishAdditions(
         new Map([
           [`${feedbackRoot}/FEEDBACK.md`, '# Contract-less remediation required\n'],
@@ -961,26 +1587,7 @@ describe('vibe-pro-go CLI', { concurrency: true }, () => {
                 eventId: feedbackEventId,
                 reviewedHeadSha: codeHead,
                 disposition: 'remediation-required',
-                findings: [
-                  {
-                    id: 'FND-001',
-                    taxonomy: 'implementation-defect',
-                    severity: 'P1',
-                    contractIds: [],
-                    summary: 'First audit defect',
-                    evidence: 'fixture evidence one',
-                    expectedBehavior: 'The first audit defect is remediated.',
-                  },
-                  {
-                    id: 'FND-002',
-                    taxonomy: 'implementation-defect',
-                    severity: 'P1',
-                    contractIds: [],
-                    summary: 'Second audit defect',
-                    evidence: 'fixture evidence two',
-                    expectedBehavior: 'The second audit defect is remediated.',
-                  },
-                ],
+                findings: auditFindings,
               },
               null,
               2,
@@ -993,6 +1600,9 @@ describe('vibe-pro-go CLI', { concurrency: true }, () => {
       );
       const synced = await runCli(fixture, ['sync', flowPath]);
       assert.equal(synced.latestEventId, feedbackEventId);
+      await writeAlignmentBrief(fixture, flowPath, feedbackMarker, {
+        findings: auditFindings,
+      });
 
       const remediationEvidence: ProRoundtripReportInput = {
         ...auditEvidence,
@@ -1097,6 +1707,306 @@ describe('vibe-pro-go CLI', { concurrency: true }, () => {
       ) as ProRoundtripEventComplete;
       assert.equal(publishedMarker.kind, 'remediation-report');
       assert.equal(publishedMarker.previousEventId, feedbackEventId);
+    },
+  );
+
+  it(
+    'publishes a user-accepted review approval and closes the flow',
+    async (testContext) => {
+      const reviewed = await prepareReviewedFlow(testContext);
+      const feedbackBriefRoot = path.join(
+        packetRootFor(reviewed.fixture.checkout, reviewed.flowPath),
+        'briefs',
+        reviewed.feedbackMarker.eventId,
+      );
+      await rm(feedbackBriefRoot, { recursive: true, force: true });
+      await assert.rejects(
+        runCli(reviewed.fixture, ['accept-review', reviewed.flowPath]),
+        (error: unknown) =>
+          error instanceof Error &&
+          error.message.includes(
+            `alignment brief gate: accept-review is blocked until a valid alignment brief exists for ${reviewed.feedbackMarker.eventId}.`,
+          ),
+      );
+      await writeAlignmentBrief(
+        reviewed.fixture,
+        reviewed.flowPath,
+        reviewed.feedbackMarker,
+        {
+          contract: reviewed.contract,
+          findings: reviewed.findings,
+          defer: reviewed.findings.map(({ id }) => id),
+          rulings: reviewed.findings.map(({ id }) => ({
+            itemId: id,
+            ruling: 'defer',
+            note: `Defer ${id} by user ruling.`,
+          })),
+          confirmedBy: 'user',
+        },
+      );
+      const dryRun = await runCli(reviewed.fixture, ['accept-review', reviewed.flowPath]);
+      assert.equal(dryRun.action, 'accept-review');
+      assert.equal(dryRun.eligible, true);
+      assert.deepEqual(dryRun.blockers, []);
+      assert.deepEqual(
+        (dryRun.findings as Array<Record<string, unknown>>).map(
+          ({ id, severity, taxonomy, summary }) => ({ id, severity, taxonomy, summary }),
+        ),
+        reviewed.findings.map(({ id, severity, taxonomy, summary }) => ({
+          id,
+          severity,
+          taxonomy,
+          summary,
+        })),
+      );
+      assert.match(String(dryRun.requiredConfirmation), /--publish --user-approved/u);
+      assert.equal(dryRun.autoPublish, false);
+
+      const accepted = await runCli(reviewed.fixture, [
+        'accept-review',
+        reviewed.flowPath,
+        '--publish',
+        '--user-approved',
+      ]);
+      assert.equal(accepted.approvalEventId, '0400--cli--approval--r01');
+      assert.equal(accepted.disposition, 'approved-with-deferrals');
+      assert.deepEqual(accepted.acceptedFindingIds, ['FND-101', 'FND-102']);
+      assert.equal(accepted.nextAction, 'close --publish');
+
+      const approvalMarker = JSON.parse(
+        await readFile(
+          path.join(
+            reviewed.fixture.context.worktreePath,
+            ...reviewed.flowPath.split('/'),
+            '0400--cli--approval--r01',
+            'COMPLETE.json',
+          ),
+          'utf8',
+        ),
+      ) as ProRoundtripEventComplete;
+      assert.equal(approvalMarker.actor, 'cli');
+      assert.equal(approvalMarker.kind, 'approval');
+      assert.equal(approvalMarker.disposition, 'approved-with-deferrals');
+      assert.deepEqual(
+        approvalMarker.reviewAcceptance,
+        {
+          authorizedBy: 'user',
+          acceptedFindingIds: ['FND-101', 'FND-102'],
+          reason: 'user directive: accept review findings as deferrals',
+        },
+      );
+      assert.equal(
+        approvalMarker.nextWriteTarget,
+        `${reviewed.flowPath}/9900--cli--closed--r01`,
+      );
+      assert.match(
+        await readFile(
+          path.join(
+            reviewed.fixture.context.worktreePath,
+            ...reviewed.flowPath.split('/'),
+            '0400--cli--approval--r01',
+            'APPROVAL.md',
+          ),
+          'utf8',
+        ),
+        /# Approved \(user-accepted review\)[\s\S]*FND-101[\s\S]*FND-102/u,
+      );
+      assert.match(
+        await readFile(
+          path.join(reviewed.fixture.checkout, '.vibe', 'agent', 'session-log.md'),
+          'utf8',
+        ),
+        /\[decision\]\[review-accepted\]/u,
+      );
+
+      await writeText(
+        path.join(
+          packetRootFor(reviewed.fixture.checkout, reviewed.flowPath),
+          'FINAL-WORKFLOW-MATRIX.md',
+        ),
+        '# Final workflow matrix\n\n| Contract | Status |\n|---|---|\n| WF-001 | complete |\n',
+      );
+      await runCli(reviewed.fixture, ['close', reviewed.flowPath, '--publish']);
+      const status = await runCli(reviewed.fixture, ['status', reviewed.flowPath]);
+      assert.equal(
+        (status.latestEvent as ProRoundtripEventComplete).kind,
+        'closed',
+      );
+    },
+  );
+
+  it('guards every explicit accept-review publication precondition', async (testContext) => {
+    const notFeedbackFixture = await scaffoldRepository(testContext);
+    const started = await runCli(notFeedbackFixture, [
+      'start',
+      'design',
+      'Latest event guard',
+      '--slug',
+      'latest-event-guard',
+      '--timezone',
+      'Asia/Seoul',
+      '--repository',
+      'fixture/repo',
+      '--publish',
+    ]);
+    const notFeedbackFlow = String(started.flowPath);
+    await publishDesignEvent(notFeedbackFixture, notFeedbackFlow);
+    await assertRejectsExactly(
+      runCli(notFeedbackFixture, ['accept-review', notFeedbackFlow]),
+      'accept-review requires the latest completed event to be a Pro feedback',
+    );
+
+    const stale = await prepareReviewedFlow(testContext, { slug: 'stale-review-acceptance' });
+    await writeFile(
+      path.join(stale.fixture.checkout, 'advance-after-feedback.txt'),
+      'advance\n',
+      'utf8',
+    );
+    await git(stale.fixture.checkout, ['add', 'advance-after-feedback.txt']);
+    await git(stale.fixture.checkout, ['commit', '-m', 'test: stale accepted review']);
+    const staleHead = await git(stale.fixture.checkout, ['rev-parse', 'HEAD']);
+    await assertRejectsExactly(
+      runCli(stale.fixture, [
+        'accept-review',
+        stale.flowPath,
+        '--publish',
+        '--user-approved',
+      ]),
+      `accepted HEAD is stale: feedback=${stale.implementedHead} current=${staleHead}`,
+    );
+
+    const unsynced = await prepareReviewedFlow(testContext, {
+      slug: 'unsynced-review-acceptance',
+      syncFeedback: false,
+    });
+    await assertRejectsExactly(
+      runCli(unsynced.fixture, [
+        'accept-review',
+        unsynced.flowPath,
+        '--publish',
+        '--user-approved',
+      ]),
+      'sync the feedback event before accepting',
+    );
+
+    const missingConfirmation = await prepareReviewedFlow(testContext, {
+      slug: 'confirmation-review-acceptance',
+    });
+    await runCli(missingConfirmation.fixture, [
+      'confirm-skip',
+      'on',
+      '--reason',
+      'fixture auto publish',
+    ]);
+    await assertRejectsExactly(
+      runCli(missingConfirmation.fixture, [
+        'accept-review',
+        missingConfirmation.flowPath,
+        '--publish',
+      ]),
+      'accept-review records a user decision; pass --user-approved only after the user explicitly confirms accepting every listed finding as a deferral. The proGoAutoPublish directive never covers this confirmation.',
+    );
+  });
+
+  it(
+    'rejects forged review-acceptance events whenever a snapshot is loaded',
+    async (testContext) => {
+      const cases: Array<{
+        slug: string;
+        findings?: ProRoundtripFindings['findings'];
+        marker: (reviewed: ReviewedFlowFixture) => ProRoundtripEventComplete;
+        exactError?: (reviewed: ReviewedFlowFixture) => string;
+        schemaIssue?: string;
+      }> = [
+        {
+          slug: 'forged-cli-missing-acceptance',
+          marker: (reviewed) => {
+            const marker = acceptanceMarker(reviewed);
+            delete marker.reviewAcceptance;
+            return marker;
+          },
+          schemaIssue: 'a cli approval must declare reviewAcceptance',
+        },
+        {
+          slug: 'forged-pro-review-acceptance',
+          marker: (reviewed) => acceptanceMarker(reviewed, {
+            actor: 'pro',
+            eventId: '0400--pro--approval--r01',
+          }),
+          schemaIssue: 'only a cli approval may declare reviewAcceptance',
+        },
+        {
+          slug: 'forged-mutually-exclusive-acceptance',
+          marker: (reviewed) => acceptanceMarker(reviewed, {
+            coordinatedClose: {
+              jointInvariant: true,
+              primaryFlowPath: reviewed.flowPath,
+              flows: [
+                {
+                  flowPath: reviewed.flowPath,
+                  approvedBoundarySha: reviewed.implementedHead,
+                },
+                {
+                  flowPath: 'flows/20260723/999-forged-member',
+                  approvedBoundarySha: reviewed.implementedHead,
+                },
+              ],
+            },
+          }),
+          schemaIssue: 'reviewAcceptance and coordinatedClose are mutually exclusive',
+        },
+        {
+          slug: 'forged-dropped-finding',
+          marker: (reviewed) => {
+            const marker = acceptanceMarker(reviewed);
+            marker.reviewAcceptance = {
+              authorizedBy: 'user',
+              acceptedFindingIds: [reviewed.findings[0]?.id ?? 'FND-101'],
+              reason: 'user directive: accept review findings as deferrals',
+            };
+            return marker;
+          },
+          exactError: () =>
+            '0400--cli--approval--r01: acceptedFindingIds must exactly match the feedback finding IDs; missing=FND-102 extra=none',
+        },
+        {
+          slug: 'forged-p0-acceptance',
+          findings: [
+            {
+              id: 'FND-201',
+              taxonomy: 'implementation-defect',
+              severity: 'P0',
+              contractIds: ['REQ-001'],
+              summary: 'Blocking finding',
+              evidence: 'reviewed-implementation.txt',
+              expectedBehavior: 'Resolve before approval.',
+            },
+          ],
+          marker: (reviewed) => acceptanceMarker(reviewed),
+          exactError: () =>
+            '0400--cli--approval--r01: reviewAcceptance is not eligible: finding FND-201 is P0',
+        },
+        {
+          slug: 'forged-head-mismatch',
+          marker: (reviewed) => acceptanceMarker(reviewed, { headSha: 'b'.repeat(40) }),
+          exactError: () =>
+            '0400--cli--approval--r01: reviewAcceptance HEAD must equal the accepted feedback HEAD',
+        },
+      ];
+
+      for (const testCase of cases) {
+        const reviewed = await prepareReviewedFlow(testContext, {
+          slug: testCase.slug,
+          ...(testCase.findings ? { findings: testCase.findings } : {}),
+        });
+        await publishForgedApproval(reviewed, testCase.marker(reviewed));
+        const status = runCli(reviewed.fixture, ['status', reviewed.flowPath]);
+        if (testCase.schemaIssue) {
+          await assertRejectsWithIssue(status, testCase.schemaIssue);
+        } else {
+          await assertRejectsExactly(status, testCase.exactError?.(reviewed) ?? '');
+        }
+      }
     },
   );
 

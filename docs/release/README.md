@@ -6,6 +6,7 @@ and in version-specific notes.
 
 ## Current
 
+- [v1.13.0](v1.13.0.md) - Intent-alignment briefing + user-accepted review close
 - [v1.12.0](v1.12.0.md) - Content-addressed Pro protocol namespaces
 - [v1.11.0](v1.11.0.md) - Coordinated cross-flow close
 - [v1.10.1](v1.10.1.md) - Shared-module ownership boundary

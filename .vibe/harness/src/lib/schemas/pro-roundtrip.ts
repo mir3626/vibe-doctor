@@ -13,6 +13,14 @@ const SafeRelativePathSchema = z
   .string()
   .regex(/^(?!\/)(?!.*\.\.)[A-Za-z0-9._/-]+$/);
 const DateTimeSchema = z.string().datetime({ offset: true });
+const IntentIdSchema = z.string().regex(/^INT-[0-9]{3}$/);
+const IntentSchema = z
+  .object({
+    id: IntentIdSchema,
+    statement: NonEmptyStringSchema,
+    rationale: NonEmptyStringSchema,
+  })
+  .strict();
 
 export const ProRoundtripFlowSchema = z
   .object({
@@ -53,6 +61,7 @@ const RequirementSchema = z
     priority: z.enum(['must', 'should', 'could']),
     acceptanceCriteria: z.array(NonEmptyStringSchema).min(1),
     ownerSprint: SprintIdSchema,
+    intentIds: z.array(IntentIdSchema).min(1).optional(),
   })
   .strict();
 
@@ -61,6 +70,7 @@ const InvariantSchema = z
     id: z.string().regex(/^INV-[0-9]{3}$/),
     statement: NonEmptyStringSchema,
     validation: z.array(NonEmptyStringSchema).min(1),
+    intentIds: z.array(IntentIdSchema).min(1).optional(),
   })
   .strict();
 
@@ -71,6 +81,7 @@ const WorkflowSchema = z
     steps: z.array(NonEmptyStringSchema).min(2),
     expectedOutcome: NonEmptyStringSchema,
     ownerSprints: z.array(SprintIdSchema).min(1),
+    intentIds: z.array(IntentIdSchema).min(1).optional(),
   })
   .strict();
 
@@ -81,6 +92,7 @@ const NonFunctionalRequirementSchema = z
     statement: NonEmptyStringSchema,
     validation: z.array(NonEmptyStringSchema).min(1),
     ownerSprint: SprintIdSchema,
+    intentIds: z.array(IntentIdSchema).min(1).optional(),
   })
   .strict();
 
@@ -156,13 +168,71 @@ export const ProRoundtripContractSchema = z
     nonFunctionalRequirements: z.array(NonFunctionalRequirementSchema),
     decisions: z.array(DecisionSchema),
     sprints: z.array(SprintSchema).min(1).max(12),
+    intents: z.array(IntentSchema).min(1).optional(),
     finalGatePolicy: FinalGatePolicySchema.optional(),
     productPlane: ProductPlaneSchema.optional(),
     createdAt: DateTimeSchema,
   })
   .strict();
 
+const BriefItemIdSchema = z.string().regex(/^(REQ|INV|WF|NFR|FND)-[0-9]{3}$/);
+const AlignmentBriefEntrySchema = z
+  .object({
+    itemId: BriefItemIdSchema,
+    classification: z.enum([
+      'core',
+      'supporting',
+      'hardening',
+      'speculative',
+      'off-track',
+    ]),
+    intentIds: z.array(IntentIdSchema).min(1).optional(),
+    noIntentPath: z.literal(true).optional(),
+    purpose: NonEmptyStringSchema,
+    costNote: z.string().optional(),
+  })
+  .strict()
+  .refine(
+    ({ intentIds, noIntentPath }) =>
+      (intentIds !== undefined) !== (noIntentPath === true),
+    { message: 'a brief entry needs non-empty intentIds or noIntentPath, not both' },
+  );
+
+export const ProRoundtripAlignmentBriefSchema = z
+  .object({
+    schemaVersion: z.literal('vibe-pro-alignment-brief-v1'),
+    flowPath: FlowPathSchema,
+    eventId: EventIdSchema,
+    eventKind: z.enum(['design', 'feedback']),
+    authoredAt: DateTimeSchema,
+    entries: z.array(AlignmentBriefEntrySchema),
+    proposal: z
+      .object({
+        recommendation: z.enum(['proceed', 'return-to-pro']),
+        trim: z.array(BriefItemIdSchema),
+        defer: z.array(BriefItemIdSchema),
+        userDecisionNeeded: z.array(BriefItemIdSchema),
+      })
+      .strict(),
+    decisions: z
+      .object({
+        rulings: z.array(
+          z
+            .object({
+              itemId: BriefItemIdSchema,
+              ruling: z.enum(['keep', 'trim', 'defer']),
+              note: z.string().optional(),
+            })
+            .strict(),
+        ),
+        confirmedBy: z.union([z.literal('user'), z.null()]),
+      })
+      .strict(),
+  })
+  .strict();
+
 const ApprovalEventIdSchema = z.string().regex(/^[0-9]{4}--pro--approval--r[0-9]{2}$/);
+const FindingIdSchema = z.string().regex(/^FND-[0-9]{3}$/);
 
 // Coordinated cross-flow close: the approving reviewer declares, once and
 // machine-readably, which flows were decided jointly at which frozen boundaries. The
@@ -185,6 +255,19 @@ const CoordinatedCloseSchema = z
       .min(2),
   })
   .strict();
+
+const ReviewAcceptanceSchema = z
+  .object({
+    authorizedBy: z.literal('user'),
+    acceptedFindingIds: z.array(FindingIdSchema),
+    reason: NonEmptyStringSchema.max(500),
+  })
+  .strict()
+  .refine(
+    ({ acceptedFindingIds }) =>
+      new Set(acceptedFindingIds).size === acceptedFindingIds.length,
+    { message: 'acceptedFindingIds must be unique' },
+  );
 
 export const ProRoundtripEventCompleteSchema = z
   .object({
@@ -237,6 +320,11 @@ export const ProRoundtripEventCompleteSchema = z
     nextWriteTarget: SafeRelativePathSchema.nullable(),
     // Approval-only: the joint-close declaration (optional for compatibility).
     coordinatedClose: CoordinatedCloseSchema.optional(),
+    // CLI-approval-only: the user's explicit acceptance of a mechanically non-blocking
+    // Pro review. This makes coordinatedClose de-facto Pro-only. ApprovalEventIdSchema
+    // intentionally stays Pro-only, so CLI approvals cannot authorize coordinated member
+    // closes; plain Pro approvals remain unchanged.
+    reviewAcceptance: ReviewAcceptanceSchema.optional(),
     // Closed-only: by-reference authorization for a coordinated member whose approval
     // lives in the primary flow, plus the other member flows for self-description.
     authorizedByFlowPath: FlowPathSchema.optional(),
@@ -247,6 +335,18 @@ export const ProRoundtripEventCompleteSchema = z
   .superRefine((event, ctx) => {
     if (event.coordinatedClose !== undefined && event.kind !== 'approval') {
       ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'coordinatedClose may only appear on an approval event' });
+    }
+    if (event.reviewAcceptance !== undefined && event.kind !== 'approval') {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'reviewAcceptance may only appear on an approval event' });
+    }
+    if (event.reviewAcceptance !== undefined && event.actor !== 'cli') {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'only a cli approval may declare reviewAcceptance' });
+    }
+    if (event.kind === 'approval' && event.actor === 'cli' && event.reviewAcceptance === undefined) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'a cli approval must declare reviewAcceptance' });
+    }
+    if (event.reviewAcceptance !== undefined && event.coordinatedClose !== undefined) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'reviewAcceptance and coordinatedClose are mutually exclusive' });
     }
     if ((event.authorizedByFlowPath !== undefined) !== (event.authorizedByEventId !== undefined)) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'authorizedByFlowPath and authorizedByEventId must be declared together' });
@@ -356,6 +456,7 @@ export const ProRoundtripFindingsSchema = z
 
 export type ProRoundtripFlow = z.infer<typeof ProRoundtripFlowSchema>;
 export type ProRoundtripContract = z.infer<typeof ProRoundtripContractSchema>;
+export type ProRoundtripAlignmentBrief = z.infer<typeof ProRoundtripAlignmentBriefSchema>;
 export type ProRoundtripEventComplete = z.infer<typeof ProRoundtripEventCompleteSchema>;
 export type ProRoundtripReportInput = z.infer<typeof ProRoundtripReportInputSchema>;
 export type ProRoundtripFindings = z.infer<typeof ProRoundtripFindingsSchema>;

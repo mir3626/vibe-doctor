@@ -13,6 +13,9 @@ npm run vibe:pro-go -- sync [flow]
 npm run vibe:pro-go -- report [flow] --evidence <input.json>
 npm run vibe:pro-go -- report [flow] --publish
 npm run vibe:pro-go -- continue [flow]
+npm run vibe:pro-go -- brief [flow]
+npm run vibe:pro-go -- accept-review [flow]
+npm run vibe:pro-go -- accept-review [flow] --publish --user-approved [--reason "<text>"]
 npm run vibe:pro-go -- close [flow] --publish
 npm run vibe:pro-go -- confirm-skip on [--reason "<text>"] [--days <1-365>]
 npm run vibe:pro-go -- confirm-skip off|status
@@ -28,6 +31,17 @@ without requiring a full flow path.
 authorizes the repository, branch, target, and file set. `bootstrap` is a
 one-time protocol publication that enables Web-first entry through root
 `bridge-runbook.md`.
+
+`brief` prints the alignment-brief roster, declared intents, expected paths, and
+a fill-in skeleton for the latest Pro design/feedback event. `report`,
+`accept-review`, and `close` refuse while an armed Pro design/feedback event has
+no valid alignment brief (`briefs/<event-id>/BRIEF.md|BRIEF.json`; arming is
+recorded in `STATE.json` `briefRequiredEventIds` — events receipted before the
+feature stay exempt). `accept-review` dry-run reports eligibility and the
+findings table; the publish form additionally REQUIRES `--user-approved`, which
+is never derivable from `proGoAutoPublish` (the directive covers only the
+git-publish authorization wait). Schema pointer:
+`.vibe/harness/schemas/pro-roundtrip-alignment-brief.schema.json` (generated).
 
 `confirm-skip on` records the `userDirectives.proGoAutoPublish` directive in
 `.vibe/config.local.json` (optionally expiring after `--days`) and appends a
@@ -55,6 +69,9 @@ confirmation.
 ├─ remediation/<feedback-event>/<SPR-ID-slug>/
 │  ├─ REPORT.md
 │  └─ CHECKPOINT.json
+├─ briefs/<event-id>/
+│  ├─ BRIEF.md
+│  └─ BRIEF.json
 └─ FINAL-WORKFLOW-MATRIX.md
 ```
 
