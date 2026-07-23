@@ -531,6 +531,68 @@ async function publishForgedApproval(
   );
 }
 
+async function forgeForeignGenerationFlow(
+  fixture: CliFixture,
+  flowPath: string,
+): Promise<void> {
+  const createdAt = new Date().toISOString();
+  const flow: ProRoundtripFlow = {
+    schemaVersion: 'vibe-pro-flow-v1',
+    flowPath,
+    date: '20260101',
+    sequence: 1,
+    slug: 'foreign-generation',
+    goal: 'Foreign protocol generation fixture',
+    nonGoals: [],
+    repository: { fullName: 'fixture/repo', remoteUrl: 'local-fixture' },
+    bridgeBranch: 'vibe-pro-bridge',
+    codeBranch: 'main',
+    baseSha: fixture.mainHead,
+    protocol: {
+      version: 'v1',
+      commitSha: 'a'.repeat(40),
+      commonHarnessSha256: 'b'.repeat(64),
+    },
+    createdAt,
+    timezone: 'Asia/Seoul',
+    createdBy: 'cli',
+  };
+  const eventId = '0000--cli--goal--r01';
+  const marker: ProRoundtripEventComplete = {
+    schemaVersion: 'vibe-pro-event-complete-v1',
+    flowPath,
+    eventId,
+    sequence: 0,
+    actor: 'cli',
+    kind: 'goal',
+    revision: 1,
+    previousEventId: null,
+    supersedesEventId: null,
+    protocolVersion: 'v1',
+    designEventId: null,
+    sprintId: null,
+    repositoryFullName: 'fixture/repo',
+    codeBranch: 'main',
+    baseSha: fixture.mainHead,
+    headSha: fixture.mainHead,
+    disposition: 'complete',
+    files: [{ path: 'GOAL.md', mediaType: 'text/markdown' }],
+    limitations: [],
+    createdAt,
+    nextActor: 'pro',
+    nextWriteTarget: `${flowPath}/0100--pro--design--r01`,
+  };
+  await publishAdditions(
+    new Map([
+      [`${flowPath}/FLOW.json`, `${JSON.stringify(flow, null, 2)}\n`],
+      [`${flowPath}/${eventId}/GOAL.md`, '# Forged foreign-generation goal\n'],
+      [`${flowPath}/${eventId}/COMPLETE.json`, `${JSON.stringify(marker, null, 2)}\n`],
+    ]),
+    'test: publish foreign-generation flow',
+    { context: fixture.context },
+  );
+}
+
 async function assertRejectsExactly(
   promise: Promise<unknown>,
   message: string,
@@ -794,6 +856,56 @@ describe('vibe-pro-go CLI', { concurrency: true }, () => {
         assert.match(error.message, /different protocol generation/u);
         return true;
       },
+    );
+  });
+
+  it('skips a superseded-generation flow and selects the operable one', async (testContext) => {
+    const fixture = await scaffoldRepository(testContext);
+    const started = await runCli(fixture, [
+      'start',
+      'design',
+      'Foreign generation skip fixture',
+      '--slug',
+      'operable-current-flow',
+      '--timezone',
+      'Asia/Seoul',
+      '--repository',
+      'fixture/repo',
+      '--publish',
+    ]);
+    const foreignFlowPath = 'flows/20260101/001-foreign-generation';
+    await forgeForeignGenerationFlow(fixture, foreignFlowPath);
+
+    const result = await runCli(fixture, ['go']);
+    assert.equal(result.action, 'go');
+    assert.equal(result.flowPath, started.flowPath);
+    assert.equal(result.selection, 'latest-non-closed-current-repo-branch');
+    assert.deepEqual(result.skippedIncompatibleFlows, [
+      { flowPath: foreignFlowPath, pinnedVersion: 'v1' },
+    ]);
+  });
+
+  it('throws the enriched error when only superseded-generation flows exist', async (testContext) => {
+    const fixture = await scaffoldRepository(testContext);
+    const foreignFlowPath = 'flows/20260101/001-foreign-generation';
+    await forgeForeignGenerationFlow(fixture, foreignFlowPath);
+    const local = await loadLocalProtocol(fixture.checkout);
+
+    await assertRejectsExactly(
+      runCli(fixture, ['go']),
+      `no operable non-closed Pro flow matches repository=<local-origin> codeBranch=main; skipped 1 on a superseded protocol generation (local ${local.version}): ${foreignFlowPath} (protocol v1). Finish/close each with the harness generation that created it, or start a new flow.`,
+    );
+  });
+
+  it('explicit go still fails closed on a superseded-generation flow', async (testContext) => {
+    const fixture = await scaffoldRepository(testContext);
+    const foreignFlowPath = 'flows/20260101/001-foreign-generation';
+    await forgeForeignGenerationFlow(fixture, foreignFlowPath);
+    const local = await loadLocalProtocol(fixture.checkout);
+
+    await assertRejectsExactly(
+      runCli(fixture, ['go', foreignFlowPath]),
+      `pinned protocol version v1 does not match local protocol version ${local.version}; the flow is bound to a different protocol generation (finish or close it with the harness generation that created it, or start a new flow)`,
     );
   });
 

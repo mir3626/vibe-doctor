@@ -25,7 +25,11 @@ npm run vibe:pro-go -- doctor
 Bare `vibe:pro-go` is `go`: it selects the newest non-closed flow matching the
 current repository and code branch by latest completed bridge event, syncs it,
 and returns the next executable action. Date and slug filters narrow selection
-without requiring a full flow path.
+without requiring a full flow path. Auto-selection skips flows pinned to a
+superseded protocol generation and reports them as `skippedIncompatibleFlows`
+(`[{ flowPath, pinnedVersion }]`) in the result; when only incompatible flows
+remain, the selector error names each one. An explicit `go <flow>` target is
+never skipped and fails closed with the precise generation-mismatch error.
 
 `--publish` is the external-write capability. Never pass it before the user
 authorizes the repository, branch, target, and file set. `bootstrap` is a

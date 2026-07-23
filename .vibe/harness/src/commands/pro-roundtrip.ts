@@ -301,10 +301,13 @@ async function bootstrapCommand(
 async function selectGoFlow(
   args: ParsedArgs,
   runtime: ProRoundtripRuntime,
-): Promise<string> {
+): Promise<{
+  flowPath: string;
+  skippedIncompatible: Array<{ flowPath: string; pinnedVersion: string }>;
+}> {
   const explicit = args.positionals[1];
   if (explicit) {
-    return explicit;
+    return { flowPath: explicit, skippedIncompatible: [] };
   }
   const requestedDate = getStringFlag(args, 'date');
   if (requestedDate && !/^[0-9]{8}$/.test(requestedDate)) {
@@ -328,6 +331,8 @@ async function selectGoFlow(
   }
   const context = await bridgeContext(runtime);
   const paths = await listFlowPaths(context.worktreePath);
+  const localProtocol = await loadLocalProtocol(repoRoot);
+  const skippedIncompatible: Array<{ flowPath: string; pinnedVersion: string }> = [];
   const candidates: Array<{
     flowPath: string;
     latestMarkerCommit: string;
@@ -346,6 +351,13 @@ async function selectGoFlow(
       (fullName && snapshot.flow.repository.fullName !== fullName) ||
       snapshot.latestEvent.marker.kind === 'closed'
     ) {
+      continue;
+    }
+    if (snapshot.flow.protocol.version !== localProtocol.version) {
+      skippedIncompatible.push({
+        flowPath,
+        pinnedVersion: snapshot.flow.protocol.version,
+      });
       continue;
     }
     const markerPath =
@@ -379,7 +391,7 @@ async function selectGoFlow(
           (rank.get(right.latestMarkerCommit) ?? Number.MAX_SAFE_INTEGER) ||
         right.flowPath.localeCompare(left.flowPath),
     );
-    return candidates[0]?.flowPath ?? '';
+    return { flowPath: candidates[0]?.flowPath ?? '', skippedIncompatible };
   }
   const selector = [
     `repository=${fullName ?? '<local-origin>'}`,
@@ -389,6 +401,14 @@ async function selectGoFlow(
   ]
     .filter(Boolean)
     .join(' ');
+  if (skippedIncompatible.length > 0) {
+    const list = skippedIncompatible
+      .map(({ flowPath, pinnedVersion }) => `${flowPath} (protocol ${pinnedVersion})`)
+      .join(', ');
+    throw new Error(
+      `no operable non-closed Pro flow matches ${selector}; skipped ${skippedIncompatible.length} on a superseded protocol generation (local ${localProtocol.version}): ${list}. Finish/close each with the harness generation that created it, or start a new flow.`,
+    );
+  }
   throw new Error(`no non-closed Pro flow matches ${selector}`);
 }
 
@@ -419,7 +439,7 @@ async function goCommand(
   args: ParsedArgs,
   runtime: ProRoundtripRuntime,
 ): Promise<void> {
-  const flowPath = await selectGoFlow(args, runtime);
+  const { flowPath, skippedIncompatible } = await selectGoFlow(args, runtime);
   const context = await bridgeContext(runtime);
   const synced = await syncFlow(flowPath, { context });
   const marker = synced.snapshot.latestEvent.marker;
@@ -439,6 +459,7 @@ async function goCommand(
     flowPath,
     autoPublish: (await readAutoPublishState(context.repoRoot)).autoPublish,
     selection: args.positionals[1] ? 'explicit' : 'latest-non-closed-current-repo-branch',
+    skippedIncompatibleFlows: skippedIncompatible,
     packetRoot: synced.packetRoot,
     handoffPath: path.join(synced.packetRoot, 'HANDOFF.md'),
     sprintEnvelopePath: currentSprint
