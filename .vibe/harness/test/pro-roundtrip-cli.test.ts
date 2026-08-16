@@ -593,6 +593,47 @@ async function forgeForeignGenerationFlow(
   );
 }
 
+async function forgeMalformedOtherBranchFlow(
+  fixture: CliFixture,
+  flowPath: string,
+  protocolSourceFlowPath: string,
+): Promise<void> {
+  const protocolSource = JSON.parse(
+    await readFile(
+      path.join(fixture.context.worktreePath, ...protocolSourceFlowPath.split('/'), 'FLOW.json'),
+      'utf8',
+    ),
+  ) as ProRoundtripFlow;
+  const createdAt = new Date().toISOString();
+  const flow: ProRoundtripFlow = {
+    schemaVersion: 'vibe-pro-flow-v1',
+    flowPath,
+    date: '20260102',
+    sequence: 1,
+    slug: 'malformed-other-branch',
+    goal: 'Malformed event history owned by another code branch',
+    nonGoals: [],
+    repository: { fullName: 'fixture/repo', remoteUrl: 'local-fixture' },
+    bridgeBranch: 'vibe-pro-bridge',
+    codeBranch: 'other-branch',
+    baseSha: fixture.mainHead,
+    protocol: protocolSource.protocol,
+    createdAt,
+    timezone: 'Asia/Seoul',
+    createdBy: 'cli',
+  };
+  const eventId = '0000--cli--goal--r01';
+  await publishAdditions(
+    new Map([
+      [`${flowPath}/FLOW.json`, `${JSON.stringify(flow, null, 2)}\n`],
+      [`${flowPath}/${eventId}/GOAL.md`, '# Malformed other-branch goal\n'],
+      [`${flowPath}/${eventId}/COMPLETE.json`, '{ invalid event json\n'],
+    ]),
+    'test: publish malformed other-branch flow',
+    { context: fixture.context },
+  );
+}
+
 async function assertRejectsExactly(
   promise: Promise<unknown>,
   message: string,
@@ -883,6 +924,32 @@ describe('vibe-pro-go CLI', { concurrency: true }, () => {
     assert.deepEqual(result.skippedIncompatibleFlows, [
       { flowPath: foreignFlowPath, pinnedVersion: 'v1' },
     ]);
+  });
+
+  it('does not validate malformed event history owned by another code branch during automatic selection', async (testContext) => {
+    const fixture = await scaffoldRepository(testContext);
+    const started = await runCli(fixture, [
+      'start',
+      'design',
+      'Current branch flow fixture',
+      '--slug',
+      'current-branch-flow',
+      '--timezone',
+      'Asia/Seoul',
+      '--repository',
+      'fixture/repo',
+      '--publish',
+    ]);
+    const malformedFlowPath = 'flows/20260102/001-malformed-other-branch';
+    await forgeMalformedOtherBranchFlow(fixture, malformedFlowPath, started.flowPath as string);
+
+    const result = await runCli(fixture, ['go']);
+    assert.equal(result.action, 'go');
+    assert.equal(result.flowPath, started.flowPath);
+    await assert.rejects(
+      runCli(fixture, ['go', malformedFlowPath]),
+      /Expected property name/u,
+    );
   });
 
   it('throws the enriched error when only superseded-generation flows exist', async (testContext) => {

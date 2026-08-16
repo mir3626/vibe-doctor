@@ -33,6 +33,7 @@ import {
 import {
   allocateFlowPath,
   listFlowPaths,
+  loadFlowDefinition,
   loadFlowSnapshot,
   resolveFlowPath,
   slugifyGoal,
@@ -343,6 +344,13 @@ async function selectGoFlow(
       continue;
     }
     if (slug && parts.slug !== slug) {
+      continue;
+    }
+    const flow = await loadFlowDefinition(context.worktreePath, flowPath);
+    if (
+      flow.codeBranch !== codeBranch ||
+      (fullName && flow.repository.fullName !== fullName)
+    ) {
       continue;
     }
     const snapshot = await loadFlowSnapshot(context.worktreePath, flowPath);

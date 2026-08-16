@@ -181,6 +181,11 @@ export interface ExactBlob {
   bytes: Buffer;
 }
 
+interface PinnedBridgeBlobReader {
+  bridgeHeadSha: string;
+  readExactBlob: (posixPath: string) => Promise<ExactBlob>;
+}
+
 /**
  * r04 FND-022: fatal UTF-8 decode of exact blob bytes for text payloads. Invalid UTF-8
  * and NUL fail closed BEFORE any parse or copy; no replacement characters are ever
@@ -199,6 +204,60 @@ export function decodeExactBlobText(blob: ExactBlob, label: string): string {
   return text;
 }
 
+async function pinBridgeBlobReader(bridgeRoot: string): Promise<PinnedBridgeBlobReader> {
+  const bridgeHeadSha = (await runGit(bridgeRoot, ['rev-parse', 'HEAD^{commit}'])).stdout.trim();
+  const readExactBlob = async (posixPath: string): Promise<ExactBlob> => {
+    const spec = `${bridgeHeadSha}:${posixPath}`;
+    const blobSha = (await runGit(bridgeRoot, ['rev-parse', spec])).stdout.trim();
+    if (!/^[a-f0-9]{40}$/u.test(blobSha)) {
+      throw new Error(`pro roundtrip blob object is not a Git blob: ${posixPath}`);
+    }
+    const objectType = (await runGit(bridgeRoot, ['cat-file', '-t', blobSha])).stdout.trim();
+    if (objectType !== 'blob') {
+      throw new Error(`pro roundtrip object is not a blob: ${posixPath}`);
+    }
+    const declaredSize = Number((await runGit(bridgeRoot, ['cat-file', '-s', blobSha])).stdout.trim());
+    if (!Number.isSafeInteger(declaredSize) || declaredSize < 0 || declaredSize > MAX_PACKET_FILE_BYTES) {
+      throw new Error(`pro roundtrip blob exceeds the fixed byte bound: ${posixPath}`);
+    }
+    const bytes = await runGitBinary(bridgeRoot, ['cat-file', 'blob', blobSha], MAX_PACKET_FILE_BYTES + 1);
+    if (bytes.length !== declaredSize) {
+      throw new Error(`pro roundtrip blob size mismatch: ${posixPath}`);
+    }
+    return { blobSha, byteSize: declaredSize, bytes };
+  };
+  return { bridgeHeadSha, readExactBlob };
+}
+
+async function readPinnedFlowDefinition(
+  reader: PinnedBridgeBlobReader,
+  normalizedFlowPath: string,
+): Promise<{ flow: ProRoundtripFlow; flowBlob: ExactBlob }> {
+  const flowBlob = await reader.readExactBlob(`${normalizedFlowPath}/FLOW.json`);
+  const flow = parseFlowJson(decodeExactBlobText(flowBlob, `${normalizedFlowPath}/FLOW.json`));
+  validateFlowBinding(flow);
+  if (flow.flowPath !== normalizedFlowPath) {
+    throw new Error('requested flow path does not match FLOW.json');
+  }
+  return { flow, flowBlob };
+}
+
+/**
+ * Reads only the immutable FLOW.json authority at one pinned bridge commit. Auto-selection
+ * uses this cheap boundary to exclude flows owned by another repository or code branch
+ * before validating their complete event history. Explicit selection and matching flows
+ * still pass through loadFlowSnapshot and therefore fail closed on any malformed event.
+ */
+export async function loadFlowDefinition(
+  bridgeRoot: string,
+  flowPath: string,
+): Promise<ProRoundtripFlow> {
+  const normalizedFlowPath = toPosixPath(flowPath);
+  parseFlowPath(normalizedFlowPath);
+  const reader = await pinBridgeBlobReader(bridgeRoot);
+  return (await readPinnedFlowDefinition(reader, normalizedFlowPath)).flow;
+}
+
 export async function loadFlowSnapshot(
   bridgeRoot: string,
   flowPath: string,
@@ -211,37 +270,13 @@ export async function loadFlowSnapshot(
   // the transport never trusts mutable worktree files, and blob bytes are preserved
   // exactly (the object SHA + declared size are verified; no UTF-8 normalization occurs
   // before validation, copy, or receipt binding).
-  const bridgeHeadSha = (await runGit(bridgeRoot, ['rev-parse', 'HEAD^{commit}'])).stdout.trim();
-  const readExactBlob = async (posixPath: string): Promise<ExactBlob> => {
-    const spec = `${bridgeHeadSha}:${posixPath}`;
-    // Resolve the exact blob object SHA and its declared byte size (bounded ASCII text).
-    const blobSha = (await runGit(bridgeRoot, ['rev-parse', `${spec}`])).stdout.trim();
-    if (!/^[a-f0-9]{40}$/u.test(blobSha)) {
-      throw new Error(`pro roundtrip blob object is not a Git blob: ${posixPath}`);
-    }
-    const objectType = (await runGit(bridgeRoot, ['cat-file', '-t', blobSha])).stdout.trim();
-    if (objectType !== 'blob') {
-      throw new Error(`pro roundtrip object is not a blob: ${posixPath}`);
-    }
-    const declaredSize = Number((await runGit(bridgeRoot, ['cat-file', '-s', blobSha])).stdout.trim());
-    if (!Number.isSafeInteger(declaredSize) || declaredSize < 0 || declaredSize > MAX_PACKET_FILE_BYTES) {
-      throw new Error(`pro roundtrip blob exceeds the fixed byte bound: ${posixPath}`);
-    }
-    // Fetch the raw blob content through the binary path (never a text encoding).
-    const bytes = await runGitBinary(bridgeRoot, ['cat-file', 'blob', blobSha], MAX_PACKET_FILE_BYTES + 1);
-    if (bytes.length !== declaredSize) {
-      throw new Error(`pro roundtrip blob size mismatch: ${posixPath}`);
-    }
-    return { blobSha, byteSize: declaredSize, bytes };
-  };
+  const { bridgeHeadSha, readExactBlob } = await pinBridgeBlobReader(bridgeRoot);
   const readBlobText = async (posixPath: string, label = posixPath): Promise<string> =>
     decodeExactBlobText(await readExactBlob(posixPath), label);
-  const flowBlob = await readExactBlob(`${normalizedFlowPath}/FLOW.json`);
-  const flow = parseFlowJson(decodeExactBlobText(flowBlob, `${normalizedFlowPath}/FLOW.json`));
-  validateFlowBinding(flow);
-  if (flow.flowPath !== normalizedFlowPath) {
-    throw new Error('requested flow path does not match FLOW.json');
-  }
+  const { flow, flowBlob } = await readPinnedFlowDefinition(
+    { bridgeHeadSha, readExactBlob },
+    normalizedFlowPath,
+  );
 
   // Event directories and every payload byte come from the pinned commit's tree.
   const treeListing = (await runGit(bridgeRoot, [

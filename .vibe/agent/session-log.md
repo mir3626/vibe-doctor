@@ -82,3 +82,4 @@ This file is project-owned runtime state. Downstream `/vibe-init` rewrites it be
 - 2026-05-13T13:10:21.361Z [checkpoint] upstream harness maintenance: run-codex Markdown injection diagnostic added with JSON output and no Codex execution side effects.
 - 2026-05-13T13:05:00.000Z [checkpoint] upstream harness maintenance: script/type refactor and Codex Markdown auto-injection allowlist updated; downstream placeholders remain template-owned.
 - 1970-01-01T00:00:00.000Z [template] checked-in template placeholder; ignore until `/vibe-init` creates project state.
+- 2026-08-16T06:23:03.010Z [harness-review] Fixed bare `vibe-pro-go` auto-selection so immutable FLOW.json ownership filters unrelated repository/code-branch flows before complete event-chain validation. Explicit and matching flow selection remain fail-closed. Downstream and upstream focused selection regressions passed 4/4; harness typecheck and diff checks passed.
