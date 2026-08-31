@@ -224,14 +224,12 @@ function recordIterationSprintCompletion(sprintId, status) {
 
   const history = JSON.parse(readFileSync(iterationPath, 'utf8'));
   const iterations = Array.isArray(history.iterations) ? history.iterations : [];
-  const current =
-    iterations.find((entry) => entry?.id === history.currentIteration) ??
-    iterations.find(
-      (entry) =>
-        entry?.completedAt === null &&
-        Array.isArray(entry.plannedSprints) &&
-        entry.plannedSprints.includes(sprintId),
-    );
+  const current = iterations.find(
+    (entry) =>
+      entry?.id === history.currentIteration &&
+      Array.isArray(entry.plannedSprints) &&
+      entry.plannedSprints.includes(sprintId),
+  );
 
   if (!current) {
     return { changed: false, completedIterationId: null };
@@ -532,14 +530,150 @@ function syncSessionLog(scriptDir) {
   throw new Error(`session-log-sync exited ${result.status ?? 1}`);
 }
 
+function parseIterationExecutionBinding(value, iterationPath) {
+  if (
+    !value ||
+    typeof value !== 'object' ||
+    Array.isArray(value) ||
+    Object.keys(value).length !== 2 ||
+    !Object.hasOwn(value, 'executionLane') ||
+    !Object.hasOwn(value, 'proFlowPath')
+  ) {
+    throw new Error(`invalid iteration execution binding: ${iterationPath}`);
+  }
+
+  if (
+    value.executionLane === 'standalone-goal-iterate' &&
+    value.proFlowPath === null
+  ) {
+    return {
+      executionLane: 'standalone-goal-iterate',
+      proFlowPath: null,
+    };
+  }
+  if (
+    value.executionLane === 'pro-roundtrip' &&
+    typeof value.proFlowPath === 'string' &&
+    /^flows\/[0-9]{8}\/[0-9]{3}-[a-z0-9][a-z0-9-]*$/.test(value.proFlowPath)
+  ) {
+    return {
+      executionLane: 'pro-roundtrip',
+      proFlowPath: value.proFlowPath,
+    };
+  }
+
+  throw new Error(`invalid iteration execution binding: ${iterationPath}`);
+}
+
+function resolveIterationExecutionBinding(
+  sprintId,
+  root = process.cwd(),
+) {
+  const iterationPath = path.join(root, '.vibe', 'agent', 'iteration-history.json');
+  if (!existsSync(iterationPath)) {
+    return { executionBinding: null, ownerKind: 'legacy' };
+  }
+
+  let history;
+  try {
+    history = JSON.parse(readFileSync(iterationPath, 'utf8'));
+  } catch (error) {
+    throw new Error(`cannot parse iteration history: ${error.message}`);
+  }
+  if (!history || typeof history !== 'object' || !Array.isArray(history.iterations)) {
+    throw new Error(`invalid iteration history: ${iterationPath}`);
+  }
+
+  let current = null;
+  if (typeof history.currentIteration === 'string') {
+    const currentMatches = history.iterations.filter(
+      (entry) => entry?.id === history.currentIteration,
+    );
+    if (currentMatches.length !== 1) {
+      throw new Error(
+        `current iteration ${history.currentIteration} has ${currentMatches.length} durable entries`,
+      );
+    }
+    current = currentMatches[0];
+  } else if (history.currentIteration !== null) {
+    throw new Error(`invalid current iteration pointer: ${iterationPath}`);
+  }
+
+  if (current && Array.isArray(current.plannedSprints) && current.plannedSprints.includes(sprintId)) {
+    if (current.executionBinding === undefined) {
+      return { executionBinding: null, ownerKind: 'legacy' };
+    }
+    return {
+      executionBinding: parseIterationExecutionBinding(
+        current.executionBinding,
+        iterationPath,
+      ),
+      ownerKind: 'current',
+    };
+  }
+
+  const completedMatches = history.iterations.filter(
+    (entry) =>
+      entry !== current &&
+      entry?.executionBinding !== undefined &&
+      typeof entry?.completedAt === 'string' &&
+      Array.isArray(entry?.plannedSprints) &&
+      entry.plannedSprints.includes(sprintId) &&
+      Array.isArray(entry?.completedSprints) &&
+      entry.completedSprints.includes(sprintId),
+  );
+  if (completedMatches.length > 1) {
+    throw new Error(
+      `Sprint ${sprintId} has ${completedMatches.length} completed bound iteration owners`,
+    );
+  }
+  const completedOwner = completedMatches[0];
+  if (!completedOwner) {
+    return { executionBinding: null, ownerKind: 'legacy' };
+  }
+
+  return {
+    executionBinding: parseIterationExecutionBinding(
+      completedOwner.executionBinding,
+      iterationPath,
+    ),
+    ownerKind: 'completed',
+  };
+}
+
+export function readIterationExecutionBinding(
+  sprintId,
+  root = process.cwd(),
+) {
+  return resolveIterationExecutionBinding(sprintId, root).executionBinding;
+}
+
 export function validateActiveProSprintCompletion(
   sprintId,
   status,
   root = process.cwd(),
   currentHead = trySh('git rev-parse HEAD^{commit}'),
 ) {
+  if (status !== 'passed') {
+    return { required: false, checkpointPath: null };
+  }
+
+  const bindingResolution = resolveIterationExecutionBinding(sprintId, root);
+  const { executionBinding } = bindingResolution;
+  if (
+    executionBinding?.executionLane === 'standalone-goal-iterate' &&
+    bindingResolution.ownerKind === 'current'
+  ) {
+    return { required: false, checkpointPath: null };
+  }
+
   const activePath = path.join(root, '.vibe', 'agent', 'pro-roundtrip', 'ACTIVE.json');
-  if (status !== 'passed' || !existsSync(activePath)) {
+  if (!existsSync(activePath)) {
+    if (executionBinding?.executionLane === 'pro-roundtrip') {
+      throw new Error(
+        `explicit Pro execution binding requires active flow ${executionBinding.proFlowPath}`,
+      );
+    }
     return { required: false, checkpointPath: null };
   }
 
@@ -555,6 +689,25 @@ export function validateActiveProSprintCompletion(
     !Array.isArray(active.sprintIds)
   ) {
     throw new Error(`invalid active Pro flow state: ${activePath}`);
+  }
+  if (
+    executionBinding?.executionLane === 'standalone-goal-iterate' &&
+    bindingResolution.ownerKind === 'completed' &&
+    (
+      active.status === 'closed' ||
+      active.autoReportRequired !== true ||
+      !active.sprintIds.includes(sprintId)
+    )
+  ) {
+    return { required: false, checkpointPath: null };
+  }
+  if (
+    executionBinding?.executionLane === 'pro-roundtrip' &&
+    executionBinding.proFlowPath !== active.flowPath
+  ) {
+    throw new Error(
+      `explicit Pro flow binding ${executionBinding.proFlowPath} does not match active flow ${active.flowPath}`,
+    );
   }
   if (
     active.status === 'closed' ||

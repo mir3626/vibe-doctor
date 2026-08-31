@@ -24,8 +24,11 @@ Responsibilities:
 - read `docs/context/workflow-integrity.md` and include its `Workflow Continuity`
   block with upstream inputs, downstream consumers, cumulative journey,
   preserved invariants, and evidence
-- when `.vibe/agent/pro-roundtrip/ACTIVE.json` is active, bind the prompt to its
-  flow, design event, exact code base/HEAD, and current `SPR-*` envelope
+- consume the Orchestrator's short durable execution header (lane plus exact
+  `proFlowPath` or `null`) without receiving full iteration history; standalone
+  prompts must not acquire Pro envelopes merely because `ACTIVE.json` exists,
+  while explicit Pro prompts require a matching exact flow, design event, code
+  base/HEAD, and current `SPR-*` envelope and fail closed on absence/mismatch
 
 ### Closure rule (universal)
 

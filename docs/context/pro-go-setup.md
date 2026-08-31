@@ -61,10 +61,13 @@ CLI start --publish or Web `bridge-runbook.md`
   → CLI sync + close --publish
 ```
 
-Use bare `$vibe-pro-go` or `npm run vibe:pro-go` to select and sync the newest
-non-closed flow for the current repository and code branch, ordered by the
-latest completed bridge event rather than only by folder name. `status` is for
-inspection; `continue` prints the exact GitHub-only Web prompt.
+Use bare `$vibe-pro-go` or `npm run vibe:pro-go` only to inspect the local
+`ACTIVE.json` pointer. The bare form never fetches the bridge, creates its
+worktree or packet scaffolding, selects a remote flow, or continues work. To
+resume, explicitly request the active flow (`go`), an exact flow (`go <flow>`),
+or a qualified selection (`go --date YYYYMMDD` / `--slug <slug>`). A missing or
+mismatched pointer stops locally. `continue` prints the exact GitHub-only Web
+prompt after a flow has been selected explicitly.
 
 Typical Web-first prompt:
 
@@ -74,17 +77,28 @@ Typical Web-first prompt:
 ```
 
 Web Pro creates and commits the flow, Pro-origin goal, and design. Back in
-Codex, this is enough:
+Codex, name the intent or selector explicitly:
+
+```text
+$vibe-pro-go 7월 18일자 설계를 불러와서 계속해줘.
+```
+
+A bare invocation is intentionally inspection-only:
 
 ```text
 $vibe-pro-go
 ```
 
-A natural qualifier is also accepted by the skill:
-
-```text
-$vibe-pro-go 7월 18일자 설계 불러와서 작업 안 된 항목 마저 진행해줘.
-```
+If a mistaken pointer already produced a poisoned or otherwise uncloseable
+flow, use `force-close <exact-flow> --reason "<one-line reason>"` as a dry-run.
+After confirming its exact target, publish with `--publish --user-approved`.
+This creates one append-only `OPERATOR-CLOSE.json`, makes current selectors
+treat the flow as terminal, and reconciles a matching local pointer. It does not
+forge approval or claim successful completion; `proGoAutoPublish` cannot supply
+the required user approval. The current code-branch `bridge-runbook.md` checks
+the same record before loading even an older pinned Web protocol. Repeating the
+command requires the identical reason; a force-closed coordinated member blocks
+the entire later normal close rather than being rewritten as successful.
 
 ## 4. Archive and local state
 

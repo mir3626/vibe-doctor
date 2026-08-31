@@ -17,19 +17,26 @@ npm run vibe:pro-go -- brief [flow]
 npm run vibe:pro-go -- accept-review [flow]
 npm run vibe:pro-go -- accept-review [flow] --publish --user-approved [--reason "<text>"]
 npm run vibe:pro-go -- close [flow] --publish
+npm run vibe:pro-go -- force-close <flow> --reason "<text>"
+npm run vibe:pro-go -- force-close <flow> --reason "<text>" --publish --user-approved
 npm run vibe:pro-go -- confirm-skip on [--reason "<text>"] [--days <1-365>]
 npm run vibe:pro-go -- confirm-skip off|status
 npm run vibe:pro-go -- doctor
 ```
 
-Bare `vibe:pro-go` is `go`: it selects the newest non-closed flow matching the
-current repository and code branch by latest completed bridge event, syncs it,
-and returns the next executable action. Date and slug filters narrow selection
-without requiring a full flow path. Auto-selection skips flows pinned to a
-superseded protocol generation and reports them as `skippedIncompatibleFlows`
-(`[{ flowPath, pinnedVersion }]`) in the result; when only incompatible flows
-remain, the selector error names each one. An explicit `go <flow>` target is
-never skipped and fails closed with the precise generation-mismatch error.
+Bare `vibe:pro-go` is a local-only `status` check. It reads the current checkout
+and `.vibe/agent/pro-roundtrip/ACTIVE.json`, reports `scaffoldingCreated: false`,
+and never fetches the bridge, creates a worktree or packet, selects a remote
+flow, or continues an action. Missing `origin` is allowed for this inspection.
+
+`go` without a selector is not remote auto-selection: it requires a valid,
+active local pointer owned by the current repository/branch. An exact
+`go <flow>` is explicit. `--date` and `--slug` are also explicit qualifiers and
+select the newest matching non-closed flow by latest completed bridge event.
+Qualified selection skips flows pinned to a superseded protocol generation and
+reports them as `skippedIncompatibleFlows` (`[{ flowPath, pinnedVersion }]`). An
+explicit exact target is never skipped and fails closed with the precise error.
+`sync` without a flow likewise requires the active local pointer.
 
 `--publish` is the external-write capability. Never pass it before the user
 authorizes the repository, branch, target, and file set. `bootstrap` is a
@@ -46,6 +53,26 @@ findings table; the publish form additionally REQUIRES `--user-approved`, which
 is never derivable from `proGoAutoPublish` (the directive covers only the
 git-publish authorization wait). Schema pointer:
 `.vibe/harness/schemas/pro-roundtrip-alignment-brief.schema.json` (generated).
+
+`force-close` is a separate operator terminal, not an approval and not a normal
+successful close. It requires one exact flow and a one-line reason. The dry-run
+prints the exact target; publication additionally REQUIRES `--user-approved`,
+which is never derivable from `proGoAutoPublish`. It adds only
+`<flow>/OPERATOR-CLOSE.json`, bound to the flow repository/branch/base, current
+code HEAD, and source bridge SHA. The close commit must be an isolated immutable
+addition whose parent is that source SHA. Current selectors check this record
+before loading the event chain or pinned protocol, so an invalid or superseded
+flow can be abandoned deterministically. Repetition is idempotent and repairs a
+matching local `ACTIVE.json` to `closed` only when the requested reason exactly
+matches the immutable record; a different reason fails as a conflict.
+`status <flow>` reports `force-closed`. This terminal must never be represented
+as approved/completed, and any force-closed member makes a coordinated normal
+close fail before publication.
+The code-branch `bridge-runbook.md` checks the same flow-root record before a
+Web continuation loads its pinned protocol, so old-generation flows are also
+terminal when entered through the current root runbook.
+Schema pointer:
+`.vibe/harness/schemas/pro-roundtrip-operator-close.schema.json` (generated).
 
 `confirm-skip on` records the `userDirectives.proGoAutoPublish` directive in
 `.vibe/config.local.json` (optionally expiring after `--days`) and appends a
@@ -83,8 +110,9 @@ Receipts bind source bridge commit and Git blob IDs. `STATE.json` binds latest
 event, bridge HEAD, design event, current Sprint, and code HEAD.
 `.vibe/agent/pro-roundtrip/ACTIVE.json` identifies the flow currently owned by
 `$vibe-pro-go`, including its next actor and whether an automatic Pro report is
-still required. Goal/iterate/Sprint completion must honor this marker without
-requiring another user skill invocation.
+still required. A matching operator close is embedded when reconciled and makes
+the pointer closed. Goal/iterate/Sprint completion must honor an active marker
+without requiring another user skill invocation.
 
 ## Report input
 
@@ -148,4 +176,6 @@ checkpoint and a complete row for every REQ, INV, WF, and NFR.
 - Dirty/unowned worktree: stop without reset/deletion.
 - Stale reviewed HEAD: obtain a new Web event.
 - Protocol mismatch/tamper: stop and preserve evidence.
+- Mistaken or poisoned flow: dry-run exact `force-close`, obtain fresh user
+  approval, then publish once; never encode a skip only in handoff prose.
 - Context change: read packet `HANDOFF.md` and sync before continuing.

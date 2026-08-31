@@ -29,7 +29,7 @@ Treat the decomposed item list as an authoritative work queue. Every queued item
 
 For each item, in order:
 
-- Persist the current item, remaining queue, acceptance criteria, constraints, and verification plan before starting the cycle.
+- Persist the selected execution binding, current item, remaining queue, acceptance criteria, constraints, and verification plan before starting the cycle.
 - Invoke the repo-local `$vibe-iterate` workflow for that item, using the item objective and prior completed/blocked item summaries as the carryover seed.
 - Run the mini `/goal` or `$goal-to-plan` planning step inside that item-scoped iteration.
 - Implement and verify only that item unless the generated plan identifies a required shared prerequisite.
@@ -55,13 +55,22 @@ This skill narrows verification while the multi-item queue is still running.
    - In a vibe-doctor project, enforce the local `AGENTS.md` initialization boundary before non-init work.
    - Treat this as Orchestrator work until an actual Sprint Generator prompt/spec is created.
    - Load repo-local `$vibe-iterate` and `$goal-to-plan` wrappers when available; use their shared runbooks rather than inventing a parallel process.
-   - If `.vibe/agent/pro-roundtrip/ACTIVE.json` names an active flow, bind the
-     queue to that flow, design event, exact code branch/base, and its `SPR-*`
-     order. Do not substitute locally invented Sprint IDs.
+   - Select execution provenance from the invocation before consulting ambient
+     repository state. A direct `$vibe-goal-iterate` invocation records
+     `executionBinding: { executionLane: "standalone-goal-iterate",
+     proFlowPath: null }` in every item-scoped iteration.
+   - Only a loop explicitly entered from `$vibe-pro-go` with an exact
+     `flowPath` records `executionLane: "pro-roundtrip"`. Require that path to
+     match the active Pro packet before using its design event, branch/base,
+     `SPR-*` order, checkpoint, or report authority; missing or mismatched
+     explicit Pro binding fails closed.
+   - The presence of `.vibe/agent/pro-roundtrip/ACTIVE.json` alone is not
+     invocation provenance. It must not replace a standalone design or queue,
+     and standalone work must not mutate the ambient Pro pointer or packet.
 
 2. Freeze the design into a durable work packet.
    - Create or update a concise handoff/design note before implementation begins.
-   - Include: goal, invariants, non-goals, item list, dependencies/order, open risks, exact `goalBaseSha`, verification commands, and rollback/guardrails.
+   - Include: goal, execution binding, invariants, non-goals, item list, dependencies/order, open risks, exact `goalBaseSha`, verification commands, and rollback/guardrails.
    - If the repo has `.vibe/agent/handoff.md` and `.vibe/agent/session-log.md`, update them before the first implementation item.
 
 3. Decompose into implementation items.
@@ -74,6 +83,9 @@ This skill narrows verification while the multi-item queue is still running.
    - Use `$goal-to-plan` or the local `/goal` equivalent to convert that item into an implementation plan.
    - If a Planner/Sprint prompt is required by the repo workflow, generate it and then execute the Sprint.
    - Keep each Planner/Sprint fresh-context where the repo's `$vibe-iterate` workflow requires it.
+   - Carry the same durable execution lane and exact `proFlowPath` (or `null`)
+     into the new iteration and the short Planner header; never send the full
+     iteration history merely to propagate the binding.
    - Carry the required `Workflow Continuity` block from
      `docs/context/workflow-integrity.md`; a Sprint-local green test is not
      sufficient evidence for a shared boundary.
@@ -84,15 +96,17 @@ This skill narrows verification while the multi-item queue is still running.
    - Update `.vibe/agent/handoff.md`, `.vibe/agent/session-log.md`, and any project report/checkpoint artifacts after each completed item or before any long transition.
    - Commit/push only when the user has asked for it or the repo's current task explicitly requires it.
    - Re-read the durable queue state, select the next non-completed item, and continue without waiting for another prompt unless blocked.
-   - For an active Pro flow, create and record the matching Pro report input
-     before `vibe-sprint-complete`. On the final queued Sprint, also satisfy the
-     final workflow gate and prepare the aggregate Web review report.
+   - When the durable binding is `pro-roundtrip`, create and record the
+     matching exact-flow Pro report input before `vibe-sprint-complete`. On the
+     final queued Sprint, also satisfy the final workflow gate and prepare the
+     aggregate Web review report. A standalone binding uses the local
+     completion/report path even when an unrelated Pro flow is active.
 
 6. Finish with an audit summary.
    - Finish only after checking the authoritative item queue and confirming that no item is still pending.
    - Report completed items, changed files, commits/pushes, verification results, remaining risks, and any deferred items.
    - If a blocker stopped the loop, include the exact item, reason, and required decision/scope expansion.
-   - When this loop originated from `$vibe-pro-go`, do not wait for a second
+   - When the durable binding is `pro-roundtrip`, do not wait for a second
      skill invocation: generate the Web Pro implementation/remediation report
      automatically. Publish it only when the session is authorized to write to
      GitHub; otherwise leave the complete durable packet and ask only for
@@ -107,6 +121,8 @@ Use this minimum cadence:
 - Before item 1: write the frozen design/work packet.
 - After each item: update progress, completed verification, and next item.
 - Before starting any generated Sprint or fresh-context Planner: persist the exact item scope and constraints.
+- At every handoff or compaction boundary: preserve the execution lane and
+  exact `proFlowPath` or `null`; do not reconstruct them from `ACTIVE.json`.
 - Before final response: ensure durable state reflects the actual end state.
 
 Avoid large handoffs. Keep them audit-dense: bullets, file paths, invariants, commands, status. Do not paste long transcripts.
@@ -118,6 +134,7 @@ Use this shape internally for each item:
 ```text
 Item:
 Objective:
+Execution binding:
 Invariants:
 Files likely touched:
 Acceptance criteria:

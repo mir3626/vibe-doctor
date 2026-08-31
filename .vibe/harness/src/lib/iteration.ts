@@ -2,6 +2,16 @@ import path from 'node:path';
 import { fileExists, readJson, writeJson } from './fs.js';
 import { paths } from './paths.js';
 
+export type IterationExecutionBinding =
+  | {
+      executionLane: 'standalone-goal-iterate';
+      proFlowPath: null;
+    }
+  | {
+      executionLane: 'pro-roundtrip';
+      proFlowPath: string;
+    };
+
 export interface IterationEntry {
   id: string;
   label: string;
@@ -12,6 +22,7 @@ export interface IterationEntry {
   completedSprints: string[];
   milestoneProgress: Record<string, number>;
   summary: string;
+  executionBinding?: IterationExecutionBinding;
 }
 
 export interface IterationHistory {
@@ -43,6 +54,46 @@ function isStringArray(value: unknown): value is string[] {
   return Array.isArray(value) && value.every((entry) => typeof entry === 'string');
 }
 
+function normalizeExecutionBinding(value: unknown): IterationExecutionBinding | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (!isRecord(value)) {
+    throw new Error('invalid iteration execution binding');
+  }
+
+  const keys = Object.keys(value);
+  if (
+    keys.length !== 2 ||
+    !keys.includes('executionLane') ||
+    !keys.includes('proFlowPath')
+  ) {
+    throw new Error('invalid iteration execution binding');
+  }
+
+  if (
+    value.executionLane === 'standalone-goal-iterate' &&
+    value.proFlowPath === null
+  ) {
+    return {
+      executionLane: 'standalone-goal-iterate',
+      proFlowPath: null,
+    };
+  }
+  if (
+    value.executionLane === 'pro-roundtrip' &&
+    typeof value.proFlowPath === 'string' &&
+    /^flows\/[0-9]{8}\/[0-9]{3}-[a-z0-9][a-z0-9-]*$/.test(value.proFlowPath)
+  ) {
+    return {
+      executionLane: 'pro-roundtrip',
+      proFlowPath: value.proFlowPath,
+    };
+  }
+
+  throw new Error('invalid iteration execution binding');
+}
+
 function normalizeEntry(value: unknown): IterationEntry | null {
   if (!isRecord(value)) {
     return null;
@@ -68,6 +119,7 @@ function normalizeEntry(value: unknown): IterationEntry | null {
       milestoneProgress[key] = rawValue;
     }
   }
+  const executionBinding = normalizeExecutionBinding(value.executionBinding);
 
   return {
     id: value.id,
@@ -79,6 +131,7 @@ function normalizeEntry(value: unknown): IterationEntry | null {
     completedSprints: [...value.completedSprints],
     milestoneProgress,
     summary: value.summary,
+    ...(executionBinding ? { executionBinding } : {}),
   };
 }
 
@@ -113,13 +166,20 @@ export async function writeIterationHistory(
 }
 
 export async function startIteration(
-  input: { id: string; label: string; goal: string; plannedSprints: string[] },
+  input: {
+    id: string;
+    label: string;
+    goal: string;
+    plannedSprints: string[];
+    executionBinding?: IterationExecutionBinding;
+  },
   root?: string,
 ): Promise<IterationEntry> {
   const history = await readIterationHistory(root);
   if (history.iterations.some((entry) => entry.id === input.id)) {
     throw new Error(`iteration already exists: ${input.id}`);
   }
+  const executionBinding = normalizeExecutionBinding(input.executionBinding);
 
   const entry: IterationEntry = {
     id: input.id,
@@ -131,6 +191,7 @@ export async function startIteration(
     completedSprints: [],
     milestoneProgress: {},
     summary: '',
+    ...(executionBinding ? { executionBinding } : {}),
   };
   history.currentIteration = input.id;
   history.iterations.push(entry);
@@ -140,11 +201,10 @@ export async function startIteration(
 
 export async function recordSprintCompletion(sprintId: string, root?: string): Promise<void> {
   const history = await readIterationHistory(root);
-  const current =
-    history.iterations.find((entry) => entry.id === history.currentIteration) ??
-    history.iterations.find(
-      (entry) => entry.completedAt === null && entry.plannedSprints.includes(sprintId),
-    );
+  const current = history.iterations.find(
+    (entry) =>
+      entry.id === history.currentIteration && entry.plannedSprints.includes(sprintId),
+  );
 
   if (!current || current.completedSprints.includes(sprintId)) {
     return;

@@ -53,6 +53,22 @@ export const ProRoundtripFlowSchema = z
   })
   .strict();
 
+export const ProRoundtripOperatorCloseSchema = z
+  .object({
+    schemaVersion: z.literal('vibe-pro-operator-close-v1'),
+    flowPath: FlowPathSchema,
+    repositoryFullName: z.string().regex(/^[^/\s]+\/[^/\s]+$/),
+    codeBranch: NonEmptyStringSchema,
+    baseSha: ShaSchema,
+    codeHeadSha: ShaSchema,
+    sourceBridgeSha: ShaSchema,
+    disposition: z.literal('force-closed'),
+    authorizedBy: z.literal('user'),
+    reason: NonEmptyStringSchema.max(500).regex(/^[^\r\n]+$/),
+    createdAt: DateTimeSchema,
+  })
+  .strict();
+
 const RequirementSchema = z
   .object({
     id: z.string().regex(/^REQ-[0-9]{3}$/),
@@ -455,6 +471,7 @@ export const ProRoundtripFindingsSchema = z
   .strict();
 
 export type ProRoundtripFlow = z.infer<typeof ProRoundtripFlowSchema>;
+export type ProRoundtripOperatorClose = z.infer<typeof ProRoundtripOperatorCloseSchema>;
 export type ProRoundtripContract = z.infer<typeof ProRoundtripContractSchema>;
 export type ProRoundtripAlignmentBrief = z.infer<typeof ProRoundtripAlignmentBriefSchema>;
 export type ProRoundtripEventComplete = z.infer<typeof ProRoundtripEventCompleteSchema>;

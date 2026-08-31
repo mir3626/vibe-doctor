@@ -1,0 +1,69 @@
+{
+  "$ref": "#/definitions/ProRoundtripOperatorClose",
+  "definitions": {
+    "ProRoundtripOperatorClose": {
+      "type": "object",
+      "properties": {
+        "schemaVersion": {
+          "type": "string",
+          "const": "vibe-pro-operator-close-v1"
+        },
+        "flowPath": {
+          "type": "string",
+          "pattern": "^flows\\/[0-9]{8}\\/[0-9]{3}-[a-z0-9][a-z0-9-]{1,58}[a-z0-9]$"
+        },
+        "repositoryFullName": {
+          "type": "string",
+          "pattern": "^[^/\\s]+\\/[^/\\s]+$"
+        },
+        "codeBranch": {
+          "type": "string",
+          "minLength": 1
+        },
+        "baseSha": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$"
+        },
+        "codeHeadSha": {
+          "$ref": "#/definitions/ProRoundtripOperatorClose/properties/baseSha"
+        },
+        "sourceBridgeSha": {
+          "$ref": "#/definitions/ProRoundtripOperatorClose/properties/baseSha"
+        },
+        "disposition": {
+          "type": "string",
+          "const": "force-closed"
+        },
+        "authorizedBy": {
+          "type": "string",
+          "const": "user"
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500,
+          "pattern": "^[^\\r\\n]+$"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "flowPath",
+        "repositoryFullName",
+        "codeBranch",
+        "baseSha",
+        "codeHeadSha",
+        "sourceBridgeSha",
+        "disposition",
+        "authorizedBy",
+        "reason",
+        "createdAt"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}

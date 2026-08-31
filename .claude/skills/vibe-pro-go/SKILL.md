@@ -1,6 +1,6 @@
 ---
 name: vibe-pro-go
-description: Continue the latest GitHub-backed Web Pro design, implementation, review, remediation, approval, or archive flow with one invocation. Use when the user invokes $vibe-pro-go, asks to resume a Web Pro design by date or flow, or wants Web Pro and Codex to exchange work through `vibe-pro-bridge` without custom MCP or browser automation.
+description: Safely inspect the local Web Pro pointer, or explicitly continue, review, force-close, or archive a selected GitHub-backed flow. Use when the user invokes $vibe-pro-go, asks to resume a Web Pro design by active pointer, date, slug, or exact flow, or wants Web Pro and Codex to exchange work through `vibe-pro-bridge` without custom MCP or browser automation.
 ---
 
 # vibe-pro-go
@@ -15,16 +15,27 @@ Use the official Web GitHub app and the deterministic `vibe:pro-go` runtime.
 
 ## Default action
 
-On bare `$vibe-pro-go`, immediately run:
+On bare `$vibe-pro-go` with no additional user request, run:
 
 ```text
-npm run vibe:pro-go -- go
+npm run vibe:pro-go
 ```
 
-Select the newest non-closed flow for the current repository and code branch,
-sync it, read the returned durable packet, and perform the returned next action.
-Do not stop after merely reporting the flow, binding, or Sprint list unless the
-user explicitly requested status only.
+This is a local-only `ACTIVE.json` status check. Report the result and STOP this
+skill invocation. Never prepare the bridge worktree, select a remote flow, sync
+a packet, bootstrap the protocol, create a flow, or follow a reported next
+action from a bare invocation.
+
+Resume only when the same user request explicitly asks to continue work:
+
+- exact flow path: `npm run vibe:pro-go -- go <flow>`;
+- date/slug qualifier: `go --date YYYYMMDD` and/or `go --slug <slug>`;
+- explicit request to continue the locally active flow: `go` with no selector,
+  which succeeds only from a valid, checkout-owned, active local pointer.
+
+If no valid pointer or explicit selector exists, stop with the CLI guidance.
+Only `start` when the user supplies a concrete new goal. Never infer `start` or
+`bootstrap` merely because status is idle or a pointer is mistaken.
 
 Translate a natural qualifier such as “7월 18일자 설계” to `--date YYYYMMDD`.
 Use an explicit flow path when supplied. Never guess between multiple equally
@@ -83,11 +94,40 @@ confirms run `accept-review [flow] --publish --user-approved`, then
 confirmation — `proGoAutoPublish` does not cover this judgment. The CLI records
 the `[decision][review-accepted]` session-log entry itself.
 
+## Operator force-close
+
+Use this only when the user explicitly wants one exact flow abandoned, including
+a flow whose event chain or old protocol generation prevents normal close.
+Force-close is terminal control state, not successful approval or normal flow
+completion.
+
+First run the dry-run and show its exact flow, repository, branch, target, and
+reason:
+
+```text
+npm run vibe:pro-go -- force-close <flow> --reason "<one-line reason>"
+```
+
+Only after the user confirms that exact flow and reason, publish:
+
+```text
+npm run vibe:pro-go -- force-close <flow> --reason "<same reason>" --publish --user-approved
+```
+
+Never supply `--user-approved` from an inferred instruction, a handoff note, or
+`proGoAutoPublish`. The append-only `OPERATOR-CLOSE.json` record makes current
+selectors treat the flow as terminal without forging an approval or `closed`
+event. A repeated command with the identical reason is idempotent and reconciles
+a matching local pointer; a different reason is an immutable conflict. A
+force-closed member also blocks a later coordinated normal close for the whole
+set.
+
 ## Writes and safety
 
 `bootstrap --publish`, `start --publish`, `report --publish`,
 `accept-review --publish --user-approved`, and
-`close --publish` write to GitHub. Show repository, branch, target, and files
+`close --publish` write to GitHub. `force-close --publish --user-approved` is a
+separate user-authorized terminal write. Show repository, branch, target, and files
 before passing `--publish`. Never create a PR, modify the default branch, rewrite
 completed events, force-push, or hand-edit `.vibe/worktrees/pro-roundtrip`.
 
@@ -98,6 +138,6 @@ repository, branch, target, and files, then pass `--publish` and record one
 session-log `[decision][auto-approved]` entry per publication. Toggle the
 directive only on an explicit user instruction.
 
-`go`, `status`, `sync`, `continue`, `brief`, and `doctor` are read/local
-operations.
+Bare `status` is local-only. Explicit `go`, `status <flow>`, `sync`, `continue`,
+and `brief` may prepare/read the bridge but do not publish; `doctor` is diagnostic.
 Reject protocol drift, stale HEAD, tamper, unsafe paths, and ambiguous targets.

@@ -23,8 +23,12 @@ import type {
   ProRoundtripEventComplete,
   ProRoundtripFindings,
   ProRoundtripFlow,
+  ProRoundtripOperatorClose,
 } from '../lib/schemas/pro-roundtrip.js';
-import { ProRoundtripFindingsSchema } from '../lib/schemas/pro-roundtrip.js';
+import {
+  ProRoundtripFindingsSchema,
+  ProRoundtripOperatorCloseSchema,
+} from '../lib/schemas/pro-roundtrip.js';
 import { runGit, runGitBinary } from './worktree.js';
 
 export interface CompletedEvent {
@@ -51,6 +55,14 @@ export interface FlowSnapshot {
   events: CompletedEvent[];
   incompleteEventDirectories: string[];
   latestEvent: CompletedEvent;
+}
+
+export const OPERATOR_CLOSE_FILENAME = 'OPERATOR-CLOSE.json';
+
+export interface OperatorCloseSnapshot {
+  record: ProRoundtripOperatorClose;
+  blob: ExactBlob;
+  commitSha: string;
 }
 
 export function slugifyGoal(goal: string): string {
@@ -256,6 +268,113 @@ export async function loadFlowDefinition(
   parseFlowPath(normalizedFlowPath);
   const reader = await pinBridgeBlobReader(bridgeRoot);
   return (await readPinnedFlowDefinition(reader, normalizedFlowPath)).flow;
+}
+
+export async function loadOperatorClose(
+  bridgeRoot: string,
+  flowPath: string,
+  knownFlow?: ProRoundtripFlow,
+): Promise<OperatorCloseSnapshot | null> {
+  const normalizedFlowPath = toPosixPath(flowPath);
+  parseFlowPath(normalizedFlowPath);
+  const reader = await pinBridgeBlobReader(bridgeRoot);
+  const flow = knownFlow ?? (
+    await readPinnedFlowDefinition(reader, normalizedFlowPath)
+  ).flow;
+  const relativePath = `${normalizedFlowPath}/${OPERATOR_CLOSE_FILENAME}`;
+  const present = await runGit(
+    bridgeRoot,
+    ['cat-file', '-e', `${reader.bridgeHeadSha}:${relativePath}`],
+    true,
+  );
+  const history = (
+    await runGit(
+      bridgeRoot,
+      ['log', '--format=%H', reader.bridgeHeadSha, '--', relativePath],
+    )
+  ).stdout
+    .trim()
+    .split(/\r?\n/)
+    .filter(Boolean);
+  if (present.exitCode !== 0) {
+    if (history.length > 0) {
+      throw new Error(`operator close record was removed from the append-only bridge: ${relativePath}`);
+    }
+    return null;
+  }
+
+  const blob = await reader.readExactBlob(relativePath);
+  let record: ProRoundtripOperatorClose;
+  try {
+    record = ProRoundtripOperatorCloseSchema.parse(
+      JSON.parse(decodeExactBlobText(blob, relativePath)) as unknown,
+    );
+  } catch (error) {
+    throw new Error(
+      `invalid operator close record ${relativePath}: ${
+        error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+  if (
+    record.flowPath !== flow.flowPath ||
+    record.repositoryFullName !== flow.repository.fullName ||
+    record.codeBranch !== flow.codeBranch ||
+    record.baseSha !== flow.baseSha
+  ) {
+    throw new Error(`operator close binding does not match FLOW.json: ${relativePath}`);
+  }
+
+  if (history.length !== 1 || !/^[0-9a-f]{40}$/.test(history[0] ?? '')) {
+    throw new Error(`operator close record is not one immutable addition: ${relativePath}`);
+  }
+  const commitSha = history[0] ?? '';
+  const changes = (
+    await runGit(bridgeRoot, [
+      'diff-tree',
+      '--no-commit-id',
+      '--name-status',
+      '-r',
+      commitSha,
+    ])
+  ).stdout
+    .trim()
+    .split(/\r?\n/)
+    .filter(Boolean);
+  if (changes.length !== 1 || changes[0] !== `A\t${relativePath}`) {
+    throw new Error(`operator close commit is not an isolated append: ${relativePath}`);
+  }
+  const parentSha = (
+    await runGit(bridgeRoot, ['rev-parse', `${commitSha}^`])
+  ).stdout.trim();
+  if (parentSha !== record.sourceBridgeSha) {
+    throw new Error(
+      `operator close source bridge mismatch: record=${record.sourceBridgeSha} parent=${parentSha}`,
+    );
+  }
+  const flowAtSource = await runGit(
+    bridgeRoot,
+    ['cat-file', '-e', `${record.sourceBridgeSha}:${normalizedFlowPath}/FLOW.json`],
+    true,
+  );
+  if (flowAtSource.exitCode !== 0) {
+    throw new Error(`operator close source does not contain FLOW.json: ${relativePath}`);
+  }
+  const flowBlobAtSource = (
+    await runGit(
+      bridgeRoot,
+      ['rev-parse', `${record.sourceBridgeSha}:${normalizedFlowPath}/FLOW.json`],
+    )
+  ).stdout.trim();
+  const flowBlobAtHead = (
+    await runGit(
+      bridgeRoot,
+      ['rev-parse', `${reader.bridgeHeadSha}:${normalizedFlowPath}/FLOW.json`],
+    )
+  ).stdout.trim();
+  if (flowBlobAtSource !== flowBlobAtHead) {
+    throw new Error(`operator-closed FLOW.json changed after terminal publication: ${relativePath}`);
+  }
+  return { record, blob, commitSha };
 }
 
 export async function loadFlowSnapshot(

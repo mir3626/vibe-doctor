@@ -27,14 +27,31 @@ visible.
 
 1. Resolve the repository from the user's `@GitHub` target.
 2. Fetch this file again from the exact bound code ref.
-3. List `protocol/` on `vibe-pro-bridge`, select the newest namespace (the one
+3. When the user names an existing `flows/...` path, fetch its `FLOW.json` and
+   `<flow>/OPERATOR-CLOSE.json` from the exact `vibe-pro-bridge` ref BEFORE
+   reading its event chain or pinned protocol. Treat the close record as valid
+   only when all of these checks pass:
+   - it is strict `vibe-pro-operator-close-v1` with `disposition: force-closed`
+     and `authorizedBy: user`;
+   - its flow path, repository full name, code branch, and base SHA exactly bind
+     the current `FLOW.json`;
+   - Git history shows exactly one commit for the close path, that commit adds
+     only `OPERATOR-CLOSE.json`, its sole parent equals `sourceBridgeSha`, and
+     that source commit contains the bound `FLOW.json`;
+   - the bound `FLOW.json` bytes/blob at `sourceBridgeSha` equal the current
+     bridge-head `FLOW.json` bytes/blob.
+   A valid record is terminal: report `force-closed`, its reason, and STOP
+   without creating files. If the path exists but any check cannot be proven or
+   fails, stop with `OPERATOR_CLOSE_INVALID`; never treat a broken terminal as
+   absent or weaken these checks because the pinned protocol is old.
+4. List `protocol/` on `vibe-pro-bridge`, select the newest namespace (the one
    whose files were added by the most recent commit), and fetch its
    `PROTOCOL.json`.
-4. Fetch every protocol file declared by that manifest, including
+5. Fetch every protocol file declared by that manifest, including
    `WEB-RUNBOOK.md`, `COMMON-HARNESS.md`, and JSON schemas.
-5. Resolve the single immutable commit that added the protocol files. Stop with
+6. Resolve the single immutable commit that added the protocol files. Stop with
    `PROTOCOL_BOOTSTRAP_REQUIRED` when any file or exact commit is unavailable.
-6. Follow `WEB-RUNBOOK.md` without weakening its rules.
+7. Follow `WEB-RUNBOOK.md` without weakening its rules.
 
 If the user names an existing `flows/...` path, continue that flow. Otherwise a
 request such as “review this project”, “review work since commit X”, or “find

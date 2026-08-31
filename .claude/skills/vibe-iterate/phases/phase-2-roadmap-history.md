@@ -26,3 +26,18 @@ The command is idempotent and checks for missing archive writes before compactin
 Append a record to `.vibe/agent/iteration-history.json` and set
 `currentIteration` to the new id. Include `id`, `label`, `goal`, `startedAt`,
 `plannedSprints[]`, carryover summary, and open risks or deferred items.
+
+When the iteration is an item in `$vibe-goal-iterate`, also write the caller's
+durable `executionBinding` without re-deriving it from repository files:
+
+```json
+{ "executionLane": "standalone-goal-iterate", "proFlowPath": null }
+```
+
+For an explicit `$vibe-pro-go` origin only, set the execution lane to
+`pro-roundtrip` and write the exact `proFlowPath` such as
+`flows/YYYYMMDD/NNN-slug`. Every item in the same loop inherits the same
+binding. Missing/mismatched explicit Pro
+binding fails closed. Ordinary `/vibe-iterate` behavior outside these lanes
+remains compatible; field absence is reserved for pre-existing/legacy state
+and must not be used to make a new goal-iterate item ambiguous.

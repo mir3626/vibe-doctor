@@ -11,6 +11,7 @@ import {
   ProRoundtripEventCompleteSchema,
   ProRoundtripFindingsSchema,
   ProRoundtripFlowSchema,
+  ProRoundtripOperatorCloseSchema,
   ProRoundtripReportInputSchema,
 } from './pro-roundtrip.js';
 
@@ -26,6 +27,7 @@ export const GENERATED_ARTIFACT_SCHEMAS = {
   'sidecar-input.json': SidecarInputPacketSchema,
   'sidecar-artifact.json': SidecarArtifactSchema,
   'pro-roundtrip-flow.json': ProRoundtripFlowSchema,
+  'pro-roundtrip-operator-close.json': ProRoundtripOperatorCloseSchema,
   'pro-roundtrip-contract.json': ProRoundtripContractSchema,
   'pro-roundtrip-alignment-brief.json': ProRoundtripAlignmentBriefSchema,
   'pro-roundtrip-event-complete.json': ProRoundtripEventCompleteSchema,
@@ -87,7 +89,11 @@ export {
 } from './sprint-status.js';
 export { ProjectMapSchema, ProjectMapModuleSchema, ActivePlatformRuleSchema } from './project-map.js';
 export { SprintApiContractsSchema, SprintApiContractSchema } from './sprint-api-contracts.js';
-export { IterationHistorySchema, IterationEntrySchema } from './iteration-history.js';
+export {
+  IterationExecutionBindingSchema,
+  IterationHistorySchema,
+  IterationEntrySchema,
+} from './iteration-history.js';
 export { ModelRegistrySchema, ModelEntrySchema, ProviderRegistryEntrySchema } from './model-registry.js';
 export {
   SidecarArtifactSchema,
@@ -114,11 +120,13 @@ export {
   ProRoundtripEventCompleteSchema,
   ProRoundtripFindingsSchema,
   ProRoundtripFlowSchema,
+  ProRoundtripOperatorCloseSchema,
   ProRoundtripReportInputSchema,
   type ProRoundtripAlignmentBrief,
   type ProRoundtripContract,
   type ProRoundtripEventComplete,
   type ProRoundtripFindings,
   type ProRoundtripFlow,
+  type ProRoundtripOperatorClose,
   type ProRoundtripReportInput,
 } from './pro-roundtrip.js';

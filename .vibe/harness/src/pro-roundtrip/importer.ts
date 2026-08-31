@@ -4,13 +4,20 @@ import { mkdir, rename, stat, writeFile } from 'node:fs/promises';
 import { MAX_PACKET_FILE_BYTES, readFlowFileOnce } from './contract.js';
 import path from 'node:path';
 import {
+  ProRoundtripOperatorCloseSchema,
   ProRoundtripReportInputSchema,
   type ProRoundtripContract,
   type ProRoundtripEventComplete,
+  type ProRoundtripOperatorClose,
   type ProRoundtripReportInput,
 } from '../lib/schemas/pro-roundtrip.js';
 import { auditAppendOnlyRange } from './git-branch-transport.js';
-import { loadFlowSnapshot, resolveFlowPath, type FlowSnapshot } from './flow-store.js';
+import {
+  loadFlowSnapshot,
+  loadOperatorClose,
+  resolveFlowPath,
+  type FlowSnapshot,
+} from './flow-store.js';
 import { verifyPinnedProtocol } from './protocol.js';
 import {
   prepareBridgeWorktree,
@@ -65,6 +72,7 @@ export interface ProActiveFlowState {
   nextWriteTarget: string | null;
   autoReportRequired: boolean;
   status: 'active' | 'closed';
+  operatorClose?: ProRoundtripOperatorClose;
   updatedAt: string;
 }
 
@@ -201,7 +209,15 @@ export async function readActiveFlowState(
     typeof parsed.codeBranch !== 'string' ||
     !/^[0-9a-f]{40}$/.test(parsed.baseSha) ||
     !Array.isArray(parsed.sprintIds) ||
-    !['active', 'closed'].includes(parsed.status)
+    !['active', 'closed'].includes(parsed.status) ||
+    (parsed.operatorClose !== undefined &&
+      !ProRoundtripOperatorCloseSchema.safeParse(parsed.operatorClose).success) ||
+    (parsed.operatorClose !== undefined &&
+      (parsed.operatorClose.flowPath !== parsed.flowPath ||
+        parsed.operatorClose.repositoryFullName !== parsed.repositoryFullName ||
+        parsed.operatorClose.codeBranch !== parsed.codeBranch ||
+        parsed.operatorClose.baseSha !== parsed.baseSha ||
+        parsed.status !== 'closed'))
   ) {
     throw new Error(`invalid active Pro flow state: ${filePath}`);
   }
@@ -400,6 +416,12 @@ export async function syncFlow(
 ): Promise<SyncResult> {
   const context = options.context ?? await prepareBridgeWorktree(options.cwd);
   const flowPath = await resolveFlowPath(context.worktreePath, requestedFlow);
+  const operatorClose = await loadOperatorClose(context.worktreePath, flowPath);
+  if (operatorClose) {
+    throw new Error(
+      `flow is operator-force-closed: ${flowPath}; reason=${operatorClose.record.reason}`,
+    );
+  }
   const previousState = await readPacketState(context.repoRoot, flowPath);
   if (previousState && previousState.lastAcknowledgedBridgeSha !== context.remoteTip) {
     const ancestor = await runGit(

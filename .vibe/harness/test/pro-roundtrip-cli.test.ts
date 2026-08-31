@@ -535,13 +535,15 @@ async function forgeForeignGenerationFlow(
   fixture: CliFixture,
   flowPath: string,
 ): Promise<void> {
+  const parsedPath = flowPath.match(/^flows\/([0-9]{8})\/([0-9]{3})-(.+)$/u);
+  assert.ok(parsedPath, `invalid forged flow path: ${flowPath}`);
   const createdAt = new Date().toISOString();
   const flow: ProRoundtripFlow = {
     schemaVersion: 'vibe-pro-flow-v1',
     flowPath,
-    date: '20260101',
-    sequence: 1,
-    slug: 'foreign-generation',
+    date: parsedPath[1] ?? '',
+    sequence: Number(parsedPath[2]),
+    slug: parsedPath[3] ?? '',
     goal: 'Foreign protocol generation fixture',
     nonGoals: [],
     repository: { fullName: 'fixture/repo', remoteUrl: 'local-fixture' },
@@ -598,6 +600,8 @@ async function forgeMalformedOtherBranchFlow(
   flowPath: string,
   protocolSourceFlowPath: string,
 ): Promise<void> {
+  const parsedPath = flowPath.match(/^flows\/([0-9]{8})\/([0-9]{3})-(.+)$/u);
+  assert.ok(parsedPath, `invalid forged flow path: ${flowPath}`);
   const protocolSource = JSON.parse(
     await readFile(
       path.join(fixture.context.worktreePath, ...protocolSourceFlowPath.split('/'), 'FLOW.json'),
@@ -608,9 +612,9 @@ async function forgeMalformedOtherBranchFlow(
   const flow: ProRoundtripFlow = {
     schemaVersion: 'vibe-pro-flow-v1',
     flowPath,
-    date: '20260102',
-    sequence: 1,
-    slug: 'malformed-other-branch',
+    date: parsedPath[1] ?? '',
+    sequence: Number(parsedPath[2]),
+    slug: parsedPath[3] ?? '',
     goal: 'Malformed event history owned by another code branch',
     nonGoals: [],
     repository: { fullName: 'fixture/repo', remoteUrl: 'local-fixture' },
@@ -632,6 +636,114 @@ async function forgeMalformedOtherBranchFlow(
     'test: publish malformed other-branch flow',
     { context: fixture.context },
   );
+}
+
+async function publishPoisonedSecondGoal(
+  fixture: CliFixture,
+  flowPath: string,
+): Promise<void> {
+  const first = JSON.parse(
+    await readFile(
+      path.join(
+        fixture.context.worktreePath,
+        ...flowPath.split('/'),
+        '0000--cli--goal--r01',
+        'COMPLETE.json',
+      ),
+      'utf8',
+    ),
+  ) as ProRoundtripEventComplete;
+  const eventId = '0010--cli--goal--r02';
+  const marker: ProRoundtripEventComplete = {
+    ...first,
+    eventId,
+    sequence: 10,
+    revision: 2,
+    previousEventId: first.eventId,
+    supersedesEventId: null,
+    createdAt: new Date().toISOString(),
+  };
+  await publishAdditions(
+    new Map([
+      [`${flowPath}/${eventId}/GOAL.md`, '# Poisoned duplicate goal\n'],
+      [`${flowPath}/${eventId}/COMPLETE.json`, `${JSON.stringify(marker, null, 2)}\n`],
+    ]),
+    'test: append poisoned duplicate goal',
+    { context: fixture.context },
+  );
+}
+
+async function prepareAuditReport(
+  fixture: CliFixture,
+  slug: string,
+): Promise<{
+  flowPath: string;
+  flow: ProRoundtripFlow;
+  reportMarker: ProRoundtripEventComplete;
+  headSha: string;
+}> {
+  const started = await runCli(fixture, [
+    'start',
+    'audit',
+    '--goal',
+    `Audit fixture ${slug}`,
+    '--slug',
+    slug,
+    '--timezone',
+    'Asia/Seoul',
+    '--repository',
+    'fixture/repo',
+    '--publish',
+  ]);
+  const flowPath = String(started.flowPath);
+  const flow = JSON.parse(
+    await readFile(
+      path.join(fixture.context.worktreePath, ...flowPath.split('/'), 'FLOW.json'),
+      'utf8',
+    ),
+  ) as ProRoundtripFlow;
+  const headSha = await git(fixture.checkout, ['rev-parse', 'HEAD']);
+  const evidence: ProRoundtripReportInput = {
+    schemaVersion: 'vibe-pro-report-input-v1',
+    flowPath,
+    designEventId: null,
+    sprintId: null,
+    reportKind: 'audit',
+    baseSha: flow.baseSha,
+    headSha,
+    completedContractIds: [],
+    changedFiles: [],
+    verification: [
+      {
+        command: `fixture audit ${slug}`,
+        status: 'passed',
+        summary: 'fixture audit passed',
+      },
+    ],
+    workflowEvidence: [],
+    sprintGatePassed: true,
+    cumulativeGatePassed: true,
+    finalGatePassed: true,
+    resolvedFindingIds: [],
+    risks: [],
+    nextAction: 'Request coordinated approval.',
+  };
+  const evidencePath = path.join(fixture.checkout, `${slug}-evidence.json`);
+  await writeFile(evidencePath, `${JSON.stringify(evidence, null, 2)}\n`, 'utf8');
+  await runCli(fixture, ['report', flowPath, '--evidence', evidencePath]);
+  await runCli(fixture, ['report', flowPath, '--publish']);
+  const reportMarker = JSON.parse(
+    await readFile(
+      path.join(
+        fixture.context.worktreePath,
+        ...flowPath.split('/'),
+        '0100--codex--implementation-report--r01',
+        'COMPLETE.json',
+      ),
+      'utf8',
+    ),
+  ) as ProRoundtripEventComplete;
+  return { flowPath, flow, reportMarker, headSha };
 }
 
 async function assertRejectsExactly(
@@ -687,6 +799,48 @@ describe('vibe-pro-go CLI', { concurrency: true }, () => {
         },
       }),
       /prepared bridge context does not belong/,
+    );
+  });
+
+  it('keeps a bare invocation local-only and creates no Pro scaffolding', async (testContext) => {
+    const root = await mkdtemp(path.join(tmpdir(), 'pro-roundtrip-bare-status-'));
+    testContext.after(() => rm(root, { recursive: true, force: true }));
+    const checkout = path.join(root, 'checkout');
+    await execFile('git', ['init', '--initial-branch=main', checkout], { windowsHide: true });
+    await git(checkout, ['config', 'user.name', 'Roundtrip Test']);
+    await git(checkout, ['config', 'user.email', 'roundtrip@example.invalid']);
+    await writeFile(path.join(checkout, 'README.md'), '# Bare status fixture\n', 'utf8');
+    await git(checkout, ['add', 'README.md']);
+    await git(checkout, ['commit', '-m', 'initial']);
+    let result: unknown;
+
+    await executeProRoundtrip([], {
+      cwd: checkout,
+      writeOutput(value) {
+        result = value;
+      },
+    });
+
+    assert.deepEqual(result, {
+      action: 'status',
+      scope: 'local-pointer',
+      status: 'idle',
+      repository: null,
+      codeBranch: 'main',
+      activeFlow: null,
+      mismatches: [],
+      resumable: false,
+      scaffoldingCreated: false,
+      autoPublish: false,
+      instruction: 'No local Pro pointer exists. Provide an exact flow/date/slug to inspect or resume, or an explicit goal to start a new flow.',
+    });
+    await assert.rejects(
+      readFile(path.join(checkout, '.vibe', 'worktrees', 'pro-roundtrip', '.git')),
+      /ENOENT/u,
+    );
+    await assert.rejects(
+      readFile(path.join(checkout, '.vibe', 'agent', 'pro-roundtrip', 'ACTIVE.json')),
+      /ENOENT/u,
     );
   });
 
@@ -914,13 +1068,13 @@ describe('vibe-pro-go CLI', { concurrency: true }, () => {
       'fixture/repo',
       '--publish',
     ]);
-    const foreignFlowPath = 'flows/20260101/001-foreign-generation';
+    const foreignFlowPath = 'flows/20260101/001-operable-current-flow';
     await forgeForeignGenerationFlow(fixture, foreignFlowPath);
 
-    const result = await runCli(fixture, ['go']);
+    const result = await runCli(fixture, ['go', '--slug', 'operable-current-flow']);
     assert.equal(result.action, 'go');
     assert.equal(result.flowPath, started.flowPath);
-    assert.equal(result.selection, 'latest-non-closed-current-repo-branch');
+    assert.equal(result.selection, 'qualified-latest-non-closed-current-repo-branch');
     assert.deepEqual(result.skippedIncompatibleFlows, [
       { flowPath: foreignFlowPath, pinnedVersion: 'v1' },
     ]);
@@ -940,10 +1094,10 @@ describe('vibe-pro-go CLI', { concurrency: true }, () => {
       'fixture/repo',
       '--publish',
     ]);
-    const malformedFlowPath = 'flows/20260102/001-malformed-other-branch';
+    const malformedFlowPath = 'flows/20260102/001-current-branch-flow';
     await forgeMalformedOtherBranchFlow(fixture, malformedFlowPath, started.flowPath as string);
 
-    const result = await runCli(fixture, ['go']);
+    const result = await runCli(fixture, ['go', '--slug', 'current-branch-flow']);
     assert.equal(result.action, 'go');
     assert.equal(result.flowPath, started.flowPath);
     await assert.rejects(
@@ -959,8 +1113,8 @@ describe('vibe-pro-go CLI', { concurrency: true }, () => {
     const local = await loadLocalProtocol(fixture.checkout);
 
     await assertRejectsExactly(
-      runCli(fixture, ['go']),
-      `no operable non-closed Pro flow matches repository=<local-origin> codeBranch=main; skipped 1 on a superseded protocol generation (local ${local.version}): ${foreignFlowPath} (protocol v1). Finish/close each with the harness generation that created it, or start a new flow.`,
+      runCli(fixture, ['go', '--date', '20260101']),
+      `no operable non-closed Pro flow matches repository=<local-origin> codeBranch=main date=20260101; skipped 1 on a superseded protocol generation (local ${local.version}): ${foreignFlowPath} (protocol v1). Finish/close each with the harness generation that created it, force-close it explicitly, or start a new flow.`,
     );
   });
 
@@ -974,6 +1128,246 @@ describe('vibe-pro-go CLI', { concurrency: true }, () => {
       runCli(fixture, ['go', foreignFlowPath]),
       `pinned protocol version v1 does not match local protocol version ${local.version}; the flow is bound to a different protocol generation (finish or close it with the harness generation that created it, or start a new flow)`,
     );
+  });
+
+  it('force-closes a poisoned flow append-only and makes every current selector terminal', async (testContext) => {
+    const fixture = await scaffoldRepository(testContext);
+    const started = await runCli(fixture, [
+      'start',
+      'design',
+      'Poisoned pointer fixture',
+      '--slug',
+      'poisoned-pointer-fixture',
+      '--timezone',
+      'Asia/Seoul',
+      '--repository',
+      'fixture/repo',
+      '--publish',
+    ]);
+    const flowPath = String(started.flowPath);
+    await runCli(fixture, ['sync', flowPath]);
+    await publishPoisonedSecondGoal(fixture, flowPath);
+    await assert.rejects(runCli(fixture, ['go', flowPath]), /invalid event transition/u);
+
+    const reason = 'User ended a flow created from the wrong status pointer.';
+    const dryRun = await runCli(fixture, [
+      'force-close',
+      flowPath,
+      '--reason',
+      reason,
+    ]);
+    assert.equal(dryRun.status, 'dry-run');
+    assert.equal(dryRun.target, `${flowPath}/OPERATOR-CLOSE.json`);
+    await assert.rejects(
+      runCli(fixture, [
+        'force-close',
+        flowPath,
+        '--reason',
+        reason,
+        '--publish',
+      ]),
+      /--user-approved/u,
+    );
+
+    const closed = await runCli(fixture, [
+      'force-close',
+      flowPath,
+      '--reason',
+      reason,
+      '--publish',
+      '--user-approved',
+    ]);
+    assert.equal(closed.status, 'force-closed');
+    assert.equal(closed.localPointerUpdated, true);
+    const closeRecord = JSON.parse(
+      await readFile(
+        path.join(fixture.context.worktreePath, ...flowPath.split('/'), 'OPERATOR-CLOSE.json'),
+        'utf8',
+      ),
+    ) as { disposition: string; authorizedBy: string; reason: string };
+    assert.equal(closeRecord.disposition, 'force-closed');
+    assert.equal(closeRecord.authorizedBy, 'user');
+    assert.equal(closeRecord.reason, reason);
+
+    const activePath = path.join(
+      fixture.checkout,
+      '.vibe',
+      'agent',
+      'pro-roundtrip',
+      'ACTIVE.json',
+    );
+    const stalePointer = JSON.parse(await readFile(activePath, 'utf8')) as Record<string, unknown>;
+    delete stalePointer.operatorClose;
+    stalePointer.status = 'active';
+    await writeFile(activePath, `${JSON.stringify(stalePointer, null, 2)}\n`, 'utf8');
+    await assert.rejects(
+      runCli(fixture, [
+        'force-close',
+        flowPath,
+        '--reason',
+        'A different user decision that must not be discarded.',
+        '--publish',
+        '--user-approved',
+      ]),
+      /operator close reason conflict/u,
+    );
+    const repeated = await runCli(fixture, [
+      'force-close',
+      flowPath,
+      '--reason',
+      reason,
+      '--publish',
+      '--user-approved',
+    ]);
+    assert.equal(repeated.status, 'already-force-closed');
+    assert.equal(repeated.publication, null);
+    assert.equal(repeated.localPointerUpdated, true);
+
+    const bareStatus = await runCli(fixture, []);
+    assert.equal(bareStatus.action, 'status');
+    assert.equal(bareStatus.scope, 'local-pointer');
+    assert.equal(bareStatus.status, 'closed');
+    assert.equal(bareStatus.scaffoldingCreated, false);
+    const remoteStatus = await runCli(fixture, ['status', flowPath]);
+    assert.equal(remoteStatus.status, 'force-closed');
+    assert.equal(
+      (remoteStatus.operatorClose as { reason: string }).reason,
+      reason,
+    );
+    await assert.rejects(
+      runCli(fixture, ['go', flowPath]),
+      /operator-force-closed/u,
+    );
+    await assert.rejects(
+      runCli(fixture, ['go', '--slug', 'poisoned-pointer-fixture']),
+      /operator-force-closed/u,
+    );
+  });
+
+  it('refuses to forge a normal coordinated close for an operator-force-closed member', async (testContext) => {
+    const fixture = await scaffoldRepository(testContext);
+    const primary = await prepareAuditReport(fixture, 'joint-primary');
+    const member = await prepareAuditReport(fixture, 'joint-member');
+    const feedbackEventId = '0200--pro--feedback--r01';
+    const feedbackRoot = `${primary.flowPath}/${feedbackEventId}`;
+    const feedbackMarker: ProRoundtripEventComplete = {
+      schemaVersion: 'vibe-pro-event-complete-v1',
+      flowPath: primary.flowPath,
+      eventId: feedbackEventId,
+      sequence: 200,
+      actor: 'pro',
+      kind: 'feedback',
+      revision: 1,
+      previousEventId: primary.reportMarker.eventId,
+      supersedesEventId: null,
+      protocolVersion: primary.flow.protocol.version,
+      designEventId: null,
+      sprintId: null,
+      repositoryFullName: primary.flow.repository.fullName,
+      codeBranch: primary.flow.codeBranch,
+      baseSha: primary.flow.baseSha,
+      headSha: primary.headSha,
+      disposition: 'approved',
+      files: [
+        { path: 'FEEDBACK.md', mediaType: 'text/markdown' },
+        { path: 'FINDINGS.json', mediaType: 'application/json' },
+      ],
+      limitations: [],
+      createdAt: new Date().toISOString(),
+      nextActor: 'pro',
+      nextWriteTarget: `${primary.flowPath}/0300--pro--approval--r01`,
+    };
+    await publishAdditions(
+      new Map([
+        [`${feedbackRoot}/FEEDBACK.md`, '# Coordinated feedback\n'],
+        [
+          `${feedbackRoot}/FINDINGS.json`,
+          `${JSON.stringify({
+            schemaVersion: 'vibe-pro-findings-v1',
+            flowPath: primary.flowPath,
+            eventId: feedbackEventId,
+            reviewedHeadSha: primary.headSha,
+            disposition: 'approved',
+            findings: [],
+          }, null, 2)}\n`,
+        ],
+        [`${feedbackRoot}/COMPLETE.json`, `${JSON.stringify(feedbackMarker, null, 2)}\n`],
+      ]),
+      'test: publish coordinated feedback',
+      { context: fixture.context },
+    );
+
+    const approvalEventId = '0300--pro--approval--r01';
+    const approvalRoot = `${primary.flowPath}/${approvalEventId}`;
+    const approvalMarker: ProRoundtripEventComplete = {
+      schemaVersion: 'vibe-pro-event-complete-v1',
+      flowPath: primary.flowPath,
+      eventId: approvalEventId,
+      sequence: 300,
+      actor: 'pro',
+      kind: 'approval',
+      revision: 1,
+      previousEventId: feedbackEventId,
+      supersedesEventId: null,
+      protocolVersion: primary.flow.protocol.version,
+      designEventId: null,
+      sprintId: null,
+      repositoryFullName: primary.flow.repository.fullName,
+      codeBranch: primary.flow.codeBranch,
+      baseSha: primary.flow.baseSha,
+      headSha: primary.headSha,
+      disposition: 'approved',
+      files: [{ path: 'APPROVAL.md', mediaType: 'text/markdown' }],
+      limitations: [],
+      createdAt: new Date().toISOString(),
+      nextActor: 'cli',
+      nextWriteTarget: `${primary.flowPath}/9900--cli--closed--r01`,
+      coordinatedClose: {
+        jointInvariant: true,
+        primaryFlowPath: primary.flowPath,
+        flows: [
+          { flowPath: primary.flowPath, approvedBoundarySha: primary.headSha },
+          { flowPath: member.flowPath, approvedBoundarySha: member.headSha },
+        ],
+      },
+    };
+    await publishAdditions(
+      new Map([
+        [`${approvalRoot}/APPROVAL.md`, '# Coordinated approval\n'],
+        [`${approvalRoot}/COMPLETE.json`, `${JSON.stringify(approvalMarker, null, 2)}\n`],
+      ]),
+      'test: publish coordinated approval',
+      { context: fixture.context },
+    );
+    await runCli(fixture, ['sync', primary.flowPath]);
+    await writeAlignmentBrief(fixture, primary.flowPath, feedbackMarker, { findings: [] });
+
+    const reason = 'User abandoned the coordinated member independently.';
+    await runCli(fixture, [
+      'force-close',
+      member.flowPath,
+      '--reason',
+      reason,
+      '--publish',
+      '--user-approved',
+    ]);
+    await assert.rejects(
+      runCli(fixture, ['close', primary.flowPath, '--publish']),
+      new RegExp(`${member.flowPath}: coordinated close member is operator-force-closed`, 'u'),
+    );
+    for (const flowPath of [primary.flowPath, member.flowPath]) {
+      await assert.rejects(
+        readFile(
+          path.join(
+            fixture.context.worktreePath,
+            ...flowPath.split('/'),
+            '9900--cli--closed--r01',
+            'COMPLETE.json',
+          ),
+        ),
+        /ENOENT/u,
+      );
+    }
   });
 
   it(
@@ -1284,7 +1678,12 @@ describe('vibe-pro-go CLI', { concurrency: true }, () => {
       await readFile(path.join(packetRoot, 'sprints', 'SPR-001-end-to-end', 'SPRINT.md'), 'utf8'),
       /Design event: `0100--pro--design--r01`/,
     );
-    const resumed = await runCli(fixture, []);
+    const pointerStatus = await runCli(fixture, []);
+    assert.equal(pointerStatus.action, 'status');
+    assert.equal(pointerStatus.scope, 'local-pointer');
+    assert.equal(pointerStatus.status, 'active');
+    assert.equal(pointerStatus.scaffoldingCreated, false);
+    const resumed = await runCli(fixture, ['go', flowPath]);
     assert.equal(resumed.action, 'go');
     assert.equal(resumed.autoPublish, false);
     assert.equal(resumed.flowPath, flowPath);
@@ -1293,7 +1692,7 @@ describe('vibe-pro-go CLI', { concurrency: true }, () => {
       (resumed.alignmentBrief as Record<string, unknown>).status,
       'valid',
     );
-    assert.equal(resumed.selection, 'latest-non-closed-current-repo-branch');
+    assert.equal(resumed.selection, 'explicit');
     assert.match(String(resumed.handoffPath), /HANDOFF\.md$/);
     assert.match(String(resumed.sprintEnvelopePath), /SPR-001-end-to-end[\\/]SPRINT\.md$/);
     const active = JSON.parse(

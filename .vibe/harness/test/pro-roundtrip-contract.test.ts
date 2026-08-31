@@ -133,6 +133,23 @@ function designBrief(
 }
 
 describe('pro roundtrip contract', () => {
+  it('checks an operator terminal before any pinned Web protocol continuation', async () => {
+    const runbook = await readFile(path.resolve('bridge-runbook.md'), 'utf8');
+    const operatorCheck = runbook.indexOf('<flow>/OPERATOR-CLOSE.json');
+    const protocolSelection = runbook.indexOf('List `protocol/`');
+
+    assert.ok(operatorCheck >= 0, 'root Web entry must check OPERATOR-CLOSE.json');
+    assert.ok(protocolSelection > operatorCheck, 'operator terminal must precede protocol loading');
+    assert.match(runbook, /report `force-closed`[\s\S]*STOP\s+without creating files/u);
+    assert.match(runbook, /OPERATOR_CLOSE_INVALID/u);
+    assert.match(runbook, /repository full name, code branch, and base SHA exactly bind/u);
+    assert.match(runbook, /exactly one commit for the close path/u);
+    assert.match(runbook, /adds[\s\S]*only `OPERATOR-CLOSE\.json`/u);
+    assert.match(runbook, /sole parent equals `sourceBridgeSha`/u);
+    assert.match(runbook, /FLOW\.json` bytes\/blob at `sourceBridgeSha` equal/u);
+    assert.match(runbook, /any check cannot be proven/u);
+  });
+
   it('validates the golden flow, design event, and semantic contract', async () => {
     const flow = parseFlowJson(
       await readFile(path.join(fixtureRoot, 'FLOW.json'), 'utf8'),

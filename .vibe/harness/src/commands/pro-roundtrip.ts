@@ -4,9 +4,11 @@ import process from 'node:process';
 import { getBooleanFlag, getStringFlag, parseArgs, type ParsedArgs } from '../lib/args.js';
 import { runMain } from '../lib/cli.js';
 import {
+  ProRoundtripOperatorCloseSchema,
   ProRoundtripEventCompleteSchema,
   type ProRoundtripEventComplete,
   type ProRoundtripFlow,
+  type ProRoundtripOperatorClose,
 } from '../lib/schemas/pro-roundtrip.js';
 import {
   appendSessionLogDecision,
@@ -35,16 +37,21 @@ import {
   listFlowPaths,
   loadFlowDefinition,
   loadFlowSnapshot,
+  loadOperatorClose,
+  OPERATOR_CLOSE_FILENAME,
   resolveFlowPath,
   slugifyGoal,
   validateSlug,
 } from '../pro-roundtrip/flow-store.js';
 import { publishAdditions } from '../pro-roundtrip/git-branch-transport.js';
 import {
+  activeFlowPathFor,
   packetRootFor,
+  readActiveFlowState,
   readPacketState,
   readReportInput,
   syncFlow,
+  writeJsonAtomic,
 } from '../pro-roundtrip/importer.js';
 import { ensureProtocol, loadLocalProtocol, verifyPinnedProtocol } from '../pro-roundtrip/protocol.js';
 import { publishAggregateReport, recordSprintReport } from '../pro-roundtrip/report.js';
@@ -71,6 +78,8 @@ function usage(): string {
   vibe-pro-go accept-review [flow]
   vibe-pro-go accept-review [flow] --publish --user-approved [--reason "<text>"]
   vibe-pro-go close [flow] --publish
+  vibe-pro-go force-close <flow> --reason "<text>"
+  vibe-pro-go force-close <flow> --reason "<text>" --publish --user-approved
   vibe-pro-go confirm-skip on [--reason "<text>"] [--days <1-365>]
   vibe-pro-go confirm-skip off|status
   vibe-pro-go doctor`;
@@ -192,6 +201,82 @@ function safeRemoteUrl(remoteUrl: string): string {
   return remoteUrl;
 }
 
+interface CheckoutIdentity {
+  repoRoot: string;
+  codeBranch: string;
+  repositoryFullName: string | null;
+}
+
+async function checkoutIdentity(runtime: ProRoundtripRuntime): Promise<CheckoutIdentity> {
+  const repoRoot = await repositoryRoot(runtime);
+  const codeBranch = (await runGit(repoRoot, ['branch', '--show-current'])).stdout.trim();
+  if (!codeBranch) {
+    throw new Error('vibe-pro-go requires a named code branch, not detached HEAD');
+  }
+  let fullName: string | null = null;
+  const remote = await runGit(repoRoot, ['remote', 'get-url', 'origin'], true);
+  if (remote.exitCode === 0 && remote.stdout.trim()) {
+    try {
+      fullName = repositoryFullName(safeRemoteUrl(remote.stdout.trim()));
+    } catch {
+      // Local integration fixtures may use a non-GitHub origin.
+    }
+  }
+  return { repoRoot, codeBranch, repositoryFullName: fullName };
+}
+
+function activePointerMismatches(
+  active: Awaited<ReturnType<typeof readActiveFlowState>>,
+  identity: CheckoutIdentity,
+): string[] {
+  if (!active) {
+    return [];
+  }
+  return [
+    active.codeBranch !== identity.codeBranch
+      ? `codeBranch pointer=${active.codeBranch} current=${identity.codeBranch}`
+      : null,
+    identity.repositoryFullName && active.repositoryFullName !== identity.repositoryFullName
+      ? `repository pointer=${active.repositoryFullName} current=${identity.repositoryFullName}`
+      : null,
+  ].filter((value): value is string => value !== null);
+}
+
+async function localPointerStatus(
+  runtime: ProRoundtripRuntime,
+): Promise<{
+  identity: CheckoutIdentity;
+  active: Awaited<ReturnType<typeof readActiveFlowState>>;
+  mismatches: string[];
+}> {
+  const identity = await checkoutIdentity(runtime);
+  const active = await readActiveFlowState(identity.repoRoot);
+  return {
+    identity,
+    active,
+    mismatches: activePointerMismatches(active, identity),
+  };
+}
+
+async function activeFlowPathForCommand(
+  runtime: ProRoundtripRuntime,
+  command: string,
+): Promise<string> {
+  const { active, mismatches } = await localPointerStatus(runtime);
+  if (!active) {
+    throw new Error(
+      `${command} requires an exact flow because no local ACTIVE.json pointer exists; no bridge worktree or packet was created`,
+    );
+  }
+  if (mismatches.length > 0) {
+    throw new Error(`local ACTIVE.json does not own this checkout: ${mismatches.join('; ')}`);
+  }
+  if (active.status !== 'active') {
+    throw new Error(`local ACTIVE.json is ${active.status} for ${active.flowPath}`);
+  }
+  return active.flowPath;
+}
+
 function webPrompt(
   fullName: string,
   flowPath: string,
@@ -304,11 +389,27 @@ async function selectGoFlow(
   runtime: ProRoundtripRuntime,
 ): Promise<{
   flowPath: string;
+  selection: 'explicit' | 'active-pointer' | 'qualified-latest-non-closed-current-repo-branch';
   skippedIncompatible: Array<{ flowPath: string; pinnedVersion: string }>;
+  skippedOperatorClosed: Array<{ flowPath: string; reason: string; createdAt: string }>;
 }> {
   const explicit = args.positionals[1];
   if (explicit) {
-    return { flowPath: explicit, skippedIncompatible: [] };
+    const context = await bridgeContext(runtime);
+    const flowPath = await resolveFlowPath(context.worktreePath, explicit);
+    const flow = await loadFlowDefinition(context.worktreePath, flowPath);
+    const operatorClose = await loadOperatorClose(context.worktreePath, flowPath, flow);
+    if (operatorClose) {
+      throw new Error(
+        `flow is operator-force-closed: ${flowPath}; reason=${operatorClose.record.reason}`,
+      );
+    }
+    return {
+      flowPath,
+      selection: 'explicit',
+      skippedIncompatible: [],
+      skippedOperatorClosed: [],
+    };
   }
   const requestedDate = getStringFlag(args, 'date');
   if (requestedDate && !/^[0-9]{8}$/.test(requestedDate)) {
@@ -316,24 +417,58 @@ async function selectGoFlow(
   }
   const requestedSlug = getStringFlag(args, 'slug');
   const slug = requestedSlug ? validateSlug(requestedSlug) : undefined;
-  const repoRoot = await repositoryRoot(runtime);
-  const codeBranch = (await runGit(repoRoot, ['branch', '--show-current'])).stdout.trim();
-  if (!codeBranch) {
-    throw new Error('go requires a named code branch, not detached HEAD');
+  if (!requestedDate && !slug) {
+    const { identity, active, mismatches } = await localPointerStatus(runtime);
+    if (!active) {
+      throw new Error(
+        'go requires an exact flow, an explicit --date/--slug qualifier, or a valid local ACTIVE.json pointer; no bridge worktree or packet was created',
+      );
+    }
+    if (mismatches.length > 0) {
+      throw new Error(`local ACTIVE.json does not own this checkout: ${mismatches.join('; ')}`);
+    }
+    if (active.status !== 'active') {
+      throw new Error(
+        `local ACTIVE.json is ${active.status} for ${active.flowPath}; provide an exact non-closed flow or start a new flow with an explicit goal`,
+      );
+    }
+    const context = await bridgeContext(runtime);
+    const flow = await loadFlowDefinition(context.worktreePath, active.flowPath);
+    if (
+      flow.codeBranch !== identity.codeBranch ||
+      flow.repository.fullName !== active.repositoryFullName ||
+      flow.baseSha !== active.baseSha
+    ) {
+      throw new Error(`local ACTIVE.json binding does not match remote FLOW.json: ${active.flowPath}`);
+    }
+    const operatorClose = await loadOperatorClose(
+      context.worktreePath,
+      active.flowPath,
+      flow,
+    );
+    if (operatorClose) {
+      throw new Error(
+        `flow is operator-force-closed: ${active.flowPath}; reason=${operatorClose.record.reason}`,
+      );
+    }
+    return {
+      flowPath: active.flowPath,
+      selection: 'active-pointer',
+      skippedIncompatible: [],
+      skippedOperatorClosed: [],
+    };
   }
-  const remoteUrl = safeRemoteUrl(
-    (await runGit(repoRoot, ['remote', 'get-url', 'origin'])).stdout.trim(),
-  );
-  let fullName: string | undefined;
-  try {
-    fullName = repositoryFullName(remoteUrl);
-  } catch {
-    // Local integration fixtures may use a non-GitHub origin.
-  }
+  const identity = await checkoutIdentity(runtime);
+  const { repoRoot, codeBranch, repositoryFullName: fullName } = identity;
   const context = await bridgeContext(runtime);
   const paths = await listFlowPaths(context.worktreePath);
   const localProtocol = await loadLocalProtocol(repoRoot);
   const skippedIncompatible: Array<{ flowPath: string; pinnedVersion: string }> = [];
+  const skippedOperatorClosed: Array<{
+    flowPath: string;
+    reason: string;
+    createdAt: string;
+  }> = [];
   const candidates: Array<{
     flowPath: string;
     latestMarkerCommit: string;
@@ -351,6 +486,15 @@ async function selectGoFlow(
       flow.codeBranch !== codeBranch ||
       (fullName && flow.repository.fullName !== fullName)
     ) {
+      continue;
+    }
+    const operatorClose = await loadOperatorClose(context.worktreePath, flowPath, flow);
+    if (operatorClose) {
+      skippedOperatorClosed.push({
+        flowPath,
+        reason: operatorClose.record.reason,
+        createdAt: operatorClose.record.createdAt,
+      });
       continue;
     }
     const snapshot = await loadFlowSnapshot(context.worktreePath, flowPath);
@@ -399,7 +543,12 @@ async function selectGoFlow(
           (rank.get(right.latestMarkerCommit) ?? Number.MAX_SAFE_INTEGER) ||
         right.flowPath.localeCompare(left.flowPath),
     );
-    return { flowPath: candidates[0]?.flowPath ?? '', skippedIncompatible };
+    return {
+      flowPath: candidates[0]?.flowPath ?? '',
+      selection: 'qualified-latest-non-closed-current-repo-branch',
+      skippedIncompatible,
+      skippedOperatorClosed,
+    };
   }
   const selector = [
     `repository=${fullName ?? '<local-origin>'}`,
@@ -413,8 +562,16 @@ async function selectGoFlow(
     const list = skippedIncompatible
       .map(({ flowPath, pinnedVersion }) => `${flowPath} (protocol ${pinnedVersion})`)
       .join(', ');
+    const operatorClosedSuffix = skippedOperatorClosed.length > 0
+      ? `; operator-force-closed: ${skippedOperatorClosed.map(({ flowPath }) => flowPath).join(', ')}`
+      : '';
     throw new Error(
-      `no operable non-closed Pro flow matches ${selector}; skipped ${skippedIncompatible.length} on a superseded protocol generation (local ${localProtocol.version}): ${list}. Finish/close each with the harness generation that created it, or start a new flow.`,
+      `no operable non-closed Pro flow matches ${selector}; skipped ${skippedIncompatible.length} on a superseded protocol generation (local ${localProtocol.version}): ${list}${operatorClosedSuffix}. Finish/close each with the harness generation that created it, force-close it explicitly, or start a new flow.`,
+    );
+  }
+  if (skippedOperatorClosed.length > 0) {
+    throw new Error(
+      `no non-closed Pro flow matches ${selector}; operator-force-closed: ${skippedOperatorClosed.map(({ flowPath }) => flowPath).join(', ')}`,
     );
   }
   throw new Error(`no non-closed Pro flow matches ${selector}`);
@@ -447,7 +604,12 @@ async function goCommand(
   args: ParsedArgs,
   runtime: ProRoundtripRuntime,
 ): Promise<void> {
-  const { flowPath, skippedIncompatible } = await selectGoFlow(args, runtime);
+  const {
+    flowPath,
+    selection,
+    skippedIncompatible,
+    skippedOperatorClosed,
+  } = await selectGoFlow(args, runtime);
   const context = await bridgeContext(runtime);
   const synced = await syncFlow(flowPath, { context });
   const marker = synced.snapshot.latestEvent.marker;
@@ -466,8 +628,9 @@ async function goCommand(
     action: 'go',
     flowPath,
     autoPublish: (await readAutoPublishState(context.repoRoot)).autoPublish,
-    selection: args.positionals[1] ? 'explicit' : 'latest-non-closed-current-repo-branch',
+    selection,
     skippedIncompatibleFlows: skippedIncompatible,
+    skippedOperatorClosedFlows: skippedOperatorClosed,
     packetRoot: synced.packetRoot,
     handoffPath: path.join(synced.packetRoot, 'HANDOFF.md'),
     sprintEnvelopePath: currentSprint
@@ -686,8 +849,16 @@ async function loadRemoteSnapshot(
   runtime: ProRoundtripRuntime,
   requested?: string,
 ) {
+  const requestedFlow = requested ?? await activeFlowPathForCommand(runtime, 'command');
   const context = await bridgeContext(runtime);
-  const flowPath = await resolveFlowPath(context.worktreePath, requested);
+  const flowPath = await resolveFlowPath(context.worktreePath, requestedFlow);
+  const flow = await loadFlowDefinition(context.worktreePath, flowPath);
+  const operatorClose = await loadOperatorClose(context.worktreePath, flowPath, flow);
+  if (operatorClose) {
+    throw new Error(
+      `flow is operator-force-closed: ${flowPath}; reason=${operatorClose.record.reason}`,
+    );
+  }
   const snapshot = await loadFlowSnapshot(context.worktreePath, flowPath);
   await verifyPinnedProtocol(context.repoRoot, context.worktreePath, snapshot.flow.protocol);
   return { context, snapshot };
@@ -697,7 +868,56 @@ async function statusCommand(
   args: ParsedArgs,
   runtime: ProRoundtripRuntime,
 ): Promise<void> {
-  const { context, snapshot } = await loadRemoteSnapshot(runtime, args.positionals[1]);
+  const requested = args.positionals[1];
+  if (!requested) {
+    const { identity, active, mismatches } = await localPointerStatus(runtime);
+    const status = !active
+      ? 'idle'
+      : mismatches.length > 0
+        ? 'mismatch'
+        : active.status;
+    emit(runtime, {
+      action: 'status',
+      scope: 'local-pointer',
+      status,
+      repository: identity.repositoryFullName,
+      codeBranch: identity.codeBranch,
+      activeFlow: active,
+      mismatches,
+      resumable: Boolean(active && active.status === 'active' && mismatches.length === 0),
+      scaffoldingCreated: false,
+      autoPublish: (await readAutoPublishState(identity.repoRoot)).autoPublish,
+      instruction: !active
+        ? 'No local Pro pointer exists. Provide an exact flow/date/slug to inspect or resume, or an explicit goal to start a new flow.'
+        : mismatches.length > 0
+          ? 'The local pointer does not own this checkout. Inspect or force-close the exact flow; do not resume it implicitly.'
+          : active.status === 'closed'
+            ? 'The pointed flow is closed. Provide another exact flow or an explicit goal.'
+            : `Inspect or resume ${active.flowPath} explicitly; bare invocation never syncs or creates scaffolding.`,
+    });
+    return;
+  }
+  const context = await bridgeContext(runtime);
+  const flowPath = await resolveFlowPath(context.worktreePath, requested);
+  const flow = await loadFlowDefinition(context.worktreePath, flowPath);
+  const operatorClose = await loadOperatorClose(context.worktreePath, flowPath, flow);
+  if (operatorClose) {
+    emit(runtime, {
+      action: 'status',
+      scope: 'remote-flow',
+      status: 'force-closed',
+      flowPath,
+      goal: flow.goal,
+      codeBranch: flow.codeBranch,
+      baseSha: flow.baseSha,
+      bridgeHeadSha: context.remoteTip,
+      operatorClose: operatorClose.record,
+      localPacket: null,
+    });
+    return;
+  }
+  const snapshot = await loadFlowSnapshot(context.worktreePath, flowPath);
+  await verifyPinnedProtocol(context.repoRoot, context.worktreePath, snapshot.flow.protocol);
   const localState = await readPacketState(context.repoRoot, snapshot.flow.flowPath);
   const briefStatus = await alignmentBriefStatus(
     packetRootFor(context.repoRoot, snapshot.flow.flowPath),
@@ -797,7 +1017,8 @@ async function syncCommand(
   args: ParsedArgs,
   runtime: ProRoundtripRuntime,
 ): Promise<void> {
-  const result = await syncFlow(args.positionals[1], {
+  const requested = args.positionals[1] ?? await activeFlowPathForCommand(runtime, 'sync');
+  const result = await syncFlow(requested, {
     context: await bridgeContext(runtime),
   });
   emit(runtime, {
@@ -817,8 +1038,9 @@ async function reportCommand(
   args: ParsedArgs,
   runtime: ProRoundtripRuntime,
 ): Promise<void> {
+  const requested = args.positionals[1] ?? await activeFlowPathForCommand(runtime, 'report');
   const context = await bridgeContext(runtime);
-  let synced = await syncFlow(args.positionals[1], { context });
+  let synced = await syncFlow(requested, { context });
   await assertAlignmentBriefGate(
     synced.packetRoot,
     synced.snapshot,
@@ -1138,6 +1360,16 @@ async function closeCommand(
   const alreadyClosed: string[] = [];
   for (const member of declaration.flows) {
     const isPrimary = member.flowPath === declaration.primaryFlowPath;
+    const operatorClose = await loadOperatorClose(
+      context.worktreePath,
+      member.flowPath,
+      isPrimary ? snapshot.flow : undefined,
+    );
+    if (operatorClose) {
+      throw new Error(
+        `${member.flowPath}: coordinated close member is operator-force-closed; reason=${operatorClose.record.reason}`,
+      );
+    }
     const memberSnapshot = isPrimary
       ? snapshot
       : await loadFlowSnapshot(context.worktreePath, member.flowPath);
@@ -1371,6 +1603,148 @@ The append-only archive is closed. No default-branch write or PR was created by 
   });
 }
 
+async function updateLocalPointerAfterForceClose(
+  repoRoot: string,
+  record: ProRoundtripOperatorClose,
+): Promise<{ updated: boolean; warning: string | null }> {
+  try {
+    const active = await readActiveFlowState(repoRoot);
+    if (!active || active.flowPath !== record.flowPath) {
+      return { updated: false, warning: null };
+    }
+    if (
+      active.repositoryFullName !== record.repositoryFullName ||
+      active.codeBranch !== record.codeBranch ||
+      active.baseSha !== record.baseSha
+    ) {
+      return {
+        updated: false,
+        warning: 'matching local ACTIVE.json path has a different durable flow binding',
+      };
+    }
+    await writeJsonAtomic(activeFlowPathFor(repoRoot), {
+      ...active,
+      currentSprintId: null,
+      nextActor: 'none',
+      nextWriteTarget: null,
+      autoReportRequired: false,
+      status: 'closed',
+      operatorClose: record,
+      updatedAt: new Date().toISOString(),
+    });
+    return { updated: true, warning: null };
+  } catch (error) {
+    return {
+      updated: false,
+      warning: error instanceof Error ? error.message : String(error),
+    };
+  }
+}
+
+async function forceCloseCommand(
+  args: ParsedArgs,
+  runtime: ProRoundtripRuntime,
+): Promise<void> {
+  const requested = args.positionals[1];
+  if (!requested) {
+    throw new Error('force-close requires one exact flow path');
+  }
+  const flowPath = requested.replaceAll('\\', '/');
+  parseFlowPath(flowPath);
+  const reason = (getStringFlag(args, 'reason') ?? '').trim();
+  if (!reason || reason.length > 500 || /[\r\n]/.test(reason)) {
+    throw new Error('--reason must be one non-empty line of at most 500 characters');
+  }
+  const publish = getBooleanFlag(args, 'publish');
+  if (publish && !getBooleanFlag(args, 'user-approved')) {
+    throw new Error(
+      'force-close is a user-authorized terminal decision; pass --user-approved only after the user explicitly confirms the exact flow and reason. proGoAutoPublish never covers this confirmation.',
+    );
+  }
+
+  const identity = await checkoutIdentity(runtime);
+  const context = await bridgeContext(runtime);
+  const flow = await loadFlowDefinition(context.worktreePath, flowPath);
+  if (
+    flow.codeBranch !== identity.codeBranch ||
+    (identity.repositoryFullName && flow.repository.fullName !== identity.repositoryFullName)
+  ) {
+    throw new Error(
+      `force-close target does not own this checkout: flow=${flow.repository.fullName}@${flow.codeBranch} current=${identity.repositoryFullName ?? '<local-origin>'}@${identity.codeBranch}`,
+    );
+  }
+  const existing = await loadOperatorClose(context.worktreePath, flowPath, flow);
+  if (existing) {
+    if (existing.record.reason !== reason) {
+      throw new Error(
+        `operator close reason conflict for ${flowPath}; the immutable record already has a different reason`,
+      );
+    }
+    const localPointer = await updateLocalPointerAfterForceClose(
+      identity.repoRoot,
+      existing.record,
+    );
+    emit(runtime, {
+      action: 'force-close',
+      flowPath,
+      status: 'already-force-closed',
+      operatorClose: existing.record,
+      publication: null,
+      localPointerUpdated: localPointer.updated,
+      localPointerWarning: localPointer.warning,
+    });
+    return;
+  }
+  const codeHeadSha = (
+    await runGit(identity.repoRoot, ['rev-parse', 'HEAD^{commit}'])
+  ).stdout.trim();
+  const record = ProRoundtripOperatorCloseSchema.parse({
+    schemaVersion: 'vibe-pro-operator-close-v1',
+    flowPath,
+    repositoryFullName: flow.repository.fullName,
+    codeBranch: flow.codeBranch,
+    baseSha: flow.baseSha,
+    codeHeadSha,
+    sourceBridgeSha: context.remoteTip,
+    disposition: 'force-closed',
+    authorizedBy: 'user',
+    reason,
+    createdAt: new Date().toISOString(),
+  });
+  const target = `${flowPath}/${OPERATOR_CLOSE_FILENAME}`;
+  if (!publish) {
+    emit(runtime, {
+      action: 'force-close',
+      flowPath,
+      status: 'dry-run',
+      repository: flow.repository.fullName,
+      branch: 'vibe-pro-bridge',
+      target,
+      files: [target],
+      operatorClose: record,
+      confirmation:
+        'Re-run with --publish --user-approved only after the user confirms this exact flow and reason.',
+    });
+    return;
+  }
+
+  const publication = await publishAdditions(
+    new Map([[target, `${JSON.stringify(record, null, 2)}\n`]]),
+    `docs(pro-go): force-close ${path.posix.basename(flowPath)}`,
+    { context, maxAttempts: 1 },
+  );
+  const localPointer = await updateLocalPointerAfterForceClose(identity.repoRoot, record);
+  emit(runtime, {
+    action: 'force-close',
+    flowPath,
+    status: 'force-closed',
+    publication,
+    operatorClose: record,
+    localPointerUpdated: localPointer.updated,
+    localPointerWarning: localPointer.warning,
+  });
+}
+
 async function confirmSkipCommand(
   args: ParsedArgs,
   runtime: ProRoundtripRuntime,
@@ -1472,7 +1846,7 @@ export async function executeProRoundtrip(
   };
   assertPreparedContext(runtime.cwd, runtime.context);
   const args = parseArgs(argv);
-  const command = args.positionals[0] ?? 'go';
+  const command = args.positionals[0] ?? 'status';
   if (command === 'help' || getBooleanFlag(args, 'help')) {
     emit(runtime, usage());
     return;
@@ -1515,6 +1889,10 @@ export async function executeProRoundtrip(
   }
   if (command === 'close') {
     await closeCommand(args, runtime);
+    return;
+  }
+  if (command === 'force-close') {
+    await forceCloseCommand(args, runtime);
     return;
   }
   if (command === 'confirm-skip') {

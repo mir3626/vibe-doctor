@@ -6,9 +6,15 @@ description: Turn a user goal into a short implementation plan and approval gate
 Use this skill when a user provides a goal but no detailed method.
 
 For a multi-item or multi-Sprint goal, read
-`docs/context/workflow-integrity.md`. If
-`.vibe/agent/pro-roundtrip/ACTIVE.json` is active, treat its flow, design event,
-contract IDs, Sprint order, and exact code binding as authoritative.
+`docs/context/workflow-integrity.md`. When this planning step runs inside
+`$vibe-goal-iterate`, consume the execution binding already selected by the
+caller and persist it in the item iteration: a direct loop is
+`standalone-goal-iterate` with `proFlowPath: null`; a `$vibe-pro-go`-originated
+loop is `pro-roundtrip` with its exact `flowPath`. Missing or mismatched explicit
+Pro binding fails closed. Do not select Pro authority merely because
+`.vibe/agent/pro-roundtrip/ACTIVE.json` exists. A pre-existing iteration with no
+binding remains legacy and retains the existing ambient Pro protection rather
+than being silently migrated.
 
 Output structure:
 1. Goal understanding
@@ -21,6 +27,8 @@ Output structure:
 8. Workflow Continuity: affected workflows, upstream inputs, downstream
    consumers, cumulative entrypoint-to-output journey, preserved invariants,
    and evidence
+9. Execution binding: lane plus exact `proFlowPath` or `null`, suitable for the
+   short fresh-Planner header without copying full iteration history
 
 For a multi-Sprint goal that may change harness-owned files, record the exact
 `goalBaseSha` in the plan and use

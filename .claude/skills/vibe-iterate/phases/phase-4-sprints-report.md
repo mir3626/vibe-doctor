@@ -20,21 +20,27 @@ may prepend only a short prior-sprint header such as:
 
 ```md
 This is iter-<N> sprint-NN.
+Execution lane: standalone-goal-iterate
+Pro flow path: null
 ```
 
-If `.vibe/agent/pro-roundtrip/ACTIVE.json` is active:
+Use the bound exact flow path instead of `null` for `pro-roundtrip`. Resolve the
+completion/report lane from that durable header and iteration record:
 
-- use its `flowPath`, `designEventId`, `currentSprintId`, base SHA, and Sprint
-  order as the binding;
-- record the current Sprint's Web Pro report checkpoint with
-  `npm run vibe:pro-go -- report <flow> --evidence <input.json>` before running
-  `vibe-sprint-complete`;
-- on the last Sprint, set the final gate only after full workflow verification,
-  generate the aggregate implementation/remediation report automatically, and
-  publish it when GitHub write authorization is already present;
-- if publication is not authorized, stop only at the external-write boundary
-  with the complete local report packet and the exact publish action. The user
-  does not need to invoke another skill.
+- `standalone-goal-iterate`: run the local Sprint completion/report path. Do
+  not create a Pro checkpoint or Web report and do not treat an unrelated
+  `ACTIVE.json` as authority.
+- `pro-roundtrip`: require the exact path to match the active packet, then use
+  its design event, current Sprint, base SHA, and Sprint order; record the Web
+  Pro checkpoint before `vibe-sprint-complete`, require the final workflow gate
+  on the last Sprint, and prepare/publish the aggregate report only within the
+  existing GitHub authorization boundary.
+- binding absent: preserve the legacy ambient Pro protection and current
+  reporting tail. Do not auto-migrate or use absence for a new goal-iterate
+  item.
+
+Malformed binding, missing explicit Pro state, or exact-path mismatch fails
+closed.
 
 # vibe-iterate Phase 5 - Refresh Project Report
 

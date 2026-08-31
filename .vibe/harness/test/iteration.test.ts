@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdtemp } from 'node:fs/promises';
+import { mkdir, mkdtemp, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, it } from 'node:test';
@@ -40,6 +40,10 @@ describe('iteration history', () => {
         label: 'Prototype',
         goal: 'first usable flow',
         plannedSprints: ['sprint-01-engine'],
+        executionBinding: {
+          executionLane: 'standalone-goal-iterate',
+          proFlowPath: null,
+        },
       },
       root,
     );
@@ -47,6 +51,66 @@ describe('iteration history', () => {
     const history = await readIterationHistory(root);
     assert.equal(history.currentIteration, 'iter-1');
     assert.equal(history.iterations[0]?.plannedSprints[0], 'sprint-01-engine');
+    assert.deepEqual(history.iterations[0]?.executionBinding, {
+      executionLane: 'standalone-goal-iterate',
+      proFlowPath: null,
+    });
+  });
+
+  it('preserves an explicit Pro binding across write and fresh reload', async () => {
+    const root = await makeTempDir('iteration-pro-binding-');
+    const executionBinding = {
+      executionLane: 'pro-roundtrip' as const,
+      proFlowPath: 'flows/20260831/001-goal-iterate',
+    };
+
+    await startIteration(
+      {
+        id: 'iter-2',
+        label: 'Pro remediation',
+        goal: 'finish the bound Pro Sprint',
+        plannedSprints: ['SPR-001'],
+        executionBinding,
+      },
+      root,
+    );
+    await recordSprintCompletion('SPR-001', root);
+
+    const reloaded = await readIterationHistory(root);
+    assert.deepEqual(reloaded.iterations[0]?.executionBinding, executionBinding);
+    assert.deepEqual(reloaded.iterations[0]?.completedSprints, ['SPR-001']);
+  });
+
+  it('rejects malformed persisted execution bindings instead of downgrading to legacy', async () => {
+    const root = await makeTempDir('iteration-invalid-binding-');
+    const stateDir = path.join(root, '.vibe', 'agent');
+    await mkdir(stateDir, { recursive: true });
+    await writeFile(
+      path.join(stateDir, 'iteration-history.json'),
+      `${JSON.stringify({
+        currentIteration: 'iter-1',
+        iterations: [
+          {
+            id: 'iter-1',
+            label: 'Invalid binding',
+            startedAt: '2026-08-31T00:00:00.000Z',
+            completedAt: null,
+            goal: 'must fail closed',
+            plannedSprints: ['SPR-001'],
+            completedSprints: [],
+            milestoneProgress: {},
+            summary: '',
+            executionBinding: {
+              executionLane: 'pro-roundtrip',
+              proFlowPath: null,
+            },
+          },
+        ],
+      }, null, 2)}\n`,
+      'utf8',
+    );
+
+    await assert.rejects(() => readIterationHistory(root), /invalid iteration execution binding/);
   });
 
   it('recordSprintCompletion appends without duplicates', async () => {
@@ -66,6 +130,24 @@ describe('iteration history', () => {
 
     const history = await readIterationHistory(root);
     assert.deepEqual(history.iterations[0]?.completedSprints, ['sprint-01-engine']);
+  });
+
+  it('does not record an unplanned Sprint into the current iteration', async () => {
+    const root = await makeTempDir('iteration-record-unplanned-');
+
+    await startIteration(
+      {
+        id: 'iter-next',
+        label: 'Next iteration',
+        goal: 'keep the next queue isolated',
+        plannedSprints: ['iter-next-sprint-01'],
+      },
+      root,
+    );
+    await recordSprintCompletion('iter-old-sprint-01', root);
+
+    const history = await readIterationHistory(root);
+    assert.deepEqual(history.iterations[0]?.completedSprints, []);
   });
 
   it('completeIteration sets completedAt, summary, and clears currentIteration', async () => {

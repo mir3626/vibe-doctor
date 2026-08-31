@@ -3,8 +3,10 @@ import { readFile } from 'node:fs/promises';
 import { describe, it } from 'node:test';
 import { ZodError, type ZodTypeAny } from 'zod';
 import {
+  IterationExecutionBindingSchema,
   IterationHistorySchema,
   ModelRegistrySchema,
+  ProRoundtripOperatorCloseSchema,
   ProjectMapSchema,
   SprintApiContractsSchema,
   SprintStatusSchema,
@@ -84,4 +86,70 @@ describe('state schemas', () => {
       assert.throws(() => testCase.schema.parse({ schemaVersion: 123 }), ZodError);
     });
   }
+
+  it('accepts exact iteration execution bindings and rejects ambiguous lane/path pairs', () => {
+    assert.deepEqual(
+      IterationExecutionBindingSchema.parse({
+        executionLane: 'standalone-goal-iterate',
+        proFlowPath: null,
+      }),
+      {
+        executionLane: 'standalone-goal-iterate',
+        proFlowPath: null,
+      },
+    );
+    assert.doesNotThrow(() =>
+      IterationExecutionBindingSchema.parse({
+        executionLane: 'pro-roundtrip',
+        proFlowPath: 'flows/20260831/001-goal-iterate',
+      }),
+    );
+    assert.throws(
+      () =>
+        IterationExecutionBindingSchema.parse({
+          executionLane: 'pro-roundtrip',
+          proFlowPath: null,
+        }),
+      ZodError,
+    );
+    assert.throws(
+      () =>
+        IterationExecutionBindingSchema.parse({
+          executionLane: 'standalone-goal-iterate',
+          proFlowPath: null,
+          ignored: true,
+        }),
+      ZodError,
+    );
+  });
+
+  it('accepts only exact user-authorized one-line Pro operator-close records', () => {
+    const record = {
+      schemaVersion: 'vibe-pro-operator-close-v1',
+      flowPath: 'flows/20260831/001-wrong-pointer',
+      repositoryFullName: 'fixture/repo',
+      codeBranch: 'main',
+      baseSha: 'a'.repeat(40),
+      codeHeadSha: 'b'.repeat(40),
+      sourceBridgeSha: 'c'.repeat(40),
+      disposition: 'force-closed',
+      authorizedBy: 'user',
+      reason: 'User intentionally closed the wrongly selected flow.',
+      createdAt: '2026-08-31T00:00:00.000Z',
+    };
+
+    assert.deepEqual(ProRoundtripOperatorCloseSchema.parse(record), record);
+    assert.throws(
+      () => ProRoundtripOperatorCloseSchema.parse({ ...record, authorizedBy: 'agent' }),
+      ZodError,
+    );
+    assert.throws(
+      () => ProRoundtripOperatorCloseSchema.parse({ ...record, reason: 'line one\nline two' }),
+      ZodError,
+    );
+    assert.throws(
+      () => ProRoundtripOperatorCloseSchema.parse({ ...record, ignored: true }),
+      ZodError,
+    );
+  });
 });

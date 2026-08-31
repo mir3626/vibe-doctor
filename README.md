@@ -10,7 +10,13 @@
 
 ## Latest Highlights
 
-### v1.13.1 (2026-07-23) - `go` skips flows on a superseded protocol generation
+### v1.14.0 (2026-08-31) - Deterministic goal ownership and safe Pro operator close
+
+- Standalone `$vibe-goal-iterate` now records a durable execution binding, so an unrelated ambient Pro pointer cannot hijack Sprint completion or report routing. Exact Pro bindings and legacy records remain fail-closed.
+- Bare `$vibe-pro-go` is now local-pointer inspection only and always reports `scaffoldingCreated: false`; remote selection, sync, bootstrap, start, and packet/worktree creation require an explicit command or qualified selector.
+- A mistaken, poisoned, or superseded-generation flow can be terminated deterministically with an exact, user-approved `force-close`. The append-only `OPERATOR-CLOSE.json` is integrity-bound to the flow lineage, remains distinct from approval/completion, and blocks later resume or coordinated normal close.
+
+### Previous: v1.13.1 (2026-07-23) - `go` skips flows on a superseded protocol generation
 
 - Bare `vibe:pro-go go` no longer dead-ends on a non-closed flow stranded on a retired protocol generation: auto-selection skips protocol-incompatible flows (reported as `skippedIncompatibleFlows`, never silent) and resumes the newest operable flow; when only incompatible flows remain, the selector error names each skipped flow and its pinned generation. Explicit targets still fail closed with the precise mismatch error.
 
@@ -332,7 +338,7 @@ Root `src/**`, `scripts/**`, `test/**`, `app/**`, `components/**`, and `lib/**` 
 
 ## 버전 / tag 정책
 
-현재 릴리스는 `harnessVersion: 1.11.0` 입니다. 릴리스를 자를 때는 `package.json`, `.vibe/config.json`, release note, tag를 같은 버전으로 맞춥니다.
+현재 릴리스는 `harnessVersion: 1.14.0` 입니다. 릴리스를 자를 때는 `package.json`, `.vibe/config.json`, release note, tag를 같은 버전으로 맞춥니다.
 
 - `harnessVersion` 은 `.vibe/config.json` 과 `package.json` 에 semver로 기록합니다.
 - 각 minor/patch 릴리스는 해당 커밋에 `vMAJOR.MINOR.PATCH` git tag를 붙인 뒤 origin에 push합니다.

@@ -56,6 +56,45 @@
               },
               "summary": {
                 "type": "string"
+              },
+              "executionBinding": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "executionLane": {
+                        "type": "string",
+                        "const": "standalone-goal-iterate"
+                      },
+                      "proFlowPath": {
+                        "type": "null"
+                      }
+                    },
+                    "required": [
+                      "executionLane",
+                      "proFlowPath"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "executionLane": {
+                        "type": "string",
+                        "const": "pro-roundtrip"
+                      },
+                      "proFlowPath": {
+                        "type": "string",
+                        "pattern": "^flows\\/[0-9]{8}\\/[0-9]{3}-[a-z0-9][a-z0-9-]*$"
+                      }
+                    },
+                    "required": [
+                      "executionLane",
+                      "proFlowPath"
+                    ],
+                    "additionalProperties": false
+                  }
+                ]
               }
             },
             "required": [
