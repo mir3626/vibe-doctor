@@ -70,6 +70,7 @@ async function commitFile(root: string, filePath: string, content: string, messa
 
 function runAudit(root: string) {
   return spawnSync(process.execPath, [auditPath, 'sprint-test'], {
+    env: { ...process.env, VIBE_HARNESS_PROFILE: 'legacy' },
     cwd: root,
     encoding: 'utf8',
   });

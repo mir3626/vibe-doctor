@@ -1,5 +1,5 @@
 @echo off
-setlocal EnableExtensions EnableDelayedExpansion
+setlocal EnableExtensions DisableDelayedExpansion
 
 chcp 65001 >nul 2>&1
 
@@ -8,35 +8,33 @@ if "%~1"=="--version" goto :health
 if "%~1"=="--help"    goto :usage
 if "%~1"=="-h"        goto :usage
 
+if exist "%~dp0vibe-codex-dispatch.mjs" (
+  for /f "delims=" %%P in ('node "%~dp0vibe-codex-dispatch.mjs" --profile-only %*') do if "%%P"=="astra" goto :astra
+)
+
+rem A lower/unknown child cannot inherit its parent's Astra runtime claim.
+set "VIBE_ACTIVE_MODEL="
+set "VIBE_ACTIVE_PROVIDER=codex"
+
 set "CODEX_SANDBOX_OPT=workspace-write"
 if not "%CODEX_SANDBOX%"=="" set "CODEX_SANDBOX_OPT=%CODEX_SANDBOX%"
 
-set "MAX_ATTEMPTS=3"
-if not "%CODEX_RETRY%"=="" set "MAX_ATTEMPTS=%CODEX_RETRY%"
+rem A failed task may already have side effects. CODEX_RETRY is intentionally ignored.
+set "MAX_ATTEMPTS=1"
 
 set "MODEL_LABEL=default"
 if not "%CODEX_MODEL%"=="" set "MODEL_LABEL=%CODEX_MODEL%"
-set "MODEL_ARG="
-if not "%CODEX_MODEL%"=="" set "MODEL_ARG=-m %CODEX_MODEL%"
 set "SCRIPT_DIR=%~dp0"
 set "_start_iso="
 for /f "usebackq tokens=*" %%I in (`node -e "process.stdout.write(new Date().toISOString())" 2^>nul`) do set "_start_iso=%%I"
 
-set /a _attempt=0
-
-:attempt_loop
-set /a _attempt+=1
->&2 echo [run-codex] attempt !_attempt!/%MAX_ATTEMPTS% starting (sandbox=%CODEX_SANDBOX_OPT%, model=!MODEL_LABEL!)
-call codex exec -s %CODEX_SANDBOX_OPT% %MODEL_ARG% %*
+set "_attempt=1"
+node "%~dp0vibe-codex-exec.mjs" %*
 set "_rc=%ERRORLEVEL%"
+setlocal EnableDelayedExpansion
 
 if !_rc! EQU 0 goto :done_ok
-if !_attempt! GEQ %MAX_ATTEMPTS% goto :done_fail
-
-set /a _delay=!_attempt! * 30
->&2 echo [run-codex] attempt !_attempt!/%MAX_ATTEMPTS% retrying reason=exit=!_rc! delay=!_delay!s
-timeout /t !_delay! /nobreak >nul
-goto :attempt_loop
+goto :done_fail
 
 :done_ok
 >&2 echo [run-codex] total attempts=!_attempt!
@@ -57,9 +55,10 @@ endlocal & exit /b 0
 :done_fail
 >&2 echo [run-codex] giving up after !_attempt! attempts last_exit=!_rc!
 call :attention_event urgent "Codex run failed" "Codex exec failed after !_attempt! attempt(s), exit=!_rc!." codex-wrapper
-endlocal & exit /b !_rc!
+endlocal & exit /b %_rc%
 
 :health
+setlocal EnableDelayedExpansion
 where codex >nul 2>&1
 if errorlevel 1 (
   >&2 echo run-codex: codex CLI not found in PATH
@@ -104,3 +103,7 @@ where node >nul 2>&1
 if errorlevel 1 exit /b 0
 node "%SCRIPT_DIR%vibe-attention.mjs" --severity "%~1" --title "%~2" --detail "%~3" --source "%~4" --provider codex >nul 2>nul
 exit /b 0
+
+:astra
+node "%~dp0vibe-codex-dispatch.mjs" %*
+exit /b %ERRORLEVEL%

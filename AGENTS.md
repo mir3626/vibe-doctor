@@ -1,6 +1,17 @@
 # Codex project memory
 
 <!-- BEGIN:HARNESS:agent-memory -->
+## Model-selected execution
+
+For the active `gpt-6-astra` model or an explicitly verified successor in
+`.vibe/model-registry.json`, unless the legacy comparison/rollback profile is
+explicitly selected, use `.vibe/agent/astra-rules.md` as the execution
+workflow. It replaces legacy role/interview/creative/test/cleanup ceremonies in
+vibe-doctor documents and skills. Keep the initialization, explicit scope,
+encoding, project ownership, durable state and workflow-integrity boundaries below.
+Lower/unknown models follow the existing workflow unchanged. Re-evaluate on model
+change or delegation; a parent's Astra profile is not evidence of a child's model.
+
 ## 역할 모드 (필수)
 
 Codex는 두 가지 모드로 사용된다. 현재 세션이 어떤 모드인지 먼저 판단한다.

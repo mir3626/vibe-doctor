@@ -234,6 +234,7 @@ describe('preflight roadmap iteration resolver', () => {
     await scaffoldPreflightRepo(root);
 
     const result = spawnSync(process.execPath, [preflightPath, '--json'], {
+    env: { ...process.env, VIBE_HARNESS_PROFILE: 'legacy' },
       cwd: root,
       encoding: 'utf8',
     });

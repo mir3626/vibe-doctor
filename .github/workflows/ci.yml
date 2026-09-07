@@ -27,3 +27,25 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - run: npm run vibe:test-ui
       - run: npm run vibe:config-audit --silent
+  astra:
+    runs-on: ubuntu-latest
+    env:
+      VIBE_ACTIVE_MODEL: gpt-6-astra
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run vibe:verify:release
+  windows-contracts:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: node --import tsx --test .vibe/harness/test/harness-profile.test.ts .vibe/harness/test/run-codex-wrapper.test.ts .vibe/harness/test/windows-hide-child-process.test.ts .vibe/harness/test/shell.test.ts .vibe/harness/test/encoding-settings.test.ts

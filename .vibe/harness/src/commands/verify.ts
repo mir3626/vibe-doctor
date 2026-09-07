@@ -14,6 +14,7 @@ import path from 'node:path';
 import process from 'node:process';
 import { getBooleanFlag, getStringFlag, parseArgs } from '../lib/args.js';
 import { runMain } from '../lib/cli.js';
+import { runtimeHarnessProfile } from '../lib/harness-profile.mjs';
 
 const MANIFEST_PATH = '.vibe/harness/test/groups.json';
 const RECEIPT_SCHEMA_VERSION = 'vibe-verification-receipt-v1';
@@ -325,12 +326,15 @@ function uniqueSorted(values: string[]): string[] {
   return [...new Set(values.map(normalizePath).filter(Boolean))].sort();
 }
 
-async function listRootTestFiles(root: string): Promise<string[]> {
-  const entries = await readdir(path.join(root, TEST_ROOT), { withFileTypes: true });
-  return entries
+export async function listHarnessTestFiles(root: string, relative = TEST_ROOT): Promise<string[]> {
+  const entries = await readdir(path.join(root, relative), { withFileTypes: true });
+  const files = entries
     .filter((entry) => entry.isFile() && entry.name.endsWith(TEST_SUFFIX))
-    .map((entry) => `${TEST_ROOT}/${entry.name}`)
-    .sort();
+    .map((entry) => `${relative}/${entry.name}`);
+  for (const entry of entries.filter((item) => item.isDirectory() && !['playwright', 'fixtures'].includes(item.name))) {
+    files.push(...await listHarnessTestFiles(root, `${relative}/${entry.name}`));
+  }
+  return files.sort();
 }
 
 async function loadManifest(root: string): Promise<VerificationManifest> {
@@ -343,7 +347,7 @@ async function loadManifest(root: string): Promise<VerificationManifest> {
       `failed to parse ${MANIFEST_PATH}: ${error instanceof Error ? error.message : String(error)}`,
     );
   }
-  return validateVerificationManifest(parsed, await listRootTestFiles(root));
+  return validateVerificationManifest(parsed, await listHarnessTestFiles(root));
 }
 
 function listRepositoryFiles(root: string): string[] {
@@ -357,21 +361,6 @@ function resolveObservedHead(root: string): string | null {
     return gitText(root, ['rev-parse', 'HEAD']);
   } catch {
     return null;
-  }
-}
-
-async function activeProBase(root: string): Promise<string | undefined> {
-  try {
-    const raw = await readFile(
-      path.join(root, '.vibe', 'agent', 'pro-roundtrip', 'ACTIVE.json'),
-      'utf8',
-    );
-    const parsed = JSON.parse(raw) as { baseSha?: unknown };
-    return typeof parsed.baseSha === 'string' && parsed.baseSha.trim()
-      ? parsed.baseSha.trim()
-      : undefined;
-  } catch {
-    return undefined;
   }
 }
 
@@ -632,6 +621,7 @@ export async function computeGroupInputHash(
   const hash = createHash('sha256');
   updateHash(hash, 'receiptSchema', RECEIPT_SCHEMA_VERSION);
   updateHash(hash, 'manifestSchema', manifest.schemaVersion);
+  updateHash(hash, 'profile', runtimeHarnessProfile(process.env, root).profile);
   updateHash(hash, 'group', JSON.stringify(group));
   updateHash(hash, 'node', process.version);
   updateHash(hash, 'execPath', process.execPath);
@@ -680,6 +670,15 @@ export async function readSuccessfulReceipt(
     ) {
       return null;
     }
+    if (
+      !['fast', 'workflow', 'release'].includes(parsed.tier ?? '')
+      || !['command', 'node-test'].includes(parsed.runner ?? '')
+      || typeof parsed.passedAt !== 'string' || !Number.isFinite(Date.parse(parsed.passedAt))
+      || typeof parsed.durationMs !== 'number' || !Number.isFinite(parsed.durationMs) || parsed.durationMs < 0
+      || !Array.isArray(parsed.changedPaths) || parsed.changedPaths.some((entry) => typeof entry !== 'string')
+      || !(parsed.observedHead === null || typeof parsed.observedHead === 'string')
+      || !(parsed.baseSha === null || typeof parsed.baseSha === 'string')
+    ) return null;
     return parsed as VerificationReceipt;
   } catch {
     return null;
@@ -692,6 +691,10 @@ async function writeSuccessfulReceipt(
 ): Promise<void> {
   const target = receiptPath(root, receipt.groupId, receipt.inputHash);
   await mkdir(path.dirname(target), { recursive: true });
+  if (existsSync(target)
+    && !(await readSuccessfulReceipt(root, receipt.groupId, receipt.inputHash))) {
+    await rm(target, { force: true });
+  }
   try {
     await writeFile(target, `${JSON.stringify(receipt, null, 2)}\n`, {
       encoding: 'utf8',
@@ -715,6 +718,9 @@ function verificationEnvironment(): NodeJS.ProcessEnv {
     VIBE_SKIP_AGENT_SESSION_START: '1',
   };
   delete env.CLAUDE_PROJECT_DIR;
+  // The verifier starts a standalone test run, including when invoked by a test.
+  // Inheriting this private marker makes Node silently skip nested test files.
+  delete env.NODE_TEST_CONTEXT;
   return env;
 }
 
@@ -806,8 +812,7 @@ async function parseCliOptions(): Promise<CliOptions> {
     getBooleanFlag(parsed, name) || consumedBaseFlags.some((entry) => entry.name === name);
   const baseSha = getStringFlag(parsed, 'base')
     ?? positionalBase
-    ?? process.env.VIBE_VERIFY_BASE?.trim()
-    ?? await activeProBase(root);
+    ?? (process.env.VIBE_VERIFY_BASE?.trim() || undefined);
   const explicitPaths = parseCsv(
     getStringFlag(parsed, 'paths') ?? getStringFlag(parsed, 'path'),
   );
@@ -919,18 +924,28 @@ async function executePlan(
 ): Promise<void> {
   const byId = new Map(manifest.groups.map((group) => [group.id, group]));
   const runnable = plan.groups.filter((group) => group.action === 'run');
-  for (const planned of runnable.filter((group) => group.runner === 'command')) {
+  const verifyStableInputs = async (planned: VerificationPlanGroup, group: VerificationGroup): Promise<void> => {
+    const current = await computeGroupInputHash(root, manifest, group, listRepositoryFiles(root), plan.unknownHarnessPaths);
+    if (current !== planned.inputHash) {
+      await invalidateReceipt(root, planned.id, planned.inputHash);
+      throw new Error(`verification inputs changed during execution: ${planned.id}; rerun against stable inputs`);
+    }
+  };
+  for (const planned of runnable) {
     const group = byId.get(planned.id);
     if (!group) {
       throw new Error(`missing manifest group during execution: ${planned.id}`);
     }
     const startedAt = Date.now();
     console.log(`[vibe-verify] start group=${group.id}`);
-    const status = runCommandGroup(root, group);
+    const status = group.runner === 'command'
+      ? runCommandGroup(root, group)
+      : runNodeTestGroups(root, [group]);
     if (status !== 0) {
       await invalidateReceipt(root, group.id, planned.inputHash);
       throw new Error(`verification group failed: ${group.id} (exit ${status})`);
     }
+    await verifyStableInputs(planned, group);
     await writeSuccessfulReceipt(root, {
       schemaVersion: RECEIPT_SCHEMA_VERSION,
       groupId: group.id,
@@ -945,47 +960,12 @@ async function executePlan(
     });
   }
 
-  const nodePlans = runnable.filter((group) => group.runner === 'node-test');
-  if (nodePlans.length === 0) {
-    return;
-  }
-  const nodeGroups = nodePlans.map((planned) => {
+  // Later groups must not invalidate inputs used by earlier or reused groups.
+  for (const planned of plan.groups) {
     const group = byId.get(planned.id);
-    if (!group) {
-      throw new Error(`missing manifest group during execution: ${planned.id}`);
-    }
-    return group;
-  });
-  const startedAt = Date.now();
-  console.log(`[vibe-verify] start node-test groups=${nodeGroups.map((group) => group.id).join(',')}`);
-  const status = runNodeTestGroups(root, nodeGroups);
-  if (status !== 0) {
-    await Promise.all(nodePlans.map((planned) =>
-      invalidateReceipt(root, planned.id, planned.inputHash)));
-    throw new Error(
-      `node-test verification groups failed: ${nodeGroups.map((group) => group.id).join(', ')} `
-      + `(exit ${status})`,
-    );
+    if (!group) throw new Error(`missing manifest group during execution: ${planned.id}`);
+    await verifyStableInputs(planned, group);
   }
-  const durationMs = Date.now() - startedAt;
-  await Promise.all(nodePlans.map(async (planned) => {
-    const group = byId.get(planned.id);
-    if (!group) {
-      return;
-    }
-    await writeSuccessfulReceipt(root, {
-      schemaVersion: RECEIPT_SCHEMA_VERSION,
-      groupId: group.id,
-      inputHash: planned.inputHash,
-      tier: group.tier,
-      runner: group.runner,
-      passedAt: new Date().toISOString(),
-      durationMs,
-      observedHead: plan.observedHead,
-      baseSha: plan.baseSha,
-      changedPaths: plan.changedPaths,
-    });
-  }));
 }
 
 async function main(): Promise<void> {

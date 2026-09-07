@@ -37,7 +37,8 @@ afterEach(async () => {
   while (tempDirs.length > 0) {
     const dir = tempDirs.pop();
     if (dir) {
-      await rm(dir, { recursive: true, force: true });
+      // Lease release precedes process exit; Windows can briefly retain the cwd.
+      await rm(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
     }
   }
 });

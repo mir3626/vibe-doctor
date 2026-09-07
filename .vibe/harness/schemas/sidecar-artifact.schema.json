@@ -123,6 +123,30 @@
           "type": "string",
           "minLength": 1
         },
+        "modelProvenance": {
+          "type": "object",
+          "properties": {
+            "requestedModel": {
+              "type": "string"
+            },
+            "requestedEffort": {
+              "type": "string"
+            },
+            "effectiveModel": {
+              "type": "null"
+            },
+            "effectiveEffort": {
+              "type": "null"
+            }
+          },
+          "required": [
+            "requestedModel",
+            "requestedEffort",
+            "effectiveModel",
+            "effectiveEffort"
+          ],
+          "additionalProperties": false
+        },
         "effort": {
           "type": "string",
           "enum": [

@@ -30,6 +30,8 @@ async function writeText(filePath: string, value: string): Promise<void> {
 }
 
 async function runRuleAudit(args: string[] = []): Promise<{ status: number; stdout: string; stderr: string }> {
+  const originalProfile = process.env.VIBE_HARNESS_PROFILE;
+  process.env.VIBE_HARNESS_PROFILE = 'legacy';
   const originalArgv = process.argv;
   const originalStdoutWrite = process.stdout.write;
   const originalStderrWrite = process.stderr.write;
@@ -50,6 +52,8 @@ async function runRuleAudit(args: string[] = []): Promise<{ status: number; stdo
     await import(`${pathToFileURL(scriptPath).href}?case=${Date.now()}-${Math.random()}`);
     return { status: 0, stdout, stderr };
   } finally {
+    if (originalProfile === undefined) delete process.env.VIBE_HARNESS_PROFILE;
+    else process.env.VIBE_HARNESS_PROFILE = originalProfile;
     process.argv = originalArgv;
     process.stdout.write = originalStdoutWrite;
     process.stderr.write = originalStderrWrite;
@@ -179,7 +183,7 @@ describe('vibe-rule-audit', () => {
       '--fail-on-undisposed',
       `--claude-md=${claudePath}`,
       `--gaps=${gapsPath}`,
-    ], { encoding: 'utf8' });
+    ], { encoding: 'utf8', env: { ...process.env, VIBE_HARNESS_PROFILE: 'legacy' } });
 
     assert.equal(result.status, 1);
     assert.match(result.stderr, /undisposed rules: 1/);

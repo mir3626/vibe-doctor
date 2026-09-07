@@ -125,6 +125,7 @@ if [[ "\${1:-}" == "exec" ]]; then
       exit 0
       ;;
     fail)
+      echo "execution side effect"
       echo "plain failure" >&2
       exit 1
       ;;
@@ -203,6 +204,8 @@ if "%~1"=="exec" (
 endlocal & exit /b 0
 `;
   await writeExecutable(path.join(binDir, 'codex.cmd'), codexCmd);
+  await writeExecutable(path.join(binDir, 'node_modules/@openai/codex/bin/codex.js'),
+    mode === 'stdin' ? "process.stdin.pipe(process.stdout);\n" : "console.log('exec ok');\n");
   return binDir;
 }
 
@@ -245,6 +248,20 @@ async function runShellStatusTickFixture(mode: ShellStubMode) {
 }
 
 describe('run-codex.sh wrapper', { skip: bashCommand === null }, () => {
+  it('lets explicit legacy model and sandbox flags override defaults without duplicates', async () => {
+    const binDir = await makeTempDir('run-codex-args-');
+    await writeExecutable(path.join(binDir, 'codex'), '#!/usr/bin/env bash\nprintf "%s\\n" "$@"\n');
+    const result = spawnSync(bashCommand ?? 'bash', [bashScriptPath, '--model', 'gpt-5.6-sol', '--sandbox', 'read-only', 'prompt text'], {
+      cwd: binDir, env: shellEnv(binDir, { CODEX_MODEL: 'gpt-5.5', CODEX_SANDBOX: 'workspace-write' }),
+      input: '', encoding: 'utf8', windowsHide: true,
+    });
+    assert.equal(result.status, 0, result.stderr);
+    const args = result.stdout.trim().split(/\r?\n/);
+    assert.ok(args.includes('gpt-5.6-sol') && args.includes('read-only'));
+    assert.ok(!args.includes('-m') && !args.includes('-s'));
+    assert.ok(!args.includes('gpt-5.5') && !args.includes('workspace-write'));
+  });
+
   it('returns normalized version output for healthy codex', async () => {
     const binDir = await createShellStubBin('ok');
     const { stdout } = await execFile(bashCommand ?? 'bash', [bashScriptPath, '--health'], {
@@ -328,22 +345,24 @@ describe('run-codex.sh wrapper', { skip: bashCommand === null }, () => {
     );
   });
 
-  it('emits retry logging and gives up after the configured attempts', async () => {
+  it('does not replay a failed legacy task even when CODEX_RETRY requests three attempts', async () => {
     const binDir = await createShellStubBin('fail');
+    const cwd = await makeTempDir('run-codex-no-replay-');
     const child = spawnSync(bashCommand ?? 'bash', [bashScriptPath, 'prompt text'], {
+      cwd,
       env: shellEnv(binDir, { CODEX_RETRY: '3', CODEX_RETRY_DELAY: '0' }),
       input: '',
       encoding: 'utf8',
     });
 
     assert.equal(child.status, 1);
-    assert.match(child.stderr, /attempt 1\/3 starting/);
-    assert.match(child.stderr, /attempt 1\/3 retrying reason=exit=1 delay=0s/);
-    assert.match(child.stderr, /attempt 2\/3 retrying reason=exit=1 delay=0s/);
-    assert.match(child.stderr, /giving up after 3 attempts/);
+    assert.match(child.stderr, /attempt 1\/1 starting/);
+    assert.doesNotMatch(child.stderr, /retrying reason/);
+    assert.match(child.stderr, /giving up after 1 attempts/);
+    assert.equal(child.stdout.trim(), 'execution side effect');
   });
 
-  it('exhausts retries and emits CODEX_UNAVAILABLE signal + flag file', async () => {
+  it('preserves the legacy CODEX_UNAVAILABLE signal and flag after a failed execution', async () => {
     const binDir = await createShellStubBin('fail-403');
     const cwd = await makeTempDir('run-codex-unavailable-');
     const child = spawnSync(bashCommand ?? 'bash', [bashScriptPath, 'prompt text'], { cwd, env: shellEnv(binDir, { CODEX_RETRY: '3', CODEX_RETRY_DELAY: '0' }), encoding: 'utf8' });

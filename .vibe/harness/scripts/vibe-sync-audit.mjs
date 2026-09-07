@@ -199,6 +199,7 @@ const FORBIDDEN_HARNESS_EXACT = new Set([
 
 const ALLOWED_HARNESS_AGENT_FILES = new Set([
   '.vibe/agent/_common-rules.md',
+  '.vibe/agent/astra-rules.md',
   '.vibe/agent/re-incarnation.md',
   '.vibe/agent/README.md',
   '.vibe/agent/sprint-status.schema.json',

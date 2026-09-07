@@ -6,6 +6,7 @@ and in version-specific notes.
 
 ## Current
 
+- [v1.15.0](v1.15.0.md) - Model-selected workflows and shared runtime correctness
 - [v1.14.0](v1.14.0.md) - Deterministic goal ownership and safe Pro operator close
 - [v1.13.1](v1.13.1.md) - `go` skips flows on a superseded protocol generation
 - [v1.13.0](v1.13.0.md) - Intent-alignment briefing + user-accepted review close

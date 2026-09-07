@@ -16,6 +16,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { TextDecoder } from 'node:util';
 import { parseArgs, getBooleanFlag, getStringFlag } from '../src/lib/args.js';
+import { runtimeHarnessProfile } from '../src/lib/harness-profile.mjs';
 import {
   SidecarArtifactSchema,
   SidecarInputPacketSchema,
@@ -34,7 +35,7 @@ const DEFAULT_MAX_INPUT_BYTES = 64 * 1024;
 const DEFAULT_MAX_OUTPUT_BYTES = 64 * 1024;
 const DEFAULT_EXPIRY_DAYS = 14;
 const MAX_UNTRACKED_FILE_BYTES = 32 * 1024;
-const CODEX_LATEST_MODEL = 'gpt-5.5';
+const CODEX_LEGACY_MODEL = 'gpt-5.5';
 const CLAUDE_LATEST_MODEL = 'opus';
 const SECRET_PATH_PATTERN = /(^|[/\\])(?:\.env[^/\\]*|.*(?:secret|token|credential|password|passwd|cookie|private[-_]?key).*)/i;
 const SECRET_EXTENSION_PATTERN = /\.(?:pem|pfx|p12|key|keystore)$/i;
@@ -397,9 +398,10 @@ function parseProvider(value: string | undefined, cwd: string): SidecarProvider 
   return 'claude';
 }
 
-function defaultModel(provider: SidecarProvider): string {
+function defaultModel(provider: SidecarProvider, cwd: string): string {
   if (provider === 'codex') {
-    return CODEX_LATEST_MODEL;
+    const active = runtimeHarnessProfile(process.env, cwd);
+    return active.profile === 'astra' ? active.requestedModel! : CODEX_LEGACY_MODEL;
   }
   if (provider === 'claude') {
     return CLAUDE_LATEST_MODEL;
@@ -451,7 +453,7 @@ function parseOptions(): CliOptions {
     sidecar: sidecarParsed.data,
     sprintId,
     provider,
-    model: getStringFlag(args, 'model', defaultModel(provider)) ?? defaultModel(provider),
+    model: getStringFlag(args, 'model', defaultModel(provider, cwd)) ?? defaultModel(provider, cwd),
     effort,
     artifactRoot: resolveArtifactRoot(
       cwd,
@@ -635,6 +637,7 @@ function runCodex(prompt: string, options: CliOptions): CommandResult {
       {
         cwd: options.cwd,
         input: prompt,
+        env: { ...process.env, VIBE_ACTIVE_MODEL: options.model, VIBE_ACTIVE_PROVIDER: 'codex' },
         encoding: 'utf8',
         timeout: options.timeoutMs,
         stdio: ['pipe', 'pipe', 'pipe'],
@@ -730,6 +733,7 @@ function buildArtifact(
     sidecar: options.sidecar,
     provider: options.provider,
     model: options.model,
+    modelProvenance: { requestedModel: options.model, requestedEffort: options.effort, effectiveModel: null, effectiveEffort: null },
     effort: options.effort,
     sprintId: options.sprintId,
     gitSha: packet.gitSha,

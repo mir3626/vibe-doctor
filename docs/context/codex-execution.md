@@ -1,5 +1,12 @@
 # Codex 실행 가이드 (Korean Windows 안전판)
 
+Verified GPT-6 Astra child invocations use the short contract dispatcher in
+`run-codex.sh` / `run-codex.cmd`; lower/unknown models keep the legacy wrapper below.
+Native Astra sessions may use their native runtime directly. Set `VIBE_ACTIVE_MODEL`
+for model-selected harness commands; reselect it on model change. Actual sandbox
+capabilities govern execution, including Windows. Encoding checks still apply.
+See `docs/guides/astra-profile.md` for selection, rollback and validation.
+
 > **요약**: Korean Windows + Codex 조합은 비-ASCII string literal을 조용히
 > 깨뜨릴 수 있다. 이 문서는 원인, 영구 해결책, 모든 Generator prompt가
 > 따라야 할 규약(BLOCKED 패턴, Encoding integrity gate)을 정의한다.
@@ -71,7 +78,7 @@ wrapper가 자동 설정하는 항목:
 | `DOTNET_SYSTEM_GLOBALIZATION_USENLS` | `false` | .NET이 ICU 사용, NLS 회피 |
 | `chcp.com 65001` | best-effort | Windows 콘솔 코드 페이지 UTF-8 |
 | `shell_environment_policy.inherit=all` + `set.*` | `-c` 옵션 | **codex가 자식으로도 UTF-8 전파** |
-| `CODEX_RETRY` (기본 3) | exponential backoff | 일시 오류 자동 회복 |
+| `CODEX_RETRY` / `CODEX_RETRY_DELAY` | 모든 모델에서 무시, wrapper는 한 번 실행 | 부분 변경을 확인한 뒤 native session에서 복구·resume |
 
 프롬프트가 허용된 rule/context Markdown 파일을 명시적으로 참조하면 wrapper가 해당
 본문을 `Referenced MD Context` 블록으로 자동 주입한다. 주입된 Markdown 안에
@@ -199,7 +206,7 @@ vibe-doctor를 베이스로 새 프로젝트를 만들 때:
 ## Codex 403 Forbidden troubleshooting
 
 - 증상: `backend-api/codex/responses` 403 Forbidden 이 연속 반환된다. dogfood10 iter-1 hotfix 시점에 관측됐다.
-- 감지 메커니즘: `run-codex.sh` 가 3회 retry 소진 후 `.vibe/agent/codex-unavailable.flag` 를 touch 하고 stderr 에 `CODEX_UNAVAILABLE` 블록을 출력한다.
+- 감지 메커니즘: legacy `run-codex.sh`는 실패한 한 번의 실행 후 `.vibe/agent/codex-unavailable.flag`와 `CODEX_UNAVAILABLE` 블록을 기록한다. 모든 모델에서 wrapper의 작업 전체 자동 재실행은 제거했으며, `CODEX_RETRY`/`CODEX_RETRY_DELAY`는 무시한다. 부분 변경을 확인한 뒤 native session의 복구·resume 경로를 선택한다.
 - flag 내용: ISO8601 timestamp, `last_exit=<code>`, `reason_hint=<hint>` 를 기록한다. hint 는 `403-forbidden`, `401-unauthorized`, `429-rate-limit`, `5xx-server-error`, `unknown` 중 하나다.
 - Orchestrator 대응: (1) 시간차 재시도 — dogfood10 에서는 edge block 인 경우 수십 분 후 복구가 관찰됐다. (2) 사용자 승인 하에 Orchestrator 직접 편집 — session-log 에 `[decision][orchestrator-hotfix]` 기록 필수. (3) `.vibe/config.json.providers` 에 fallback provider 추가 후 재시도.
 - 자동 복구: 다음 성공 호출 시 `.vibe/harness/scripts/run-codex.sh` 가 flag 파일을 `rm -f` 로 제거한다. 이 flag 는 "현재 Codex 가 계속 unreachable 한가" 의 snapshot 이다.

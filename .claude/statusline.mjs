@@ -86,7 +86,9 @@ async function readStatuslineInput() {
       const onData = (chunk) => {
         value += chunk;
       };
-      const timer = setTimeout(finish, 25);
+      // A redirected pipe may become readable after a scheduling delay. EOF
+      // finishes immediately; bound only producers that leave their pipe open.
+      const timer = setTimeout(finish, 1_000);
       process.stdin.setEncoding('utf8');
       process.stdin.on('data', onData);
       process.stdin.on('end', finish);

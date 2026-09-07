@@ -1,10 +1,11 @@
 import assert from 'node:assert/strict';
-import { execFile as execFileCallback, execFileSync, spawnSync } from 'node:child_process';
+import { execFile as execFileCallback, execFileSync, spawn, spawnSync } from 'node:child_process';
 import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, it } from 'node:test';
 import { promisify } from 'node:util';
+import { pathToFileURL } from 'node:url';
 
 const execFile = promisify(execFileCallback);
 const tempDirs: string[] = [];
@@ -197,6 +198,35 @@ describe('statusline.mjs', () => {
     const { stdout } = runNodeStatusline(root, `${JSON.stringify({ transcript_path: transcriptPath })}\n`);
 
     assert.equal(stdout, '🎯 sprint-M9-statusline-permissions (2/3) | 💭 Claude 2K | ⚠️ 2');
+  });
+
+  it('reads pipe input delivered after the consumer starts waiting', { timeout: 10_000 }, async (t) => {
+    const root = await makeTempDir('statusline-delayed-stdin-');
+    await writeStatus(root);
+    await writeText(root, 'transcript.jsonl', JSON.stringify({ message: { usage: { input_tokens: 1500, output_tokens: 500 } } }));
+    await writeText(root, 'stdin-ready.mjs', "process.stdin.once('resume', () => process.stdout.write('STDIN_READY\\n'));\n");
+    const child = spawn(process.execPath, ['--import', pathToFileURL(path.join(root, 'stdin-ready.mjs')).href, nodeScriptPath], {
+      cwd: root, env: process.env, stdio: ['pipe', 'pipe', 'pipe'],
+    });
+    t.after(() => child.kill());
+    let stdout = '', stderr = '';
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    child.stdin.on('error', () => {});
+    child.stdout.on('data', (chunk) => {
+      stdout += String(chunk);
+      if (!timer && stdout.includes('STDIN_READY')) {
+        timer = setTimeout(() => child.stdin.end(JSON.stringify({ transcript_path: path.join(root, 'transcript.jsonl') }) + '\n'), 100);
+      }
+    });
+    child.stderr.on('data', (chunk) => { stderr += String(chunk); });
+    const code = await new Promise<number | null>((resolve, reject) => {
+      child.once('error', reject);
+      child.once('close', resolve);
+    });
+    clearTimeout(timer);
+    assert.equal(code, 0, stderr);
+    assert.match(stdout, /STDIN_READY/);
+    assert.match(stdout, /Claude 2K/);
   });
 
   it('does not show update nags for exact upstream pins', async () => {

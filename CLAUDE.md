@@ -66,6 +66,11 @@ Soft freeze는 문서 선언이 아니라 Sprint scope gate다.
 5. Status display — human: statusline emoji + 한국어. agent: JSON log line (`{ "sprint": "...", "elapsed": N, "tokens": N }`) — 구현: iter-4+ (defer)
 
 <!-- BEGIN:HARNESS:core-framing -->
+For a verified active GPT-6 Astra model, read `.vibe/agent/astra-rules.md` and use
+its execution workflow instead of the legacy ceremonies below. This exception
+never applies by inheritance to Claude, lower, or unknown models. Project rules,
+init, scope, ownership and explicit authorization boundaries remain applicable.
+
 ## 핵심 재프레임 — 왜 sub-agent인가
 
 Sub-agent는 **specialization이 아니라 context checkpoint 메커니즘**이다. 무한 컨텍스트

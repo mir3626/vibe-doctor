@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { IsoDateTimeSchema } from './datetime.js';
 
 export const ModelEntrySchema = z.object({
+  harnessProfile: z.literal('astra').optional(),
   apiId: z.string(),
   release: z.string(),
 });

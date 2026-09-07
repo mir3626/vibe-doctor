@@ -30,14 +30,24 @@
   ],
   "sharedInputPatterns": [
     ".vibe/harness/src/lib/**",
-    ".vibe/harness/schemas/**"
+    ".vibe/harness/schemas/**",
+    ".vibe/harness/scripts/lib/**",
+    ".vibe/model-registry.json",
+    ".vibe/agent/astra-rules.md"
   ],
   "sharedImpactPatterns": [
     ".vibe/harness/src/lib/**",
-    ".vibe/harness/schemas/**"
+    ".vibe/harness/schemas/**",
+    ".vibe/harness/scripts/lib/**",
+    ".vibe/model-registry.json",
+    ".vibe/agent/astra-rules.md"
   ],
   "environmentKeys": [
-    "CI"
+    "CI",
+    "NODE_OPTIONS",
+    "VIBE_ACTIVE_MODEL",
+    "VIBE_ACTIVE_PROVIDER",
+    "VIBE_HARNESS_PROFILE"
   ],
   "groups": [
     {
@@ -68,6 +78,7 @@
       "runner": "node-test",
       "testFiles": [
         ".vibe/harness/test/args.test.ts",
+        ".vibe/harness/test/harness-profile.test.ts",
         ".vibe/harness/test/config-path-resolution.test.ts",
         ".vibe/harness/test/config.test.ts",
         ".vibe/harness/test/decisions.test.ts",
@@ -92,7 +103,17 @@
         ".vibe/harness/src/commands/write-report.ts",
         ".vibe/harness/src/providers/**",
         ".vibe/model-registry.json",
-        ".vibe/model-registry.schema.json"
+        ".vibe/model-registry.schema.json",
+        ".claude/agents/sprint-planner.md",
+        ".vibe/agent/_common-rules.md",
+        "docs/context/orchestration.md",
+        ".vibe/harness/scripts/vibe-codex-dispatch.mjs",
+        ".vibe/harness/scripts/run-codex.sh",
+        ".vibe/harness/scripts/run-codex.cmd",
+        ".vibe/harness/scripts/vibe-preflight.mjs",
+        ".vibe/harness/scripts/vibe-rule-audit.mjs",
+        ".vibe/harness/scripts/vibe-audit-lightweight.mjs",
+        ".vibe/harness/scripts/vibe-codex-exec.mjs"
       ],
       "impactPatterns": [
         ".vibe/harness/src/commands/doctor.ts",
@@ -101,7 +122,17 @@
         ".vibe/harness/src/commands/write-report.ts",
         ".vibe/harness/src/providers/**",
         ".vibe/model-registry.json",
-        ".vibe/model-registry.schema.json"
+        ".vibe/model-registry.schema.json",
+        ".claude/agents/sprint-planner.md",
+        ".vibe/agent/_common-rules.md",
+        "docs/context/orchestration.md",
+        ".vibe/harness/scripts/vibe-codex-dispatch.mjs",
+        ".vibe/harness/scripts/run-codex.sh",
+        ".vibe/harness/scripts/run-codex.cmd",
+        ".vibe/harness/scripts/vibe-preflight.mjs",
+        ".vibe/harness/scripts/vibe-rule-audit.mjs",
+        ".vibe/harness/scripts/vibe-audit-lightweight.mjs",
+        ".vibe/harness/scripts/vibe-codex-exec.mjs"
       ]
     },
     {
@@ -245,7 +276,9 @@
         ".vibe/harness/scripts/vibe-attention-*.mjs",
         ".vibe/harness/scripts/vibe-playwright-test.mjs",
         ".vibe/harness/scripts/vibe-stop-qa-gate.mjs",
-        ".vibe/harness/src/lib/shell.ts"
+        ".vibe/harness/src/lib/shell.ts",
+        ".vibe/harness/scripts/vibe-codex-dispatch.mjs",
+        ".vibe/harness/scripts/vibe-codex-exec.mjs"
       ],
       "impactPatterns": [
         ".claude/settings.json",
@@ -259,7 +292,9 @@
         ".vibe/harness/scripts/vibe-attention-*.mjs",
         ".vibe/harness/scripts/vibe-playwright-test.mjs",
         ".vibe/harness/scripts/vibe-stop-qa-gate.mjs",
-        ".vibe/harness/src/lib/shell.ts"
+        ".vibe/harness/src/lib/shell.ts",
+        ".vibe/harness/scripts/vibe-codex-dispatch.mjs",
+        ".vibe/harness/scripts/vibe-codex-exec.mjs"
       ]
     },
     {
@@ -307,7 +342,8 @@
         ".vibe/harness/test/sync-glob.test.ts",
         ".vibe/harness/test/sync.test.ts",
         ".vibe/harness/test/upstream-bootstrap.test.ts",
-        ".vibe/harness/test/vibe-sync-bootstrap.test.ts"
+        ".vibe/harness/test/vibe-sync-bootstrap.test.ts",
+        ".vibe/harness/test/integration/meta-smoke.test.ts"
       ],
       "inputPatterns": [
         ".vibe/harness/migrations/**",
@@ -317,7 +353,9 @@
         ".vibe/harness/src/commands/sync.ts",
         ".vibe/harness/src/lib/sync.ts",
         ".vibe/sync-manifest.json",
-        "scripts/vibe-sync-bootstrap.mjs"
+        "scripts/vibe-sync-bootstrap.mjs",
+        ".vibe/harness/scripts/vibe-preflight.mjs",
+        ".vibe/harness/scripts/*audit*.mjs"
       ],
       "impactPatterns": [
         ".vibe/harness/migrations/**",
@@ -327,7 +365,9 @@
         ".vibe/harness/src/commands/sync.ts",
         ".vibe/harness/src/lib/sync.ts",
         ".vibe/sync-manifest.json",
-        "scripts/vibe-sync-bootstrap.mjs"
+        "scripts/vibe-sync-bootstrap.mjs",
+        ".vibe/harness/scripts/vibe-preflight.mjs",
+        ".vibe/harness/scripts/*audit*.mjs"
       ]
     },
     {

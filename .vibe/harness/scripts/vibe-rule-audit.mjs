@@ -2,6 +2,8 @@
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
+import { runtimeHarnessProfile } from '../src/lib/harness-profile.mjs';
+const astra = runtimeHarnessProfile().profile === 'astra';
 
 const KEYWORDS = ['MUST NOT', 'MUST', 'NEVER', '반드시', '절대', '금지', '필수', 'Must', 'Should'];
 const SOFT_VERB_RE = /\bShould\b|권장|가능하면|가능한 경우|선택적으로|추천|원칙적으로/i;
@@ -177,17 +179,19 @@ function matchEvidence(clusters, incidents) {
   const matched = new Map(); for (const cluster of clusters) { const keywords = extractKeywords(cluster.body), examples = []; for (const incident of incidents) { const line = incident.text.toLowerCase(); if (keywords.some((keyword) => line.includes(keyword))) { const snippet = incident.text.length > 160 ? `${incident.text.slice(0, 157)}...` : incident.text; if (!examples.some((hit) => hit.snippet === snippet)) examples.push({ source: incident.source, tag: incident.tag, snippet }); } } matched.set(cluster.id, examples); } return matched;
 }
 function classifyTier(cluster, evidenceCount, hasGapCoverage) {
+  if (astra) return 'unclassified';
   const hasScriptReference = /scripts\/vibe-[\w-]+\.mjs/.test(cluster.body);
   if (evidenceCount >= 3) return 'S';
   if (evidenceCount >= 1) return 'A';
   return hasGapCoverage || hasScriptReference ? 'B' : 'C';
 }
 function recommendedAction(tier, softVerbDetected) {
+  if (astra) return 'manual-review: keyword matches are leads, not evidence of efficacy';
   const action = { S: 'keep-script', A: 'keep-md-only', B: 'delete-md', C: 'delete-md-and-script', unclassified: 'keep-md-only' }[tier] ?? 'keep-md-only'; return softVerbDetected && (tier === 'S' || tier === 'A') ? `${action} + should-to-must-tighten` : action;
 }
 function buildClusterAudit(claudeContent, gapsContent, transcriptCsv) {
   const gapRows = extractGapRows(gapsContent), sources = transcriptCsv.split(',').map((path) => path.trim()).filter(Boolean), { bySource, incidents } = scanTranscripts(sources), clusters = extractClusters(claudeContent), evidence = matchEvidence(clusters, incidents), byTier = { S: 0, A: 0, B: 0, C: 0, unclassified: 0 };
-  const rules = clusters.map((cluster) => { const ids = Array.from(cluster.body.matchAll(/\bgap-[\w-]+\b/g), (match) => match[0]), disposedBy = ids.find((id) => gapRows.has(id)) ?? null, row = disposedBy === null ? null : gapRows.get(disposedBy), coveredBy = row?.disposition === 'covered' ? disposedBy : null, disposition = row?.disposition ?? 'undisposed', hits = evidence.get(cluster.id) ?? [], tier = classifyTier(cluster, hits.length, disposedBy !== null), keywords = extractKeywords(cluster.body); byTier[tier] += 1; return { line: cluster.startLine, text: cluster.label, kind: findKind(cluster.body) ?? 'MUST', covered: coveredBy !== null, coveredBy, disposed: disposition !== 'undisposed', disposedBy, disposition, cluster: { id: cluster.id, label: cluster.label, startLine: cluster.startLine, endLine: cluster.endLine, keywords, evidenceCount: hits.length, evidenceExamples: hits.slice(0, 3).map((hit) => hit.snippet), tier, recommendedAction: recommendedAction(tier, cluster.softVerbDetected), shouldToMustCandidate: cluster.softVerbDetected, tighteningSuggestion: cluster.softVerbDetected ? `trigger 조건을 ${keywords[0] ?? cluster.id} 포함 line 기준으로 tighten` : null, originalText: cluster.body } }; });
+  const rules = clusters.map((cluster) => { const ids = Array.from(cluster.body.matchAll(/\bgap-[\w-]+\b/g), (match) => match[0]), disposedBy = ids.find((id) => gapRows.has(id)) ?? null, row = disposedBy === null ? null : gapRows.get(disposedBy), coveredBy = row?.disposition === 'covered' ? disposedBy : null, disposition = row?.disposition ?? 'undisposed', hits = evidence.get(cluster.id) ?? [], tier = classifyTier(cluster, hits.length, disposedBy !== null), keywords = extractKeywords(cluster.body); byTier[tier] += 1; return { line: cluster.startLine, text: cluster.label, kind: findKind(cluster.body) ?? 'MUST', covered: coveredBy !== null, coveredBy, disposed: disposition !== 'undisposed', disposedBy, disposition, cluster: { id: cluster.id, label: cluster.label, startLine: cluster.startLine, endLine: cluster.endLine, keywords, evidenceCount: hits.length, evidenceExamples: hits.slice(0, 3).map((hit) => hit.snippet), tier, recommendedAction: recommendedAction(tier, cluster.softVerbDetected), shouldToMustCandidate: !astra && cluster.softVerbDetected, tighteningSuggestion: !astra && cluster.softVerbDetected ? `trigger 조건을 ${keywords[0] ?? cluster.id} 포함 line 기준으로 tighten` : null, originalText: cluster.body } }; });
   return { summary: { total: rules.length, ...summarizeDisposition(rules, true), bySource, byTier, shouldToMustCandidates: rules.filter((rule) => rule.cluster.shouldToMustCandidate).length }, rules };
 }
 
@@ -279,20 +283,21 @@ function emitReportMd(audit, outputPath) {
   }
   lines.push('', '## Summary', `total=${audit.summary.total}; byTier=${tierText}; sourcesScanned=${sources.length}; missingSources=${sources.filter(([, result]) => !result.present).length}`, '', '## Sources scanned');
   for (const [source, result] of sources) lines.push(`- ${source}: present=${result.present}; failure=${result.failure}; drift-observed=${result['drift-observed']}; decision=${result.decision}; audit-clear=${result['audit-clear']}`);
-  lines.push('', '## Restoration protocol', 'dogfood8 post-acceptance 시 본 report + `rules-deleted.md` 를 함께 리뷰한다. 복원 필요 cluster 는 CLAUDE.md 에 재삽입 후 `.vibe/audit/iter-3/` 를 `rm -rf` 한다.');
+  if (!astra) lines.push('', '## Restoration protocol', 'dogfood8 post-acceptance 시 본 report + `rules-deleted.md` 를 함께 리뷰한다. 복원 필요 cluster 는 CLAUDE.md 에 재삽입 후 `.vibe/audit/iter-3/` 를 `rm -rf` 한다.');
   mkdirSync(dirname(resolve(outputPath)), { recursive: true });
   writeFileSync(resolve(outputPath), `${lines.join('\n')}\n`, 'utf8');
 }
 
 const options = parseArgs(process.argv);
 const audit = buildAudit(readOptional(options.claudeMd), readOptional(options.gaps), options);
+if (astra) audit.authority = 'advisory: matches and ledger dispositions are unverified leads';
 if (options.emitReportMd) emitReportMd(audit, options.emitReportMd);
 if (options.format === 'json') {
   process.stdout.write(`${JSON.stringify(audit, null, 2)}\n`);
 } else {
   process.stdout.write(renderText(audit));
 }
-if (options.failOnUndisposed && audit.summary.undisposed > 0) {
+if (!astra && options.failOnUndisposed && audit.summary.undisposed > 0) {
   process.stderr.write(`[vibe-rule-audit] undisposed rules: ${audit.summary.undisposed}\n`);
   process.exitCode = 1;
 }

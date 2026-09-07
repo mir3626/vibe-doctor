@@ -5,7 +5,7 @@ import { paths } from './paths.js';
 import { ModelRegistrySchema } from './schemas/model-registry.js';
 
 export type { ModelEntry, ModelRegistry, ProviderRegistryEntry } from './schemas/model-registry.js';
-import type { ModelRegistry, ProviderRegistryEntry } from './schemas/model-registry.js';
+import type { ModelRegistry } from './schemas/model-registry.js';
 
 export type TierRef = {
   provider: string;
@@ -22,7 +22,8 @@ export interface ResolvedModel {
   legacy: boolean;
 }
 
-const TIER_ORDER: TierRef['tier'][] = ['flagship', 'performant', 'efficient'];
+import { resolveRoleRef } from './model-resolution.mjs';
+export { resolveModel, resolveRoleRef } from './model-resolution.mjs';
 
 function registryPath(root?: string): string {
   return path.join(root ?? paths.root, '.vibe', 'model-registry.json');
@@ -30,14 +31,6 @@ function registryPath(root?: string): string {
 
 function formatAvailable(values: string[]): string {
   return values.length > 0 ? values.join(', ') : 'none';
-}
-
-function availableProviders(registry: ModelRegistry): string[] {
-  return Object.keys(registry.providers).sort();
-}
-
-function availableTiers(provider: ProviderRegistryEntry): TierRef['tier'][] {
-  return TIER_ORDER.filter((tier) => typeof provider.tiers[tier] === 'string');
 }
 
 export async function loadRegistry(root?: string): Promise<ModelRegistry> {
@@ -58,60 +51,6 @@ export async function loadRegistry(root?: string): Promise<ModelRegistry> {
     }
     throw error;
   }
-}
-
-export function resolveModel(
-  registry: ModelRegistry,
-  providerId: string,
-  tier: TierRef['tier'],
-): ResolvedModel {
-  const provider = registry.providers[providerId];
-  if (!provider) {
-    throw new Error(
-      `registry: unknown provider "${providerId}" (available: ${formatAvailable(availableProviders(registry))})`,
-    );
-  }
-
-  const familyAlias = provider.tiers[tier];
-  if (!familyAlias) {
-    throw new Error(
-      `registry: provider "${providerId}" has no tier "${tier}" (available: ${formatAvailable(availableTiers(provider))})`,
-    );
-  }
-
-  const model = provider.knownModels[familyAlias];
-  if (!model) {
-    throw new Error(
-      `registry: provider "${providerId}" tier "${tier}" points to unknown family alias "${familyAlias}"`,
-    );
-  }
-
-  return {
-    provider: providerId,
-    tier,
-    familyAlias,
-    apiId: model.apiId,
-    legacy: false,
-  };
-}
-
-export function resolveRoleRef(registry: ModelRegistry | null, ref: RoleRef): ResolvedModel {
-  if (typeof ref === 'string') {
-    return {
-      provider: ref,
-      familyAlias: ref,
-      apiId: ref,
-      legacy: true,
-    };
-  }
-
-  if (!registry) {
-    throw new Error(
-      `registry: provider "${ref.provider}" tier "${ref.tier}" requires .vibe/model-registry.json`,
-    );
-  }
-
-  return resolveModel(registry, ref.provider, ref.tier);
 }
 
 export function resolveFromConfig(

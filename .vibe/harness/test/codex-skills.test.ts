@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { describe, it } from 'node:test';
+import { runtimeHarnessProfile } from '../src/lib/harness-profile.mjs';
 
 async function listSkillNames(root: string): Promise<string[]> {
   const entries = await readdir(root, { withFileTypes: true });
@@ -39,8 +40,10 @@ describe('Codex skill parity', () => {
         wrapper,
         new RegExp(`BEGIN:VIBE-CODEX:SHARDS[\\s\\S]*\\.claude/skills/${skillName}/SKILL\\.md[\\s\\S]*END:VIBE-CODEX:SHARDS`),
       );
-      assert.match(wrapper, /provider-neutral skill runbooks/);
-      assert.match(wrapper, /repository-root path/);
+      if (runtimeHarnessProfile().profile !== 'astra') {
+        assert.match(wrapper, /provider-neutral skill runbooks/);
+        assert.match(wrapper, /repository-root path/);
+      }
       assert.doesNotMatch(wrapper, /\.\.\/\.\.\/\.\.\/\.claude\/skills/);
     }
   });

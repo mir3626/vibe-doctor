@@ -360,6 +360,10 @@ describe('vibe-sidecar-run', () => {
       assert.equal(artifact.status, 'unavailable');
       assert.equal(artifact.error, 'timeout');
       assert.equal(artifact.findings.length, 0);
+      assert.deepEqual(artifact.modelProvenance, {
+        requestedModel: artifact.model, requestedEffort: artifact.effort,
+        effectiveModel: null, effectiveEffort: null,
+      });
     } finally {
       await rm(root, { recursive: true, force: true });
     }

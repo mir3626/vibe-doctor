@@ -1,5 +1,11 @@
 # Orchestration — 역할 × Phase 매트릭스 (single source of truth)
 
+Verified active GPT-6 Astra sessions use `.vibe/agent/astra-rules.md` unless the
+legacy comparison/rollback profile is selected. The role matrix, fresh-context,
+skip-log, mandatory evaluator and repeated-QA ceremonies below are legacy-only.
+Project/design continuity, explicit Sprint scope, evidence and lifecycle ownership
+remain applicable. Native runtime instructions and current user authorization prevail.
+
 > 이 문서는 **Orchestrator / Planner / Generator / Evaluator의 책임을 Phase별로 분리**한다. 매 세션 시작 시 Orchestrator가 숙지해야 하며, 모순 발생 시 이 문서가 CLAUDE.md 트리거 매트릭스 위에 있다.
 
 ## 1. 핵심 원칙

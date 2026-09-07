@@ -5,6 +5,14 @@ description: Convert a fully settled design into repeated /goal + $vibe-iterate 
 
 # Vibe Goal Iterate
 
+For a verified active GPT-6 Astra model, first read `.vibe/agent/astra-rules.md`.
+Use that workflow for this skill: act on settled requirements, keep a durable
+queue/design/handoff, and select relevant checks. The legacy role, interview,
+per-item goal, creative, report-opening and repeated-QA ceremonies below do not
+apply. Consult the remaining shards only for concrete state/command contracts;
+preserve init, exact executionBinding and approval boundaries. Lower/unknown
+models follow the full runbook below. Re-evaluate eligibility for each child.
+
 Use this skill to turn a finalized design discussion into an autonomous sequence of implementation iterations. It is for settled work, not early brainstorming.
 
 ## Required Shared Policy

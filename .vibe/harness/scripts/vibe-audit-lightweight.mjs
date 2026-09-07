@@ -3,6 +3,7 @@
 import { execFileSync, execSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import path, { resolve } from 'node:path';
+import { runtimeHarnessProfile } from '../src/lib/harness-profile.mjs';
 
 const APP_CODE_EXTENSIONS = new Set(['.ts', '.tsx', '.js', '.jsx', '.py', '.rs', '.go']);
 const DEFAULT_PROJECT_ROOTS = ['src'];
@@ -330,6 +331,7 @@ function flagTmpScripts(flags) {
 }
 
 function injectRisk(sprintId, flags) {
+  if (runtimeHarnessProfile().profile === 'astra') return false;
   if (flags.length === 0) {
     return false;
   }
@@ -382,11 +384,13 @@ try {
 
   const pairs = extractSpecKeywords(commitMessage(range));
   const appLoc = appCodeLocSummary();
-  flagSpecKeywordMismatches(flags, pairs, diff.files);
-  flagMissingTests(flags, diff.files);
-  flagLocOutlier(flags, diff.net);
+  if (runtimeHarnessProfile().profile !== 'astra') {
+    flagSpecKeywordMismatches(flags, pairs, diff.files);
+    flagMissingTests(flags, diff.files);
+    flagLocOutlier(flags, diff.net);
+  }
   flagTmpScripts(flags);
-  flagPrototypeLocThreshold(flags, appLoc);
+  if (runtimeHarnessProfile().profile !== 'astra') flagPrototypeLocThreshold(flags, appLoc);
 
   const risksInjected = injectRisk(sprintId, flags);
   process.stdout.write(

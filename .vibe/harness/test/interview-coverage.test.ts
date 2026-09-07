@@ -64,6 +64,8 @@ async function scaffoldInterviewProject(root: string): Promise<void> {
   for (const relativePath of [
     '.vibe/harness/scripts/vibe-interview.mjs',
     '.vibe/harness/scripts/lib/interview-engine.mjs',
+    '.vibe/harness/src/lib/interview-kernel.mjs',
+    '.vibe/harness/src/lib/model-resolution.mjs',
     '.vibe/harness/scripts/vibe-resolve-model.mjs',
     '.claude/skills/vibe-interview/dimensions.json',
     '.claude/skills/vibe-interview/prompts/synthesizer.md',

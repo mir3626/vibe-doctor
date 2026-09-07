@@ -59,6 +59,10 @@ export const SidecarArtifactSchema = z.object({
   coverage: SidecarCoverageSchema,
   provider: SidecarProviderSchema,
   model: z.string().min(1),
+  modelProvenance: z.object({
+    requestedModel: z.string(), requestedEffort: z.string(),
+    effectiveModel: z.null(), effectiveEffort: z.null(),
+  }).optional(),
   effort: SidecarEffortSchema,
   sprintId: z.string().min(1),
   gitSha: z.string().min(1),

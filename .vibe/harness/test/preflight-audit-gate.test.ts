@@ -86,6 +86,7 @@ async function scaffoldRepo(
 
 function runPreflight(root: string, args: string[] = []) {
   return spawnSync(process.execPath, [preflightPath, ...args], {
+    env: { ...process.env, VIBE_HARNESS_PROFILE: 'legacy' },
     cwd: root,
     encoding: 'utf8',
   });

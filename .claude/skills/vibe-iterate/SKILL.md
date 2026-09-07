@@ -5,6 +5,14 @@ description: Start the next project iteration after the initial Sprint roadmap i
 
 # vibe-iterate
 
+For a verified active GPT-6 Astra model, first read `.vibe/agent/astra-rules.md`.
+Use that workflow for this skill: act on settled requirements, keep a durable
+queue/design/handoff, and select relevant checks. The legacy role, interview,
+per-item goal, creative, report-opening and repeated-QA ceremonies below do not
+apply. Consult the remaining shards only for concrete state/command contracts;
+preserve init, exact executionBinding and approval boundaries. Lower/unknown
+models follow the full runbook below. Re-evaluate eligibility for each child.
+
 Use this skill after the first Sprint roadmap is complete and the user wants to
 continue the project into another iteration. The goal is to inherit prior
 context through durable files while keeping each Planner call fresh-context.

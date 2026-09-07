@@ -2,6 +2,7 @@
   "$schema": "https://json.schemastore.org/tsconfig",
   "compilerOptions": {
     "target": "ES2022",
+    "allowJs": true,
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "lib": ["ES2023"],
@@ -20,6 +21,7 @@
   "include": [
     "src/commands/**/*.ts",
     "src/lib/**/*.ts",
+    "src/lib/**/*.mjs",
     "src/providers/**/*.ts",
     "test/**/*.ts"
   ],

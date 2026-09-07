@@ -15,6 +15,7 @@
       "scripts/vibe-sync-bootstrap.mjs",
       "bridge-runbook.md",
       ".vibe/agent/_common-rules.md",
+      ".vibe/agent/astra-rules.md",
       ".vibe/agent/re-incarnation.md",
       ".vibe/agent/README.md",
       ".vibe/agent/sprint-status.schema.json",

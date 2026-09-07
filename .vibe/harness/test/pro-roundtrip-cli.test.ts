@@ -69,6 +69,13 @@ interface CliFixture {
   context: WorktreeContext;
 }
 
+async function scaffoldProtocol(testContext: TestContext): Promise<{ checkout: string }> {
+  const checkout = await mkdtemp(path.join(tmpdir(), 'pro-protocol-content-'));
+  testContext.after(() => rm(checkout, { recursive: true, force: true }));
+  await copyProtocolSources(checkout);
+  return { checkout };
+}
+
 async function scaffoldRepository(testContext: TestContext): Promise<CliFixture> {
   const root = await mkdtemp(path.join(tmpdir(), 'pro-roundtrip-cli-'));
   testContext.after(() => rm(root, { recursive: true, force: true }));
@@ -845,7 +852,7 @@ describe('vibe-pro-go CLI', { concurrency: true }, () => {
   });
 
   it('derives a deterministic normalized content-addressed protocol version', async (testContext) => {
-    const fixture = await scaffoldRepository(testContext);
+    const fixture = await scaffoldProtocol(testContext);
     const sourcePath = path.join(fixture.checkout, protocolMutationSource);
     const original = await readFile(sourcePath, 'utf8');
     const first = await loadLocalProtocol(fixture.checkout);
@@ -865,7 +872,7 @@ describe('vibe-pro-go CLI', { concurrency: true }, () => {
   });
 
   it('changes the protocol namespace when one source changes', async (testContext) => {
-    const fixture = await scaffoldRepository(testContext);
+    const fixture = await scaffoldProtocol(testContext);
     const before = await loadLocalProtocol(fixture.checkout);
 
     for (const relativePath of protocolSourcePaths) {

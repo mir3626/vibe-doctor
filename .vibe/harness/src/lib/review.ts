@@ -5,6 +5,13 @@ import path from 'node:path';
 import { readDecisions, type ProjectDecision } from './decisions.js';
 import { fileExists, readJson, readText } from './fs.js';
 import { paths } from './paths.js';
+import { runtimeHarnessProfile } from './harness-profile.mjs';
+
+function requireLegacyReviewPipeline(): void {
+  if (runtimeHarnessProfile().profile === 'astra') {
+    throw new Error('Legacy heuristic review pipeline is disabled for Astra; use collectReviewInputs and verify findings against actual behavior');
+  }
+}
 import {
   isOpenPendingRisk,
   loadSprintStatus,
@@ -951,6 +958,7 @@ export async function collectReviewInputs(root?: string): Promise<ReviewInputs> 
 }
 
 export async function loadPriorReviewIssues(root?: string): Promise<PriorReviewIssue[]> {
+  requireLegacyReviewPipeline();
   const resolvedRoot = resolveRoot(root);
   const reportsDir = reportsPath(resolvedRoot);
   if (!(await fileExists(reportsDir))) {
@@ -1042,6 +1050,7 @@ export async function assessRegression(
   issues: PriorReviewIssue[],
   root?: string,
 ): Promise<RegressionStatus[]> {
+  requireLegacyReviewPipeline();
   const resolvedRoot = resolveRoot(root);
   const harnessGaps = await readOptionalText(harnessGapsPath(resolvedRoot));
   const statuses: RegressionStatus[] = [];
@@ -1073,6 +1082,7 @@ export function computeRegressionCoverage(statuses: RegressionStatus[]): {
   open: number;
   score: number;
 } {
+  requireLegacyReviewPipeline();
   const covered = statuses.filter((entry) => entry.status === 'covered').length;
   const partial = statuses.filter((entry) => entry.status === 'partial').length;
   const open = statuses.filter((entry) => entry.status === 'open').length;
@@ -1086,6 +1096,7 @@ export function computeRegressionCoverage(statuses: RegressionStatus[]): {
 }
 
 export function computePriorityScore(weights: IssueWeights): number {
+  requireLegacyReviewPipeline();
   for (const [key, value] of Object.entries(weights)) {
     if (!Number.isInteger(value) || value < 0 || value > 5) {
       throw new Error(`invalid issue weight ${key}: ${value}`);

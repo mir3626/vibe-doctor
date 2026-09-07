@@ -114,6 +114,7 @@ async function scaffoldRepo(
 
 function runPreflightJson(root: string): PreflightRecord[] {
   const result = spawnSync(process.execPath, [preflightPath, '--json'], {
+    env: { ...process.env, VIBE_HARNESS_PROFILE: 'legacy' },
     cwd: root,
     encoding: 'utf8',
   });
@@ -129,6 +130,7 @@ function plannerPresence(records: PreflightRecord[]): PreflightRecord {
 
 function runPreflightRaw(root: string): SpawnSyncReturns<string> {
   return spawnSync(process.execPath, [preflightPath, '--json'], {
+    env: { ...process.env, VIBE_HARNESS_PROFILE: 'legacy' },
     cwd: root,
     encoding: 'utf8',
   });

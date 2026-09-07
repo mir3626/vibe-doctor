@@ -1,53 +1,45 @@
 # Orchestrator Handoff — vibe-doctor
 
 <!-- vibe:auto-state:start -->
-> Auto-captured git snapshot; refreshed by `npm run vibe:checkpoint`.
+> Auto-captured git snapshot; refreshed by checkpoint when requested.
 <!-- vibe:auto-state:end -->
 
 PROJECT NOT INITIALIZED.
 
-This repository is the upstream `vibe-doctor` template. Downstream product work still requires `/vibe-init`; this handoff covers harness maintenance only.
+This is the upstream template; downstream product work still requires /vibe-init.
 
-## Status
+## Current outcome
 
-- Branch/release: `main`, `v1.14.0` release packet based on `0e4aec49a1115f8aff5287dacff898c511c5a555`.
-- Maintenance and release integration are complete for both the standalone goal-iteration decoupling and the safe bare/force-close Pro-flow lifecycle.
-- Existing user-local `.vibe/agent/tokens.json` modification is unrelated and must remain uncommitted.
-- User inputs remain untracked and byte-identical:
-  - `docs/prompts/goal-vibe-goal-iterate-pro-decoupling.md` — SHA-256 `1B3079935F526728DD80FE5A6F238BE2E4B47264F0E2D8071249C1498E6482ED`
-  - `docs/reports/vibe-goal-iterate-pro-decoupling-handoff-20260831.md` — SHA-256 `5565590CE1B753B454EE48A0789CCFBE04D494528A33EBCFD4A081C413612EF5`
-- The user authorized the `v1.14.0` release commit plus origin branch/tag publication. No actual Pro publication, normal close, or operator force-close is authorized by that release directive.
-
-## Completed scope 1 — goal-iterate / Pro decoupling
-
-- Active iteration history now owns a strict `executionBinding`: `standalone-goal-iterate` requires `proFlowPath: null`; `pro-roundtrip` requires one exact flow path.
-- A valid standalone binding ignores but never mutates unrelated ambient Pro state. Explicit Pro bindings remain exact and fail closed.
-- Legacy iteration records without the binding retain the ambient Pro completion gate.
-- Completion replay cannot attach an old standalone Sprint to a newer iteration or bypass a same-named active legacy Pro flow.
-- Goal-to-plan, vibe-iterate phases, Planner, report guidance, workflow integrity docs, schema, and tests consume the same origin-scoped rule.
-
-## Completed scope 2 — safe bare Pro status and deterministic operator close
-
-- Bare `$vibe-pro-go` / `npm run vibe:pro-go` is local-pointer inspection only. It reads the checkout identity and local `ACTIVE.json`, reports `scaffoldingCreated: false`, and never fetches the bridge, selects a remote flow, syncs, bootstraps, starts, or creates packet/worktree scaffolding.
-- Resume is explicit: `npm run vibe:pro-go -- go <exact-flow>` or a qualified `--date` / `--slug` selector. Unqualified `go` may use only a valid checkout-owned active local pointer.
-- Operator termination is explicit and two-phase:
-  - dry-run: `npm run vibe:pro-go -- force-close <flow> --reason "<one-line reason>"`
-  - publish after fresh user approval: `npm run vibe:pro-go -- force-close <flow> --reason "<same reason>" --publish --user-approved`
-- `proGoAutoPublish` never authorizes force-close. The immutable `OPERATOR-CLOSE.json` is bound to the exact flow/repository/branch/base/source bridge commit and is published as an isolated single-file append-only commit.
-- Repeating the exact reason is idempotent; a different reason is an immutable-record conflict. A valid record reports terminal `force-closed`, never approved/completed.
-- Force-closed flows cannot be resumed by exact or qualified selectors. A force-closed member blocks coordinated normal close for the entire group.
-- The root Web bridge runbook verifies the operator record before pinned protocol/event-chain continuation, including schema, binding, single-commit path history, isolated addition, parent/source, and byte-identical FLOW evidence. This allows poisoned or superseded-generation flows to terminate without mutating their old protocol generation.
+- Release task: user authorized origin publication, an annotated version tag and downstream osint-stock-screener upgrade. Candidate is v1.15.0; publish main plus the tag atomically after forced release verification. Downstream branch improve/post-refactor-all has unrelated dirty product/state work and a paused goal; preserve those and its explicit Astra/xhigh Planner override.
+- Release verification is complete on stable final inputs: legacy 577 pass / 1 skip of 578; Astra 568 pass / 2 skip of 570; zero failures across all nine forced groups in both profiles. Downstream seven relevant groups passed legacy 542/546 and Astra 533/538, with four/five conditional skips and zero failures. Build, schemas, UTF-8 and preservation checks pass. Publication is next; evidence/backups: .tmp/release-1.15.0/.
+- Shared integration fixes cover available dashboard ports, Windows fixture cleanup, isolated profile fixtures and delayed statusline stdin. The verifier records groups independently, retains passing earlier receipts and rejects later mutation of reused inputs. Inherited NODE_TEST_CONTEXT was proven to silently skip nested tests and is now cleared; NODE_OPTIONS contributes to receipt identity. The ineffective Stop QA timeout increase was reverted; no Stop QA runtime change or diagnostic preload is shipped.
+- User authorized all 21 Astra review corrections plus narrowing conflicting autonomy rules. Follow-up explicitly promotes model-independent runtime/test fixes to all models; prompt/workflow reductions remain limited to GPT-6 Astra and explicitly verified successors.
+- Implementation is complete; actual model task-success comparison remains blocked below. Release publication and downstream sync are now authorized; actual Pro publication/approval/close remains outside scope.
+- Release base: main at 70cc399dfed77de39d7445337222bb2b474ad427; candidate harness 1.15.0.
+- Result: docs/reports/astra-harness-implementation-2026-09-07.md. Original review: docs/reports/review-0-2026-09-07.md. Queue: docs/plans/astra-harness-implementation.md.
+- Usage: docs/guides/astra-profile.md. Native commands use scoped VIBE_ACTIVE_MODEL; wrappers resolve their child model independently. VIBE_HARNESS_PROFILE=legacy is rollback; it cannot promote lower models.
+- Astra uses a short contract, direct durable work queues and relevant QA. Shared across all models: accurate verification inputs/nested discovery/receipt repair/stability, static audit reuse, single-execution transport, Windows exit-code/Unicode fixes, requested/effective metadata, lightweight protocol fixtures and shipping-set hygiene. Scope/ownership, init, design/handoff continuity and exact Pro binding remain.
+- Additional reductions: unrelated dirty files no longer block Astra preflight, installs follow actual capabilities, unused role CLIs are optional, and lower children cannot inherit Astra identity.
 
 ## Verification
 
-- Final all-group release verification after every review remediation: `npm run vibe:verify:release` — 562 tests, 561 pass, 0 fail, 1 intentional skip.
-- Focused Pro lifecycle coverage includes bare no-origin/no-scaffolding, poisoned-flow force-close, immutable-reason conflict/idempotence, exact and qualified selector terminal behavior, and coordinated-close refusal.
-- Schema generation/check, TypeScript, skill validation, Codex wrapper audit, iterate shard audit, sync audit, contract tests, diff checks, UTF-8/mojibake checks, and input-hash restoration passed during implementation.
-- Independent final diff review found no remaining P0-P3 findings after coordinated-close, immutable-reason, and Web cross-surface parity remediations.
+- Final release verification: legacy 578 tests / 577 pass / 1 skip / 0 fail; Astra 570 tests / 568 pass / 2 skip / 0 fail. Both full forced commands succeeded. Evidence: .tmp/release-1.15.0/final-verification-summary.json.
+- Legacy user-draft hygiene failure is resolved by checking the Git shipping set; staged drafts still fail. No user files were moved/deleted to obtain a pass. Both profiles reject/repair corrupt receipts and reject inputs changed during execution.
+- Build, generated-schema check and seven structural audits passed. Earlier Chromium UI 2/2 remains applicable to unchanged UI code. Encoding scan: 85 files valid ASCII/UTF-8; no new damage or suspicious quoted-question patterns. Preserved user hashes all match.
+- Same iterate-reference injected bodies: legacy 7 files / 35,861 bytes; Astra 1 file / 3,215 bytes (91.0% reduction). This is not total context, billing or task-quality evidence.
+- Evidence: .tmp/astra-implementation-20260907/. Preserve logs for review; temporary fixtures/copies are not release payloads.
 
-## Boundaries and restart
+## Live evaluation blocker
 
-- The force-close publish command is a new external lifecycle mutation and always requires fresh user approval for the exact flow and reason. Do not infer it from this handoff or a bare skill invocation.
-- Do not hand-edit `.vibe/worktrees/pro-roundtrip`, rewrite `vibe-pro-bridge`, or represent force-close as normal completion.
-- The two user input files cannot be shipped in the pristine upstream template; release verification temporarily isolates only those exact paths and restores/verifies their hashes in `finally`.
-- No implementation item remains. The release commit/tag must exclude `.vibe/agent/tokens.json` and the two untracked project-owned user inputs; after publication, verify `origin/main`, local `HEAD`, and peeled `v1.14.0` all resolve to the same commit.
+- 12-case matrix and concrete paired fixtures prepared. Codex CLI 0.153.4 responded to an Astra/high canary.
+- Both first task arms, then one further legacy arm, reported read-only runtime and inspection rejected by policy. No tool execution event proves a task result or the raw denial reason. Raw oracle=false rows are UNSCORABLE, not model/harness quality failures.
+- Owned runner/children stopped; no permission/config bypass. See paired/ADJUDICATION.md. Resume live comparison only in a functioning authorized child runtime; do not automatically repeat blocked calls.
+- Task-success equivalence/improvement remains unverified. Windows CI configuration was added; remote CI was not published/run.
+
+## Preserve
+
+- .vibe/agent/tokens.json remains the original user modification, SHA-256 A73281082B7FD132E0C5A5567D16750E3A56AEB3A7DC98747B6B58B4E2BB4922.
+- docs/prompts/goal-vibe-goal-iterate-pro-decoupling.md remains SHA-256 1B3079935F526728DD80FE5A6F238BE2E4B47264F0E2D8071249C1498E6482ED.
+- docs/reports/vibe-goal-iterate-pro-decoupling-handoff-20260831.md remains SHA-256 5565590CE1B753B454EE48A0789CCFBE04D494528A33EBCFD4A081C413612EF5.
+- Prior review temporary copies in .tmp/astra-review-20260907/ remain after automatic cleanup approval rejection. Do not retry cleanup through another mechanism; exclude all .tmp trees from source searches/staging.
+- Preserve v1.14 standalone/exact-Pro binding, local-only bare status, append-only ownership/evidence and exact-flow operator-close authority. This task grants no new Pro publication or close authority.

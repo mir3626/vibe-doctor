@@ -12,6 +12,7 @@ import { commandExists, runCommand } from '../lib/shell.js';
 import { isoDate, isoStamp } from '../lib/time.js';
 import { extractUsage } from '../lib/usage.js';
 import { buildExecutionPlan } from '../providers/runner.js';
+import { codexInvocationProfile, type ProfileRegistry } from '../lib/harness-profile.mjs';
 
 async function resolvePrompt(
   promptFile: string | undefined,
@@ -101,6 +102,13 @@ async function main(): Promise<void> {
   logger.info(`command=${plan.command} ${plan.args.join(' ')}`);
 
   const outputFile = path.join(paths.vibeRunsDir, isoDate(), `${taskId}.jsonl`);
+  let profileRegistry: ProfileRegistry | undefined;
+  try {
+    profileRegistry = JSON.parse(await readText(path.join(cwd, '.vibe/model-registry.json'))) as ProfileRegistry;
+  } catch { /* missing or malformed registry cannot promote an unknown model */ }
+  const modelProvenance = provider === 'codex'
+    ? codexInvocationProfile(plan.args, { ...process.env, ...plan.env }, profileRegistry)
+    : { requestedModel: null, effectiveModel: null, requestedEffort: null, effectiveEffort: null };
 
   if (dryRun) {
     await appendJsonl(outputFile, {
@@ -109,6 +117,7 @@ async function main(): Promise<void> {
       provider,
       role,
       dryRun: true,
+      modelProvenance,
       command: plan.command,
       args: plan.args,
     });
@@ -139,6 +148,7 @@ async function main(): Promise<void> {
     provider,
     role,
     exitCode: result.exitCode,
+    modelProvenance,
     usage,
     stdoutPreview: result.stdout.slice(0, 2000),
     stderrPreview: result.stderr.slice(0, 2000),

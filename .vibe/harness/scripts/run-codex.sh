@@ -14,9 +14,8 @@
 # forcing UTF-8 at every layer AND telling codex to propagate UTF-8 into
 # every subshell it spawns via `shell_environment_policy`.
 #
-# It also handles transient model "at capacity" errors with backoff
-# retries, and buffers stdin so retries work even when the prompt is
-# piped in.
+# It buffers piped stdin for context injection and runs each task once.
+# Recovery belongs to the native session after inspecting any partial effects.
 #
 # USAGE
 # -----
@@ -27,11 +26,11 @@
 # -------------
 #   CODEX_MODEL=gpt-5-codex        -> pass `-m <name>` to codex
 #   CODEX_BIN=/path/to/codex       -> explicit codex executable path
-#   CODEX_RETRY=3                  -> max retry attempts (default 3)
+#   CODEX_RETRY / CODEX_RETRY_DELAY are ignored: inspect state and use native resume after failure.
 #   CODEX_SANDBOX=workspace-write  -> sandbox mode
 #   CODEX_EXTRA_CONFIG="-c k=v"    -> extra `-c` overrides
 #
-# This wrapper is the ONLY supported Codex invocation path. Orchestrator
+# Legacy profile: this wrapper is the supported Codex invocation path. Orchestrator
 # sprint calls, `vibe:run-agent --provider codex`, and manual debugging
 # all route through this script by piping a prompt file into
 # `run-codex.sh -` (or passing the prompt as a positional arg).
@@ -168,40 +167,6 @@ run_health_check() {
     printf '%s\n' "$stderr_tail" >&2
   fi
   return 3
-}
-
-retry_reason() {
-  local rc stderr_file stderr_text
-
-  rc="$1"
-  stderr_file="$2"
-  stderr_text="$(cat "$stderr_file" 2>/dev/null || true)"
-
-  if printf '%s\n' "$stderr_text" | grep -qi 'at capacity'; then
-    printf 'capacity'
-    return 0
-  fi
-
-  if [[ $rc -eq 124 || $rc -eq 143 ]] || printf '%s\n' "$stderr_text" | grep -qi 'timeout'; then
-    printf 'timeout'
-    return 0
-  fi
-
-  printf 'exit=%s' "$rc"
-}
-
-retry_delay_for_attempt() {
-  local attempt override
-
-  attempt="$1"
-  override="${CODEX_RETRY_DELAY:-}"
-
-  if [[ -n "$override" && "$override" =~ ^[0-9]+$ ]]; then
-    printf '%s' "$override"
-    return 0
-  fi
-
-  printf '%s' "$((attempt * 30))"
 }
 
 token_suffix() {
@@ -354,6 +319,16 @@ resolve_utf8_locale() {
 }
 
 # ---------- 0. Subcommand dispatch ----------
+# Select using the child invocation, never the parent session's profile.
+astra_dispatch="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/vibe-codex-dispatch.mjs"
+if [[ "${1:-}" != "--health" && "${1:-}" != "--version" && "${1:-}" != "--help" && "${1:-}" != "-h" ]] && [[ -f "$astra_dispatch" ]]; then
+  if [[ "$(node "$astra_dispatch" --profile-only "$@")" == "astra" ]]; then
+    if [[ "${1:-}" != "--diagnose-md-injection" && "${1:-}" != "--dry-run-md-injection" ]]; then
+      reject_windows_codex_shim_in_wsl "$(resolve_codex_path)" || exit 1
+    fi
+    exec node "$astra_dispatch" "$@"
+  fi
+fi
 # Must run BEFORE locale forcing / chcp / stdin buffering so --health returns fast.
 if [[ $# -ge 1 ]]; then
   case "$1" in
@@ -376,6 +351,9 @@ if [[ $# -ge 1 ]]; then
 fi
 
 if [[ "$md_injection_diagnostic" != "1" ]]; then
+  # A lower/unknown child must never inherit its parent's Astra runtime claim.
+  export VIBE_ACTIVE_MODEL=""
+  export VIBE_ACTIVE_PROVIDER="codex"
   agent_session_start
 fi
 
@@ -789,7 +767,7 @@ if [[ "$md_injection_diagnostic" != "1" ]] && command -v chcp.com >/dev/null 2>&
   chcp.com 65001 </dev/null >/dev/null 2>&1 || true
 fi
 
-# ---------- 3. Buffer stdin so diagnostics and retries can replay it ----------
+# ---------- 3. Buffer stdin for diagnostics and prompt injection ----------
 stdin_buf=""
 if [[ ! -t 0 ]]; then
   stdin_buf=$(cat)
@@ -835,10 +813,23 @@ fi
 reject_windows_codex_shim_in_wsl "$codex_path" || exit 1
 
 sandbox="${CODEX_SANDBOX:-workspace-write}"
+has_model_arg=0
+has_sandbox_arg=0
+skip_operand=0
+for arg in "$@"; do
+  if [[ "$skip_operand" -eq 1 ]]; then skip_operand=0; continue; fi
+  case "$arg" in
+    --) break ;;
+    -m|--model) has_model_arg=1; skip_operand=1 ;;
+    --model=*|-m?*) has_model_arg=1 ;;
+    -s|--sandbox) has_sandbox_arg=1; skip_operand=1 ;;
+    --sandbox=*|-s?*) has_sandbox_arg=1 ;;
+    -c|--config|-p|--profile|-C|--cd|-i|--image|-o|--output-last-message|--output-schema|--color|--add-dir|--enable|--disable|--thread-source|--local-provider) skip_operand=1 ;;
+  esac
+done
 
 codex_args=(
   exec
-  -s "$sandbox"
   -c 'shell_environment_policy.inherit=all'
   -c "shell_environment_policy.set.LC_ALL=\"$utf8_locale\""
   -c "shell_environment_policy.set.LANG=\"$utf8_locale\""
@@ -848,7 +839,10 @@ codex_args=(
   -c 'shell_environment_policy.set.DOTNET_SYSTEM_GLOBALIZATION_USENLS="false"'
 )
 
-if [[ -n "${CODEX_MODEL:-}" ]]; then
+if [[ "$has_sandbox_arg" -eq 0 ]]; then
+  codex_args+=(-s "$sandbox")
+fi
+if [[ "$has_model_arg" -eq 0 && -n "${CODEX_MODEL:-}" ]]; then
   codex_args+=(-m "$CODEX_MODEL")
 fi
 
@@ -872,11 +866,13 @@ if [[ -n "$stdin_buf" ]]; then
   stdin_buf="$(inject_referenced_md_context "$raw_stdin_buf" "$stdin_buf")"
 fi
 
-# ---------- 6. Retry loop ----------
-retries="${CODEX_RETRY:-3}"
+# ---------- 6. Single execution (a failure may already have side effects) ----------
+retries=1
 attempt=0
 start_ts="$(date +%s)"
 model_label="${CODEX_MODEL:-default}"
+if [[ "$has_model_arg" -eq 1 ]]; then model_label="explicit-cli"; fi
+if [[ "$has_sandbox_arg" -eq 1 ]]; then sandbox="explicit-cli"; fi
 while [[ $attempt -lt $retries ]]; do
   attempt=$((attempt + 1))
   : >"$attempt_output"
@@ -921,7 +917,7 @@ while [[ $attempt -lt $retries ]]; do
     printf '%s\nlast_exit=%s\nreason_hint=%s\n' "$(date -u +"%Y-%m-%dT%H:%M:%SZ")" "$rc" "$reason_hint" > .vibe/agent/codex-unavailable.flag
     attention_event "urgent" "Codex run failed" "Codex exec failed after ${attempt} attempt(s), elapsed ${elapsed}s, reason=${reason_hint}."
     cat >&2 <<EOF
-[run-codex] CODEX_UNAVAILABLE — 3 retries exhausted (last exit=$rc, $reason_hint).
+[run-codex] CODEX_UNAVAILABLE — execution failed; automatic task replay disabled (last exit=$rc, $reason_hint).
                   Orchestrator 는 아래 중 하나 선택:
                   (1) 시간차 재시도 (quota 아닌 edge block 일 수 있음)
                   (2) 사용자 승인 하에 Orchestrator 직접 편집
@@ -931,9 +927,4 @@ EOF
     exit $rc
   fi
 
-  delay="$(retry_delay_for_attempt "$attempt")"
-  echo "[run-codex] attempt $attempt/$retries retrying reason=$(retry_reason "$rc" "$attempt_stderr") delay=${delay}s" >&2
-  if [[ "$delay" -gt 0 ]]; then
-    sleep "$delay"
-  fi
 done

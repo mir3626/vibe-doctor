@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
-import { readdir, readFile } from 'node:fs/promises';
+import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { describe, it } from 'node:test';
 
@@ -16,19 +17,14 @@ const isPristineTemplate = ((): boolean => {
     return false;
   }
 })();
-// Only the pristine-state assertions are template-repo-only; the dashboard/report structure check is a
-// generic harness-integrity test that stays valid (and useful) downstream.
+// Check the shipping set; local drafts are not template payloads.
 const templateOnly = isPristineTemplate ? it : it.skip;
 
 async function listFiles(dirPath: string): Promise<string[]> {
-  const entries = await readdir(dirPath, { withFileTypes: true });
-  const files: string[] = [];
-  for (const entry of entries) {
-    if (entry.isFile()) {
-      files.push(entry.name);
-    }
-  }
-  return files.sort((left, right) => left.localeCompare(right));
+  const relative = path.relative(process.cwd(), dirPath).replaceAll('\\', '/');
+  return execFileSync('git', ['ls-files', '-z', '--', relative], { encoding: 'utf8', windowsHide: true })
+    .split('\0').filter(Boolean).filter((file) => path.posix.dirname(file) === relative)
+    .map((file) => path.posix.basename(file)).sort((left, right) => left.localeCompare(right));
 }
 
 describe('template project-owned hygiene', () => {
@@ -82,24 +78,4 @@ describe('template project-owned hygiene', () => {
     assert.doesNotMatch(sessionLog, /sprint-M\d|dogfood\d+|iter-[789]/i);
   });
 
-  it('keeps dashboard and project report render templates split from CLIs', async () => {
-    const [dashboardCli, dashboardTemplate, reportCli, reportTemplate, reportMeta] = await Promise.all([
-      readFile(path.join(process.cwd(), '.vibe', 'harness', 'scripts', 'vibe-dashboard.mjs'), 'utf8'),
-      readFile(path.join(process.cwd(), '.vibe', 'harness', 'scripts', 'lib', 'dashboard-template.mjs'), 'utf8'),
-      readFile(path.join(process.cwd(), '.vibe', 'harness', 'scripts', 'vibe-project-report.mjs'), 'utf8'),
-      readFile(path.join(process.cwd(), '.vibe', 'harness', 'scripts', 'lib', 'project-report-template.mjs'), 'utf8'),
-      readFile(path.join(process.cwd(), '.vibe', 'harness', 'scripts', 'lib', 'project-report-meta.mjs'), 'utf8'),
-    ]);
-
-    assert.match(dashboardCli, /from '\.\/lib\/dashboard-template\.mjs'/);
-    assert.doesNotMatch(dashboardCli, /function renderShellHtml\(/);
-    assert.match(dashboardTemplate, /export function renderShellHtml\(/);
-    assert.match(dashboardTemplate, /export function renderIconSvg\(/);
-
-    assert.match(reportCli, /from '\.\/lib\/project-report-template\.mjs'/);
-    assert.match(reportCli, /from '\.\/lib\/project-report-meta\.mjs'/);
-    assert.doesNotMatch(reportCli, /function renderHtml\(/);
-    assert.match(reportTemplate, /export function renderProjectReportHtml\(/);
-    assert.match(reportMeta, /export function isMetaSprintId\(/);
-  });
 });

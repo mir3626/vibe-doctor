@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { promisify } from 'node:util';
 import { afterEach, describe, it } from 'node:test';
+import { runtimeHarnessProfile } from '../src/lib/harness-profile.mjs';
 import {
   assessRegression,
   computeRegressionCoverage,
@@ -55,7 +56,7 @@ function fixtureIssue(id: string, proposal: string): PriorReviewIssue {
   };
 }
 
-describe('prior review regression', () => {
+describe('prior review regression', { skip: runtimeHarnessProfile().profile === 'astra' }, () => {
   it('loadPriorReviewIssues parses YAML finding blocks', async () => {
     const root = await makeTempDir('review-regression-load-');
     await writeText(

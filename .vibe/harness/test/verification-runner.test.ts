@@ -1,12 +1,13 @@
 import assert from 'node:assert/strict';
-import { execFile as execFileCallback } from 'node:child_process';
-import { mkdtemp, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
+import { execFile as execFileCallback, spawnSync } from 'node:child_process';
+import { mkdtemp, mkdir, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, it } from 'node:test';
 import { promisify } from 'node:util';
 import {
   computeGroupInputHash,
+  listHarnessTestFiles,
   matchesPathPattern,
   readSuccessfulReceipt,
   selectVerificationGroups,
@@ -66,6 +67,90 @@ function manifest(groups: VerificationGroup[]): VerificationManifest {
 }
 
 describe('verification group manifest and planner', () => {
+  it('keeps passing groups after a later failure and rejects mutation of reused inputs', async () => {
+    const root = await makeTempDir();
+    const verifyPath = path.resolve('.vibe/harness/src/commands/verify.ts');
+    await mkdir(path.join(root, '.vibe/harness/test'), { recursive: true });
+    await mkdir(path.join(root, '.vibe/harness/src/early'), { recursive: true });
+    await writeFile(path.join(root, 'package.json'), '{"type":"module"}\n');
+    await writeFile(path.join(root, '.gitignore'), 'node_modules/\n.vibe/runs/\n');
+    await symlink(path.resolve('node_modules'), path.join(root, 'node_modules'), process.platform === 'win32' ? 'junction' : 'dir');
+    const input = '.vibe/harness/src/early/value.txt';
+    await writeFile(path.join(root, input), 'initial');
+    await writeFile(path.join(root, '.vibe/harness/test/early.test.ts'), "import { appendFileSync } from 'node:fs'; appendFileSync('early-runs.txt', 'run\\n');\n");
+    const late = path.join(root, '.vibe/harness/test/late.test.ts');
+    await writeFile(late, "throw new Error('fixture failure');\n");
+    await writeFile(path.join(root, '.vibe/harness/test/groups.json'), JSON.stringify(manifest([group('early', 'node-test'), group('late', 'node-test')])));
+    await execFile('git', ['init'], { cwd: root, windowsHide: true });
+    const run = (args: string[] = []) => spawnSync(process.execPath,
+      ['--import', 'tsx', verifyPath, '--root', root, '--all', ...args],
+      { env: { ...process.env, VIBE_VERIFY_BASE: '' }, encoding: 'utf8', windowsHide: true });
+    const failed = run(['--force']);
+    assert.notEqual(failed.status, 0, failed.stdout + failed.stderr);
+    assert.match(failed.stderr, /verification group failed: late/);
+    const planResult = run(['--plan', '--json']);
+    assert.equal(planResult.status, 0, planResult.stderr);
+    const plan = JSON.parse(planResult.stdout);
+    assert.equal(plan.groups[0].action, 'reuse');
+    assert.equal(plan.groups[1].action, 'run');
+    const earlyReceipt = path.join(root, plan.groups[0].receiptPath);
+    await writeFile(late, 'export {};\n');
+    const repaired = run();
+    assert.equal(repaired.status, 0, repaired.stderr);
+    assert.equal(await readFile(path.join(root, 'early-runs.txt'), 'utf8'), 'run\n');
+    await writeFile(late, `import { writeFileSync } from 'node:fs'; writeFileSync('${input}', 'mutated');\n`);
+    const mutated = run();
+    assert.notEqual(mutated.status, 0);
+    assert.match(mutated.stderr, /verification inputs changed during execution: early/);
+    await assert.rejects(readFile(earlyReceipt), { code: 'ENOENT' });
+  });
+
+  it('repairs corrupt receipts, ignores ambient Pro bases, and rejects changing inputs in both profiles', async () => {
+    const verifyPath = path.resolve('.vibe/harness/src/commands/verify.ts');
+    for (const model of ['gpt-5.5', 'gpt-6-astra']) {
+      const root = await makeTempDir();
+      await mkdir(path.join(root, '.vibe/harness/test'), { recursive: true });
+      await mkdir(path.join(root, '.vibe/harness/src/probe'), { recursive: true });
+      await mkdir(path.join(root, '.vibe/agent/pro-roundtrip'), { recursive: true });
+      await writeFile(path.join(root, '.vibe/agent/pro-roundtrip/ACTIVE.json'), JSON.stringify({ baseSha: 'unrelated-invalid-base' }));
+      const input = '.vibe/harness/src/probe/value.txt';
+      await writeFile(path.join(root, input), 'initial');
+      const sample = manifest([group('probe', 'command', {
+        command: ['{node}', '-e', `const fs = require('node:fs'); fs.appendFileSync('executions.txt','run\\n'); if(process.env.VIBE_VERIFY_TEST_MUTATE === '1') fs.appendFileSync('${input}', 'changed');`],
+      })]);
+      await writeFile(path.join(root, '.vibe/harness/test/groups.json'), JSON.stringify(sample));
+      await execFile('git', ['init'], { cwd: root, windowsHide: true });
+      const env = { ...process.env, VIBE_ACTIVE_MODEL: model, VIBE_ACTIVE_PROVIDER: 'codex', VIBE_HARNESS_PROFILE: '', VIBE_VERIFY_BASE: '' };
+      const run = (args: string[], mutate = false) => spawnSync(process.execPath,
+        ['--import', 'tsx', verifyPath, '--root', root, '--group', 'probe', '--paths', input, ...args],
+        { env: { ...env, VIBE_VERIFY_TEST_MUTATE: mutate ? '1' : '0' }, encoding: 'utf8', windowsHide: true });
+      const plan = () => {
+        const result = run(['--plan', '--json']);
+        assert.equal(result.status, 0, result.stderr);
+        const parsed = JSON.parse(result.stdout);
+        assert.equal(parsed.baseSha, null);
+        return parsed.groups[0] as { receiptPath: string; action: string };
+      };
+      assert.equal(run([]).status, 0);
+      const passed = plan();
+      assert.equal(passed.action, 'reuse', model);
+      assert.equal(run([]).status, 0);
+      assert.equal(await readFile(path.join(root, 'executions.txt'), 'utf8'), 'run\n');
+      const receiptPath = path.join(root, passed.receiptPath);
+      const malformed = JSON.parse(await readFile(receiptPath, 'utf8'));
+      delete malformed.passedAt;
+      await writeFile(receiptPath, JSON.stringify(malformed));
+      assert.equal(plan().action, 'run');
+      assert.equal(run([]).status, 0);
+      assert.equal(plan().action, 'reuse');
+      assert.equal(await readFile(path.join(root, 'executions.txt'), 'utf8'), 'run\nrun\n');
+      const changed = run(['--force'], true);
+      assert.notEqual(changed.status, 0);
+      assert.match(changed.stderr, /verification inputs changed during execution/);
+      await assert.rejects(readFile(receiptPath), { code: 'ENOENT' });
+    }
+  });
+
   it('matches exact, segment wildcard, and recursive path patterns', () => {
     assert.equal(matchesPathPattern('package.json', 'package.json'), true);
     assert.equal(matchesPathPattern('.vibe/harness/scripts/*.mjs', '.vibe/harness/scripts/a.mjs'), true);
@@ -74,14 +159,13 @@ describe('verification group manifest and planner', () => {
     assert.equal(matchesPathPattern('.vibe/harness/src/?.ts', '.vibe/harness/src/a.ts'), true);
   });
 
-  it('requires every root harness test to have exactly one owner', async () => {
+  it('requires every discovered harness test to have exactly one owner', async () => {
     const actual = JSON.parse(
       await readFile(path.resolve('.vibe/harness/test/groups.json'), 'utf8'),
     ) as unknown;
-    const rootTests = (await readdir(path.resolve('.vibe/harness/test'), { withFileTypes: true }))
-      .filter((entry) => entry.isFile() && entry.name.endsWith('.test.ts'))
-      .map((entry) => `.vibe/harness/test/${entry.name}`)
-      .sort();
+    const rootTests = await listHarnessTestFiles(process.cwd());
+    assert.ok(rootTests.includes('.vibe/harness/test/integration/meta-smoke.test.ts'));
+    assert.ok(rootTests.every((file) => !file.includes('/playwright/') && !file.includes('/fixtures/')));
 
     const validated = validateVerificationManifest(actual, rootTests);
     assert.equal(validated.groups.some((entry) => entry.id === 'pro-roundtrip'), true);

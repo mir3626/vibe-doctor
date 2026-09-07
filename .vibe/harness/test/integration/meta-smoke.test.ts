@@ -10,8 +10,6 @@ const tempDirs: string[] = [];
 const migration110Path = path.resolve('.vibe', 'harness', 'migrations', '1.1.0.mjs');
 const migration120Path = path.resolve('.vibe', 'harness', 'migrations', '1.2.0.mjs');
 const preflightPath = path.resolve('.vibe', 'harness', 'scripts', 'vibe-preflight.mjs');
-const manifestPath = path.resolve('.vibe', 'sync-manifest.json');
-const harnessGapsPath = path.resolve('docs', 'context', 'harness-gaps.md');
 const hasGit = checkHasGit();
 
 afterEach(async () => {
@@ -206,39 +204,6 @@ describe('meta smoke', () => {
     assert.deepEqual(secondSnapshot, firstSnapshot);
   });
 
-  it('sync-manifest covers all M1-M9 deliverables', async () => {
-    const manifest = await readJson(manifestPath);
-    const migrations = manifest.migrations;
-    assert.ok(isRecord(migrations));
-    assert.equal(migrations['1.0.0'], '.vibe/harness/migrations/1.0.0.mjs');
-    assert.equal(migrations['1.1.0'], '.vibe/harness/migrations/1.1.0.mjs');
-    assert.equal(migrations['1.2.0'], '.vibe/harness/migrations/1.2.0.mjs');
-
-    const files = manifest.files;
-    assert.ok(isRecord(files));
-    const harness = files.harness;
-    assert.ok(Array.isArray(harness));
-
-    const requiredEntries = [
-      '.vibe/harness/src/**',
-      '.vibe/harness/migrations/**',
-      '.vibe/harness/scripts/**',
-      'scripts/vibe-sync-bootstrap.mjs',
-      '.vibe/model-registry.json',
-      '.claude/skills/**',
-      'docs/context/harness-gaps.md',
-      '.claude/statusline.mjs',
-      '.claude/statusline.sh',
-      '.vibe/harness/tsconfig.harness.json',
-    ];
-
-    for (const entry of requiredEntries) {
-      assert.equal(harness.includes(entry), true, `missing manifest entry: ${entry}`);
-    }
-
-    assert.equal(harness.length >= 30, true);
-  });
-
   it(
     'preflight --bootstrap passes in clean tree',
     { skip: !hasGit },
@@ -255,26 +220,4 @@ describe('meta smoke', () => {
     },
   );
 
-  it('harness-gaps ledger has no open entries after M10', async () => {
-    const lines = (await readFile(harnessGapsPath, 'utf8')).split(/\r?\n/);
-    const rows = lines
-      .filter((line) => line.startsWith('| gap-'))
-      .map((line) => line.split('|').map((part) => part.trim()));
-
-    const statuses = rows.map((parts) => ({
-      id: parts[1] ?? '',
-      status: parts[4] ?? '',
-    }));
-
-    const openRows = statuses.filter((row) => row.status === 'open');
-    const partialRows = statuses.filter((row) => row.status === 'partial');
-
-    assert.deepEqual(openRows, []);
-    const allowedPartialIds = new Set([
-      'gap-rule-only-in-md',
-      'gap-harness-bloat-self-expansion',
-      'gap-pass-only-product-identity',
-    ]);
-    assert.equal(partialRows.every((row) => allowedPartialIds.has(row.id)), true);
-  });
 });

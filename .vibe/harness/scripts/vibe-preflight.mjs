@@ -13,6 +13,8 @@ const BOOTSTRAP_MODE = process.argv.includes('--bootstrap');
 const ACK_AUDIT_PREFIX = '--ack-audit-overdue=';
 const results = [];
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
+const profileModule = new URL('../src/lib/harness-profile.mjs', import.meta.url);
+const astra = existsSync(profileModule) && (await import(profileModule.href)).runtimeHarnessProfile().profile === 'astra';
 const statusPath = resolve('.vibe/agent/sprint-status.json');
 const handoffPath = resolve('.vibe/agent/handoff.md');
 const sessionLogPath = resolve('.vibe/agent/session-log.md');
@@ -980,7 +982,7 @@ if (BOOTSTRAP_MODE) {
 } else {
   try {
     const dirty = sh('git status --short');
-    record('git.clean', dirty === '', dirty ? `uncommitted:\n${dirty}` : 'clean');
+    record('git.clean', astra || dirty === '', dirty ? `${astra ? 'Preserve existing edits; select authorized writes.\n' : ''}uncommitted:\n${dirty}` : 'clean', astra && dirty ? 'warn' : 'ok');
   } catch (e) {
     record('git.clean', false, e.message);
   }
@@ -1004,13 +1006,13 @@ if (BOOTSTRAP_MODE) {
       }
 
       if (!hasParent) {
-        record('deps.delta', true, 'single-commit repo - baseline; run npm install once outside sandbox');
+        record('deps.delta', true, astra ? 'single-commit repo; inspect actual dependency availability when needed' : 'single-commit repo - baseline; run npm install once outside sandbox');
       } else {
         const diff = sh('git diff HEAD~1 HEAD -- package.json');
         record(
           'deps.delta',
           true,
-          diff ? 'package.json changed since HEAD~1 - Orchestrator must run npm install outside sandbox' : 'no change',
+          diff ? (astra ? 'package.json changed; select dependency verification for the actual environment' : 'package.json changed since HEAD~1 - Orchestrator must run npm install outside sandbox') : 'no change',
         );
       }
     }
@@ -1049,8 +1051,13 @@ if (!cfg) {
       )
       .filter(Boolean),
   );
+  if (astra) {
+    needed.clear();
+    const requested = process.argv.find((arg) => arg.startsWith('--check-provider='))?.slice('--check-provider='.length);
+    if (requested) needed.add(requested);
+  }
   if (needed.size === 0) {
-    record('provider.config', true, 'no sprintRoles configured (skip health check)');
+    record('provider.config', true, astra ? 'native session; use --check-provider=<id> when an external runner is needed' : 'no sprintRoles configured (skip health check)');
   } else {
     for (const name of needed) {
       const p = providers[name];
@@ -1145,7 +1152,10 @@ try {
 }
 
 // 6. product.md existence (Phase 0 gate)
-if (BOOTSTRAP_MODE) {
+if (astra) {
+  const risks = (sprintStatus?.pendingRisks ?? []).filter((risk) => risk?.status === 'open' && risk?.id?.startsWith('audit-'));
+  record('audit.overdue', true, `Astra: counter is advisory; ${risks.length} recorded audit risks require evidence-based review`, risks.length ? 'warn' : 'info');
+} else if (BOOTSTRAP_MODE) {
   record('audit.overdue', true, 'bootstrap mode - audit gate skipped');
 } else if (sprintStatus) {
   const auditEveryN = Number.isInteger(cfg?.audit?.everyN) ? cfg.audit.everyN : 5;
@@ -1248,6 +1258,7 @@ if (existsSync(orchestrationPath)) {
 //
 // This protects Codex wrapper paths and explicit shard marker blocks before
 // skill-specific shard audits validate the shared runbooks themselves.
+function runStaticAudits() {
 runCodexWrapperAudit();
 
 // 10. Vibe-init skill phase sharding safety gate
@@ -1288,6 +1299,19 @@ runVibeSprintModeAudit();
 // This protects downstream sync from drifting into project-owned source,
 // runtime state, product scripts, provider config, or product-wide post-verify.
 runVibeSyncAudit();
+}
+const auditCacheModule = new URL('./lib/preflight-audit-cache.mjs', import.meta.url);
+if (existsSync(auditCacheModule)) {
+  const { runCachedAudits } = await import(auditCacheModule.href);
+  const cache = runCachedAudits({ root: process.cwd(), results, run: runStaticAudits,
+    force: process.argv.includes('--force-audits'),
+    inputs: ['.claude/skills', '.claude/agents', '.codex/skills', '.codex/agents', '.vibe/harness/scripts',
+      '.vibe/harness/src', '.vibe/settings-presets', '.vibe/sync-manifest.json', '.vibe/config.json',
+      '.vibe/config.local.json', '.vibe/model-registry.json', '.vibe/agent/_common-rules.md',
+      '.vibe/agent/astra-rules.md', 'docs/context', 'docs/guides', 'AGENTS.md', 'CLAUDE.md', 'package.json',
+      'package-lock.json', 'npm-shrinkwrap.json', 'pnpm-lock.yaml', 'yarn.lock', 'bun.lock', 'bun.lockb'] });
+  record('audits.cache', true, cache, 'info');
+} else runStaticAudits();
 
 // 16. Planner presence check (non-blocking warn)
 //
@@ -1296,7 +1320,7 @@ runVibeSyncAudit();
 // mtime is newer than sprintStatus.stateUpdatedAt, emit WARN with guidance to
 // either summon the sprint-planner agent OR record a [decision][planner-skip]
 // entry via .vibe/harness/scripts/vibe-planner-skip-log.mjs.
-runPlannerPresenceCheck();
+if (!astra) runPlannerPresenceCheck();
 
 // 17. Roadmap active-file lifecycle check (non-blocking warn)
 //

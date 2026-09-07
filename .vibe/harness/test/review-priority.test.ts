@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { computePriorityScore } from '../src/lib/review.js';
+import { runtimeHarnessProfile } from '../src/lib/harness-profile.mjs';
 
-describe('review priority score', () => {
+describe('review priority score', { skip: runtimeHarnessProfile().profile === 'astra' }, () => {
   it('computes the maximum weighted score', () => {
     assert.equal(
       computePriorityScore({

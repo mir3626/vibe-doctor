@@ -123,6 +123,7 @@ async function runPreflightJson(root: string): Promise<Array<{ id: string; detai
     cwd: root,
     env: {
       ...process.env,
+      VIBE_HARNESS_PROFILE: 'legacy',
       PATH: `${binDir}${path.delimiter}${process.env.PATH ?? ''}`,
     },
   });

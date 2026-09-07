@@ -1,3 +1,9 @@
+# Model scope
+
+The rules below are the legacy workflow. A verified active GPT-6 Astra model
+uses `.vibe/agent/astra-rules.md` instead, including its test selection and durable
+executionBinding rules. Lower/unknown models continue with this file unchanged.
+
 # Sprint 공용 규칙 (프롬프트 조각)
 
 ## 0. Initialization boundary (CRITICAL)

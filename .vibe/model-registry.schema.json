@@ -43,6 +43,10 @@
                 "additionalProperties": {
                   "type": "object",
                   "properties": {
+                    "harnessProfile": {
+                      "type": "string",
+                      "const": "astra"
+                    },
                     "apiId": {
                       "type": "string"
                     },

@@ -3,6 +3,14 @@ name: goal-to-plan
 description: Turn a user goal into a short implementation plan and approval gate.
 ---
 
+For a verified active GPT-6 Astra model, use `.vibe/agent/astra-rules.md`
+unless the legacy comparison/rollback profile was explicitly selected. It replaces
+mandatory role, interview, per-item goal, creative and repeated-QA ceremonies in
+this runbook. Keep the concrete initialization, state, ownership and authorization
+contracts. Read remaining shards on demand. Lower/unknown models use the full
+workflow below; each child re-evaluates its own model.
+
+
 Use this skill when a user provides a goal but no detailed method.
 
 For a multi-item or multi-Sprint goal, read

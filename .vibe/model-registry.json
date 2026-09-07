@@ -1,9 +1,15 @@
 {
   "$schema": "./model-registry.schema.json",
   "schemaVersion": 1,
-  "updatedAt": "2026-04-15T00:00:00.000Z",
+  "updatedAt": "2026-09-07T00:00:00.000Z",
   "source": "vibe-doctor-upstream",
   "providers": {
+    "codex": {
+      "tiers": { "flagship": "astra" },
+      "knownModels": {
+        "astra": { "apiId": "gpt-6-astra", "release": "unknown", "harnessProfile": "astra" }
+      }
+    },
     "anthropic": {
       "tiers": {
         "flagship": "opus",

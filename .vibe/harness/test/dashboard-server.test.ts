@@ -260,17 +260,31 @@ test('refuses bind to 0.0.0.0', async () => {
   assert.match(result.stderr, /localhost only/);
 });
 
-test('auto-port discovery uses next free port', async () => {
+test('auto-port discovery skips an occupied port and serves on an available port', async () => {
   const root = await tempRoot();
-  const port = await freePort();
   const blocker = http.createServer();
-  await new Promise<void>((resolve) => blocker.listen(port, '127.0.0.1', () => resolve()));
-  const { child, url } = await startDashboard(root, port);
+  await new Promise<void>((resolve, reject) => {
+    blocker.once('error', reject);
+    blocker.listen(0, '127.0.0.1', resolve);
+  });
+  const address = blocker.address();
+  assert.ok(address && typeof address === 'object');
+  const port = address.port;
+  let child: ChildProcess | undefined;
   try {
-    assert.equal(url, `http://127.0.0.1:${port + 1}`);
+    const started = await startDashboard(root, port);
+    child = started.child;
+    const selected = new URL(started.url);
+    assert.equal(selected.hostname, '127.0.0.1');
+    // Other test processes may occupy adjacent ports after our blocker binds.
+    assert.ok(Number(selected.port) > port && Number(selected.port) <= port + 10);
+    const state = await getJson<Record<string, unknown>>(`${started.url}/api/state`);
+    assert.ok(state.currentSprint);
   } finally {
-    child.kill('SIGTERM');
-    blocker.close();
+    child?.kill('SIGTERM');
+    await new Promise<void>((resolve, reject) => {
+      blocker.close((error) => error ? reject(error) : resolve());
+    });
   }
 });
 

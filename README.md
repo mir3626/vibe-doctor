@@ -10,7 +10,13 @@
 
 ## Latest Highlights
 
-### v1.14.0 (2026-08-31) - Deterministic goal ownership and safe Pro operator close
+### v1.15.0 (2026-09-07) - Model-selected workflows and shared runtime correctness
+
+- GPT-6 Astra and explicitly verified successors use a short execution contract with on-demand context and fewer role/interview/QA ceremonies. Lower and unknown models retain their prompts and workflow obligations.
+- All models share accurate verification inputs, nested test discovery, strict success receipts, cached static audits, single-execution Codex transport and Windows UTF-8/exit-code fixes. Failed tasks are not replayed automatically, even with `CODEX_RETRY` set.
+- Model resolution and interview kernels are shared; requested model/effort remain distinct from unconfirmed effective values. Project ownership, durable Pro binding and approval integrity remain intact. See [profile usage](docs/guides/astra-profile.md) and [release notes](docs/release/v1.15.0.md).
+
+### Previous: v1.14.0 (2026-08-31) - Deterministic goal ownership and safe Pro operator close
 
 - Standalone `$vibe-goal-iterate` now records a durable execution binding, so an unrelated ambient Pro pointer cannot hijack Sprint completion or report routing. Exact Pro bindings and legacy records remain fail-closed.
 - Bare `$vibe-pro-go` is now local-pointer inspection only and always reports `scaffoldingCreated: false`; remote selection, sync, bootstrap, start, and packet/worktree creation require an explicit command or qualified selector.
@@ -338,7 +344,7 @@ Root `src/**`, `scripts/**`, `test/**`, `app/**`, `components/**`, and `lib/**` 
 
 ## 버전 / tag 정책
 
-현재 릴리스는 `harnessVersion: 1.14.0` 입니다. 릴리스를 자를 때는 `package.json`, `.vibe/config.json`, release note, tag를 같은 버전으로 맞춥니다.
+현재 릴리스는 `harnessVersion: 1.15.0` 입니다. 릴리스를 자를 때는 `package.json`, `.vibe/config.json`, release note, tag를 같은 버전으로 맞춥니다.
 
 - `harnessVersion` 은 `.vibe/config.json` 과 `package.json` 에 semver로 기록합니다.
 - 각 minor/patch 릴리스는 해당 커밋에 `vMAJOR.MINOR.PATCH` git tag를 붙인 뒤 origin에 push합니다.
