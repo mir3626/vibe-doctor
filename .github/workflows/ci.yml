@@ -48,4 +48,4 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
-      - run: node --import tsx --test .vibe/harness/test/harness-profile.test.ts .vibe/harness/test/run-codex-wrapper.test.ts .vibe/harness/test/windows-hide-child-process.test.ts .vibe/harness/test/shell.test.ts .vibe/harness/test/encoding-settings.test.ts
+      - run: node --require ./.vibe/harness/test/windows-hide-child-process.cjs --import tsx --test .vibe/harness/test/harness-profile.test.ts .vibe/harness/test/run-codex-wrapper.test.ts .vibe/harness/test/windows-hide-child-process.test.ts .vibe/harness/test/shell.test.ts .vibe/harness/test/encoding-settings.test.ts
