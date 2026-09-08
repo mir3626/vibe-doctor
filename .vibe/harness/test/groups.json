@@ -1,6 +1,7 @@
 {
   "schemaVersion": "vibe-test-groups-v1",
   "globalInputPatterns": [
+    ".github/workflows/ci.yml",
     "package.json",
     "package-lock.json",
     "npm-shrinkwrap.json",
@@ -15,6 +16,7 @@
     ".vibe/harness/test/windows-hide-child-process.cjs"
   ],
   "globalInvalidatorPatterns": [
+    ".github/workflows/ci.yml",
     "package.json",
     "package-lock.json",
     "npm-shrinkwrap.json",
@@ -375,6 +377,7 @@
       "description": "GitHub-only Web Pro bridge contracts, transport, and CLI workflow",
       "tier": "workflow",
       "runner": "node-test",
+      "inheritSharedPatterns": false,
       "testFiles": [
         ".vibe/harness/test/pro-roundtrip-cli.test.ts",
         ".vibe/harness/test/pro-roundtrip-contract.test.ts",
@@ -384,6 +387,13 @@
         ".claude/skills/vibe-pro-go/**",
         ".codex/skills/vibe-pro-go/**",
         ".vibe/harness/src/commands/pro-roundtrip.ts",
+        ".vibe/harness/src/lib/args.ts",
+        ".vibe/harness/src/lib/cli.ts",
+        ".vibe/harness/src/lib/logger.ts",
+        ".vibe/harness/src/lib/harness-profile.mjs",
+        ".vibe/model-registry.json",
+        ".vibe/harness/src/lib/schemas/pro-roundtrip.ts",
+        ".vibe/harness/schemas/pro-roundtrip-*.schema.json",
         ".vibe/harness/scripts/vibe-pro-go.mjs",
         ".vibe/harness/src/pro-roundtrip/**",
         ".vibe/harness/src/universal-integrity-core/**",
@@ -397,6 +407,13 @@
         ".claude/skills/vibe-pro-go/**",
         ".codex/skills/vibe-pro-go/**",
         ".vibe/harness/src/commands/pro-roundtrip.ts",
+        ".vibe/harness/src/lib/args.ts",
+        ".vibe/harness/src/lib/cli.ts",
+        ".vibe/harness/src/lib/logger.ts",
+        ".vibe/harness/src/lib/harness-profile.mjs",
+        ".vibe/model-registry.json",
+        ".vibe/harness/src/lib/schemas/pro-roundtrip.ts",
+        ".vibe/harness/schemas/pro-roundtrip-*.schema.json",
         ".vibe/harness/scripts/vibe-pro-go.mjs",
         ".vibe/harness/src/pro-roundtrip/**",
         ".vibe/harness/src/universal-integrity-core/**",

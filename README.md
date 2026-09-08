@@ -10,7 +10,12 @@
 
 ## Latest Highlights
 
-### v1.15.1 (2026-09-07) - Windows CI preload correction
+### v1.15.2 (2026-09-09) - Pro tests follow patch impact
+
+- Ordinary harness tests and push/PR CI select changed groups. Unrelated shared helpers no longer start Pro Git/worktree tests or invalidate their passing receipts.
+- Pro dependencies, unknown-impact fallbacks and explicit full/release verification retain coverage. See [release notes](docs/release/v1.15.2.md).
+
+### Previous: v1.15.1 (2026-09-07) - Windows CI preload correction
 
 - Windows CI loads the same hidden-child-process preload as the harness verifier. This corrects two CI setup failures without changing runtime behavior or the Astra compatibility boundary. See [release notes](docs/release/v1.15.1.md).
 
@@ -140,15 +145,29 @@ Claude 가 대화형으로 아래 과정을 순차 자동 진행합니다:
 
 ### npm 스크립트
 
+하네스 패치의 기본 검증은 `npm run vibe:verify` 또는 `npm test`입니다.
+`vibe-pro-go`의 임시 Git 저장소·worktree 테스트는 Pro 런타임, 스키마,
+프로토콜 문서 또는 실제 공용 의존성이 바뀔 때만 선택됩니다. 관련 없는
+공용 도우미 변경은 Pro 테스트나 기존 Pro 검증 receipt를 무효화하지 않습니다.
+검증 실행기·의존성 설정 변경, 미분류 하네스 경로, 비교 기준 판정 실패는
+안전하게 전체 그룹을 선택하며 실행 계획에 이유를 표시합니다.
+
+기본 비교 대상은 staged/unstaged/untracked 변경입니다. 이미 커밋한 패치는
+`npm run vibe:verify -- <patch-base-sha>`로 기준 커밋을 지정하세요.
+push/PR CI는 이전 push 또는 PR base를 사용해 깨끗한 checkout에서도 변경을
+검증합니다. 전체 재검증은 `vibe:self-test:all`, 릴리스 검증은
+`vibe:verify:release`로 명시적으로 실행합니다.
+
 ```bash
 # 기본 검증
 npm run typecheck              # harness TypeScript typecheck
 npm run build                  # harness build
-npm test                       # harness self-test
+npm test                       # 변경 영향이 있는 harness self-test
 npm run test:ui                # Playwright UI/smoke tests
 npm run vibe:typecheck         # internal alias for harness typecheck
 npm run vibe:build             # internal alias for harness build
-npm run vibe:self-test         # 전체 harness self-test (항상 전량 실행)
+npm run vibe:self-test         # worktree diff 영향 그룹만 실행/receipt 재사용
+npm run vibe:self-test:all     # 전체 harness self-test 강제 실행
 npm run vibe:self-test:fast    # fast 그룹만 실행/receipt 재사용
 npm run vibe:self-test:smart   # worktree diff 영향 그룹만 실행/재사용
 npm run vibe:self-test:plan    # smart 실행 계획만 출력 (실행 없음)
@@ -348,7 +367,7 @@ Root `src/**`, `scripts/**`, `test/**`, `app/**`, `components/**`, and `lib/**` 
 
 ## 버전 / tag 정책
 
-현재 릴리스는 `harnessVersion: 1.15.1` 입니다. 릴리스를 자를 때는 `package.json`, `.vibe/config.json`, release note, tag를 같은 버전으로 맞춥니다.
+현재 릴리스는 `harnessVersion: 1.15.2` 입니다. 릴리스를 자를 때는 `package.json`, `.vibe/config.json`, release note, tag를 같은 버전으로 맞춥니다.
 
 - `harnessVersion` 은 `.vibe/config.json` 과 `package.json` 에 semver로 기록합니다.
 - 각 minor/patch 릴리스는 해당 커밋에 `vMAJOR.MINOR.PATCH` git tag를 붙인 뒤 origin에 push합니다.

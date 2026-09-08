@@ -10,38 +10,31 @@ This is the upstream template; downstream product work still requires /vibe-init
 
 ## Current outcome
 
-- Release and downstream upgrade are complete at v1.15.1. Origin annotated tag points to e619b168146de7d6983f60af1d8db903746e112f (tag object b53221be26c844f279ab0886f29779dd73b5bb38); its full Linux legacy/Astra and Windows CI run 34110428095 passed before tagging. Published v1.15.0 remains unchanged at f1d3aacec581467f49772d4b412cc79659547f8d.
-- Downstream osint-stock-screener origin/improve/post-refactor-all matches 23b85f4569f56f5d5f2df89c66862e85f86d8fa2. Synced 466 targets from a fresh v1.15.1 tag clone; 21 customizations, all 68 pre-existing dirty files and five protected local settings are preserved. Shared/package/installed versions are 1.15.1 with ref ^v1.15.1. Product goal remains PAUSED and Planner remains Astra/xhigh. Only this task's context changes were staged; earlier product/state edits remain uncommitted.
-- v1.15.1 fixes the focused Windows CI command's missing standard hidden-child-process preload. The initial v1.15.0 Linux jobs passed, while two Windows setup-contract tests failed. Corrected exact Windows command passed locally (53 pass/1 skip of 54), then every remote job passed. Runtime/test source is unchanged between the two tags. This final follow-up commit records publication/context only; the release tag remains on the CI-verified code commit.
-- v1.15.0 full forced verification passed on stable final inputs: legacy 577 pass / 1 skip of 578; Astra 568 pass / 2 skip of 570; zero failures across all nine groups in both profiles. Downstream seven relevant groups passed legacy 542/546 and Astra 533/538, with four/five conditional skips and zero failures. Build, schemas, UTF-8 and preservation checks pass. Evidence/backups: .tmp/release-1.15.0/.
-- Shared integration fixes cover available dashboard ports, Windows fixture cleanup, isolated profile fixtures and delayed statusline stdin. The verifier records groups independently, retains passing earlier receipts and rejects later mutation of reused inputs. Inherited NODE_TEST_CONTEXT was proven to silently skip nested tests and is now cleared; NODE_OPTIONS contributes to receipt identity. The ineffective Stop QA timeout increase was reverted; no Stop QA runtime change or diagnostic preload is shipped.
-- User authorized all 21 Astra review corrections plus narrowing conflicting autonomy rules. Follow-up explicitly promotes model-independent runtime/test fixes to all models; prompt/workflow reductions remain limited to GPT-6 Astra and explicitly verified successors.
-- Implementation is complete; actual model task-success comparison remains blocked below. Release publication and downstream sync are now authorized; actual Pro publication/approval/close remains outside scope.
-- Original release base: 70cc399dfed77de39d7445337222bb2b474ad427. v1.15.1 is a CI setup/metadata correction only.
-- Result: docs/reports/astra-harness-implementation-2026-09-07.md. Original review: docs/reports/review-0-2026-09-07.md. Queue: docs/plans/astra-harness-implementation.md.
-- Usage: docs/guides/astra-profile.md. Native commands use scoped VIBE_ACTIVE_MODEL; wrappers resolve their child model independently. VIBE_HARNESS_PROFILE=legacy is rollback; it cannot promote lower models.
-- Astra uses a short contract, direct durable work queues and relevant QA. Shared across all models: accurate verification inputs/nested discovery/receipt repair/stability, static audit reuse, single-execution transport, Windows exit-code/Unicode fixes, requested/effective metadata, lightweight protocol fixtures and shipping-set hygiene. Scope/ownership, init, design/handoff continuity and exact Pro binding remain.
-- Additional reductions: unrelated dirty files no longer block Astra preflight, installs follow actual capabilities, unused role CLIs are optional, and lower children cannot inherit Astra identity.
+- Branch main; v1.15.2 release candidate is implemented and verified. User explicitly authorized version/tag publication and osint-stock-screener upgrade. Main/tag publication and exact remote verification are next; no Pro lifecycle action is authorized.
+- User directive: ordinary harness patches must run temporary Git/worktree Pro tests only when the changed behavior affects vibe-pro-go.
+- npm test / vibe:self-test now use changed groups and reusable passing receipts. vibe:self-test:all remains full/forced; vibe:verify:release remains full/forced.
+- pro-roundtrip opts out of broad shared globs. Its explicit inputs cover Pro code/tests/fixtures/skills/protocol documents, args/cli/logger, Pro schemas, universal integrity core and verifier profile inputs. Keep inputPatterns and impactPatterns aligned when Pro gains a dependency.
+- Unknown harness paths, changed verifier/dependency/CI configuration and invalid comparison bases still select all groups with reasons. No ambient ACTIVE.json base is borrowed.
+- Push/PR Linux legacy/Astra CI uses a full checkout history and the prior push / PR base SHA, with --force on selected groups. Windows contract coverage is unchanged. Already committed local patches need an explicit base SHA.
+- Shared and Astra agent rules plus README now direct patch verification through the changed-group path, with no manual Pro run for unrelated edits.
 
 ## Verification
 
-- Final release verification: legacy 578 tests / 577 pass / 1 skip / 0 fail; Astra 570 tests / 568 pass / 2 skip / 0 fail. Both full forced commands succeeded. Evidence: .tmp/release-1.15.0/final-verification-summary.json.
-- Legacy user-draft hygiene failure is resolved by checking the Git shipping set; staged drafts still fail. No user files were moved/deleted to obtain a pass. Both profiles reject/repair corrupt receipts and reject inputs changed during execution.
-- Build, generated-schema check and seven structural audits passed. Earlier Chromium UI 2/2 remains applicable to unchanged UI code. Encoding scan: 85 files valid ASCII/UTF-8; no new damage or suspicious quoted-question patterns. Preserved user hashes all match.
-- Same iterate-reference injected bodies: legacy 7 files / 35,861 bytes; Astra 1 file / 3,215 bytes (91.0% reduction). This is not total context, billing or task-quality evidence.
-- Evidence: .tmp/astra-implementation-20260907/. Preserve logs for review; temporary fixtures/copies are not release payloads.
+- Focused verification-runner: 12/12 pass, including selection exclusions, real Pro dependencies, receipt stability/invalidation and actual child-test execution from a clean committed fixture.
+- The fixture proves unrelated edits never start the Pro sentinel; mapped Pro changes, --all, missing bases and unknown harness paths do start it. Existing receipt corruption, mutation and profile regressions also pass.
+- Final Astra core + static-audits: 195 pass / 1 conditional skip / 0 fail. Legacy static-audits: 95/95 pass. Typecheck, build, CI YAML/base wiring and diff/encoding checks pass.
+- Release validation after versioning: full forced Astra verification passed 573 tests / 571 pass / 2 conditional skips / 0 failures, including the Pro Git integration suite. Build, generated schemas, sync audit and encoding/diff checks pass. Remote CI is pending publication.
+- Downstream: reviewed 467 sync targets, preserved all 21 unchanged local conflicts, and applied this candidate through the normal sync API with a backup. Package/config/installed versions are 1.15.2 and ref is ^v1.15.2. Core/static tests passed 201/205 with four conditional skips; typecheck, build, bootstrap preflight and custom CI base/manual-full wiring pass.
+- Downstream product-contract checker retains exactly eight baseline violations (client roster and migration documentation); new violations zero, CI syntax/wiring passes. Keep this separate from harness acceptance and the stopped product Goal.
+- Verification receipts: .vibe/runs/verification-receipts/. Release, preservation, sync and baseline evidence: .tmp/release-1.15.2/. Legacy static log: .tmp/pro-test-selection-legacy-static.log.
 
-## Live evaluation blocker
+## Prior state and preserve
 
-- 12-case matrix and concrete paired fixtures prepared. Codex CLI 0.153.4 responded to an Astra/high canary.
-- Both first task arms, then one further legacy arm, reported read-only runtime and inspection rejected by policy. No tool execution event proves a task result or the raw denial reason. Raw oracle=false rows are UNSCORABLE, not model/harness quality failures.
-- Owned runner/children stopped; no permission/config bypass. See paired/ADJUDICATION.md. Resume live comparison only in a functioning authorized child runtime; do not automatically repeat blocked calls.
-- Task-success equivalence/improvement remains unverified. Deterministic remote CI results are recorded above; they are not live model task-quality evidence.
+- v1.15.1 publication/downstream sync completed on 2026-09-07; exact refs and earlier release evidence are in session-log.md and .tmp/release-1.15.0/. Downstream product R33 remains stopped by its owner; this task upgrades only the harness.
+- Live Astra versus legacy model task-success comparison remains blocked by the previously observed child-runtime denials. Do not retry automatically; see .tmp/astra-implementation-20260907/paired/ADJUDICATION.md and docs/reports/astra-harness-implementation-2026-09-07.md.
+- Preserve original dirty .vibe/agent/tokens.json (SHA-256 A73281082B7FD132E0C5A5567D16750E3A56AEB3A7DC98747B6B58B4E2BB4922), existing untracked plans/prompts/reports and .tmp artifacts. No user draft was staged, moved or deleted.
+- Preserve standalone/exact-Pro binding, local-only bare status, append-only evidence and exact-flow close authority. Do not retry cleanup of prior review copies after its approval rejection.
 
-## Preserve
+## Next action
 
-- .vibe/agent/tokens.json remains the original user modification, SHA-256 A73281082B7FD132E0C5A5567D16750E3A56AEB3A7DC98747B6B58B4E2BB4922.
-- docs/prompts/goal-vibe-goal-iterate-pro-decoupling.md remains SHA-256 1B3079935F526728DD80FE5A6F238BE2E4B47264F0E2D8071249C1498E6482ED.
-- docs/reports/vibe-goal-iterate-pro-decoupling-handoff-20260831.md remains SHA-256 5565590CE1B753B454EE48A0789CCFBE04D494528A33EBCFD4A081C413612EF5.
-- Prior review temporary copies in .tmp/astra-review-20260907/ remain after automatic cleanup approval rejection. Do not retry cleanup through another mechanism; exclude all .tmp trees from source searches/staging.
-- Preserve v1.14 standalone/exact-Pro binding, local-only bare status, append-only ownership/evidence and exact-flow operator-close authority. This task grants no new Pro publication or close authority.
+- Commit the scoped upstream payload, atomically push main plus annotated v1.15.2, verify remote CI/tag bytes, then commit/push only the downstream upgrade. Preserve its 63 pre-existing dirty paths, 21 customizations and protected settings. Record exact remote outcomes afterward.

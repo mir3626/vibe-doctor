@@ -246,6 +246,131 @@ describe('verification group manifest and planner', () => {
     assert.equal(global.forceSelectedGroups, false);
   });
 
+  it('selects Pro for its dependencies but not unrelated shared helpers or documents', async () => {
+    const actual = validateVerificationManifest(
+      JSON.parse(await readFile('.vibe/harness/test/groups.json', 'utf8')),
+      await listHarnessTestFiles(process.cwd()),
+    );
+    const ownership = {
+      harnessPatterns: ['.vibe/harness/**', 'docs/context/**', '.claude/skills/**'],
+      hybridPaths: new Set<string>(['package.json']),
+    };
+    for (const file of [
+      '.vibe/harness/scripts/lib/dashboard-render.mjs',
+      '.vibe/harness/scripts/lib/interview-engine.mjs',
+      '.vibe/harness/src/lib/review-priority.ts',
+      '.vibe/harness/schemas/sidecar-result.schema.json',
+      'docs/context/qa.md',
+      '.claude/skills/self-qa/SKILL.md',
+    ]) {
+      const selected = selectVerificationGroups(actual, [file], ownership);
+      assert.ok(selected.selectedGroupIds.length > 0, file);
+      assert.equal(selected.selectedGroupIds.includes('pro-roundtrip'), false, file);
+      assert.deepEqual(selected.unknownHarnessPaths, [], file);
+    }
+    for (const file of [
+      '.vibe/harness/src/commands/pro-roundtrip.ts',
+      '.vibe/harness/scripts/vibe-pro-go.mjs',
+      '.vibe/harness/src/pro-roundtrip/protocol.ts',
+      '.vibe/harness/src/lib/args.ts',
+      '.vibe/harness/src/lib/cli.ts',
+      '.vibe/harness/src/lib/logger.ts',
+      '.vibe/harness/src/lib/harness-profile.mjs',
+      '.vibe/model-registry.json',
+      '.vibe/harness/src/lib/schemas/pro-roundtrip.ts',
+      '.vibe/harness/schemas/pro-roundtrip-flow.schema.json',
+      '.vibe/harness/src/universal-integrity-core/index.ts',
+      '.vibe/harness/test/pro-roundtrip-cli.test.ts',
+      '.vibe/harness/test/fixtures/pro-roundtrip/CONTRACT.json',
+      '.claude/skills/vibe-pro-go/references/WEB-RUNBOOK.md',
+      'docs/context/workflow-integrity.md',
+      'package-lock.json',
+    ]) {
+      const selected = selectVerificationGroups(actual, [file], ownership);
+      assert.ok(selected.selectedGroupIds.includes('pro-roundtrip'), file);
+      assert.deepEqual(selected.unknownHarnessPaths, [], file);
+    }
+    const invalid = manifest([group('pro', 'node-test')]);
+    Object.assign(invalid.groups[0]!, { inheritSharedPatterns: 'false' });
+    assert.throws(() => validateVerificationManifest(invalid, ['.vibe/harness/test/pro.test.ts']),
+      /inheritSharedPatterns must be a boolean/);
+  });
+
+  it('keeps the Pro receipt stable for unrelated shared edits and invalidates real dependencies', async () => {
+    const root = await makeTempDir();
+    const actual = JSON.parse(await readFile('.vibe/harness/test/groups.json', 'utf8')) as VerificationManifest;
+    const pro = actual.groups.find((entry) => entry.id === 'pro-roundtrip')!;
+    const files = [
+      '.vibe/harness/scripts/lib/dashboard-render.mjs',
+      '.vibe/harness/src/lib/args.ts',
+      '.vibe/harness/src/lib/logger.ts',
+      '.vibe/harness/src/lib/schemas/pro-roundtrip.ts',
+      '.vibe/harness/schemas/pro-roundtrip-flow.schema.json',
+      '.vibe/harness/src/pro-roundtrip/protocol.ts',
+    ];
+    for (const file of files) {
+      await mkdir(path.dirname(path.join(root, file)), { recursive: true });
+      await writeFile(path.join(root, file), 'initial');
+    }
+    let previous = await computeGroupInputHash(root, actual, pro, files);
+    await writeFile(path.join(root, files[0]!), 'unrelated change');
+    assert.equal(await computeGroupInputHash(root, actual, pro, files), previous);
+    for (const file of files.slice(1)) {
+      await writeFile(path.join(root, file), 'dependency change');
+      const changed = await computeGroupInputHash(root, actual, pro, files);
+      assert.notEqual(changed, previous, file);
+      previous = changed;
+    }
+  });
+
+  it('runs changed tests from a committed base without starting unrelated Pro fixtures', async () => {
+    const root = await makeTempDir();
+    const verifyPath = path.resolve('.vibe/harness/src/commands/verify.ts');
+    await mkdir(path.join(root, '.vibe/harness/test'), { recursive: true });
+    await mkdir(path.join(root, '.vibe/harness/src/lib'), { recursive: true });
+    await writeFile(path.join(root, 'package.json'), '{"type":"module"}\n');
+    await writeFile(path.join(root, '.gitignore'), 'node_modules/\n.vibe/runs/\n*-runs.txt\n');
+    await symlink(path.resolve('node_modules'), path.join(root, 'node_modules'), process.platform === 'win32' ? 'junction' : 'dir');
+    for (const id of ['core', 'pro']) {
+      await writeFile(path.join(root, `.vibe/harness/test/${id}.test.ts`),
+        `import { appendFileSync } from 'node:fs'; appendFileSync('${id}-runs.txt', 'run\\n');\n`);
+    }
+    const sample = manifest([
+      group('core', 'node-test'),
+      group('pro', 'node-test', { inheritSharedPatterns: false }),
+    ]);
+    await writeFile(path.join(root, '.vibe/harness/test/groups.json'), JSON.stringify(sample));
+    const input = '.vibe/harness/src/lib/dashboard.ts';
+    await writeFile(path.join(root, input), 'initial');
+    const git = (args: string[]) => execFile('git', args, { cwd: root, windowsHide: true });
+    await git(['init']);
+    await git(['add', '.']);
+    await git(['-c', 'user.name=Verification Test', '-c', 'user.email=verify@example.invalid', 'commit', '-m', 'baseline']);
+    const { stdout: base } = await git(['rev-parse', 'HEAD']);
+    await writeFile(path.join(root, input), 'changed');
+    await git(['add', input]);
+    await git(['-c', 'user.name=Verification Test', '-c', 'user.email=verify@example.invalid', 'commit', '-m', 'dashboard change']);
+    const run = (args: string[]) => spawnSync(process.execPath,
+      ['--import', 'tsx', verifyPath, '--root', root, '--changed', '--tests-only', '--force', ...args],
+      { env: { ...process.env, VIBE_VERIFY_BASE: base.trim() }, encoding: 'utf8', windowsHide: true });
+    const changed = run([]);
+    assert.equal(changed.status, 0, changed.stdout + changed.stderr);
+    assert.match(changed.stdout, /start group=core/);
+    assert.doesNotMatch(changed.stdout, /start group=pro/);
+    await assert.rejects(readFile(path.join(root, 'pro-runs.txt')), { code: 'ENOENT' });
+    for (const args of [
+      ['--paths', '.vibe/harness/src/pro/flow.ts'],
+      ['--all'],
+      ['--base', 'missing-verification-base'],
+      ['--paths', '.vibe/harness/new-unknown-runtime.ts'],
+    ]) {
+      const result = run(args);
+      assert.equal(result.status, 0, result.stdout + result.stderr);
+      assert.match(result.stdout, /start group=pro/);
+    }
+    assert.equal(await readFile(path.join(root, 'pro-runs.txt'), 'utf8'), 'run\n'.repeat(4));
+  });
+
   it('changes a group hash only when one of its semantic inputs changes', async () => {
     const root = await makeTempDir();
     const sample = manifest([group('core', 'node-test')]);
@@ -346,11 +471,13 @@ describe('verification group manifest and planner', () => {
     );
   });
 
-  it('keeps full self-test forced while exposing smart and release boundaries', async () => {
+  it('defaults patch tests to changed groups while keeping explicit full and release checks forced', async () => {
     const packageJson = JSON.parse(
       await readFile(path.resolve('package.json'), 'utf8'),
     ) as { scripts?: Record<string, string> };
-    assert.match(packageJson.scripts?.['vibe:self-test'] ?? '', /--all --tests-only --force/);
+    assert.equal(packageJson.scripts?.test, 'npm run vibe:self-test');
+    assert.match(packageJson.scripts?.['vibe:self-test'] ?? '', /--changed --tests-only$/);
+    assert.match(packageJson.scripts?.['vibe:self-test:all'] ?? '', /--all --tests-only --force/);
     assert.match(packageJson.scripts?.['vibe:self-test:smart'] ?? '', /--changed --tests-only/);
     assert.match(packageJson.scripts?.['vibe:verify'] ?? '', /verify\.ts --changed$/);
     assert.match(packageJson.scripts?.['vibe:verify:release'] ?? '', /--all --force/);

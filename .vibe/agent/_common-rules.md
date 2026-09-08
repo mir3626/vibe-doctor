@@ -214,7 +214,11 @@ Generator (현 Codex / 향후 다른 provider 도 해당) 는 공급자·모델�
 
 Generator report 를 받은 뒤 Orchestrator 가 샌드박스 밖에서 수행:
 
-- 전체 테스트 (`npm test`, `pytest`, `cargo test` 등)
+- 프로젝트 테스트 (`npm test`, `pytest`, `cargo test` 등). 하네스 패치는
+  `npm run vibe:verify` 또는 변경 기반 `npm test`를 사용한다. Pro Git/worktree
+  테스트는 Pro 의존성 영향 또는 실행 계획에 표시된 보수적 전체 선택 때만
+  수행하며, 무관한 패치에 수동으로 추가하지 않는다. 커밋된 변경은 기준 SHA를
+  지정하고, 명시적 전체/릴리스 검증은 `vibe:self-test:all` / `vibe:verify:release`를 사용한다.
 - 프로덕션 빌드 + bundle size 게이트 (M7 이후)
 - 브라우저 smoke (M7 이후)
 - E2E / integration (`playwright test`, `cypress run`)

@@ -21,6 +21,9 @@ is the rollback and comparison path. It cannot enable Astra for another model.
   for long work; update the session log and run checkpoint at meaningful boundaries.
   Do not synthesize unobserved completion. No arbitrary per-item Sprint is needed.
 - Select meaningful verification for the changed behavior and actual environment.
+  For harness patches use `npm run vibe:verify` (or `npm test` for tests only);
+  Pro Git/worktree tests run only for mapped Pro dependencies or a reported
+  conservative fallback. Do not add a Pro roundtrip run to an unrelated patch.
   Add tests when a regression merits one; no per-file quota or blanket prohibition.
   Reuse a passing verification receipt only when all inputs, profile, command,
   and relevant environment match. Release validation remains full and forced.

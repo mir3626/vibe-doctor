@@ -7,8 +7,12 @@ on:
 jobs:
   verify:
     runs-on: ubuntu-latest
+    env:
+      VIBE_VERIFY_BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
     steps:
       - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v6
         with:
           node-version: 24
@@ -23,7 +27,7 @@ jobs:
       - run: npm run vibe:sprint-mode-audit
       - run: npm run vibe:sync-audit
       - run: npm run build
-      - run: npm test
+      - run: npm run vibe:self-test -- --force
       - run: npx playwright install --with-deps chromium
       - run: npm run vibe:test-ui
       - run: npm run vibe:config-audit --silent
@@ -31,14 +35,17 @@ jobs:
     runs-on: ubuntu-latest
     env:
       VIBE_ACTIVE_MODEL: gpt-6-astra
+      VIBE_VERIFY_BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
     steps:
       - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v6
         with:
           node-version: 24
           cache: npm
       - run: npm ci
-      - run: npm run vibe:verify:release
+      - run: npm run vibe:verify -- --force
   windows-contracts:
     runs-on: windows-latest
     steps:

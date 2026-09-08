@@ -34,6 +34,9 @@ export interface VerificationGroup {
   testFiles?: string[];
   inputPatterns: string[];
   impactPatterns: string[];
+  // A group with an audited dependency list can opt out of broad shared globs.
+  // Global invalidators and unknown harness paths still select every group.
+  inheritSharedPatterns?: boolean;
 }
 
 export interface VerificationManifest {
@@ -232,6 +235,9 @@ export function validateVerificationManifest(
     }
     assertStringArray(group.inputPatterns, `${group.id}.inputPatterns`);
     assertStringArray(group.impactPatterns, `${group.id}.impactPatterns`);
+    if (group.inheritSharedPatterns !== undefined && typeof group.inheritSharedPatterns !== 'boolean') {
+      throw new Error(`${group.id}.inheritSharedPatterns must be a boolean`);
+    }
     if (group.runner === 'command') {
       if (!Array.isArray(group.command) || group.command.length === 0) {
         throw new Error(`command group ${group.id} must declare command`);
@@ -530,7 +536,7 @@ export function selectVerificationGroups(
 
       const matchedGroups = applicable.filter((group) => {
         const patterns = [
-          ...manifest.sharedImpactPatterns,
+          ...(group.inheritSharedPatterns === false ? [] : manifest.sharedImpactPatterns),
           ...group.impactPatterns,
           ...(group.testFiles ?? []),
         ];
@@ -632,7 +638,7 @@ export async function computeGroupInputHash(
 
   const patterns = [
     ...manifest.globalInputPatterns,
-    ...manifest.sharedInputPatterns,
+    ...(group.inheritSharedPatterns === false ? [] : manifest.sharedInputPatterns),
     ...group.inputPatterns,
   ];
   const paths = new Set<string>([
