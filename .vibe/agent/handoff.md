@@ -10,9 +10,10 @@ This is the upstream template; downstream product work still requires /vibe-init
 
 ## Current outcome
 
-- User authorized report-based upstream fixes, commit/tag v1.15.3 and Lodestar upgrade. Implementation is ready; publication and downstream final sync are pending. No product goal or Web Pro session is resumed.
+- User-authorized report92 fixes and v1.15.3 release are published. Release5970028c3dfc17c41aca8e144334338f9bde8199, annotated tag7d8bc467843b0b82f946b9982c340c2d27cca37e; atomic push and exact refs verified. CI34303820498/main and34303820558/tag fully green (Linux legacy/Astra/Windows/UI). Do not change the immutable tag.
 - New review recency preserves actual preamble/tail events and archived boundaries; tracked wrapper audit checks full declared targets. Five new tests failed before the patch, then focused27 passed. Final versioned full/forced Astra release gate passed all9 groups (run9/reuse0):578 tests,576 pass,2 conditional skips,0 failures. Build, schema, sync boundary, tracked audit and checkpoint pass. Evidence .tmp/release-1.15.3/release-astra.json and .log.
-- Downstream .gitignore narrowly admits four missing shared documents and custom CI requests --tracked. These documents are staged but not committed; actual new tracked audit passes and private extra files remain ignored. Preserve21 local sync conflicts; merge only two overlapping review source/test files after fresh-tag sync.
+- Lodestar upgrade2b31ee95e8a5c6539192674fa568a0e6685af181 pushed/exact-origin verified. Fresh-tag normal sync/backups preserve19 custom conflicts and merge exact2 review overlaps; custom Codex protocol mirror aligned. Version/shared/installed1.15.3/ref^v1.15.3. Focused30+shard7PASS/typecheck/build/bootstrap/sync/trackedPASS;434 installed targets match tag,11 original hashes/settings and3 hybrid files preserved, automatic status timestamp-only unchanged by our work.
+- Actual new downstream remote clone tracked19/19/57 and review shard audits pass/clean. CI34304416357 confirms orphan wrappers fixed but overallFAIL: existing migration provenance mismatch plus newly exposed unchanged downstream codex-skills.test.ts:29 depending on ignored .agents skill. Base/current test blob identical; local1PASS versus cleanclone1ENOENT proves fixture availability issue. Explicit fixture portability and productcontracts8 remain deferred, not upstream regressions or green full-suite claims.
 - Working evidence: .tmp/release-1.15.3/STATE.md. Original user drafts/tokens/product edits remain protected. R33 launch-path issue was corrected during that previous validation, not by changing Pro workflow here.
 
 ## Previous v1.15.2 outcome
@@ -47,4 +48,4 @@ This is the upstream template; downstream product work still requires /vibe-init
 
 ## Next action
 
-- Complete scoped v1.15.3 commit and atomic annotated-tag/main publication, exact refs and CI. Then fresh-tag downstream sync with21 conflicts preserved, narrow overlap merges and version alignment, focused verification/clean checkout, context checkpoints and immediate push. Do not mutate old tags or resume product synthesis.
+- Publish this metadata-only closeout immediately. Release/sync work is complete; report remaining downstream fixture/product CI issues without expanding scope. No next version, product synthesis, Planner or Web Pro continuation is authorized by this closeout. Detailed downstream report: docs/reports/harness-v1.15.3-upgrade-2026-09-09.md in Lodestar.
