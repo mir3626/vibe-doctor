@@ -6,6 +6,12 @@ skip-log, mandatory evaluator and repeated-QA ceremonies below are legacy-only.
 Project/design continuity, explicit Sprint scope, evidence and lifecycle ownership
 remain applicable. Native runtime instructions and current user authorization prevail.
 
+When roles are explicitly requested, classify them from the task, not the CLI
+transport. The Planner confirms its own model and receives the independently pinned
+Generator model (or `unknown`). Astra handoffs keep confirmed requirements, scope
+and evidence binding while labelling implementation suggestions as recommendations.
+See `docs/guides/astra-profile.md` for role runner pinning and audit-counter behavior.
+
 > 이 문서는 **Orchestrator / Planner / Generator / Evaluator의 책임을 Phase별로 분리**한다. 매 세션 시작 시 Orchestrator가 숙지해야 하며, 모순 발생 시 이 문서가 CLAUDE.md 트리거 매트릭스 위에 있다.
 
 ## 1. 핵심 원칙

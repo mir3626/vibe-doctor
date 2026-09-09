@@ -120,6 +120,32 @@ describe('vibe:init agent-skill guard', () => {
     assert.match(codex, /docs\/context\/codex-execution\.md/);
     assert.match(claude, /너는 Claude Code agent/);
     assert.match(claude, /CLAUDE\.md/);
+    assert.match(claude, /위임 역할은 현재 sprintRoles 설정 또는 명시적 요청/);
+    assert.doesNotMatch(claude, /Generator로만 위임/);
+  });
+
+  it('renders a receiving-model selector without loading the legacy role ceremony', async () => {
+    const template = await readFile(canonicalDelegationTemplatePath, 'utf8');
+    const rendered = renderAgentDelegationPromptBody(template, longKoreanOneLiner, 'codex');
+    assert.match(rendered, /수신 세션 자신의 확인된 모델/);
+    assert.match(rendered, /astra-rules\.md/);
+    assert.match(rendered, /agent-delegation-legacy\.md/);
+    assert.doesNotMatch(rendered, /<500 LOC|위임은 상수|sprintsSinceLastAudit|planner-skip-log|first-class command/);
+    assert.match(rendered, /npm run vibe:init-ready/);
+    assert.match(rendered, /사람 대신[\s\S]*사용자 승인으로 기록하지/);
+    const legacy = await readFile(path.resolve('.claude/templates/agent-delegation-legacy.md'), 'utf8');
+    assert.match(legacy, /위임은 상수/);
+    assert.match(legacy, /sprintsSinceLastAudit/);
+    assert.match(legacy, /planner-skip-log/);
+    const diagnostic = spawnSync(process.execPath, [path.resolve('.vibe/harness/scripts/vibe-codex-dispatch.mjs'),
+      '--model', 'gpt-6-astra', '--diagnose-md-injection', '-'], {
+      env: { ...process.env, VIBE_HARNESS_PROFILE: '', CODEX_EXTRA_CONFIG: '' }, input: rendered, encoding: 'utf8',
+    });
+    assert.equal(diagnostic.status, 0, diagnostic.stderr);
+    const payload = JSON.parse(diagnostic.stdout);
+    assert.deepEqual(payload.injectedFiles, ['.vibe/agent/astra-rules.md']);
+    assert.doesNotMatch(payload.payload, /<500 LOC|위임은 상수|sprintsSinceLastAudit|planner-skip-log/);
+    assert.ok(payload.payload.endsWith(rendered));
   });
 
   it('agent-skill init resets copied template sprint state to an empty project state', async () => {

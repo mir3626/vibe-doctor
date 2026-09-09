@@ -37,6 +37,46 @@ explicit `--model` is still authoritative, and legacy sessions keep their old de
 
 ## Changed workflow
 
+### Delegation and assigned roles
+
+The init delegation prompt is a receiving-session selector. It does not select
+Astra from the sender's environment. The receiving agent confirms its own model;
+eligible Astra reads the short contract, while lower/unknown/explicit legacy
+sessions load `.claude/templates/agent-delegation-legacy.md`.
+
+Planner, Generator and Evaluator are optional task assignments in Astra. A wrapper
+invocation alone is not a Generator assignment. The coder profile lets Astra
+resolve routine implementation choices; consequential scope/authority decisions
+still require their owner. Planner output distinguishes confirmed requirements
+from suggested implementation details and selects its handoff for the independently
+pinned Generator model. Unknown children retain legacy obligations.
+
+`vibe:run-agent --role planner` (also `generator` / `evaluator`) selects the role's
+provider when `--provider` is absent. A registry-backed role, for example
+`{"provider":"codex","tier":"flagship"}`, supplies the resolved model to the
+canonical wrapper's `CODEX_MODEL` default; the wrapper pins that model in the actual
+child arguments. Explicit provider arguments/config/env retain precedence over a
+role default. String provider references do not establish a model identity.
+
+`--model <api-id>` requests an explicit model; conflicting or ambiguous Codex
+provider configuration is rejected before execution. Custom model-selected runners
+must declare `{model}` in their args/env rather than relying on an assumed CLI
+syntax. `--cwd` binds configuration, registry, relative prompt paths and run records
+to the target checkout. Records include `roleModel` separately from the actual
+invocation's requested/unknown-effective provenance.
+
+### Counter-only audit reminders
+
+Astra still records completed Sprint counts but does not create a blocking
+Evaluator reminder from the count. Historical counter-only reminders are preserved
+unchanged and treated as advisory by preflight and commit. Recognition requires
+the exact automatic producer, wildcard target, reminder text and original field
+set; real findings, extra evidence and ambiguous records remain blocking.
+Switching to legacy restores its counter/reminder gate. No risk is auto-accepted,
+resolved or deleted merely by selecting Astra.
+
+### Common execution
+
 Astra reads relevant context on demand, works from one durable queue, skips settled
 interviews, and selects meaningful checks. Planner/Generator/Evaluator roles,
 creative bets, per-file tests, cleanup commits, LOC quotas, numeric review scores,

@@ -1153,8 +1153,12 @@ try {
 
 // 6. product.md existence (Phase 0 gate)
 if (astra) {
+  const { isCounterOnlyAuditRisk } = await import('./lib/audit-counter-policy.mjs');
   const risks = (sprintStatus?.pendingRisks ?? []).filter((risk) => risk?.status === 'open' && risk?.id?.startsWith('audit-'));
-  record('audit.overdue', true, `Astra: counter is advisory; ${risks.length} recorded audit risks require evidence-based review`, risks.length ? 'warn' : 'info');
+  const findings = risks.filter((risk) => !isCounterOnlyAuditRisk(risk));
+  record('audit.overdue', findings.length === 0,
+    `Astra: counter is advisory; ${risks.length - findings.length} preserved counter reminders; ${findings.length} open audit findings require resolution`,
+    findings.length ? 'fail' : risks.length ? 'warn' : 'info');
 } else if (BOOTSTRAP_MODE) {
   record('audit.overdue', true, 'bootstrap mode - audit gate skipped');
 } else if (sprintStatus) {

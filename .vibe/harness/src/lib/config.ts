@@ -1,5 +1,6 @@
 import { readJson } from './fs.js';
 import { paths } from './paths.js';
+import path from 'node:path';
 
 export interface ProviderRunner {
   command: string;
@@ -181,11 +182,11 @@ function mergeConfig(base: VibeConfig, override: VibeConfigOverride): VibeConfig
   return merged;
 }
 
-export async function loadConfig(): Promise<VibeConfig> {
-  const shared = await readJson<VibeConfig>(paths.sharedConfig);
+export async function loadConfig(root = paths.root): Promise<VibeConfig> {
+  const shared = await readJson<VibeConfig>(path.join(root, '.vibe/config.json'));
 
   try {
-    const local = await readJson<VibeConfigOverride>(paths.localConfig);
+    const local = await readJson<VibeConfigOverride>(path.join(root, '.vibe/config.local.json'));
     return mergeConfig(shared, local);
   } catch {
     return shared;

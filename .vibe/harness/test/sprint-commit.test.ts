@@ -532,6 +532,61 @@ describe('vibe-sprint-commit', () => {
     assert.match(stdout, /would commit: sprint=test-sprint/);
   });
 
+  it('keeps the fifth Sprint counter advisory only for Astra through completion and commit', async () => {
+    for (const profile of ['astra', 'legacy']) {
+      const root = await makeTempDir(`sprint-counter-${profile}-`);
+      await scaffoldRepo(root);
+      const statusPath = path.join(root, '.vibe/agent/sprint-status.json');
+      const state = JSON.parse(await readFile(statusPath, 'utf8'));
+      state.sprintsSinceLastAudit = 4;
+      await writeJson(statusPath, state);
+      const configPath = path.join(root, '.vibe/config.json');
+      const config = JSON.parse(await readFile(configPath, 'utf8'));
+      config.audit.everyN = 5;
+      await writeJson(configPath, config);
+      const env = { VIBE_ACTIVE_MODEL: 'gpt-6-astra', VIBE_ACTIVE_PROVIDER: 'codex',
+        VIBE_HARNESS_PROFILE: profile === 'astra' ? '' : 'legacy' };
+      if (profile === 'astra') {
+        const result = await runSprintCommit(root, ['test-sprint', 'passed', '--dry-run'], env);
+        assert.match(result.stdout, /would commit/);
+      } else {
+        await assert.rejects(runSprintCommit(root, ['test-sprint', 'passed', '--dry-run'], env),
+          (error: unknown) => /Evaluator audit due/.test(String((error as { stderr?: string }).stderr)));
+      }
+      const after = JSON.parse(await readFile(statusPath, 'utf8'));
+      assert.equal(after.sprintsSinceLastAudit, 5);
+      assert.equal(after.pendingRisks.length, profile === 'astra' ? 0 : 1);
+    }
+  });
+
+  it('preserves existing counter reminders and blocks real audit findings or legacy rollback', async () => {
+    const reminder = { id: 'audit-after-prior-sprint', raisedBy: 'vibe-sprint-complete', targetSprint: '*',
+      text: 'Evaluator audit due (sprintsSinceLastAudit=5, everyN=5).', status: 'open',
+      createdAt: '2026-09-09T00:00:00.000Z' };
+    const root = await makeTempDir('sprint-existing-counter-');
+    await scaffoldRepo(root, { pendingRisks: [reminder] });
+    const env = { VIBE_ACTIVE_MODEL: 'gpt-6-astra', VIBE_ACTIVE_PROVIDER: 'codex', VIBE_HARNESS_PROFILE: '' };
+    const result = await runSprintCommit(root, ['test-sprint', 'passed', '--dry-run'], env);
+    assert.match(result.stdout, /would commit/);
+    const statusPath = path.join(root, '.vibe/agent/sprint-status.json');
+    const state = JSON.parse(await readFile(statusPath, 'utf8'));
+    assert.deepEqual(state.pendingRisks, [reminder]);
+    await assert.rejects(runSprintCommit(root, ['test-sprint', 'passed', '--dry-run'],
+      { ...env, VIBE_HARNESS_PROFILE: 'legacy' }), /Refusing to commit/);
+    for (const risk of [
+      { ...reminder, text: 'Evaluator found a missing rollback path.' },
+      { ...reminder, raisedBy: 'independent-review' },
+      { ...reminder, code: 'REAL_DEFECT' },
+      { ...reminder, targetSprint: 'test-sprint' },
+    ]) {
+      state.pendingRisks = [risk];
+      await writeJson(statusPath, state);
+      const before = await readFile(statusPath, 'utf8');
+      await assert.rejects(runSprintCommit(root, ['test-sprint', 'passed', '--dry-run'], env), /Refusing to commit/);
+      assert.equal(await readFile(statusPath, 'utf8'), before);
+    }
+  });
+
   it('filters LOC totals to configured code extensions while counting all changed files', async () => {
     const root = await makeTempDir('sprint-commit-loc-');
     await scaffoldRepo(root, { locExtensions: ['.ts'] });

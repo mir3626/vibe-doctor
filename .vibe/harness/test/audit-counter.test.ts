@@ -92,10 +92,11 @@ async function scaffoldRepo(
   );
 }
 
-async function runNodeScript(root: string, scriptPath: string, args: string[]) {
+async function runNodeScript(root: string, scriptPath: string, args: string[], profile = 'legacy') {
   return execFile('node', [scriptPath, ...args], {
     cwd: root,
-    env: process.env,
+    env: { ...process.env, VIBE_ACTIVE_MODEL: 'gpt-6-astra', VIBE_ACTIVE_PROVIDER: 'codex',
+      VIBE_HARNESS_PROFILE: profile === 'legacy' ? 'legacy' : '' },
   });
 }
 
@@ -106,37 +107,43 @@ async function loadStatus(root: string): Promise<SprintStatus> {
 }
 
 describe('audit counter lifecycle', () => {
-  it('injects an audit-after risk when the threshold is reached', async () => {
-    const root = await makeTempDir('audit-counter-threshold-');
-    await scaffoldRepo(root, {
-      sprintsSinceLastAudit: 4,
+  for (const profile of ['astra', 'legacy']) {
+    it(`${profile}: preserves the counter and applies the model-selected threshold policy`, async () => {
+      const root = await makeTempDir('audit-counter-threshold-');
+      await scaffoldRepo(root, {
+        sprintsSinceLastAudit: 4,
+      });
+
+      await runNodeScript(root, sprintCompletePath, ['sprint-M8-audit', 'passed'], profile);
+      const status = await loadStatus(root);
+      const risk = status.pendingRisks.find((entry) => entry.id === 'audit-after-sprint-M8-audit');
+
+      assert.equal(status.sprintsSinceLastAudit, 5);
+      if (profile === 'astra') {
+        assert.deepEqual(status.pendingRisks, []);
+      } else {
+        assert.ok(risk);
+        assert.equal(risk.status, 'open');
+        assert.equal(risk.raisedBy, 'vibe-sprint-complete');
+        assert.equal(risk.targetSprint, '*');
+      }
     });
 
-    await runNodeScript(root, sprintCompletePath, ['sprint-M8-audit', 'passed']);
-    const status = await loadStatus(root);
-    const risk = status.pendingRisks.find((entry) => entry.id === 'audit-after-sprint-M8-audit');
+    it(`${profile}: replay duplicates neither the counter nor audit risks`, async () => {
+      const root = await makeTempDir('audit-counter-idempotent-');
+      await scaffoldRepo(root, {
+        sprintsSinceLastAudit: 4,
+      });
 
-    assert.equal(status.sprintsSinceLastAudit, 5);
-    assert.ok(risk);
-    assert.equal(risk.status, 'open');
-    assert.equal(risk.raisedBy, 'vibe-sprint-complete');
-    assert.equal(risk.targetSprint, '*');
-  });
+      await runNodeScript(root, sprintCompletePath, ['sprint-M8-audit', 'passed'], profile);
+      await runNodeScript(root, sprintCompletePath, ['sprint-M8-audit', 'passed'], profile);
+      const status = await loadStatus(root);
+      const risks = status.pendingRisks.filter((entry) => entry.id === 'audit-after-sprint-M8-audit');
 
-  it('does not inject duplicate audit risks when the same sprint completion is replayed', async () => {
-    const root = await makeTempDir('audit-counter-idempotent-');
-    await scaffoldRepo(root, {
-      sprintsSinceLastAudit: 4,
+      assert.equal(status.sprintsSinceLastAudit, 5);
+      assert.equal(risks.length, profile === 'legacy' ? 1 : 0);
     });
-
-    await runNodeScript(root, sprintCompletePath, ['sprint-M8-audit', 'passed']);
-    await runNodeScript(root, sprintCompletePath, ['sprint-M8-audit', 'passed']);
-    const status = await loadStatus(root);
-    const risks = status.pendingRisks.filter((entry) => entry.id === 'audit-after-sprint-M8-audit');
-
-    assert.equal(status.sprintsSinceLastAudit, 5);
-    assert.equal(risks.length, 1);
-  });
+  }
 
   it('resets the counter, resolves audit-after risks, and appends an audit-clear log entry', async () => {
     const root = await makeTempDir('audit-counter-clear-');

@@ -115,13 +115,10 @@ function runtimeMemorySteps(runtime: AgentRuntime): string {
   if (runtime === 'codex') {
     return [
       '1. `AGENTS.md` 의 `<!-- BEGIN:HARNESS:agent-memory --> ... <!-- END:HARNESS:agent-memory -->` 블록.',
-      '   Codex role mode, initialization boundary, BLOCKED rule, and encoding integrity rule are authoritative.',
-      '2. `docs/context/orchestration.md` 의 provider-neutral 역할/Phase 매트릭스.',
-      '3. `docs/context/codex-execution.md` 의 provider-neutral lifecycle and Codex Windows execution rules.',
-      '4. `CLAUDE.md` 의 `<!-- BEGIN:CHARTER -->` 와 `<!-- BEGIN:FREEZE-POSTURE -->` 블록은 shared nominal charter로 읽되,',
-      '   Claude Code 전용 Agent/PreCompact mechanics는 Codex에서 그대로 가정하지 않는다.',
-      '5. `.claude/skills/vibe-init/SKILL.md` 의 Phase 1~4 흐름 개요 (Step 1-0 은 이미 완료된 것으로 간주).',
-      '6. `.claude/skills/vibe-init/phases/phase-2-providers.md`, `phase-3-interview.md`, `phase-4-complete.md`, `rules.md` 를 직접 읽고 Step 순서대로 수행한다.',
+      '   선택한 모델 프로필과 초기화, 명시적 scope, 소유권, 인코딩 경계를 지킨다.',
+      '2. `.claude/skills/vibe-init/SKILL.md`의 모델별 실행 경로를 선택하고 현재 필요한 Phase 문서를 읽는다.',
+      '   Provider 설정은 `.claude/skills/vibe-init/phases/phase-2-providers.md`의 구체 계약을 확인한다.',
+      '3. `docs/context/orchestration.md`와 `docs/context/codex-execution.md`에서 필요한 상태/실행 계약을 확인한다.',
     ].join('\n');
   }
 
@@ -138,13 +135,13 @@ function runtimeDelegationNotes(runtime: AgentRuntime): string {
     return [
       '- Codex로 실행 중이면 `AGENTS.md`의 Codex Orchestrator maintenance mode가 우선한다.',
       '- Claude Code의 native Agent/PreCompact 기능을 전제로 하지 말고, 사용 가능한 Codex 도구 또는 provider-neutral fallback으로 대체한다.',
-      '- Sprint prompt가 Codex Generator로 투입되는 순간에는 다시 Generator 계약과 Files Generator may touch 경계를 따른다.',
+      '- 호출 도구 이름으로 역할을 추측하지 않는다. Planner/Evaluator 요청은 그 역할로 수행하고, 구현 요청에서는 명시된 Files Generator may touch 경계를 지킨다.',
     ].join('\n');
   }
 
   return [
     '- Claude Code로 실행 중이면 `CLAUDE.md`의 nominal Orchestrator 계약과 Agent 호출 메커니즘을 따른다.',
-    '- Codex는 Sprint Generator로만 위임하고, Generator 호출은 `./.vibe/harness/scripts/run-codex.sh`를 경유한다.',
+    '- Codex 위임 역할은 현재 sprintRoles 설정 또는 명시적 요청을 따른다. 기본 구현 위임은 Generator이며, Codex 호출은 `./.vibe/harness/scripts/run-codex.sh`를 경유한다.',
   ].join('\n');
 }
 

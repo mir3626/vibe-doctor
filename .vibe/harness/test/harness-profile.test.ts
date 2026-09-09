@@ -190,7 +190,7 @@ it('Astra preflight makes ceremony advisory but still rejects an uninitialized p
   const status = {
     schemaVersion: '0.1',
     project: { name: 'fixture', createdAt: '2026-09-07T00:00:00.000Z' },
-    sprints: [], verificationCommands: [], pendingRisks: [], sprintsSinceLastAudit: 100,
+    sprints: [], verificationCommands: [], pendingRisks: [] as Array<Record<string, unknown>>, sprintsSinceLastAudit: 100,
   };
   await writeFile(path.join(temp, '.vibe/agent/sprint-status.json'), JSON.stringify(status));
   await writeFile(path.join(temp, 'docs/context/product.md'), 'PROJECT NOT INITIALIZED');
@@ -214,6 +214,15 @@ it('Astra preflight makes ceremony advisory but still rejects an uninitialized p
   const refreshed = run(true);
   assert.equal(refreshed.find((entry) => entry.id === 'audits.cache')?.detail, 'reused');
   assert.equal(refreshed.find((entry) => entry.id === 'audit.overdue')?.ok, true);
+  status.pendingRisks = [{ id: 'audit-after-prior', raisedBy: 'vibe-sprint-complete', targetSprint: '*',
+    text: 'Evaluator audit due (sprintsSinceLastAudit=5, everyN=5).', status: 'open',
+    createdAt: '2026-09-09T00:00:00.000Z' }];
+  await writeFile(path.join(temp, '.vibe/agent/sprint-status.json'), JSON.stringify(status));
+  assert.equal(run(false).find((entry) => entry.id === 'audit.overdue')?.ok, true);
+  assert.equal(run(true).find((entry) => entry.id === 'audit.overdue')?.ok, false);
+  status.pendingRisks[0]!.text = 'A real audit found a missing rollback path.';
+  await writeFile(path.join(temp, '.vibe/agent/sprint-status.json'), JSON.stringify(status));
+  assert.equal(run(false).find((entry) => entry.id === 'audit.overdue')?.ok, false);
 });
 
 it('Astra rule audit provides no automatic delete/tighten verdict and no undisposed-rule gate', async (t) => {

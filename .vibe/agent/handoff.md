@@ -8,7 +8,17 @@ PROJECT NOT INITIALIZED.
 
 This is the upstream template; downstream product work still requires /vibe-init.
 
-## Current outcome
+## Current release — v1.15.4 / 2026-09-09
+
+- User authorized commit and version tag; README policy includes origin push. v1.15.4 metadata/docs and the exact32-file staged payload are ready from base `7b0d8242c9b289b2fd90ead067ad7ee68c82167f`. Full forced Astra release gate passed all9 groups with587 tests/585pass/2conditional skips/0fail; build/schema/sync/tracked-wrapper/payload checks pass and8 protected hashes match. Create the scoped commit, verify a fresh checkout, then annotated tag and atomic main+tag push. Queue: `.tmp/release-1.15.4/STATE.md`. Downstream sync and live model comparison remain outside this request.
+- Authorized F01-F05 implementation and prompt cleanup are complete. Local result: `docs/reports/astra-role-improvements-2026-09-09.md`; implementation evidence: `.tmp/astra-role-fixes-20260909/`. Release payload preserves pristine project report/plan directories; both new local reports and all earlier user drafts/tokens stay unstaged. The shipped summary is `docs/release/v1.15.4.md`.
+- Astra no longer creates counter-only Evaluator risks; preflight/commit recognize only strict historical auto-reminders as advisory. Existing records/counters remain, actual findings still block, and legacy rollback retains its gate. Actual isolated completion/commit and profile tests cover the boundary.
+- Init delegation now lets the receiving session select its own verified model and loads a separate preserved legacy runbook when needed. Role model tiers and explicit model selection reach the actual target-cwd child invocation; task role headers stay local to that prompt. Provider pins, custom model transport and requested/unknown-effective provenance are preserved.
+- Coder now resolves routine Astra implementation choices; Planner distinguishes confirmed contracts from recommended HOW and verifies its Generator independently. Root memory and runtime notes recognize explicit Planner/Evaluator tasks. Scope/init/ownership/encoding/Pro integrity remain binding.
+- Final Astra changed verification: all9 groups,587 tests/585 pass/2 conditional skips/0 failures. After final prompt wording, typecheck+orchestration132 reran and7 successful unchanged groups were reused with input stability. Legacy relevant6 groups:507 tests/506 pass/1 conditional skip/0 failures. Build/schema/sync/wrapper/init-shard/encoding checks pass. Original review evidence remains in `.tmp/astra-role-review-20260909/` and `docs/reports/review-0-2026-09-09.md`.
+- Unknown root memory/provider documents selected full Astra verification by conservative fallback, disclosed before Pro59 passed. Legacy group arguments initially misparsed by PowerShell/npm; stopped only that owned verifier tree before Pro and completed the intended6 groups through direct Node CLI with quoted --group. No real provider/subagent calls or Pro publication. Original user tokens hash is unchanged; user drafts remain preserved.
+
+## Released baseline (verified in prior session)
 
 - User-authorized report92 fixes and v1.15.3 release are published. Release5970028c3dfc17c41aca8e144334338f9bde8199, annotated tag7d8bc467843b0b82f946b9982c340c2d27cca37e; atomic push and exact refs verified. CI34303820498/main and34303820558/tag fully green (Linux legacy/Astra/Windows/UI). Do not change the immutable tag.
 - New review recency preserves actual preamble/tail events and archived boundaries; tracked wrapper audit checks full declared targets. Five new tests failed before the patch, then focused27 passed. Final versioned full/forced Astra release gate passed all9 groups (run9/reuse0):578 tests,576 pass,2 conditional skips,0 failures. Build, schema, sync boundary, tracked audit and checkpoint pass. Evidence .tmp/release-1.15.3/release-astra.json and .log.
@@ -48,4 +58,5 @@ This is the upstream template; downstream product work still requires /vibe-init
 
 ## Next action
 
-- Publish this metadata-only closeout immediately. Release/sync work is complete; report remaining downstream fixture/product CI issues without expanding scope. No next version, product synthesis, Planner or Web Pro continuation is authorized by this closeout. Detailed downstream report: docs/reports/harness-v1.15.3-upgrade-2026-09-09.md in Lodestar.
+- Complete the authorized v1.15.4 release using its STATE.md and explicit32-file manifest: full forced validation, scoped commit/tag, atomic push, exact remote refs and clean tag checkout audit. No downstream sync, product synthesis or Web Pro continuation follows automatically.
+- Keep the published v1.15.3 tag immutable and preserve the downstream fixture/product CI follow-ups recorded above. Do not act on the superseded prior-session instruction to publish a context closeout.

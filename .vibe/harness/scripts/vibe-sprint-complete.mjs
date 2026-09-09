@@ -12,6 +12,7 @@ import {
 } from 'node:fs';
 import path, { resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { runtimeHarnessProfile } from '../src/lib/harness-profile.mjs';
 
 function fail(message) {
   process.stderr.write(`${message}\n`);
@@ -908,6 +909,7 @@ function runCli() {
     const everyN = readAuditEveryN();
     const auditRiskId = `audit-after-${sprintId}`;
     if (
+      runtimeHarnessProfile().profile !== 'astra' &&
       sprintStatus.sprintsSinceLastAudit >= everyN &&
       !sprintStatus.pendingRisks.some((entry) => entry?.id === auditRiskId)
     ) {

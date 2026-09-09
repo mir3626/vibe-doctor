@@ -5,6 +5,7 @@ import { spawnSync } from 'node:child_process';
 import { parseArgs, getStringFlag, getBooleanFlag } from '../lib/args.js';
 import { runMain } from '../lib/cli.js';
 import { loadConfig } from '../lib/config.js';
+import { loadRegistry, resolveRoleRef } from '../lib/model-registry.js';
 import { appendJsonl, readText } from '../lib/fs.js';
 import { logger } from '../lib/logger.js';
 import { paths } from '../lib/paths.js';
@@ -68,20 +69,29 @@ function runAgentSessionStart(cwd: string): void {
 
 async function main(): Promise<void> {
   const args = parseArgs(process.argv.slice(2));
-  const provider = getStringFlag(args, 'provider');
+  const providerFlag = getStringFlag(args, 'provider');
   const role = getStringFlag(args, 'role', 'coder') ?? 'coder';
+  const explicitModel = getStringFlag(args, 'model');
   const promptFile = getStringFlag(args, 'prompt-file');
   const promptFlag = getStringFlag(args, 'prompt');
-  const cwd = getStringFlag(args, 'cwd', paths.root) ?? paths.root;
+  const cwd = path.resolve(getStringFlag(args, 'cwd', paths.root) ?? paths.root);
   const taskId = getStringFlag(args, 'task-id', isoStamp()) ?? isoStamp();
   const dryRun = getBooleanFlag(args, 'dry-run');
 
-  if (!provider) {
-    throw new Error('Missing --provider');
-  }
-
-  const prompt = await resolvePrompt(promptFile, promptFlag);
-  const config = await loadConfig();
+  const config = await loadConfig(cwd);
+  const roleRef = role === 'planner' || role === 'generator' || role === 'evaluator'
+    ? config.sprintRoles?.[role] : undefined;
+  const roleProvider = typeof roleRef === 'string' ? roleRef : roleRef?.provider;
+  const provider = providerFlag ?? roleProvider;
+  if (!provider) throw new Error('Missing --provider or a configured --role');
+  const roleModel = roleRef && typeof roleRef !== 'string' && provider === roleProvider
+    ? resolveRoleRef(await loadRegistry(cwd), roleRef).apiId : undefined;
+  const model = explicitModel ?? roleModel;
+  const resolvedPromptFile = promptFile ? path.resolve(cwd, promptFile) : undefined;
+  const taskPrompt = await resolvePrompt(resolvedPromptFile, promptFlag);
+  const prompt = ['planner', 'generator', 'evaluator'].includes(role)
+    ? `Assigned task role: ${role}. The task's scope and write permissions remain authoritative.\n\n${taskPrompt}`
+    : taskPrompt;
   const runner = config.providers[provider];
 
   if (!runner) {
@@ -92,16 +102,17 @@ async function main(): Promise<void> {
     provider,
     role,
     prompt,
-    promptFile,
+    promptFile: resolvedPromptFile,
     cwd,
     taskId,
     runner,
+    model,
   });
 
   logger.info(`provider=${provider} role=${role}`);
   logger.info(`command=${plan.command} ${plan.args.join(' ')}`);
 
-  const outputFile = path.join(paths.vibeRunsDir, isoDate(), `${taskId}.jsonl`);
+  const outputFile = path.join(cwd, '.vibe/runs', isoDate(), `${taskId}.jsonl`);
   let profileRegistry: ProfileRegistry | undefined;
   try {
     profileRegistry = JSON.parse(await readText(path.join(cwd, '.vibe/model-registry.json'))) as ProfileRegistry;
@@ -109,6 +120,9 @@ async function main(): Promise<void> {
   const modelProvenance = provider === 'codex'
     ? codexInvocationProfile(plan.args, { ...process.env, ...plan.env }, profileRegistry)
     : { requestedModel: null, effectiveModel: null, requestedEffort: null, effectiveEffort: null };
+  if (explicitModel && provider === 'codex' && modelProvenance.requestedModel !== explicitModel) {
+    throw new Error('--model conflicts with an explicit or ambiguous provider model configuration; align the runner before execution');
+  }
 
   if (dryRun) {
     await appendJsonl(outputFile, {
@@ -116,6 +130,7 @@ async function main(): Promise<void> {
       timestamp: new Date().toISOString(),
       provider,
       role,
+      roleModel: roleModel ?? null,
       dryRun: true,
       modelProvenance,
       command: plan.command,
@@ -147,6 +162,7 @@ async function main(): Promise<void> {
     timestamp: new Date().toISOString(),
     provider,
     role,
+    roleModel: roleModel ?? null,
     exitCode: result.exitCode,
     modelProvenance,
     usage,

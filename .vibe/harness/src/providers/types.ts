@@ -8,6 +8,7 @@ export interface ProviderExecutionInput {
   cwd: string;
   taskId: string;
   runner: ProviderRunner;
+  model?: string | undefined;
 }
 
 export interface ProviderExecutionPlan {

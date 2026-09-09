@@ -4,6 +4,8 @@ import { spawnSync, execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import path, { resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { runtimeHarnessProfile } from '../src/lib/harness-profile.mjs';
+import { isCounterOnlyAuditRisk } from './lib/audit-counter-policy.mjs';
 
 const META_PREFIXES = [
   '.vibe/archive/',
@@ -172,9 +174,11 @@ export function inlineExtendLastSprintScope(statusPath, mergedScope, mergedGlobs
 
 function collectTargetedPendingRisks(sprintStatus, sprintId) {
   const risks = Array.isArray(sprintStatus.pendingRisks) ? sprintStatus.pendingRisks : [];
+  const astra = runtimeHarnessProfile().profile === 'astra';
   return risks.filter(
     (risk) =>
       risk?.status === 'open' &&
+      !(astra && isCounterOnlyAuditRisk(risk)) &&
       (risk.targetSprint === sprintId ||
         (risk.targetSprint === '*' && typeof risk.id === 'string' && risk.id.startsWith('audit-'))),
   );

@@ -12,10 +12,11 @@
 |----------|-----------|------|
 | `claude-opus` | Agent 도구 (model: opus) | Claude 계열 — Planner/Evaluator 후보 (트리거 해당 시에만 소환) |
 | `claude-sonnet` | Agent 도구 (model: sonnet) | Claude 계열 |
-| `codex` | `Bash("... \| ./.vibe/harness/scripts/run-codex.sh -")` | **Codex CLI** (run-codex.sh wrapper 경유 — UTF-8 safety + 자동 재시도). 인증: OAuth (`codex auth login`, 기본) 또는 API 키 (`OPENAI_API_KEY`). 상세: `docs/context/codex-execution.md` |
+| `codex` | `Bash("... \| ./.vibe/harness/scripts/run-codex.sh -")` | **Codex CLI** (UTF-8 wrapper, 단일 실행). 인증: OAuth (`codex auth login`, 기본) 또는 API 키 (`OPENAI_API_KEY`). 상세: `docs/context/codex-execution.md` |
 | `gemini` | Bash 도구 (`gemini "{prompt}"`) | CLI 직접 실행 |
 
 > **⚠️ Provider 호출 규칙**:
+> - 아래 호출 예시는 legacy Claude Orchestrator의 기본값이다. Native Astra는 현재 runtime 도구를 사용하고, 자식마다 실제 모델을 확인한다. 도구 이름이 Planner/Generator/Evaluator 역할을 결정하지 않는다.
 > - **Claude 계열** provider → Claude Code의 **Agent 도구** 사용 (model 파라미터 지정)
 > - **Codex** → **`Bash("... | ./.vibe/harness/scripts/run-codex.sh -")` 로 wrapper 경유 CLI 호출**. Agent 도구는 Claude만 지원하므로 Codex에 사용 금지. raw `codex exec` 직접 호출은 Korean Windows 환경에서 mojibake 위험이 있으므로 금지.
 > - **기타 비-Claude 계열** provider → **Bash 도구**로 CLI/API 명령 실행
@@ -38,6 +39,25 @@ Git Bash를 직접 탐색한다. bare `bash`가 WSL launcher(`WindowsApps\bash.e
 - `{cwd}`
 - `{role}`
 - `{taskId}`
+- `{model}` — `--model` 또는 registry-backed role로 해석된 실제 API ID가 필요하다.
+
+### 역할을 지정한 실행
+
+```bash
+npm run vibe:run-agent -- --role planner --prompt-file docs/prompts/planning-task.md
+npm run vibe:run-agent -- --provider codex --role evaluator --model gpt-6-astra --prompt "Review the approved scope"
+```
+
+`--role planner/generator/evaluator`는 `sprintRoles`에서 provider를 선택한다.
+명시한 `--provider`가 우선하며, 그 provider가 역할 설정과 같을 때 registry tier를
+실제 모델로 해석한다. canonical Codex wrapper는 이를 child `-m` 인자로 전달한다.
+기존 provider args/config/env의 model pin은 role 기본값보다 우선한다. `--model`과
+충돌하거나 불명확한 설정은 실행 전에 오류로 보고한다.
+
+String 역할 값(`"codex"` 등)은 provider만 지정하므로 Astra 실행 증거가 아니다.
+Custom model runner는 `{model}` 전달 위치를 명시한다. `--cwd`는 config/registry,
+상대 prompt-file, run 기록의 기준 checkout을 함께 선택한다. Role은 작업 역할이며
+특정 agent 프로필 파일을 자동 로드한다는 뜻은 아니다. 필요한 역할 지침은 task에 명시한다.
 
 ### Codex 플러그인 (잠정 보류)
 

@@ -7,6 +7,11 @@ for model-selected harness commands; reselect it on model change. Actual sandbox
 capabilities govern execution, including Windows. Encoding checks still apply.
 See `docs/guides/astra-profile.md` for selection, rollback and validation.
 
+`run-codex` is also a transport for requested Planner/Evaluator tasks. It does not
+assign Generator status by itself. `vibe:run-agent --role <role>` can resolve a
+configured tier to an explicitly pinned child model; provider pins remain
+authoritative and unknown identities stay legacy. See `docs/orchestration/providers.md`.
+
 > **요약**: Korean Windows + Codex 조합은 비-ASCII string literal을 조용히
 > 깨뜨릴 수 있다. 이 문서는 원인, 영구 해결책, 모든 Generator prompt가
 > 따라야 할 규약(BLOCKED 패턴, Encoding integrity gate)을 정의한다.

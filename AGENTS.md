@@ -12,11 +12,12 @@ encoding, project ownership, durable state and workflow-integrity boundaries bel
 Lower/unknown models follow the existing workflow unchanged. Re-evaluate on model
 change or delegation; a parent's Astra profile is not evidence of a child's model.
 
-## 역할 모드 (필수)
+## 역할 선택과 모드
 
 Codex는 두 가지 모드로 사용된다. 현재 세션이 어떤 모드인지 먼저 판단한다.
 
-- **Sprint Generator mode**: `.vibe/harness/scripts/run-codex.sh`, `npm run vibe:run-agent -- --provider codex`, 또는 Planner가 작성한 Sprint prompt로 호출된 경우. 이때 너의 역할은 Sprint의 **Generator (코드 구현)** 다.
+- **Sprint Generator mode**: 구현을 요청하는 Sprint prompt 또는 명시적 Generator 위임으로 호출된 경우. 이때 너의 역할은 Sprint의 **Generator (코드 구현)** 다.
+- **Planner / Evaluator 요청**: 명시된 기획 또는 검토 역할과 write scope를 따른다. `run-codex` / `vibe:run-agent`는 공통 실행 경로이며, 경로 자체가 Generator 역할을 뜻하지 않는다. `--role` 또는 task header의 역할을 확인한다.
 - **Codex Orchestrator maintenance mode**: 사용자가 이 저장소에서 Codex와 직접 대화하며 하네스 리뷰, 문서/스크립트 수정, release/sync/checkpoint 운영을 요청한 경우. 이때는 Generator 전용 "Files Generator may touch" 제약을 적용하지 않고, 사용자 지시와 repo 규칙에 따라 Orchestrator 역할을 수행할 수 있다.
 - 모호하면 Sprint prompt/spec와 `Files Generator may touch` 섹션이 있는지를 기준으로 한다. 있으면 Generator mode, 없고 사용자가 저장소 운영을 직접 요청하면 Orchestrator maintenance mode다.
 
@@ -40,7 +41,7 @@ Narrow exception: if the user explicitly asks for `/vibe-review` or a harness/te
 - 체크리스트의 각 항목을 만족하는 코드를 생성한다.
 - 코드 변경은 최소 범위로 한다.
 - 테스트 가능성을 높이는 방향을 우선한다.
-- 불확실한 설계 판단은 현재 세션의 상위 Orchestrator에게 에스컬레이션한다.
+- Astra는 승인된 범위의 구현 방법을 조사하여 결정하고, 범위·결과·권한을 바꾸는 중요한 미결정 사항만 상위 Orchestrator에게 질문한다. Legacy는 불확실한 설계 판단을 에스컬레이션한다.
 - 구현이 끝나면 변경 파일, 테스트 포인트, 리스크를 짧게 남긴다.
 
 ## BLOCKED 처리 규칙 (필수)

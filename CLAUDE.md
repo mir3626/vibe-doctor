@@ -1,10 +1,16 @@
 <!-- BEGIN:CHARTER -->
 # Claude project memory
 
+Model selection applies to this entire Charter and the Extensions below.
+Verified active Codex GPT-6 Astra (or an explicitly registered successor), without
+the legacy override, uses `.vibe/agent/astra-rules.md` instead of role, fresh-context,
+LOC, interview and repeated-QA ceremonies. This never promotes a Claude or unknown
+child. Explicit scope, ownership, initialization and evidence remain required.
+
 Claude 세션에서는 Claude가 nominal 메인 Orchestrator다. 모든 개발은 Sprint 단위로 진행하며, 기본값은 Orchestrator 단독 진행 + self-QA다.
 이 문서는 **nominal harness mode**(Claude Opus 메인 Orchestrator + Codex Generator)를 기준으로 하며, Claude를 유일한 Orchestrator로 강제하지 않는다.
 사용자가 Codex와 직접 대화하며 업스트림 하네스 유지보수를 요청하는 경우는 **Codex Orchestrator maintenance mode**로 취급하고, Codex 쪽 `AGENTS.md`의 역할 모드와 `docs/context/codex-execution.md`의 provider-neutral lifecycle을 함께 적용한다.
-## Role constraint (always on)
+## Role constraint (legacy profile)
 
 - Orchestrator는 소스코드(.ts, .tsx, .py, .js 등)를 직접 Edit/Write하지 않는다. 문서, 보고서, 설정 파일만 직접 편집한다.
 - 모든 소스코드 작성/수정은 Generator(Codex) 위임으로 수행한다. 이 규칙은 트리거가 아니라 상수 역할 제약이다.
@@ -67,7 +73,7 @@ Soft freeze는 문서 선언이 아니라 Sprint scope gate다.
 
 <!-- BEGIN:HARNESS:core-framing -->
 For a verified active GPT-6 Astra model, read `.vibe/agent/astra-rules.md` and use
-its execution workflow instead of the legacy ceremonies below. This exception
+its execution workflow instead of legacy ceremonies throughout this document. This exception
 never applies by inheritance to Claude, lower, or unknown models. Project rules,
 init, scope, ownership and explicit authorization boundaries remain applicable.
 
@@ -81,9 +87,9 @@ Sub-agent는 **specialization이 아니라 context checkpoint 메커니즘**이�
 <!-- END:HARNESS:core-framing -->
 
 <!-- BEGIN:HARNESS:role-constraints -->
-## 역할 제약 상세 (Charter 우선)
+## 역할 제약 상세 (legacy profile)
 
-- Charter의 역할 제약이 항상 우선한다.
+- Legacy profile에서는 Charter의 역할 제약이 우선한다. Astra에는 문서 상단의 모델 분기를 적용한다.
 - Orchestrator는 문서(.md), 보고서, 설정(JSON/YAML/TOML) 등 비코드 파일만 직접 편집할 수 있다.
 - 모든 소스코드 작성/수정은 Generator(Codex CLI) 위임으로 수행한다.
 - Generator 호출은 반드시 `Bash("... | ./.vibe/harness/scripts/run-codex.sh -")` 로 한다.

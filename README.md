@@ -10,7 +10,13 @@
 
 ## Latest Highlights
 
-### v1.15.3 (2026-09-09) - Current review evidence and checkout-safe skills
+### v1.15.4 (2026-09-09) - Astra role execution and prompt alignment
+
+- Astra Sprint completion and commit treat counter-only audit reminders as advisory while preserving actual findings and legacy rollback gates.
+- Role model settings now reach the actual child invocation. Init, Planner and coder prompts separate verified Astra behavior from preserved legacy procedures and keep task scope authoritative.
+- See [profile usage](docs/guides/astra-profile.md) and [release notes](docs/release/v1.15.4.md).
+
+### Previous: v1.15.3 (2026-09-09) - Current review evidence and checkout-safe skills
 
 - Review reads recent active log entries by timestamp, including legacy preamble/tail entries, without rewriting source records or including archived sections.
 - `vibe:codex-wrapper-audit -- --tracked` checks shared runbooks and transitive shards against the Git index; CI uses it to catch files that exist only locally. See [release notes](docs/release/v1.15.3.md).
@@ -96,6 +102,10 @@ Claude 가 대화형으로 아래 과정을 순차 자동 진행합니다:
 4. **Phase 4 Sprint 로드맵 작성 + Phase 0 seal** — Orchestrator 가 직접 분할한 Sprint 로드맵 저장 + `.vibe/harness/scripts/vibe-phase0-seal.mjs` 로 자동 커밋.
 
 ### 4. Sprint 사이클
+
+아래 역할별 사이클은 legacy 프로필의 기본값입니다. 확인된 Astra 세션은
+[Astra 실행 계약](docs/guides/astra-profile.md)에 따라 필요한 역할과 검증을 선택합니다.
+역할을 사용할 때는 Planner와 Generator 모델을 각각 확인하고 실제 호출에 지정합니다.
 
 각 Sprint 는 다음 5 단계:
 
@@ -372,7 +382,7 @@ Root `src/**`, `scripts/**`, `test/**`, `app/**`, `components/**`, and `lib/**` 
 
 ## 버전 / tag 정책
 
-현재 릴리스는 `harnessVersion: 1.15.2` 입니다. 릴리스를 자를 때는 `package.json`, `.vibe/config.json`, release note, tag를 같은 버전으로 맞춥니다.
+현재 릴리스는 `harnessVersion: 1.15.4` 입니다. 릴리스를 자를 때는 `package.json`, `.vibe/config.json`, release note, tag를 같은 버전으로 맞춥니다.
 
 - `harnessVersion` 은 `.vibe/config.json` 과 `package.json` 에 semver로 기록합니다.
 - 각 minor/patch 릴리스는 해당 커밋에 `vMAJOR.MINOR.PATCH` git tag를 붙인 뒤 origin에 push합니다.
