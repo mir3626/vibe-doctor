@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
 import path from 'node:path';
 import process from 'node:process';
 
@@ -12,10 +13,15 @@ function parseArgs(argv) {
   const options = {
     root: process.cwd(),
     format: 'text',
+    tracked: false,
   };
 
   for (let index = 0; index < argv.length; index += 1) {
     const current = argv[index];
+    if (current === '--tracked') {
+      options.tracked = true;
+      continue;
+    }
     if (current === '--root') {
       options.root = argv[index + 1] ?? options.root;
       index += 1;
@@ -27,7 +33,7 @@ function parseArgs(argv) {
       continue;
     }
     if (current === '--help' || current === '-h') {
-      process.stdout.write('Usage: node .vibe/harness/scripts/vibe-codex-wrapper-audit.mjs [--root <dir>] [--format text|json]\n');
+      process.stdout.write('Usage: node .vibe/harness/scripts/vibe-codex-wrapper-audit.mjs [--root <dir>] [--format text|json] [--tracked]\n');
       process.exit(0);
     }
   }
@@ -125,7 +131,7 @@ function addFinding(findings, id, detail, extra = {}) {
   findings.push({ severity: 'error', id, detail, ...extra });
 }
 
-function collectTransitiveTargets(root, initialTargets, findings, sourcePath) {
+function collectTransitiveTargets(root, initialTargets, findings, sourcePath, trackedPaths) {
   const targets = [];
   const queue = [...initialTargets];
   const seen = new Set();
@@ -149,6 +155,9 @@ function collectTransitiveTargets(root, initialTargets, findings, sourcePath) {
       addFinding(findings, 'missing-target', 'wrapper or shard target does not exist', { path: current, sourcePath });
       continue;
     }
+    if (trackedPaths !== null && !trackedPaths.has(current)) {
+      addFinding(findings, 'untracked-target', 'wrapper or shard exists locally but is absent from the Git index', { path: current, sourcePath });
+    }
 
     const content = readText(root, current);
     for (const shardPath of extractShardPaths(content)) {
@@ -162,7 +171,7 @@ function collectTransitiveTargets(root, initialTargets, findings, sourcePath) {
   return targets;
 }
 
-function auditWrapper(root, skillName, findings) {
+function auditWrapper(root, skillName, findings, trackedPaths) {
   const wrapperPath = `${CODEX_SKILLS_DIR}/${skillName}/SKILL.md`;
   const sharedPath = `${CLAUDE_SKILLS_DIR}/${skillName}/SKILL.md`;
   const wrapperText = readText(root, wrapperPath);
@@ -198,7 +207,7 @@ function auditWrapper(root, skillName, findings) {
     }
   }
 
-  const transitiveTargets = collectTransitiveTargets(root, [wrapperPath, ...declaredTargets], localFindings, wrapperPath);
+  const transitiveTargets = collectTransitiveTargets(root, [wrapperPath, ...declaredTargets], localFindings, wrapperPath, trackedPaths);
   findings.push(...localFindings);
 
   return {
@@ -211,7 +220,19 @@ function auditWrapper(root, skillName, findings) {
   };
 }
 
-function audit(root) {
+function audit(root, tracked) {
+  let trackedPaths = null;
+  if (tracked) {
+    try {
+      const output = execFileSync('git', ['ls-files', '--cached', '-z'], {
+        cwd: root, encoding: 'utf8', windowsHide: true, maxBuffer: 16 * 1024 * 1024,
+        stdio: ['ignore', 'pipe', 'pipe'],
+      });
+      trackedPaths = new Set(output.split('\0').filter(Boolean));
+    } catch {
+      throw new Error('--tracked requires a readable Git index at --root; working-tree fallback is disabled');
+    }
+  }
   const findings = [];
   const claudeSkills = listSkillNames(root, CLAUDE_SKILLS_DIR);
   const codexSkills = listSkillNames(root, CODEX_SKILLS_DIR);
@@ -231,11 +252,12 @@ function audit(root) {
 
   const wrapperReports = [];
   for (const skillName of codexSkills.filter((name) => claudeSet.has(name))) {
-    wrapperReports.push(auditWrapper(root, skillName, findings));
+    wrapperReports.push(auditWrapper(root, skillName, findings, trackedPaths));
   }
 
   return {
     ok: findings.length === 0,
+    sourceMode: tracked ? 'git-tracked' : 'working-tree',
     claudeSkillCount: claudeSkills.length,
     codexSkillCount: codexSkills.length,
     wrapperReports,
@@ -246,7 +268,7 @@ function audit(root) {
 function printText(report) {
   const status = report.ok ? 'OK' : 'FAIL';
   const targetCount = report.wrapperReports.reduce((sum, wrapper) => sum + wrapper.targetCount, 0);
-  process.stdout.write(`[vibe-codex-wrapper-audit] ${status} claudeSkills=${report.claudeSkillCount} codexSkills=${report.codexSkillCount} targets=${targetCount}\n`);
+  process.stdout.write(`[vibe-codex-wrapper-audit] ${status} mode=${report.sourceMode} claudeSkills=${report.claudeSkillCount} codexSkills=${report.codexSkillCount} targets=${targetCount}\n`);
   for (const finding of report.findings) {
     const target = finding.path ?? finding.skill ?? finding.signal ?? '';
     process.stdout.write(`- ${finding.severity}: ${finding.id}${target ? ` ${target}` : ''} - ${finding.detail}\n`);
@@ -255,7 +277,7 @@ function printText(report) {
 
 try {
   const options = parseArgs(process.argv.slice(2));
-  const report = audit(path.resolve(options.root));
+  const report = audit(path.resolve(options.root), options.tracked);
   if (options.format === 'json') {
     process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
   } else {

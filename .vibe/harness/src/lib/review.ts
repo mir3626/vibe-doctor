@@ -422,25 +422,36 @@ function pathMentions(proposal: string): string[] {
 
 function extractCurrentSessionEntries(sessionLog: string, limit: number): string[] {
   const lines = sessionLog.split(/\r?\n/);
-  const entries: string[] = [];
-  let inEntries = false;
+  const entries: Array<{ line: string; timestamp: number; order: number }> = [];
+  let section: 'preamble' | 'entries' | 'other' = 'preamble';
+  let sawEntries = false;
 
   for (const line of lines) {
     if (line.startsWith('## ')) {
-      if (inEntries) {
-        break;
-      }
-
-      inEntries = line.trim() === '## Entries';
+      section = line.trim() === '## Entries' && !sawEntries ? 'entries' : 'other';
+      if (section === 'entries') sawEntries = true;
       continue;
     }
 
-    if (inEntries && line.startsWith('- ')) {
-      entries.push(line);
+    // Older maintain-context writers used both the preamble and the file tail.
+    // Only the first active Entries section is eligible; archives stay excluded.
+    if (!line.startsWith('- ') || section === 'other') continue;
+    if (section === 'preamble' && !/^- \d{4}-\d{2}-\d{2}\S* \[/.test(line)) continue;
+    const rawTimestamp = line.match(/^- (\S+)/)?.[1] ?? '';
+    let timestamp = Number.NaN;
+    if (/^\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:\d{2})?)?$/.test(rawTimestamp)) {
+      // UTC is a sorting convention for legacy partial timestamps, not a rewrite
+      // or a claim that a date-only event has a known execution time.
+      const normalized = rawTimestamp.includes('T') ? rawTimestamp : `${rawTimestamp}T00:00:00`;
+      timestamp = Date.parse(/(?:Z|[+-]\d{2}:\d{2})$/.test(normalized) ? normalized : `${normalized}Z`);
     }
+    entries.push({ line, timestamp: Number.isFinite(timestamp) ? timestamp : Number.NEGATIVE_INFINITY, order: entries.length });
   }
 
-  return entries.slice(0, limit);
+  return entries
+    .sort((left, right) => right.timestamp - left.timestamp || left.order - right.order)
+    .slice(0, limit)
+    .map((entry) => entry.line);
 }
 
 async function findLatestReviewReport(root?: string): Promise<string | null> {

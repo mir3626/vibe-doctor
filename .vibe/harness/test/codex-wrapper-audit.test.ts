@@ -28,8 +28,8 @@ async function writeText(filePath: string, value: string): Promise<void> {
   await writeFile(filePath, value, 'utf8');
 }
 
-function runAudit(root: string): { status: number | null; stdout: string; stderr: string } {
-  const result = spawnSync(process.execPath, [scriptPath, '--root', root, '--format', 'json'], {
+function runAudit(root: string, tracked = false): { status: number | null; stdout: string; stderr: string } {
+  const result = spawnSync(process.execPath, [scriptPath, '--root', root, '--format', 'json', ...(tracked ? ['--tracked'] : [])], {
     encoding: 'utf8',
   });
   return { status: result.status, stdout: result.stdout, stderr: result.stderr };
@@ -53,6 +53,45 @@ function codexWrapper(skillName: string, sharedPath = `.claude/skills/${skillNam
 }
 
 describe('vibe-codex-wrapper-audit', () => {
+  it('fails tracked mode outside Git instead of falling back to working-tree success', async () => {
+    const root = await makeTempDir('codex-wrapper-no-git-');
+    assert.equal(runAudit(root).status, 0);
+    const result = runAudit(root, true);
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /tracked.*Git/i);
+  });
+
+  it('detects ignored shared runbooks and transitive shards before checkout', async () => {
+    const root = await makeTempDir('codex-wrapper-tracked-');
+    const git = (...args: string[]) => {
+      const result = spawnSync('git', args, { cwd: root, encoding: 'utf8' });
+      assert.equal(result.status, 0, result.stderr);
+    };
+    git('init');
+    await writeText(path.join(root, '.gitignore'), '.claude/skills/\n');
+    await writeText(path.join(root, '.codex/skills/demo/SKILL.md'), codexWrapper('demo'));
+    await writeText(path.join(root, '.claude/skills/demo/SKILL.md'), [
+      '# Shared', '<!-- BEGIN:DEMO:SHARDS -->',
+      '- `.claude/skills/demo/sections/real.md`', '<!-- END:DEMO:SHARDS -->',
+    ].join('\n'));
+    await writeText(path.join(root, '.claude/skills/demo/sections/real.md'), '# Real shard\n');
+    git('add', '.gitignore', '.codex');
+    assert.equal(runAudit(root).status, 0);
+    const first = runAudit(root, true);
+    assert.equal(first.status, 1);
+    const firstReport = JSON.parse(first.stdout);
+    assert.equal(firstReport.sourceMode, 'git-tracked');
+    assert.deepEqual(firstReport.findings.filter((x: { id: string }) => x.id === 'untracked-target').map((x: { path: string }) => x.path), [
+      '.claude/skills/demo/SKILL.md', '.claude/skills/demo/sections/real.md',
+    ]);
+    git('add', '-f', '.claude/skills/demo/SKILL.md');
+    const second = runAudit(root, true);
+    assert.equal(second.status, 1);
+    assert.equal(JSON.parse(second.stdout).findings.filter((x: { id: string }) => x.id === 'untracked-target').length, 1);
+    git('add', '-f', '.claude/skills/demo/sections/real.md');
+    assert.equal(runAudit(root, true).status, 0);
+  });
+
   it('passes the current checkout and reports compact wrapper targets', () => {
     const result = runAudit(process.cwd());
     const parsed = JSON.parse(result.stdout) as {

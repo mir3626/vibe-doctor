@@ -10,7 +10,12 @@
 
 ## Latest Highlights
 
-### v1.15.2 (2026-09-09) - Pro tests follow patch impact
+### v1.15.3 (2026-09-09) - Current review evidence and checkout-safe skills
+
+- Review reads recent active log entries by timestamp, including legacy preamble/tail entries, without rewriting source records or including archived sections.
+- `vibe:codex-wrapper-audit -- --tracked` checks shared runbooks and transitive shards against the Git index; CI uses it to catch files that exist only locally. See [release notes](docs/release/v1.15.3.md).
+
+### Previous: v1.15.2 (2026-09-09) - Pro tests follow patch impact
 
 - Ordinary harness tests and push/PR CI select changed groups. Unrelated shared helpers no longer start Pro Git/worktree tests or invalidate their passing receipts.
 - Pro dependencies, unknown-impact fallbacks and explicit full/release verification retain coverage. See [release notes](docs/release/v1.15.2.md).

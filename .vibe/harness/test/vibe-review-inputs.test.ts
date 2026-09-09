@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { execFile as execFileCallback } from 'node:child_process';
-import { mkdtemp, mkdir, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { promisify } from 'node:util';
@@ -154,6 +154,62 @@ async function scaffoldRepo(root: string): Promise<void> {
 }
 
 describe('review inputs', () => {
+  it('loads latest mixed prepend and append entries without rewriting source or reading archives', async () => {
+    const root = await makeTempDir('review-mixed-recency-');
+    await scaffoldRepo(root);
+    const content = [
+      '# Session Log',
+      '- 2026-09-09T01:30:00Z [release] current harness',
+      '## Entries',
+      '- 2026-09-06 [decision] older first physical entry',
+      '- 2026-09-02T00:00:00Z [decision] old tail',
+      '- 2026-09-09T01:22:00Z [owner-stop] do not resume',
+      '## Archived (older)',
+      '- 2099-01-01T00:00:00Z [decision] archived must not win',
+      '## Entries',
+      '- 2099-01-02T00:00:00Z [decision] archived duplicate heading',
+      '',
+    ].join('\r\n');
+    const logPath = path.join(root, '.vibe', 'agent', 'session-log.md');
+    await writeText(logPath, content);
+    const inputs = await collectReviewInputs(root);
+    assert.deepEqual(inputs.recentSessionEntries, [
+      '- 2026-09-09T01:30:00Z [release] current harness',
+      '- 2026-09-09T01:22:00Z [owner-stop] do not resume',
+    ]);
+    assert.equal(await readFile(logPath, 'utf8'), content);
+  });
+
+  it('orders offset and partial timestamps consistently and preserves equal-time records', async () => {
+    const root = await makeTempDir('review-time-recency-');
+    await scaffoldRepo(root);
+    await writeJson(path.join(root, '.vibe', 'config.json'), { review: { recentEntries: 10 } });
+    const entries = [
+      '- 2026-09-09 [decision] date only',
+      '- 2026-09-09T09:30:00+09:00 [decision] first at same instant',
+      '- 2026-09-09T00:30:00Z [decision] second at same instant',
+      '- 2026-09-09T01:00 [decision] partial UTC time',
+      '- unknown [decision] unknown time is preserved',
+    ];
+    await writeText(path.join(root, '.vibe', 'agent', 'session-log.md'), `# Session Log\n## Entries\n${entries.join('\n')}\n`);
+    const inputs = await collectReviewInputs(root);
+    assert.deepEqual(inputs.recentSessionEntries, [entries[3], entries[1], entries[2], entries[0], entries[4]]);
+  });
+
+  it('reads timestamped headerless logs but excludes purpose and archived sections', async () => {
+    const root = await makeTempDir('review-headerless-');
+    await scaffoldRepo(root);
+    await writeText(path.join(root, '.vibe', 'agent', 'session-log.md'), [
+      '# Session Log',
+      '- 2026-09-09T02:00:00Z [decision] actual current event',
+      '- ordinary preamble prose is not an event',
+      '## Purpose',
+      '- 2099-01-01 [example] not active',
+    ].join('\n'));
+    const inputs = await collectReviewInputs(root);
+    assert.deepEqual(inputs.recentSessionEntries, ['- 2026-09-09T02:00:00Z [decision] actual current event']);
+  });
+
   it('collectReviewInputs loads handoff, session log, decisions, pending risks, and limits recent entries', async () => {
     const root = await makeTempDir('review-inputs-');
     await scaffoldRepo(root);

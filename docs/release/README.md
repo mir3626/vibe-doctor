@@ -6,6 +6,7 @@ and in version-specific notes.
 
 ## Current
 
+- [v1.15.3](v1.15.3.md) - Current review evidence and checkout-safe skills
 - [v1.15.2](v1.15.2.md) - Pro tests follow patch impact
 - [v1.15.1](v1.15.1.md) - Windows CI preload correction
 - [v1.15.0](v1.15.0.md) - Model-selected workflows and shared runtime correctness

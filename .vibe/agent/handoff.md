@@ -10,6 +10,13 @@ This is the upstream template; downstream product work still requires /vibe-init
 
 ## Current outcome
 
+- User authorized report-based upstream fixes, commit/tag v1.15.3 and Lodestar upgrade. Implementation is ready; publication and downstream final sync are pending. No product goal or Web Pro session is resumed.
+- New review recency preserves actual preamble/tail events and archived boundaries; tracked wrapper audit checks full declared targets. Five new tests failed before the patch, then focused27 passed. Final versioned full/forced Astra release gate passed all9 groups (run9/reuse0):578 tests,576 pass,2 conditional skips,0 failures. Build, schema, sync boundary, tracked audit and checkpoint pass. Evidence .tmp/release-1.15.3/release-astra.json and .log.
+- Downstream .gitignore narrowly admits four missing shared documents and custom CI requests --tracked. These documents are staged but not committed; actual new tracked audit passes and private extra files remain ignored. Preserve21 local sync conflicts; merge only two overlapping review source/test files after fresh-tag sync.
+- Working evidence: .tmp/release-1.15.3/STATE.md. Original user drafts/tokens/product edits remain protected. R33 launch-path issue was corrected during that previous validation, not by changing Pro workflow here.
+
+## Previous v1.15.2 outcome
+
 - Release v1.15.2 is published and installed downstream. Origin release commit f89e5f2cad9579d578dbff28b4c17f4fec5495bf; annotated tag object 6a000c947581f7e3f815d99db1ca2ebfb6f5900f peels to that commit. Both origin CI runs 34291112450 and 34291112734 passed every Linux legacy/Astra/Windows job.
 - Downstream improve/post-refactor-all upgrade commit b29cf707413b4d5663dc4ad7acbe8f4fd48d14ac was pushed and exact-remote verified. All433 installed replace/new files match a fresh remote tag clone, allowing line endings. Final metadata-only follow-up does not change the release tag.
 - User directive: ordinary harness patches must run temporary Git/worktree Pro tests only when the changed behavior affects vibe-pro-go.
@@ -40,4 +47,4 @@ This is the upstream template; downstream product work still requires /vibe-init
 
 ## Next action
 
-- Requested release and downstream upgrade are complete. Preserve the published tag and product owner-stop. Future product work may address the independently reproduced CI gaps above; no implementation or verification loop should resume automatically.
+- Complete scoped v1.15.3 commit and atomic annotated-tag/main publication, exact refs and CI. Then fresh-tag downstream sync with21 conflicts preserved, narrow overlap merges and version alignment, focused verification/clean checkout, context checkpoints and immediate push. Do not mutate old tags or resume product synthesis.
