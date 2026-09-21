@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { execFile as execFileCallback } from 'node:child_process';
-import { mkdtemp, mkdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, readFile, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { promisify } from 'node:util';
@@ -9,6 +9,7 @@ import {
   collectPendingRestorationDecisions,
   collectReviewInputs,
   detectOptInGaps,
+  serializeReviewInputs,
 } from '../src/lib/review.js';
 
 const execFile = promisify(execFileCallback);
@@ -154,6 +155,100 @@ async function scaffoldRepo(root: string): Promise<void> {
 }
 
 describe('review inputs', () => {
+  it('warns about unsupported active event blocks without rewriting or importing them as events', async () => {
+    const root = await makeTempDir('review-event-format-');
+    await scaffoldRepo(root);
+    const content = [
+      '# Session Log',
+      '### 2026-09-21 18:28 KST',
+      '-No artifact available',
+      '## Entries',
+      '- 2026-09-21T18:11:00+09:00 [run] LIVE',
+      '### 2026-09-21 18:42 KST',
+      '-72876 code124 UNKNOWN',
+      '```md',
+      '### 2026-09-21 18:43 KST example only',
+      '-No example event',
+      '```',
+      '## Archived (older)',
+      '### 2026-09-21 18:44 KST archived',
+      '-No archived event',
+    ].join('\n');
+    const logPath = path.join(root, '.vibe', 'agent', 'session-log.md');
+    await writeText(logPath, content);
+    const inputs = await collectReviewInputs(root);
+    const warnings = inputs.sessionLogFormatWarnings;
+    assert.deepEqual(warnings.map(({ line, code }) => ({ line, code })), [
+      { line: 2, code: 'unsupported-event-heading' },
+      { line: 3, code: 'malformed-event-bullet' },
+      { line: 6, code: 'unsupported-event-heading' },
+      { line: 7, code: 'malformed-event-bullet' },
+    ]);
+    assert.deepEqual(inputs.recentSessionEntries, ['- 2026-09-21T18:11:00+09:00 [run] LIVE']);
+    assert.equal(await readFile(logPath, 'utf8'), content);
+  });
+
+  it('bounds actual CLI output for large logs and preserves terminal events and opt-in decisions', async () => {
+    const root = await makeTempDir('review-bounded-cli-');
+    await scaffoldRepo(root);
+    await symlink(path.join(process.cwd(), 'node_modules'), path.join(root, 'node_modules'), 'junction');
+    await symlink(path.join(process.cwd(), '.vibe', 'harness'), path.join(root, '.vibe', 'harness'), 'junction');
+    const terminal = '- 2026-09-22T00:10:00+09:00 [terminal] code124 UNKNOWN; no automatic continuation';
+    const optOut = '- 2026-09-21T23:57:00+09:00 [decision][phase3-utility-opt-in] bundle=false browserSmoke=false rationale=intentional replacement=manual-playwright-smoke';
+    const handoff = '# Current\nFrozen acceptance; no SPENT reuse.\n' + '과거 "기록" \\ 😀\n'.repeat(20000);
+    const log = `# Session Log\n## Entries\n${terminal}\n${optOut}\n## Archived (older)\n${'old evidence\n'.repeat(100000)}`;
+    await writeText(path.join(root, '.vibe', 'agent', 'handoff.md'), handoff);
+    await writeText(path.join(root, '.vibe', 'agent', 'session-log.md'), log);
+    const raw = await collectReviewInputs(root);
+    assert.equal(raw.handoff, handoff);
+    assert.equal(raw.sessionLog, log);
+    const { stdout } = await execFile(process.execPath, [path.join(process.cwd(), '.vibe/harness/scripts/vibe-review-inputs.mjs')], { cwd: root, maxBuffer: 4 * 1024 * 1024 });
+    assert.ok(Buffer.byteLength(stdout) <= 64 * 1024, `stdout bytes: ${Buffer.byteLength(stdout)}`);
+    const parsed = JSON.parse(stdout);
+    assert.deepEqual(parsed.inputs.recentSessionEntries, [terminal, optOut]);
+    assert.equal(parsed.inputs.sessionLog, undefined);
+    assert.match(parsed.inputs.handoff, /Frozen acceptance/);
+    assert.equal(parsed.inputs.handoff.includes('\uFFFD'), false);
+    assert.deepEqual(parsed.issues, detectOptInGaps({ bundle: { enabled: false }, browserSmoke: { enabled: false } }, { productText: raw.productText, sessionLogRecent: raw.recentSessionEntries }));
+    assert.deepEqual(parsed.issues, []);
+    assert.equal(parsed.output.fields.sessionLog.source, '.vibe/agent/session-log.md');
+    assert.equal(parsed.output.fields.sessionLog.originalBytes, Buffer.byteLength(log));
+    assert.equal(parsed.output.fields.sessionLog.returnedBytes, 0);
+    assert.equal(parsed.output.fields.handoff.truncated, true);
+    assert.equal(parsed.output.maxBytes, 64 * 1024);
+
+    // Detection must still see an opt-out too large to include in the CLI view.
+    const hugeOptOut = optOut + ' rationale-detail'.repeat(2000);
+    await writeText(path.join(root, '.vibe', 'agent', 'session-log.md'), `## Entries\n${terminal}\n${hugeOptOut}\n`);
+    const omitted = JSON.parse((await execFile(process.execPath, [path.join(process.cwd(), '.vibe/harness/scripts/vibe-review-inputs.mjs')], { cwd: root, maxBuffer: 64 * 1024 })).stdout);
+    assert.deepEqual(omitted.issues, []);
+    assert.deepEqual(omitted.inputs.recentSessionEntries, [terminal]);
+    assert.equal(omitted.output.fields.recentSessionEntries.omittedItems, 1);
+  });
+
+  it('bounds the entire JSON even when every text and collection grows, without mutating inputs', async () => {
+    const root = await makeTempDir('review-output-growth-');
+    await scaffoldRepo(root);
+    const raw = await collectReviewInputs(root);
+    const large = Object.fromEntries(Object.entries(raw).map(([key, value]) => [key,
+      typeof value === 'string' ? value + '😀한글\\\"\n'.repeat(10000)
+        : Array.isArray(value) ? Array.from({ length: 400 }, () => value[0] ?? 'oversized collection') : value,
+    ])) as typeof raw;
+    large.recentSessionEntries = [
+      '- 2026-09-22T00:10:00Z [terminal] UNKNOWN ' + 'x'.repeat(20000),
+      '- 2026-09-21T18:42:00+09:00 [terminal] code124 UNKNOWN',
+    ];
+    const before = JSON.stringify(large);
+    const output = serializeReviewInputs(large, []);
+    const parsed = JSON.parse(output);
+    assert.ok(Buffer.byteLength(output) <= 64 * 1024);
+    assert.deepEqual(parsed.inputs.recentSessionEntries, [large.recentSessionEntries[1]]);
+    assert.equal(parsed.output.fields.recentSessionEntries.omittedItems, 1);
+    assert.equal(parsed.inputs.handoff.includes('\uFFFD'), false);
+    assert.equal(parsed.inputs.handoff.isWellFormed(), true);
+    assert.equal(JSON.stringify(large), before);
+  });
+
   it('loads latest mixed prepend and append entries without rewriting source or reading archives', async () => {
     const root = await makeTempDir('review-mixed-recency-');
     await scaffoldRepo(root);

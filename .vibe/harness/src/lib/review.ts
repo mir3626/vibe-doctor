@@ -78,6 +78,7 @@ export interface PendingRiskRollup {
 export interface ReviewInputs {
   handoff: string;
   sessionLog: string;
+  sessionLogFormatWarnings: Array<{ line: number; code: 'unsupported-event-heading' | 'malformed-event-bullet' }>;
   recentSessionEntries: string[];
   recentEntriesLimit: number;
   gitLog: string[];
@@ -452,6 +453,122 @@ function extractCurrentSessionEntries(sessionLog: string, limit: number): string
     .sort((left, right) => right.timestamp - left.timestamp || left.order - right.order)
     .slice(0, limit)
     .map((entry) => entry.line);
+}
+
+function findSessionLogFormatWarnings(sessionLog: string): ReviewInputs['sessionLogFormatWarnings'] {
+  const warnings: ReviewInputs['sessionLogFormatWarnings'] = [];
+  let active = true;
+  let sawEntries = false;
+  let fence: { marker: string; length: number } | undefined;
+  for (const [index, line] of sessionLog.split(/\r?\n/).entries()) {
+    const delimiter = line.match(/^\s{0,3}(`{3,}|~{3,})(.*)$/);
+    if (fence) {
+      if (delimiter?.[1]?.[0] === fence.marker && delimiter[1].length >= fence.length && !delimiter[2]?.trim()) fence = undefined;
+      continue;
+    }
+    if (delimiter?.[1]) {
+      fence = { marker: delimiter[1][0]!, length: delimiter[1].length };
+      continue;
+    }
+    if (active && /^#{2,6} +\d{4}-\d{2}-\d{2}(?:\s|T|$)/.test(line)) {
+      warnings.push({ line: index + 1, code: 'unsupported-event-heading' });
+    }
+    if (line.startsWith('## ')) {
+      active = line.trim() === '## Entries' && !sawEntries;
+      if (active) sawEntries = true;
+      continue;
+    }
+    if (active && /^-[^\s-]/.test(line)) warnings.push({ line: index + 1, code: 'malformed-event-bullet' });
+  }
+  return warnings;
+}
+
+/** CLI projection only: collectors and opt-in detection retain their full inputs. */
+export function serializeReviewInputs(inputs: ReviewInputs, issues: unknown[]): string {
+  const maxBytes = 64 * 1024;
+  let remainingBytes = 48 * 1024;
+  const projected: Record<string, unknown> = {};
+  const fields: Record<string, unknown> = {};
+  const sources: Record<string, string> = {
+    handoff: '.vibe/agent/handoff.md',
+    sessionLog: '.vibe/agent/session-log.md',
+    sessionLogFormatWarnings: '.vibe/agent/session-log.md',
+    recentSessionEntries: '.vibe/agent/session-log.md',
+    recentEntriesLimit: '.vibe/config.json',
+    gitLog: 'git log --oneline',
+    gitLogMode: 'git log --oneline',
+    gitCommitLimit: 'git log --oneline',
+    latestReviewReportPath: 'docs/reports/review-*.md',
+    openPendingRisks: '.vibe/agent/sprint-status.json',
+    decisions: '.vibe/agent/project-decisions.jsonl',
+    passedSprintCount: '.vibe/agent/sprint-status.json',
+    productText: 'docs/context/product.md',
+    harnessGaps: 'docs/context/harness-gaps.md',
+    openHarnessGapCount: 'docs/context/harness-gaps.md',
+    uncoveredHarnessGaps: 'docs/context/harness-gaps.md',
+    deadlineHarnessGaps: 'docs/context/harness-gaps.md',
+    pendingRestorations: '.vibe/archive/rules-deleted-*.md; .vibe/audit/iter-*/rules-deleted.md',
+    productFetcherPaths: 'src; app; pages',
+    wiringDriftFindings: '.vibe/sync-manifest.json; runtime references',
+    pendingRiskRollups: '.vibe/agent/sprint-status.json',
+    issues: 'detectOptInGaps(full productText, full recentSessionEntries)',
+  };
+  const jsonBytes = (value: unknown): number => Buffer.byteLength(JSON.stringify(value), 'utf8');
+  // Budget escaped JSON, not JS characters or estimated tokens. Never split an
+  // array item: a partial event could retain LIVE while losing its terminal state.
+  const bound = (key: string, value: unknown): unknown => {
+    const limit = Math.min(remainingBytes, key === 'handoff' ? 8 * 1024 : key === 'recentSessionEntries' ? 16 * 1024 : 2 * 1024);
+    let result = value;
+    if (typeof value === 'string' && jsonBytes(value) > limit) {
+      let low = 0;
+      let high = value.length;
+      while (low < high) {
+        const mid = Math.ceil((low + high) / 2);
+        if (jsonBytes(value.slice(0, mid)) <= limit) low = mid;
+        else high = mid - 1;
+      }
+      // A UTF-16 prefix must not end on half of a surrogate pair.
+      if (low > 0 && /[\uD800-\uDBFF]/.test(value[low - 1]!)) low -= 1;
+      result = value.slice(0, low);
+    } else if (Array.isArray(value)) {
+      const kept: unknown[] = [];
+      let bytes = 2;
+      for (const item of value) {
+        const size = jsonBytes(item) + (kept.length > 0 ? 1 : 0);
+        if (bytes + size > limit) continue;
+        kept.push(item);
+        bytes += size;
+      }
+      result = kept;
+    }
+    remainingBytes -= jsonBytes(result);
+    const originalBytes = typeof value === 'string' ? Buffer.byteLength(value) : jsonBytes(value);
+    const returnedBytes = typeof result === 'string' ? Buffer.byteLength(result) : jsonBytes(result);
+    fields[key] = {
+      source: sources[key], originalBytes, returnedBytes, truncated: originalBytes !== returnedBytes,
+      ...(Array.isArray(value) && Array.isArray(result) ? { originalItems: value.length, returnedItems: result.length, omittedItems: value.length - result.length } : {}),
+    };
+    return result;
+  };
+  // Reserve space for current events before optional historical/diagnostic lists.
+  projected.handoff = bound('handoff', inputs.handoff);
+  projected.recentSessionEntries = bound('recentSessionEntries', inputs.recentSessionEntries);
+  const projectedIssues = bound('issues', issues);
+  for (const [key, value] of Object.entries(inputs)) {
+    if (key === 'handoff' || key === 'recentSessionEntries' || key === 'sessionLog') continue;
+    projected[key] = bound(key, value);
+  }
+  fields.sessionLog = { source: sources.sessionLog, originalBytes: Buffer.byteLength(inputs.sessionLog), returnedBytes: 0, truncated: inputs.sessionLog.length > 0 };
+  const output = JSON.stringify({
+    inputs: projected, issues: projectedIssues,
+    output: {
+      mode: 'bounded', maxBytes, fields,
+      note: 'String sizes are UTF-8 bytes; array sizes are serialized JSON bytes. Omitted content is not reviewed. Read only required line ranges from the referenced sources. Format warnings refer to 1-based source lines; write new events as - <full ISO timestamp with timezone> [tag] text. Do not rewrite old records.',
+    },
+  }) + '\n';
+  // Also guard metadata growth: never fall back to emitting the raw collection.
+  if (Buffer.byteLength(output) > maxBytes) throw new Error('Bounded review output exceeded 65536 bytes');
+  return output;
 }
 
 async function findLatestReviewReport(root?: string): Promise<string | null> {
@@ -947,6 +1064,7 @@ export async function collectReviewInputs(root?: string): Promise<ReviewInputs> 
   return {
     handoff,
     sessionLog,
+    sessionLogFormatWarnings: findSessionLogFormatWarnings(sessionLog),
     recentSessionEntries: extractCurrentSessionEntries(sessionLog, recentEntriesLimit),
     recentEntriesLimit,
     gitLog: gitLogState.gitLog,

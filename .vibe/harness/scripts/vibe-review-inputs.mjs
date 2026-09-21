@@ -65,7 +65,7 @@ const reviewModuleUrl = pathToFileURL(path.join(root, '.vibe', 'harness', 'src',
 const configPath = path.join(root, '.vibe', 'config.json');
 const code = `
 import { readFile } from 'node:fs/promises';
-import { collectReviewInputs, detectOptInGaps } from ${JSON.stringify(reviewModuleUrl)};
+import { collectReviewInputs, detectOptInGaps, serializeReviewInputs } from ${JSON.stringify(reviewModuleUrl)};
 
 (async () => {
   const inputs = await collectReviewInputs();
@@ -74,7 +74,7 @@ import { collectReviewInputs, detectOptInGaps } from ${JSON.stringify(reviewModu
     productText: inputs.productText,
     sessionLogRecent: inputs.recentSessionEntries,
   });
-  console.log(JSON.stringify({ inputs, issues }, null, 2));
+  process.stdout.write(serializeReviewInputs(inputs, issues));
 })().catch((error) => {
   const message = error instanceof Error ? error.stack || error.message : String(error);
   console.error(message);

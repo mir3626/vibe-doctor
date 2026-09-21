@@ -12,12 +12,27 @@ dependencies are missing, then prints the reproducible review input JSON. Omit
 to run in a partial or uninitialized downstream checkout when the explicit
 review target is an init/bootstrap/harness process failure.
 
+Default stdout is bounded to 64 KiB of UTF-8 JSON, including metadata. The helper
+omits the full `sessionLog`, limits the handoff prefix to 8 KiB and recent complete
+entries to 16 KiB of serialized JSON, and bounds other fields. `output.fields`
+records source references, original/returned sizes, truncation and omitted array
+counts. An oversized entry is omitted whole; a shortened handoff is not the full
+current-state contract. Read the needed line ranges before deciding on missing
+evidence; do not load entire historical logs or concatenate all omitted ranges.
+`collectReviewInputs` still returns full source text for programmatic consumers,
+and `detectOptInGaps` runs before output projection on the original recent entries.
+`sessionLogFormatWarnings` identifies unsupported active dated headings and bullets
+without a space, with 1-based source lines. Inspect those ranges for missed terminal
+events; append a canonical `- <full ISO timestamp with timezone> [tag] text` record
+referencing the original instead of rewriting history. Warnings are diagnostics,
+not incident counts or inferred goal/experiment status.
+
 2. Also read:
-   - `.vibe/agent/handoff.md`
+   - current `.vibe/agent/handoff.md` state; use targeted ranges when the helper reports truncation
    - recent `.vibe/agent/session-log.md` entries, default `50` or `.vibe/config.json.review.recentEntries`; the helper sorts active entries and legacy timestamped preamble entries without changing their text or reading archives. Partial timestamps use UTC for sorting only; undated entries follow dated entries in their original order. Use the original log/handoff when chronology is uncertain.
    - `git log --oneline`, default latest `20` commits, or since the latest `review-*.md`
    - open `.vibe/agent/sprint-status.json.pendingRisks`
-   - `.vibe/agent/project-decisions.jsonl`
+   - relevant `.vibe/agent/project-decisions.jsonl` records through bounded extraction, not a full ledger dump
    - `docs/context/harness-gaps.md`
    - `.vibe/archive/rules-deleted-*.md` and `.vibe/audit/iter-*/rules-deleted.md`
 
