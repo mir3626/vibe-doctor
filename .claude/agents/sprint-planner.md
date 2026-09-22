@@ -89,7 +89,7 @@ Sprint-local unit tests alone are non-proof for that gate.
 
 When `docs/context/product.md`, `docs/context/architecture.md`, or the roadmap slot indicates a frontend, game, visual, canvas/WebGL/Three.js, animation, editor, dashboard, or other experience-led product, the completion checklist must include explicit evidence for identity and payoff:
 
-- screenshot, Playwright trace, recorded browser smoke output, or playthrough notes that show the delivered user-facing state
+- screenshot, Stagehand UI-test output, recorded browser smoke output, or playthrough notes that show the delivered user-facing state
 - a short identity/payoff assertion tied to the product goal, not just "build/typecheck passed"
 - an Evaluator/user inspection item when the evidence cannot be fully machine-checked
 

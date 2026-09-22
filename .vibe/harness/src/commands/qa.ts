@@ -42,6 +42,9 @@ export function isHarnessQaScript(value: string | undefined): boolean {
     script.includes('.vibe/harness/test/') ||
     script.includes('.vibe/harness/test/*.test.ts') ||
     script.includes('.vibe/harness/tsconfig') ||
+    script.includes('.vibe/harness/test/stagehand/') ||
+    script.includes('.vibe/harness/scripts/vibe-stagehand-test.mjs') ||
+    // Retired Playwright wrapper paths stay recognized for downstream scripts that predate the 1.16.0 migration.
     script.includes('.vibe/harness/playwright.config') ||
     script.includes('.vibe/harness/scripts/vibe-playwright-test.mjs')
   );

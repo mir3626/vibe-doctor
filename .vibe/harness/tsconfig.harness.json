@@ -33,7 +33,7 @@
     "components",
     "lib",
     "e2e",
-    "test/playwright",
+    "test/stagehand",
     "next-env.d.ts"
   ]
 }

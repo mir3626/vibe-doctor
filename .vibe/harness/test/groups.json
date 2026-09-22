@@ -259,7 +259,7 @@
       "testFiles": [
         ".vibe/harness/test/agent-session-start.test.ts",
         ".vibe/harness/test/commands.test.ts",
-        ".vibe/harness/test/playwright-wrapper.test.ts",
+        ".vibe/harness/test/stagehand-wrapper.test.ts",
         ".vibe/harness/test/run-codex-wrapper.test.ts",
         ".vibe/harness/test/shell.test.ts",
         ".vibe/harness/test/statusline.test.ts",
@@ -276,7 +276,7 @@
         ".vibe/harness/scripts/run-codex.*",
         ".vibe/harness/scripts/vibe-agent-session-start.mjs",
         ".vibe/harness/scripts/vibe-attention-*.mjs",
-        ".vibe/harness/scripts/vibe-playwright-test.mjs",
+        ".vibe/harness/scripts/vibe-stagehand-test.mjs",
         ".vibe/harness/scripts/vibe-stop-qa-gate.mjs",
         ".vibe/harness/src/lib/shell.ts",
         ".vibe/harness/scripts/vibe-codex-dispatch.mjs",
@@ -292,7 +292,7 @@
         ".vibe/harness/scripts/run-codex.*",
         ".vibe/harness/scripts/vibe-agent-session-start.mjs",
         ".vibe/harness/scripts/vibe-attention-*.mjs",
-        ".vibe/harness/scripts/vibe-playwright-test.mjs",
+        ".vibe/harness/scripts/vibe-stagehand-test.mjs",
         ".vibe/harness/scripts/vibe-stop-qa-gate.mjs",
         ".vibe/harness/src/lib/shell.ts",
         ".vibe/harness/scripts/vibe-codex-dispatch.mjs",
@@ -312,7 +312,6 @@
       ],
       "inputPatterns": [
         ".vibe/harness/src/commands/bundle-size.ts",
-        ".vibe/harness/playwright.config.ts",
         ".vibe/harness/scripts/lib/browser-open.mjs",
         ".vibe/harness/scripts/lib/dashboard-*.mjs",
         ".vibe/harness/scripts/lib/project-report-*.mjs",
@@ -323,7 +322,6 @@
       ],
       "impactPatterns": [
         ".vibe/harness/src/commands/bundle-size.ts",
-        ".vibe/harness/playwright.config.ts",
         ".vibe/harness/scripts/lib/browser-open.mjs",
         ".vibe/harness/scripts/lib/dashboard-*.mjs",
         ".vibe/harness/scripts/lib/project-report-*.mjs",

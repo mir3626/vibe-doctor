@@ -6,6 +6,7 @@ and in version-specific notes.
 
 ## Current
 
+- [v1.16.0](v1.16.0.md) - Stagehand replaces Playwright for harness browser automation
 - [v1.15.5](v1.15.5.md) - Bounded review inputs and missing-event diagnostics
 - [v1.15.4](v1.15.4.md) - Astra role execution and prompt alignment
 - [v1.15.3](v1.15.3.md) - Current review evidence and checkout-safe skills

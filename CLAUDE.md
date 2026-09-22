@@ -156,7 +156,7 @@ Orchestrator는 Phase 0 네이티브 인터뷰 (`.vibe/harness/scripts/vibe-inte
 | 세션 시작 시 | `node .vibe/harness/scripts/vibe-model-registry-check.mjs` | upstream registry 비교 + 변경 감지 (24h 캐시) |
 | Phase 3 인터뷰 | `node .vibe/harness/scripts/vibe-interview.mjs` | 네이티브 소크라테스식 인터뷰 |
 | Phase 0 커밋 | `node .vibe/harness/scripts/vibe-phase0-seal.mjs` | Phase 0 산출물 자동 stage + commit |
-| 브라우저 smoke | `node .vibe/harness/scripts/vibe-browser-smoke.mjs` | Playwright headless DOM/console 계약 검증 (opt-in) |
+| 브라우저 smoke | `node .vibe/harness/scripts/vibe-browser-smoke.mjs` | Stagehand headless Chrome DOM/console 계약 검증 (opt-in, 시스템 Chrome) |
 | Sprint 완료 시 | `node .vibe/harness/scripts/vibe-audit-lightweight.mjs` | diff stats / spec keyword / test coverage / tmp 잔존 / app-code LOC threshold — pendingRisks INFO 주입 |
 | 사전 준비 / CI | `node .vibe/harness/scripts/vibe-gen-schemas.mjs --check` | Zod source ↔ `.schema.json` drift 감지 |
 | audit 카운터 리셋 | `node .vibe/harness/scripts/vibe-audit-clear.mjs` | sprintsSinceLastAudit 리셋 + pendingRisks 정리 |
@@ -241,7 +241,7 @@ Sprint 프롬프트 **본문은 Planner가 작성**한다 (매 Sprint 소환 시
   - ❌ 구체적 hex 코드(`#2C3E50`), 함수 시그니처, 내부 변수명
 - **타입 정의와 API 시그니처는 Planner의 fresh context에서 도출한다.** Orchestrator가 이전
   프로젝트 경험에서 가져온 구현 세부사항을 주입하면 재현성이 깨진다.
-- **체크리스트 항목은 검증 가능해야 한다.** 기계 검증 가능한 항목은 "npx tsc --noEmit 통과"처럼 명시하고, 제품 정체성·사용감·시각/상호작용 품질처럼 자동화하기 어려운 항목은 inspection/demo AC 로 분리해 Evaluator 또는 사용자 확인 대상으로 둔다. 자동화가 어렵다는 이유로 중요한 품질 기준을 버리지 않는다. frontend/game/visual/canvas/WebGL/Three.js/editor/dashboard Sprint는 screenshot, Playwright trace, browser-smoke output, 또는 playthrough note를 product identity/payoff와 연결한 evidence item 없이 pass 처리하지 않는다.
+- **체크리스트 항목은 검증 가능해야 한다.** 기계 검증 가능한 항목은 "npx tsc --noEmit 통과"처럼 명시하고, 제품 정체성·사용감·시각/상호작용 품질처럼 자동화하기 어려운 항목은 inspection/demo AC 로 분리해 Evaluator 또는 사용자 확인 대상으로 둔다. 자동화가 어렵다는 이유로 중요한 품질 기준을 버리지 않는다. frontend/game/visual/canvas/WebGL/Three.js/editor/dashboard Sprint는 screenshot, Stagehand UI-test output, browser-smoke output, 또는 playthrough note를 product identity/payoff와 연결한 evidence item 없이 pass 처리하지 않는다.
 
 ## Agent 오케스트레이션 레이어 (`.vibe/agent/`)
 

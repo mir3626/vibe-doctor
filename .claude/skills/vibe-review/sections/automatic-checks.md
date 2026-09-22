@@ -29,7 +29,7 @@
 ### Adapter-Health Blind Spot
 
 If the project has `app/api/*/route.ts` or equivalent data fetcher paths
-(`productFetcherPaths` non-empty), and e2e or Playwright smoke tests exist, but
+(`productFetcherPaths` non-empty), and e2e or Stagehand smoke tests exist, but
 those smoke tests do not assert each route response or item contract, seed one
 Blocker finding.
 

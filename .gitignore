@@ -2,7 +2,6 @@ node_modules/
 dist/
 coverage/
 test-results/
-playwright-report/
 .vscode/
 !.vscode/
 !.vscode/settings.json

@@ -179,6 +179,7 @@ test('isHarnessQaScript identifies harness self-tests without blocking project s
   assert.equal(isHarnessQaScript('npm run vibe:self-test'), true);
   assert.equal(isHarnessQaScript('tsc -p .vibe/harness/tsconfig.harness.json --noEmit'), true);
   assert.equal(isHarnessQaScript('node --import tsx --test .vibe/harness/test/*.test.ts'), true);
+  assert.equal(isHarnessQaScript('node .vibe/harness/scripts/vibe-stagehand-test.mjs'), true);
   assert.equal(isHarnessQaScript('node .vibe/harness/scripts/vibe-playwright-test.mjs'), true);
   assert.equal(isHarnessQaScript('npm run vibe:browser-smoke'), false);
   assert.equal(isHarnessQaScript('vitest run'), false);

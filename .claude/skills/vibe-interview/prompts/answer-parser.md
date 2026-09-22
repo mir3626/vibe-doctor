@@ -18,7 +18,7 @@ Rules:
 
 Normalized stack slugs:
 - Only for `{{DIMENSION_ID}} = "tech_stack"`, you may include a top-level `normalized_slugs` field.
-- Allowed values only: `ts-vitest`, `ts-playwright`, `py-pytest`, `py-hypothesis`, `rust-cargo`, `go-testing`, `canvas-dom`, `shell-bats`.
+- Allowed values only: `ts-vitest`, `ts-stagehand`, `py-pytest`, `py-hypothesis`, `rust-cargo`, `go-testing`, `canvas-dom`, `shell-bats`.
 - Multi-stack answers may emit multiple allowed slugs.
 - If the answer does not clearly map to the allowlist, use `[]`.
 - Never emit unknown slugs or infer a lint slug here.

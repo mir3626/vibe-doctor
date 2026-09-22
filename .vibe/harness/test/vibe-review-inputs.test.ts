@@ -194,7 +194,7 @@ describe('review inputs', () => {
     await symlink(path.join(process.cwd(), 'node_modules'), path.join(root, 'node_modules'), 'junction');
     await symlink(path.join(process.cwd(), '.vibe', 'harness'), path.join(root, '.vibe', 'harness'), 'junction');
     const terminal = '- 2026-09-22T00:10:00+09:00 [terminal] code124 UNKNOWN; no automatic continuation';
-    const optOut = '- 2026-09-21T23:57:00+09:00 [decision][phase3-utility-opt-in] bundle=false browserSmoke=false rationale=intentional replacement=manual-playwright-smoke';
+    const optOut = '- 2026-09-21T23:57:00+09:00 [decision][phase3-utility-opt-in] bundle=false browserSmoke=false rationale=intentional replacement=manual-browser-smoke';
     const handoff = '# Current\nFrozen acceptance; no SPENT reuse.\n' + '과거 "기록" \\ 😀\n'.repeat(20000);
     const log = `# Session Log\n## Entries\n${terminal}\n${optOut}\n## Archived (older)\n${'old evidence\n'.repeat(100000)}`;
     await writeText(path.join(root, '.vibe', 'agent', 'handoff.md'), handoff);
@@ -541,7 +541,7 @@ describe('review inputs', () => {
       {
         productText: 'Platform: browser app',
         sessionLogRecent: [
-          '- 2026-04-16T00:00:00.000Z [decision][phase3-utility-opt-in] bundle=false browserSmoke=false rationale=intentional replacement=manual-playwright-smoke',
+          '- 2026-04-16T00:00:00.000Z [decision][phase3-utility-opt-in] bundle=false browserSmoke=false rationale=intentional replacement=manual-browser-smoke',
         ],
       },
     );

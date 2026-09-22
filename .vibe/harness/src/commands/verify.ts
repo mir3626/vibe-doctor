@@ -337,7 +337,7 @@ export async function listHarnessTestFiles(root: string, relative = TEST_ROOT): 
   const files = entries
     .filter((entry) => entry.isFile() && entry.name.endsWith(TEST_SUFFIX))
     .map((entry) => `${relative}/${entry.name}`);
-  for (const entry of entries.filter((item) => item.isDirectory() && !['playwright', 'fixtures'].includes(item.name))) {
+  for (const entry of entries.filter((item) => item.isDirectory() && !['stagehand', 'fixtures'].includes(item.name))) {
     files.push(...await listHarnessTestFiles(root, `${relative}/${entry.name}`));
   }
   return files.sort();

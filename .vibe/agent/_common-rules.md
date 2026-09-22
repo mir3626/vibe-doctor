@@ -199,9 +199,9 @@ Generator (현 Codex / 향후 다른 provider 도 해당) 는 공급자·모델�
 ### 13.1 Generator MUST NOT attempt
 
 - **패키지 매니저 네트워크 설치**: `npm install`, `npm ci`, `pnpm install`, `yarn`, `pip install`, `pipx install`, `cargo add`, `cargo install`, `go get`, `apt-get install`, `brew install` 등. (§2 중복 강조 — provider-agnostic 재언급.)
-- **Integration / E2E / property 테스트 러너**: `vitest run` (watch 모드 제외), `jest --runInBand`, `pytest` (단위 스모크 아닌 전체 디렉토리), `cargo test` (release 프로파일), `go test ./...`, `playwright test`, `cypress run`.
+- **Integration / E2E / property 테스트 러너**: `vitest run` (watch 모드 제외), `jest --runInBand`, `pytest` (단위 스모크 아닌 전체 디렉토리), `cargo test` (release 프로파일), `go test ./...`, `npm run vibe:test-ui` (Stagehand UI tests), `cypress run`.
 - **프로덕션 빌드**: `vite build`, `webpack --mode production`, `next build`, `cargo build --release`, `go build -ldflags` (배포용 최적화), `tsc -p tsconfig.build.json` (빌드 산출 생성 목적), `pyinstaller`, `docker build`.
-- **브라우저 / 실제 런타임 smoke**: Playwright / Puppeteer headed 혹은 headless, Selenium, Electron headed, devtools 연결.
+- **브라우저 / 실제 런타임 smoke**: Stagehand / Puppeteer headed 혹은 headless, Selenium, Electron headed, devtools 연결.
 - **장기 실행 watch**: 위 러너의 `--watch` 형태 포함 (프로세스 미종료로 Sprint 지연).
 
 ### 13.2 Generator responsibility ceiling (MAY do)
@@ -221,7 +221,7 @@ Generator report 를 받은 뒤 Orchestrator 가 샌드박스 밖에서 수행:
   지정하고, 명시적 전체/릴리스 검증은 `vibe:self-test:all` / `vibe:verify:release`를 사용한다.
 - 프로덕션 빌드 + bundle size 게이트 (M7 이후)
 - 브라우저 smoke (M7 이후)
-- E2E / integration (`playwright test`, `cypress run`)
+- E2E / integration (`npm run vibe:test-ui`, `cypress run`)
 - `npm install` 을 포함한 네트워크 설치
 - 런타임 배포 smoke (dev 서버 기동 포함)
 

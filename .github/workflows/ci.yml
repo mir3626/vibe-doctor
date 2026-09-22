@@ -28,7 +28,6 @@ jobs:
       - run: npm run vibe:sync-audit
       - run: npm run build
       - run: npm run vibe:self-test -- --force
-      - run: npx playwright install --with-deps chromium
       - run: npm run vibe:test-ui
       - run: npm run vibe:config-audit --silent
   astra:

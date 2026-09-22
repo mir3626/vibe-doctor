@@ -165,7 +165,7 @@ describe('verification group manifest and planner', () => {
     ) as unknown;
     const rootTests = await listHarnessTestFiles(process.cwd());
     assert.ok(rootTests.includes('.vibe/harness/test/integration/meta-smoke.test.ts'));
-    assert.ok(rootTests.every((file) => !file.includes('/playwright/') && !file.includes('/fixtures/')));
+    assert.ok(rootTests.every((file) => !file.includes('/stagehand/') && !file.includes('/fixtures/')));
 
     const validated = validateVerificationManifest(actual, rootTests);
     assert.equal(validated.groups.some((entry) => entry.id === 'pro-roundtrip'), true);

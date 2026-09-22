@@ -56,4 +56,4 @@ describe('renderMeter', () => {
 
 - Mock `ResizeObserver`, `matchMedia`, and `requestAnimationFrame` only when the unit under test touches them.
 - Keep canvas assertions about draw calls and dimensions, not pixel-perfect screenshots, unless visual regression tooling is already established.
-- If a browser E2E is required, put it in the Playwright shard and leave this shard for local logic isolation.
+- If a browser E2E is required, put it in the Stagehand shard and leave this shard for local logic isolation.

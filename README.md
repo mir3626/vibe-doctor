@@ -10,7 +10,12 @@
 
 ## Latest Highlights
 
-### v1.15.5 (2026-09-22) - Bounded review inputs and missing-event diagnostics
+### v1.16.0 (2026-09-22) - Stagehand replaces Playwright
+
+- Harness UI tests (`npm run vibe:test-ui`) and the opt-in browser smoke (`npm run vibe:browser-smoke`) now run on [Stagehand](https://github.com/browserbase/stagehand) v4 against the Google Chrome already installed on the machine. No Playwright browser download, and no LLM key for the deterministic harness paths.
+- The `ts-playwright` test-pattern shard becomes `ts-stagehand`, documenting Playwright-style locators plus opt-in `act` / `observe` / `extract`. Migration 1.16.0 removes retired Playwright harness files downstream when they are unmodified and re-points the conventions shard links. See [release notes](docs/release/v1.16.0.md).
+
+### Previous: v1.15.5 (2026-09-22) - Bounded review inputs and missing-event diagnostics
 
 - Review helper stdout is capped at 64 KiB with source references, byte sizes and omission counts. Full source collection and opt-in detection inputs stay intact.
 - Unsupported active event headings and malformed bullets now produce line-numbered warnings, helping reviewers find terminal records omitted from recent entries. See [release notes](docs/release/v1.15.5.md).
@@ -183,7 +188,7 @@ push/PR CI는 이전 push 또는 PR base를 사용해 깨끗한 checkout에서�
 npm run typecheck              # harness TypeScript typecheck
 npm run build                  # harness build
 npm test                       # 변경 영향이 있는 harness self-test
-npm run test:ui                # Playwright UI/smoke tests
+npm run test:ui                # Stagehand UI tests (system Chrome, node:test)
 npm run vibe:typecheck         # internal alias for harness typecheck
 npm run vibe:build             # internal alias for harness build
 npm run vibe:self-test         # worktree diff 영향 그룹만 실행/receipt 재사용
@@ -194,7 +199,7 @@ npm run vibe:self-test:plan    # smart 실행 계획만 출력 (실행 없음)
 npm run vibe:verify            # 영향 받은 typecheck+test 그룹 실행/재사용 (`-- <goal-base-sha>` 지원)
 npm run vibe:verify:plan       # verify 계획만 출력
 npm run vibe:verify:release    # 릴리스/태그 경계: typecheck + 전체 그룹 강제 실행
-npm run vibe:test-ui           # internal alias for Playwright wrapper
+npm run vibe:test-ui           # internal alias for the Stagehand UI test wrapper
 
 # 환경
 npm run vibe:doctor             # 환경 점검 (node/git/CLI 설치)
@@ -209,7 +214,7 @@ npm run vibe:qa                 # test → typecheck → lint → build 자동 �
 npm run vibe:usage              # 토큰 사용량 요약
 npm run vibe:config-audit       # 시크릿 누출 / 설정 위반 감사
 npm run vibe:bundle-size        # 번들 gzip 크기 게이트 (opt-in)
-npm run vibe:browser-smoke      # Playwright headless DOM/console 검증 (opt-in)
+npm run vibe:browser-smoke      # Stagehand headless Chrome DOM/console 검증 (opt-in)
 npm run vibe:gen-schemas        # Zod source 로부터 .schema.json regenerate/check
 npm run vibe:audit-lightweight <sprintId>  # per-sprint 자동 감사 (non-blocking)
 npm run vibe:rule-audit         # CLAUDE.md rule ↔ harness-gaps coverage 대조
@@ -262,8 +267,8 @@ Orchestrator 가 주로 호출합니다. 사용자가 직접 쓸 일은 드뭅�
 | `vibe-audit-clear.mjs` | Evaluator 감사 후 counter + pendingRisks 마감 🆕 |
 | `vibe-sprint-mode.mjs` | permission preset 토글 🆕 |
 | `vibe-status-tick.mjs` | statusline 토큰/시간 누적 기록 🆕 |
-| `vibe-browser-smoke.mjs` | Playwright smoke contract 검사 🆕 |
-| `vibe-playwright-test.mjs` | Playwright 실행 wrapper |
+| `vibe-browser-smoke.mjs` | Stagehand smoke contract 검사 (시스템 Chrome, 모델 불필요) |
+| `vibe-stagehand-test.mjs` | Stagehand UI test wrapper (`node --test` + tsx) |
 | `vibe-gen-schemas.mjs` | Zod source 기반 `.schema.json` drift 검사 / 재생성 |
 | `vibe-validate-state.ts` | state/schema validation helper |
 | `vibe-audit-lightweight.mjs` | per-sprint diff/spec/test/tmp residue 감사 (non-blocking) |
@@ -387,7 +392,7 @@ Root `src/**`, `scripts/**`, `test/**`, `app/**`, `components/**`, and `lib/**` 
 
 ## 버전 / tag 정책
 
-현재 릴리스는 `harnessVersion: 1.15.5` 입니다. 릴리스를 자를 때는 `package.json`, `.vibe/config.json`, release note, tag를 같은 버전으로 맞춥니다.
+현재 릴리스는 `harnessVersion: 1.16.0` 입니다. 릴리스를 자를 때는 `package.json`, `.vibe/config.json`, release note, tag를 같은 버전으로 맞춥니다.
 
 - `harnessVersion` 은 `.vibe/config.json` 과 `package.json` 에 semver로 기록합니다.
 - 각 minor/patch 릴리스는 해당 커밋에 `vMAJOR.MINOR.PATCH` git tag를 붙인 뒤 origin에 push합니다.

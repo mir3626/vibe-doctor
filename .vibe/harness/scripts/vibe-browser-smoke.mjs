@@ -4,10 +4,22 @@ import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import {
+  describeBrowserError,
+  describeConsoleEvent,
+  isConsoleIssue,
+  isStagehandInstalled,
+  openHeadlessPage,
+  stagehandInstallGuidance,
+  waitForCondition,
+} from './lib/stagehand-browser.mjs';
 
-const SHARD_PATH = path.resolve('.claude/skills/test-patterns/typescript-playwright.md');
+const SHARD_PATH = path.resolve('.claude/skills/test-patterns/typescript-stagehand.md');
 const SHARED_CONFIG_PATH = path.resolve('.vibe/config.json');
 const LOCAL_CONFIG_PATH = path.resolve('.vibe/config.local.json');
+
+export const DEFAULT_SMOKE_TIMEOUT_MS = 15_000;
+export const DEFAULT_VIEWPORT = { width: 1280, height: 720 };
 
 function readJsonIfPresent(filePath) {
   if (!existsSync(filePath)) {
@@ -49,10 +61,10 @@ export function checkContract(smokeConfig, shardText) {
     smokeConfig.expectDom.length > 0 &&
     smokeConfig.expectDom.every((selector) => typeof selector === 'string' && /^[#.]/.test(selector))
   ) {
-    warnings.push('expectDom uses only ID/class selectors; shard prefers role-based locators');
+    warnings.push('expectDom uses only ID/class selectors; shard prefers semantic or data-testid selectors');
   }
 
-  const shardExample = shardText.match(/baseURL:\s*['"]([^'"]+)['"]/);
+  const shardExample = shardText.match(/baseURL\s*[:=]\s*['"]([^'"]+)['"]/);
   const shardHostShape = shardExample?.[1] ? normalizeHostShape(shardExample[1]) : null;
   const smokeHostShape = typeof smokeConfig?.url === 'string' ? normalizeHostShape(smokeConfig.url) : null;
   if (shardHostShape && smokeHostShape && shardHostShape !== smokeHostShape) {
@@ -69,18 +81,73 @@ async function importSmokeConfig(configPath) {
   return module.default ?? module;
 }
 
-function hasPlaywrightInstalled(rootDir = process.cwd()) {
-  return (
-    existsSync(path.join(rootDir, 'node_modules', 'playwright', 'package.json')) ||
-    existsSync(path.join(rootDir, 'node_modules', '@playwright', 'test', 'package.json'))
-  );
+function resolveTimeout(smokeConfig) {
+  const value = Number(smokeConfig?.timeoutMs);
+  return Number.isFinite(value) && value > 0 ? value : DEFAULT_SMOKE_TIMEOUT_MS;
 }
 
-async function loadPlaywrightModule() {
+/**
+ * Waits through the locator API so every Stagehand selector engine (CSS, `xpath=`, `text=`) works;
+ * `page.waitForSelector` only understands CSS/XPath and Stagehand locators never auto-wait.
+ */
+async function waitForSelectorVisible(page, selector, timeoutMs) {
+  const locator = page.locator(selector);
+  await waitForCondition(async () => (await locator.count()) > 0 && (await locator.first().isVisible()), {
+    timeoutMs,
+    description: `selector "${selector}" to be visible`,
+  });
+}
+
+/**
+ * Runs the DOM/console smoke contract against a Stagehand-driven headless Chrome page.
+ * `openPage` is injectable so the flow can be tested without a browser.
+ */
+export async function runBrowserSmoke(smokeConfig, { openPage = openHeadlessPage } = {}) {
+  if (!smokeConfig || typeof smokeConfig.url !== 'string' || smokeConfig.url.trim() === '') {
+    throw new Error('smoke config must export a non-empty `url` string');
+  }
+
+  const timeoutMs = resolveTimeout(smokeConfig);
+  const expectDom = Array.isArray(smokeConfig.expectDom) ? smokeConfig.expectDom : [];
+  const consoleIssues = [];
+  const session = await openPage({ headless: true, viewport: smokeConfig.viewport ?? DEFAULT_VIEWPORT });
+
   try {
-    return await import('playwright');
-  } catch {
-    return import('@playwright/test');
+    const { page } = session;
+    page.on('console', (event) => {
+      const { type, text } = describeConsoleEvent(event);
+      if (isConsoleIssue(type)) {
+        consoleIssues.push(`${type}: ${text}`);
+      }
+    });
+
+    let response;
+    try {
+      response = await page.goto(smokeConfig.url, { waitUntil: 'networkidle', timeout: timeoutMs });
+    } catch (error) {
+      throw new Error(`navigation to ${smokeConfig.url} failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
+    // A refused connection does not reject goto: Chrome lands on chrome-error://chromewebdata/ with no response.
+    const landedUrl = typeof page.url === 'function' ? await page.url() : '';
+    if (typeof landedUrl === 'string' && landedUrl.startsWith('chrome-error://')) {
+      throw new Error(`navigation to ${smokeConfig.url} failed: Chrome showed an error page (server unreachable or blocked)`);
+    }
+    const status = response && typeof response.status === 'function' ? response.status() : null;
+    if (typeof status === 'number' && status >= 400) {
+      throw new Error(`navigation to ${smokeConfig.url} returned HTTP ${status}`);
+    }
+
+    for (const selector of expectDom) {
+      await waitForSelectorVisible(page, selector, timeoutMs);
+    }
+
+    if (smokeConfig.expectConsoleFree === true && consoleIssues.length > 0) {
+      throw new Error(`console issues detected:\n${consoleIssues.join('\n')}`);
+    }
+
+    return { url: smokeConfig.url, status, checkedSelectors: expectDom.length, consoleIssues };
+  } finally {
+    await session.close();
   }
 }
 
@@ -98,48 +165,24 @@ async function main() {
     process.stderr.write(`[vibe-browser-smoke] WARN: ${warning}\n`);
   }
 
-  if (!hasPlaywrightInstalled()) {
-    process.stderr.write(
-      [
-        '[vibe-browser-smoke] Playwright not installed in this project.',
-        'Install:',
-        '  npm install -D playwright @playwright/test',
-        '  npx playwright install --with-deps chromium',
-        'Then re-run: npm run vibe:browser-smoke',
-        '',
-      ].join('\n'),
-    );
+  if (!isStagehandInstalled()) {
+    process.stderr.write(stagehandInstallGuidance('[vibe-browser-smoke]', 'npm run vibe:browser-smoke'));
     process.exit(2);
   }
 
-  const playwright = await loadPlaywrightModule();
-  const browser = await playwright.chromium.launch({ headless: true });
-  const consoleIssues = [];
-
+  let result;
   try {
-    const viewport = smokeConfig.viewport ?? { width: 1280, height: 720 };
-    const context = await browser.newContext({ viewport });
-    const page = await context.newPage();
-
-    page.on('console', (message) => {
-      const type = typeof message.type === 'function' ? message.type() : '';
-      if (type === 'error' || type === 'warning' || type === 'warn') {
-        consoleIssues.push(`${type}: ${message.text()}`);
-      }
-    });
-
-    await page.goto(smokeConfig.url, { waitUntil: 'networkidle' });
-
-    for (const selector of smokeConfig.expectDom ?? []) {
-      await page.locator(selector).first().waitFor({ state: 'visible' });
-    }
-
-    if (smokeConfig.expectConsoleFree === true && consoleIssues.length > 0) {
-      throw new Error(`console issues detected:\n${consoleIssues.join('\n')}`);
-    }
-  } finally {
-    await browser.close();
+    result = await runBrowserSmoke(smokeConfig);
+  } catch (error) {
+    throw new Error(describeBrowserError(error));
   }
+
+  for (const issue of result.consoleIssues) {
+    process.stderr.write(`[vibe-browser-smoke] console ${issue}\n`);
+  }
+  process.stdout.write(
+    `[vibe-browser-smoke] PASS url=${result.url} status=${result.status ?? 'n/a'} selectors=${result.checkedSelectors} consoleIssues=${result.consoleIssues.length}\n`,
+  );
 }
 
 if (path.resolve(process.argv[1] ?? '') === fileURLToPath(import.meta.url)) {

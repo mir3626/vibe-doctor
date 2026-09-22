@@ -74,7 +74,6 @@ const REQUIRED_HARNESS_ENTRIES = [
   '.vibe/harness/migrations/**',
   '.vibe/harness/tsconfig.harness.json',
   '.vibe/harness/tsconfig.json',
-  '.vibe/harness/playwright.config.ts',
   'scripts/vibe-sync-bootstrap.mjs',
   '.vibe/settings-presets/**',
   '.vibe/sync-manifest.json',

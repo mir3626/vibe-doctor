@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { execFile as execFileCallback } from 'node:child_process';
-import { chmod, mkdtemp, mkdir, readFile, stat, writeFile } from 'node:fs/promises';
+import { chmod, mkdtemp, mkdir, readdir, readFile, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, it } from 'node:test';
@@ -420,7 +420,7 @@ describe('jsonDeepMerge', () => {
       },
       {
         scripts: {
-          'test:ui': 'node scripts/vibe-playwright-test.mjs',
+          'test:ui': 'node scripts/vibe-stagehand-test.mjs',
         },
       },
       {
@@ -432,7 +432,7 @@ describe('jsonDeepMerge', () => {
     assert.deepEqual(merged, {
       scripts: {
         test: 'vitest',
-        'test:ui': 'node scripts/vibe-playwright-test.mjs',
+        'test:ui': 'node scripts/vibe-stagehand-test.mjs',
       },
     });
   });
@@ -823,7 +823,7 @@ describe('sync manifest', () => {
     assert.equal(manifest.files.harness.includes('.vibe/harness/test/**'), true);
     assert.equal(manifest.files.harness.includes('.vibe/harness/migrations/**'), true);
     assert.equal(manifest.files.harness.includes('.vibe/harness/tsconfig.harness.json'), true);
-    assert.equal(manifest.files.harness.includes('.vibe/harness/playwright.config.ts'), true);
+    assert.equal(manifest.files.harness.includes('.vibe/harness/playwright.config.ts'), false);
     assert.equal(manifest.files.harness.includes('scripts/vibe-sync-bootstrap.mjs'), true);
     assert.equal(manifest.files.harness.includes('.claude/skills/**'), true);
     assert.equal(manifest.files.harness.includes('.claude/templates/**'), true);
@@ -869,6 +869,7 @@ describe('sync manifest', () => {
     assert.equal(manifest.migrations['1.7.13'], '.vibe/harness/migrations/1.7.13.mjs');
     assert.equal(manifest.migrations['1.7.14'], '.vibe/harness/migrations/1.7.14.mjs');
     assert.equal(manifest.migrations['1.8.2'], '.vibe/harness/migrations/1.8.2.mjs');
+    assert.equal(manifest.migrations['1.16.0'], '.vibe/harness/migrations/1.16.0.mjs');
   });
 });
 
@@ -1271,5 +1272,124 @@ describe('v1.8.2 migration', () => {
 
     assert.match(stdout, /config=retained-custom/);
     assert.equal(config.proBridge.enabled, true);
+  });
+});
+
+describe('v1.16.0 migration', () => {
+  // Byte-identical to the shipped v1.15.5 file (git blob e08ce575f6157d36f92a3640be9dd1eca0330874).
+  const releasePlaywrightConfig = [
+    "import { defineConfig, devices } from '@playwright/test';",
+    '',
+    'export default defineConfig({',
+    "  testDir: './test/playwright',",
+    '  fullyParallel: false,',
+    "  reporter: process.env.CI ? 'dot' : 'list',",
+    '  timeout: 30_000,',
+    '  expect: {',
+    '    timeout: 5_000,',
+    '  },',
+    '  use: {',
+    "    ...devices['Desktop Chrome'],",
+    '    headless: true,',
+    "    trace: 'retain-on-failure',",
+    '  },',
+    '  workers: 1,',
+    '});',
+    '',
+  ].join('\n');
+
+  it('removes only proven retired Playwright harness files and rewires customized UI scripts', async () => {
+    const root = await makeTempDir('vibe-migration-1160-');
+    const knownReleasePath = path.join(root, '.vibe', 'harness', 'playwright.config.ts');
+    const trackedSpecPath = path.join(root, '.vibe', 'harness', 'test', 'playwright', 'dashboard-report.spec.ts');
+    const modifiedShardPath = path.join(root, '.claude', 'skills', 'test-patterns', 'typescript-playwright.md');
+    const projectSpecPath = path.join(root, 'e2e', 'login.spec.ts');
+    const conventionsPath = path.join(root, 'docs', 'context', 'conventions.md');
+    for (const filePath of [knownReleasePath, trackedSpecPath, modifiedShardPath, projectSpecPath, conventionsPath]) {
+      await mkdir(path.dirname(filePath), { recursive: true });
+    }
+    await writeFile(
+      conventionsPath,
+      [
+        '# Conventions',
+        '',
+        'History: the first iteration used typescript-playwright.md before the harness switched.',
+        '',
+        '## 테스트 전략',
+        '<!-- BEGIN:VIBE:TEST-PATTERNS -->',
+        '- TypeScript unit/integration: [.claude/skills/test-patterns/typescript-vitest.md](../../.claude/skills/test-patterns/typescript-vitest.md)',
+        '- Browser E2E (ts-playwright): [.claude/skills/test-patterns/typescript-playwright.md](../../.claude/skills/test-patterns/typescript-playwright.md)',
+        '<!-- END:VIBE:TEST-PATTERNS -->',
+        '',
+      ].join('\n'),
+      'utf8',
+    );
+    await writeFile(knownReleasePath, releasePlaywrightConfig, 'utf8');
+    await writeFile(trackedSpecPath, 'tracked dashboard spec\n', 'utf8');
+    await writeFile(modifiedShardPath, 'project-modified shard\n', 'utf8');
+    await writeFile(projectSpecPath, 'project-owned playwright suite\n', 'utf8');
+    await writeJson(path.join(root, '.vibe', 'sync-hashes.json'), {
+      files: {
+        '.vibe/harness/test/playwright/dashboard-report.spec.ts': await computeFileHash(trackedSpecPath),
+      },
+    });
+    await writeJson(path.join(root, 'package.json'), {
+      scripts: {
+        'test:ui': 'node .vibe/harness/scripts/vibe-playwright-test.mjs',
+        'vibe:test-ui': 'custom ui command',
+      },
+      devDependencies: { '@playwright/test': '^1.59.1' },
+    });
+
+    const migration = path.join(process.cwd(), '.vibe', 'harness', 'migrations', '1.16.0.mjs');
+    const { stdout } = await execFile(process.execPath, [migration, root]);
+
+    assert.match(stdout, /removedRetiredHarness=2/);
+    assert.match(stdout, /retainedRetiredHarness=1/);
+    assert.match(stdout, /packageScripts=rewritten:1/);
+    assert.match(stdout, /playwrightDevDependency=present/);
+    assert.match(stdout, /conventions=rewritten/);
+    await assert.rejects(readFile(knownReleasePath, 'utf8'), /ENOENT/);
+    await assert.rejects(readFile(trackedSpecPath, 'utf8'), /ENOENT/);
+    await assert.rejects(readdir(path.dirname(trackedSpecPath)), /ENOENT/);
+    assert.equal(await readFile(modifiedShardPath, 'utf8'), 'project-modified shard\n');
+    assert.equal(await readFile(projectSpecPath, 'utf8'), 'project-owned playwright suite\n');
+
+    const pkg = JSON.parse(await readFile(path.join(root, 'package.json'), 'utf8')) as {
+      scripts: Record<string, string>;
+      devDependencies: Record<string, string>;
+    };
+    const hashes = JSON.parse(await readFile(path.join(root, '.vibe', 'sync-hashes.json'), 'utf8')) as {
+      files: Record<string, string>;
+    };
+    const report = await readFile(path.join(root, '.vibe', 'harness-migration-1.16.0.md'), 'utf8');
+    assert.equal(pkg.scripts['test:ui'], 'node .vibe/harness/scripts/vibe-stagehand-test.mjs');
+    assert.equal(pkg.scripts['vibe:test-ui'], 'custom ui command');
+    assert.equal(pkg.devDependencies['@playwright/test'], '^1.59.1');
+    assert.equal(hashes.files['.vibe/harness/test/playwright/dashboard-report.spec.ts'], undefined);
+    assert.match(report, /typescript-playwright\.md/);
+    const conventions = await readFile(conventionsPath, 'utf8');
+    assert.match(conventions, /History: the first iteration used typescript-playwright\.md/);
+    assert.match(conventions, /Browser E2E \(ts-stagehand\): \[\.claude\/skills\/test-patterns\/typescript-stagehand\.md\]\(\.\.\/\.\.\/\.claude\/skills\/test-patterns\/typescript-stagehand\.md\)/);
+    assert.doesNotMatch(conventions.split('BEGIN:VIBE:TEST-PATTERNS')[1] ?? '', /playwright/);
+
+    const second = await execFile(process.execPath, [migration, root]);
+    assert.match(second.stdout, /removedRetiredHarness=0/);
+    assert.match(second.stdout, /retainedRetiredHarness=1/);
+    assert.match(second.stdout, /packageScripts=rewritten:0/);
+    assert.match(second.stdout, /conventions=idempotent/);
+  });
+
+  it('is a no-op on a project that never shipped the Playwright harness files', async () => {
+    const root = await makeTempDir('vibe-migration-1160-clean-');
+    await writeJson(path.join(root, 'package.json'), { scripts: { 'test:ui': 'npm run vibe:test-ui' } });
+
+    const { stdout } = await execFile(process.execPath, [
+      path.join(process.cwd(), '.vibe', 'harness', 'migrations', '1.16.0.mjs'),
+      root,
+    ]);
+
+    assert.match(stdout, /removedRetiredHarness=0 retainedRetiredHarness=0 packageScripts=rewritten:0 playwrightDevDependency=absent conventions=missing/);
+    await assert.rejects(readFile(path.join(root, '.vibe', 'harness-migration-1.16.0.md'), 'utf8'), /ENOENT/);
   });
 });

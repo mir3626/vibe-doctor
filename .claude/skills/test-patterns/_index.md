@@ -2,7 +2,7 @@
 schemaVersion: 1
 mapping:
   ts-vitest: typescript-vitest.md
-  ts-playwright: typescript-playwright.md
+  ts-stagehand: typescript-stagehand.md
   py-pytest: python-pytest.md
   py-hypothesis: python-hypothesis.md
   rust-cargo: rust-cargo-test.md
@@ -18,7 +18,7 @@ Use this file as the machine-readable source of truth for stack-specific test sh
 | slug | shard | when to use |
 | --- | --- | --- |
 | `ts-vitest` | `typescript-vitest.md` | TypeScript unit and integration tests in Node |
-| `ts-playwright` | `typescript-playwright.md` | Browser E2E and locator patterns |
+| `ts-stagehand` | `typescript-stagehand.md` | Browser E2E with Stagehand (system Chrome, locators, act/observe/extract) |
 | `py-pytest` | `python-pytest.md` | Python unit tests with fixtures and temp files |
 | `py-hypothesis` | `python-hypothesis.md` | Python property tests for pure logic |
 | `rust-cargo` | `rust-cargo-test.md` | Rust crate and module tests with `cargo test` |
