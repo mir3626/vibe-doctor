@@ -10,7 +10,11 @@
 
 ## Latest Highlights
 
-### v1.17.0 (2026-09-22) - zod 4 runtime, nested role-table preservation, contiguous session-log tags
+### v1.17.1 (2026-09-22) - zod 4 error-message assertion hotfix
+
+- The Pro roundtrip CLI test that asserted a zod 3 issue message now accepts the zod 4 form, fixing the v1.17.0 CI failure; no runtime change. See [release notes](docs/release/v1.17.1.md).
+
+### Previous: v1.17.0 (2026-09-22) - zod 4 runtime, nested role-table preservation, contiguous session-log tags
 
 - The harness runtime moves to `zod@^4`; `vibe:gen-schemas` uses zod's native `z.toJSONSchema` (zod-to-json-schema removed) and the 13 regenerated schemas are semantically equivalent. The Pro protocol schema bytes changed, so bridges derive a new content-addressed namespace generation.
 - `/vibe-sync` section-merge now parses markers with a trailing description (`<!-- BEGIN:SPRINT_ROLES (...) -->`) and re-applies preserved sections nested inside upstream-owned blocks, so the CLAUDE.md role table survives a sync.
@@ -398,7 +402,7 @@ Root `src/**`, `scripts/**`, `test/**`, `app/**`, `components/**`, and `lib/**` 
 
 ## 버전 / tag 정책
 
-현재 릴리스는 `harnessVersion: 1.17.0` 입니다. 릴리스를 자를 때는 `package.json`, `.vibe/config.json`, release note, tag를 같은 버전으로 맞춥니다.
+현재 릴리스는 `harnessVersion: 1.17.1` 입니다. 릴리스를 자를 때는 `package.json`, `.vibe/config.json`, release note, tag를 같은 버전으로 맞춥니다.
 
 - `harnessVersion` 은 `.vibe/config.json` 과 `package.json` 에 semver로 기록합니다.
 - 각 minor/patch 릴리스는 해당 커밋에 `vMAJOR.MINOR.PATCH` git tag를 붙인 뒤 origin에 push합니다.

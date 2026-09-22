@@ -6,6 +6,7 @@ and in version-specific notes.
 
 ## Current
 
+- [v1.17.1](v1.17.1.md) - zod 4 error-message assertion hotfix
 - [v1.17.0](v1.17.0.md) - zod 4 runtime, nested role-table preservation and contiguous session-log tags
 - [v1.16.0](v1.16.0.md) - Stagehand replaces Playwright for harness browser automation
 - [v1.15.5](v1.15.5.md) - Bounded review inputs and missing-event diagnostics

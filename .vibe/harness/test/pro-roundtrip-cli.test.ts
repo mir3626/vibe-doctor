@@ -1661,7 +1661,9 @@ describe('vibe-pro-go CLI', { concurrency: true }, () => {
       runCli(fixture, ['report', flowPath, '--evidence', 'REFUSED']),
       (error: unknown) =>
         error instanceof Error &&
-        error.message.includes('"message": "Required"'),
+        // zod 3 reports a missing enum key as invalid_type/"Required"; zod 4 reports invalid_value.
+        error.message.includes('"classification"') &&
+        /"code": "(invalid_type|invalid_value)"/.test(error.message),
     );
     const pendingDecisionBrief = structuredClone(completeDesignBrief);
     pendingDecisionBrief.proposal.userDecisionNeeded = ['REQ-001'];
