@@ -18,7 +18,7 @@ export const ProjectMapSchema = z.object({
   schemaVersion: z.literal('0.1'),
   updatedAt: IsoDateTimeSchema,
   lastSprintId: z.string().optional(),
-  modules: z.record(ProjectMapModuleSchema),
+  modules: z.record(z.string(), ProjectMapModuleSchema),
   activePlatformRules: z.array(ActivePlatformRuleSchema),
 });
 

@@ -19,7 +19,8 @@
             },
             "createdAt": {
               "type": "string",
-              "format": "date-time"
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
             },
             "runtime": {
               "type": "string"
@@ -31,8 +32,7 @@
           "required": [
             "name",
             "createdAt"
-          ],
-          "additionalProperties": false
+          ]
         },
         "sprints": {
           "type": "array",
@@ -87,8 +87,10 @@
                       "type": "string"
                     },
                     "expectExitCode": {
+                      "default": 0,
                       "type": "integer",
-                      "default": 0
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
                     },
                     "expectStdoutContains": {
                       "type": "string"
@@ -103,8 +105,7 @@
                   "required": [
                     "id",
                     "command"
-                  ],
-                  "additionalProperties": false
+                  ]
                 }
               },
               "deviations": {
@@ -117,16 +118,24 @@
                 "type": "object",
                 "properties": {
                   "added": {
-                    "type": "integer"
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
                   },
                   "deleted": {
-                    "type": "integer"
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
                   },
                   "net": {
-                    "type": "integer"
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
                   },
                   "filesChanged": {
-                    "type": "integer"
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
                   }
                 },
                 "required": [
@@ -134,22 +143,47 @@
                   "deleted",
                   "net",
                   "filesChanged"
-                ],
-                "additionalProperties": false
+                ]
               }
             },
             "required": [
               "id",
               "name",
               "status"
-            ],
-            "additionalProperties": false
+            ]
           }
         },
         "verificationCommands": {
           "type": "array",
           "items": {
-            "$ref": "#/definitions/SprintStatus/properties/sprints/items/properties/addedVerificationCommands/items"
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "command": {
+                "type": "string"
+              },
+              "expectExitCode": {
+                "default": 0,
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "expectStdoutContains": {
+                "type": "string"
+              },
+              "introducedInSprint": {
+                "type": "string"
+              },
+              "runOutsideSandbox": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "id",
+              "command"
+            ]
           }
         },
         "handoff": {
@@ -185,7 +219,9 @@
               "type": "string"
             },
             "updatedAt": {
-              "$ref": "#/definitions/SprintStatus/properties/project/properties/createdAt"
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
             }
           },
           "required": [
@@ -194,7 +230,7 @@
             "orchestratorContextBudget",
             "preferencesActive"
           ],
-          "additionalProperties": true
+          "additionalProperties": {}
         },
         "sandboxNotes": {
           "type": "array",
@@ -214,11 +250,11 @@
             "required": [
               "command",
               "reason"
-            ],
-            "additionalProperties": false
+            ]
           }
         },
         "pendingRisks": {
+          "default": [],
           "type": "array",
           "items": {
             "type": "object",
@@ -261,28 +297,40 @@
                 ]
               },
               "createdAt": {
-                "$ref": "#/definitions/SprintStatus/properties/project/properties/createdAt"
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
               },
               "statusReason": {
                 "type": "string"
               },
               "statusUpdatedAt": {
-                "$ref": "#/definitions/SprintStatus/properties/project/properties/createdAt"
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
               },
               "acceptedAt": {
-                "$ref": "#/definitions/SprintStatus/properties/project/properties/createdAt"
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
               },
               "deferredAt": {
-                "$ref": "#/definitions/SprintStatus/properties/project/properties/createdAt"
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
               },
               "deferredUntil": {
                 "type": "string"
               },
               "closedAt": {
-                "$ref": "#/definitions/SprintStatus/properties/project/properties/createdAt"
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
               },
               "resolvedAt": {
-                "$ref": "#/definitions/SprintStatus/properties/project/properties/createdAt"
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
               }
             },
             "required": [
@@ -292,37 +340,40 @@
               "text",
               "status",
               "createdAt"
-            ],
-            "additionalProperties": false
-          },
-          "default": []
+            ]
+          }
         },
         "lastSprintScope": {
+          "default": [],
           "type": "array",
           "items": {
             "type": "string"
-          },
-          "default": []
+          }
         },
         "lastSprintScopeGlob": {
+          "default": [],
           "type": "array",
           "items": {
             "type": "string"
-          },
-          "default": []
+          }
         },
         "sprintsSinceLastAudit": {
+          "default": 0,
           "type": "integer",
           "minimum": 0,
-          "default": 0
+          "maximum": 9007199254740991
         },
         "stateUpdatedAt": {
-          "$ref": "#/definitions/SprintStatus/properties/project/properties/createdAt"
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
         },
         "verifiedAt": {
           "anyOf": [
             {
-              "$ref": "#/definitions/SprintStatus/properties/project/properties/createdAt"
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
             },
             {
               "type": "null"
@@ -336,7 +387,7 @@
         "sprints",
         "verificationCommands"
       ],
-      "additionalProperties": true
+      "additionalProperties": {}
     }
   },
   "$schema": "http://json-schema.org/draft-07/schema#"

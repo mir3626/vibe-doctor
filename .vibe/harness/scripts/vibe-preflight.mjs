@@ -817,7 +817,7 @@ function hasRecentPlannerSkipEntry(pendingId, stateUpdatedAt) {
 
   const content = readFileSync(sessionLogPath, 'utf8');
   return content.split(/\r?\n/).some((line) => {
-    if (!line.includes('[decision][planner-skip]') || !line.includes(`sprint=${pendingId}`)) {
+    if (!/\[decision\]\s*\[planner-skip\]/.test(line) || !line.includes(`sprint=${pendingId}`)) {
       return false;
     }
 

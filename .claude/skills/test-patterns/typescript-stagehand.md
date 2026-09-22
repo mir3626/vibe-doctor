@@ -8,7 +8,7 @@ Use this shard for browser flows. Stagehand (`@browserbasehq/stagehand`, v4) dri
 npm install -D @browserbasehq/stagehand
 # Local runs use the installed Google Chrome / Chromium (no browser download step).
 # Set CHROME_PATH=<executable> when it is not auto-detected.
-# Optional for typed extract(): zod@^4 (or `zod/v4` from zod >= 3.25).
+# Typed extract() schemas use zod 4 (the harness ships zod@^4; `import { z } from 'zod'`).
 ```
 
 ```ts
@@ -70,7 +70,7 @@ test('user can sign in', async () => {
 ## Natural-language primitives (opt-in, needs a model)
 
 ```ts
-import { z } from 'zod/v4';
+import { z } from 'zod';
 
 const stagehand = await Stagehand.create({
   browser,

@@ -58,7 +58,10 @@ function parseEntries(entriesBody) {
       return;
     }
 
-    const match = line.match(/^\-\s+(?<ts>\S+)\s+\[(?<tag>[^\]]+)\]\s*(?<body>.*)$/);
+    // Capture the whole leading tag cluster (`[decision][sprint-roadmap-drafted]`). Capturing only the
+    // first tag turned the rest into body text and re-serialized it with a space, which broke the
+    // exact `[a][b]` matches used by init-ready, preflight and other gates.
+    const match = line.match(/^\-\s+(?<ts>\S+)\s+(?<tags>\[[^\]]+\](?:\s*\[[^\]]+\])*)\s*(?<body>.*)$/);
     if (!match?.groups) {
       malformed.push(line);
       return;
@@ -72,7 +75,8 @@ function parseEntries(entriesBody) {
 
     const entry = {
       normalizedTs,
-      tag: match.groups.tag,
+      // Canonical form has no whitespace between adjacent tags.
+      tag: match.groups.tags.replace(/\]\s+\[/g, ']['),
       body: match.groups.body,
       originalIndex: index,
     };
@@ -105,8 +109,8 @@ function normalizeSessionLogContent(content) {
   }
 
   const { normalizedEntries, malformed, deduped } = parseEntries(sections.entriesBody);
-  const serializedEntries = normalizedEntries.map(
-    (entry) => `- ${entry.normalizedTs} [${entry.tag}] ${entry.body}`,
+  const serializedEntries = normalizedEntries.map((entry) =>
+    [`- ${entry.normalizedTs}`, entry.tag, entry.body].filter((part) => part.length > 0).join(' '),
   );
   const rebuiltParts = [sections.header];
 

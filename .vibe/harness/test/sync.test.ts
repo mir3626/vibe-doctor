@@ -354,6 +354,72 @@ new harness
   });
 });
 
+describe('sectionMerge nested and described markers', () => {
+  const config: HybridFileConfig = {
+    strategy: 'section-merge',
+    harnessMarkers: ['HARNESS:core'],
+    preserveMarkers: ['SPRINT_ROLES'],
+  };
+
+  it('preserves a described SPRINT_ROLES block nested inside an upstream-owned CHARTER block', () => {
+    const local = `<!-- BEGIN:CHARTER -->
+old charter
+<!-- BEGIN:SPRINT_ROLES (vibe-init 자동 업데이트 영역) -->
+| role | model |
+| planner | local-model |
+<!-- END:SPRINT_ROLES -->
+<!-- END:CHARTER -->
+<!-- BEGIN:HARNESS:core -->
+old harness
+<!-- END:HARNESS:core -->
+`;
+    const upstream = `<!-- BEGIN:CHARTER -->
+new charter
+<!-- BEGIN:SPRINT_ROLES (vibe-init 자동 업데이트 영역) -->
+| role | model |
+| planner | upstream-model |
+<!-- END:SPRINT_ROLES -->
+<!-- END:CHARTER -->
+<!-- BEGIN:HARNESS:core -->
+new harness
+<!-- END:HARNESS:core -->
+`;
+
+    const merged = sectionMerge(local, upstream, config);
+
+    assert.equal(merged?.includes('new charter'), true);
+    assert.equal(merged?.includes('new harness'), true);
+    assert.equal(merged?.includes('| planner | local-model |'), true);
+    assert.equal(merged?.includes('upstream-model'), false);
+    assert.equal(merged?.includes('<!-- BEGIN:SPRINT_ROLES (vibe-init 자동 업데이트 영역) -->'), true);
+  });
+
+  it('preserves a PROJECT section nested inside a harness section', () => {
+    const local = `<!-- BEGIN:HARNESS:core -->
+old harness
+<!-- BEGIN:PROJECT:notes -->
+keep me
+<!-- END:PROJECT:notes -->
+<!-- END:HARNESS:core -->`;
+    const upstream = `<!-- BEGIN:HARNESS:core -->
+new harness
+<!-- BEGIN:PROJECT:notes -->
+placeholder
+<!-- END:PROJECT:notes -->
+<!-- END:HARNESS:core -->`;
+
+    const merged = sectionMerge(local, upstream, config);
+
+    assert.equal(merged?.includes('new harness'), true);
+    assert.equal(merged?.includes('keep me'), true);
+    assert.equal(merged?.includes('placeholder'), false);
+  });
+
+  it('still returns null when the local file has no recognizable markers', () => {
+    assert.equal(sectionMerge('<!-- BEGIN:broken marker', 'upstream', config), null);
+  });
+});
+
 describe('jsonDeepMerge', () => {
   it('replaces harness keys and preserves project keys', () => {
     const merged = jsonDeepMerge(

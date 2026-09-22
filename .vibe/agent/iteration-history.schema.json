@@ -50,6 +50,9 @@
               },
               "milestoneProgress": {
                 "type": "object",
+                "propertyNames": {
+                  "type": "string"
+                },
                 "additionalProperties": {
                   "type": "number"
                 }
@@ -58,7 +61,7 @@
                 "type": "string"
               },
               "executionBinding": {
-                "anyOf": [
+                "oneOf": [
                   {
                     "type": "object",
                     "properties": {
@@ -108,7 +111,7 @@
               "milestoneProgress",
               "summary"
             ],
-            "additionalProperties": true
+            "additionalProperties": {}
           }
         }
       },
@@ -116,7 +119,7 @@
         "currentIteration",
         "iterations"
       ],
-      "additionalProperties": true
+      "additionalProperties": {}
     }
   },
   "$schema": "http://json-schema.org/draft-07/schema#"

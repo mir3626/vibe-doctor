@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { describe, it } from 'node:test';
-import { ZodError, type ZodTypeAny } from 'zod';
+import { ZodError, type ZodType } from 'zod';
 import {
   IterationExecutionBindingSchema,
   IterationHistorySchema,
@@ -14,7 +14,7 @@ import {
 
 const cases: Array<{
   name: string;
-  schema: ZodTypeAny;
+  schema: ZodType;
   filePath: string;
   bootstrap?: unknown;
   emptyThrows: boolean;

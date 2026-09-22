@@ -47,7 +47,8 @@
           "pattern": "^[0-9a-f]{40}$"
         },
         "headSha": {
-          "$ref": "#/definitions/ProRoundtripReportInput/properties/baseSha"
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$"
         },
         "completedContractIds": {
           "type": "array",
@@ -64,12 +65,14 @@
           }
         },
         "verification": {
+          "minItems": 1,
           "type": "array",
           "items": {
             "type": "object",
             "properties": {
               "command": {
-                "$ref": "#/definitions/ProRoundtripReportInput/properties/changedFiles/items"
+                "type": "string",
+                "minLength": 1
               },
               "status": {
                 "type": "string",
@@ -80,7 +83,8 @@
                 ]
               },
               "summary": {
-                "$ref": "#/definitions/ProRoundtripReportInput/properties/changedFiles/items"
+                "type": "string",
+                "minLength": 1
               }
             },
             "required": [
@@ -89,8 +93,7 @@
               "summary"
             ],
             "additionalProperties": false
-          },
-          "minItems": 1
+          }
         },
         "workflowEvidence": {
           "type": "array",
@@ -102,13 +105,16 @@
                 "pattern": "^(REQ|INV|WF|NFR)-[0-9]{3}$"
               },
               "implementationEvidence": {
-                "$ref": "#/definitions/ProRoundtripReportInput/properties/changedFiles/items"
+                "type": "string",
+                "minLength": 1
               },
               "testEvidence": {
-                "$ref": "#/definitions/ProRoundtripReportInput/properties/changedFiles/items"
+                "type": "string",
+                "minLength": 1
               },
               "integrationEvidence": {
-                "$ref": "#/definitions/ProRoundtripReportInput/properties/changedFiles/items"
+                "type": "string",
+                "minLength": 1
               },
               "status": {
                 "type": "string",
@@ -146,17 +152,20 @@
         "resolvedFindingIds": {
           "type": "array",
           "items": {
-            "$ref": "#/definitions/ProRoundtripReportInput/properties/changedFiles/items"
+            "type": "string",
+            "minLength": 1
           }
         },
         "risks": {
           "type": "array",
           "items": {
-            "$ref": "#/definitions/ProRoundtripReportInput/properties/changedFiles/items"
+            "type": "string",
+            "minLength": 1
           }
         },
         "nextAction": {
-          "$ref": "#/definitions/ProRoundtripReportInput/properties/changedFiles/items"
+          "type": "string",
+          "minLength": 1
         }
       },
       "required": [

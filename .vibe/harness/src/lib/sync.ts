@@ -222,20 +222,28 @@ function deleteAtPath(target: JsonValue | unknown, keyPath: string): void {
   delete current[leaf];
 }
 
+const SECTION_NAME_PATTERN = '[A-Za-z0-9:_-]+';
+// Markers may carry a trailing description, e.g. `<!-- BEGIN:SPRINT_ROLES (vibe-init 자동 업데이트 영역) -->`.
+const MARKER_SUFFIX = '(?: [^>]*?)? -->';
+
+function sectionBlockPattern(name?: string): RegExp {
+  const namePart = name ? escapeRegExp(name) : SECTION_NAME_PATTERN;
+  return new RegExp(`<!-- BEGIN:(${namePart})${MARKER_SUFFIX}([\\s\\S]*?)<!-- END:\\1${MARKER_SUFFIX}`, 'g');
+}
+
 function findSectionBlocks(content: string): SectionBlock[] {
-  const pattern = /<!-- BEGIN:([A-Za-z0-9:_-]+) -->[\s\S]*?<!-- END:\1 -->/g;
+  const pattern = sectionBlockPattern();
   const blocks: SectionBlock[] = [];
   let match = pattern.exec(content);
 
   while (match) {
     const full = match[0];
     const name = match[1];
+    const inner = match[2] ?? '';
     if (name) {
-      const body = full
-        .replace(`<!-- BEGIN:${name} -->`, '')
-        .replace(`<!-- END:${name} -->`, '')
-        .trim();
-      blocks.push({ name, full, body });
+      blocks.push({ name, full, body: inner.trim() });
+      // Preserved sections may sit inside another block (for example SPRINT_ROLES inside CHARTER).
+      blocks.push(...findSectionBlocks(inner));
     }
     match = pattern.exec(content);
   }
@@ -244,7 +252,7 @@ function findSectionBlocks(content: string): SectionBlock[] {
 }
 
 function hasMarkers(content: string): boolean {
-  return /<!-- BEGIN:[A-Za-z0-9:_-]+ -->/.test(content);
+  return new RegExp(`<!-- BEGIN:${SECTION_NAME_PATTERN}${MARKER_SUFFIX}`).test(content);
 }
 
 function shouldPreserveMarker(name: string, config: HybridFileConfig): boolean {
@@ -566,25 +574,25 @@ export function sectionMerge(
     return null;
   }
 
-  const localSections = new Map(
-    findSectionBlocks(localContent).map((block) => [block.name, block.full]),
+  const localBlocks = findSectionBlocks(localContent);
+  const localSections = new Map(localBlocks.map((block) => [block.name, block.full]));
+
+  // Top-level pass: preserved sections come from the local file; harness and other
+  // upstream-owned sections keep the upstream text.
+  let merged = upstreamContent.replace(sectionBlockPattern(), (fullMatch, rawName: string) =>
+    shouldPreserveMarker(rawName, config) ? (localSections.get(rawName) ?? fullMatch) : fullMatch,
   );
 
-  return upstreamContent.replace(
-    /<!-- BEGIN:([A-Za-z0-9:_-]+) -->[\s\S]*?<!-- END:\1 -->/g,
-    (fullMatch, rawName: string) => {
-      const name = rawName;
-      if (shouldPreserveMarker(name, config)) {
-        return localSections.get(name) ?? fullMatch;
-      }
+  // Nested pass: a preserved section inside an upstream-owned block (SPRINT_ROLES inside
+  // CHARTER, PROJECT:* inside a HARNESS section) was just overwritten with the upstream
+  // copy, so re-apply the local block wherever the same-named section appears.
+  for (const block of localBlocks) {
+    if (shouldPreserveMarker(block.name, config)) {
+      merged = merged.replace(sectionBlockPattern(block.name), () => block.full);
+    }
+  }
 
-      if ((config.harnessMarkers ?? []).includes(name)) {
-        return fullMatch;
-      }
-
-      return fullMatch;
-    },
-  );
+  return merged;
 }
 
 export function jsonDeepMerge(

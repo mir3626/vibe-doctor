@@ -2,7 +2,7 @@
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
-import { zodToJsonSchema } from 'zod-to-json-schema';
+import { z } from 'zod';
 import {
   GENERATED_ARTIFACT_SCHEMAS,
   STATE_FILE_SCHEMAS,
@@ -53,11 +53,32 @@ function schemaName(name: SchemaOutputName): string {
   );
 }
 
+const JSON_SCHEMA_DRAFT_07 = 'http://json-schema.org/draft-07/schema#';
+
+/**
+ * State files and protocol packets are validated on their *input* side (unknown keys are
+ * stripped, defaults fill missing fields). A schema wrapped in z.preprocess has an unknown
+ * input type, so the JSON Schema is generated from the parsed shape instead.
+ */
+function jsonSchemaSource(schema: z.ZodType): z.ZodType {
+  return schema instanceof z.ZodPipe && schema.in instanceof z.ZodTransform ? (schema.out as z.ZodType) : schema;
+}
+
 function render(name: SchemaOutputName): string {
-  const schema = zodToJsonSchema(allSchemas[name], {
-    name: schemaName(name),
-    target: 'jsonSchema7',
+  const title = schemaName(name);
+  const generated = z.toJSONSchema(jsonSchemaSource(allSchemas[name]), {
+    target: 'draft-07',
+    io: 'input',
+    unrepresentable: 'any',
+    reused: 'inline',
+    cycles: 'ref',
   });
+  const { $schema: _draft, ...definition } = generated as Record<string, unknown>;
+  const schema = {
+    $ref: `#/definitions/${title}`,
+    definitions: { [title]: definition },
+    $schema: JSON_SCHEMA_DRAFT_07,
+  };
   return `${JSON.stringify(schema, null, 2)}\n`;
 }
 

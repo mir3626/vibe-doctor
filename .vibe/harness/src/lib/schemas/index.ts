@@ -53,7 +53,7 @@ export function generateFixSuggestion(err: ZodError): string {
 }
 
 export function parseStateFile(name: string, content: string): ParseStateResult {
-  const schema = (STATE_FILE_SCHEMAS as Record<string, z.ZodTypeAny>)[name];
+  const schema = (STATE_FILE_SCHEMAS as Record<string, z.ZodType>)[name];
   if (!schema) {
     return { ok: false, error: `Unknown state file: ${name}` };
   }

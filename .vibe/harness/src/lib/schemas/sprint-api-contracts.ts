@@ -2,15 +2,15 @@ import { z } from 'zod';
 import { IsoDateTimeSchema } from './datetime.js';
 
 export const SprintApiContractSchema = z.object({
-  publicExports: z.record(z.array(z.string())),
-  types: z.record(z.array(z.string())),
+  publicExports: z.record(z.string(), z.array(z.string())),
+  types: z.record(z.string(), z.array(z.string())),
 });
 
 export const SprintApiContractsSchema = z.object({
   $schema: z.string().optional(),
   schemaVersion: z.literal('0.1'),
   updatedAt: IsoDateTimeSchema,
-  contracts: z.record(SprintApiContractSchema),
+  contracts: z.record(z.string(), SprintApiContractSchema),
 });
 
 export type SprintApiContract = z.infer<typeof SprintApiContractSchema>;

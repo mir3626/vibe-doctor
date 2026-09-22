@@ -50,7 +50,8 @@
         "previousEventId": {
           "anyOf": [
             {
-              "$ref": "#/definitions/ProRoundtripEventComplete/properties/eventId"
+              "type": "string",
+              "pattern": "^[0-9]{4}--(cli|codex|pro)--[a-z0-9][a-z0-9-]*--r[0-9]{2}$"
             },
             {
               "type": "null"
@@ -60,7 +61,8 @@
         "supersedesEventId": {
           "anyOf": [
             {
-              "$ref": "#/definitions/ProRoundtripEventComplete/properties/eventId"
+              "type": "string",
+              "pattern": "^[0-9]{4}--(cli|codex|pro)--[a-z0-9][a-z0-9-]*--r[0-9]{2}$"
             },
             {
               "type": "null"
@@ -106,7 +108,8 @@
           "pattern": "^[0-9a-f]{40}$"
         },
         "headSha": {
-          "$ref": "#/definitions/ProRoundtripEventComplete/properties/baseSha"
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$"
         },
         "disposition": {
           "type": "string",
@@ -121,6 +124,7 @@
           ]
         },
         "files": {
+          "minItems": 1,
           "type": "array",
           "items": {
             "type": "object",
@@ -143,18 +147,19 @@
               "mediaType"
             ],
             "additionalProperties": false
-          },
-          "minItems": 1
+          }
         },
         "limitations": {
           "type": "array",
           "items": {
-            "$ref": "#/definitions/ProRoundtripEventComplete/properties/codeBranch"
+            "type": "string",
+            "minLength": 1
           }
         },
         "createdAt": {
           "type": "string",
-          "format": "date-time"
+          "format": "date-time",
+          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
         },
         "nextActor": {
           "type": "string",
@@ -169,7 +174,8 @@
         "nextWriteTarget": {
           "anyOf": [
             {
-              "$ref": "#/definitions/ProRoundtripEventComplete/properties/files/items/properties/path"
+              "type": "string",
+              "pattern": "^(?!\\/)(?!.*\\.\\.)[A-Za-z0-9._/-]+$"
             },
             {
               "type": "null"
@@ -184,18 +190,22 @@
               "const": true
             },
             "primaryFlowPath": {
-              "$ref": "#/definitions/ProRoundtripEventComplete/properties/flowPath"
+              "type": "string",
+              "pattern": "^flows\\/[0-9]{8}\\/[0-9]{3}-[a-z0-9][a-z0-9-]{1,58}[a-z0-9]$"
             },
             "flows": {
+              "minItems": 2,
               "type": "array",
               "items": {
                 "type": "object",
                 "properties": {
                   "flowPath": {
-                    "$ref": "#/definitions/ProRoundtripEventComplete/properties/flowPath"
+                    "type": "string",
+                    "pattern": "^flows\\/[0-9]{8}\\/[0-9]{3}-[a-z0-9][a-z0-9-]{1,58}[a-z0-9]$"
                   },
                   "approvedBoundarySha": {
-                    "$ref": "#/definitions/ProRoundtripEventComplete/properties/baseSha"
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{40}$"
                   },
                   "authorizedByEventId": {
                     "type": "string",
@@ -207,8 +217,7 @@
                   "approvedBoundarySha"
                 ],
                 "additionalProperties": false
-              },
-              "minItems": 2
+              }
             }
           },
           "required": [
@@ -246,15 +255,18 @@
           "additionalProperties": false
         },
         "authorizedByFlowPath": {
-          "$ref": "#/definitions/ProRoundtripEventComplete/properties/flowPath"
+          "type": "string",
+          "pattern": "^flows\\/[0-9]{8}\\/[0-9]{3}-[a-z0-9][a-z0-9-]{1,58}[a-z0-9]$"
         },
         "authorizedByEventId": {
-          "$ref": "#/definitions/ProRoundtripEventComplete/properties/coordinatedClose/properties/flows/items/properties/authorizedByEventId"
+          "type": "string",
+          "pattern": "^[0-9]{4}--pro--approval--r[0-9]{2}$"
         },
         "coordinatedWith": {
           "type": "array",
           "items": {
-            "$ref": "#/definitions/ProRoundtripEventComplete/properties/flowPath"
+            "type": "string",
+            "pattern": "^flows\\/[0-9]{8}\\/[0-9]{3}-[a-z0-9][a-z0-9-]{1,58}[a-z0-9]$"
           }
         }
       },

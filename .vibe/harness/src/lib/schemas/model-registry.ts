@@ -15,7 +15,7 @@ export const ProviderRegistryEntrySchema = z.object({
       efficient: z.string().optional(),
     })
     .strict(),
-  knownModels: z.record(ModelEntrySchema),
+  knownModels: z.record(z.string(), ModelEntrySchema),
 });
 
 export const ModelRegistrySchema = z.object({
@@ -23,7 +23,7 @@ export const ModelRegistrySchema = z.object({
   schemaVersion: z.literal(1),
   updatedAt: IsoDateTimeSchema,
   source: z.string(),
-  providers: z.record(ProviderRegistryEntrySchema),
+  providers: z.record(z.string(), ProviderRegistryEntrySchema),
 });
 
 export type ModelEntry = z.infer<typeof ModelEntrySchema>;

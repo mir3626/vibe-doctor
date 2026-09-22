@@ -24,7 +24,7 @@ export const IterationEntrySchema = z
     goal: z.string(),
     plannedSprints: z.array(z.string()),
     completedSprints: z.array(z.string()),
-    milestoneProgress: z.record(z.number()),
+    milestoneProgress: z.record(z.string(), z.number()),
     summary: z.string(),
     executionBinding: IterationExecutionBindingSchema.optional(),
   })

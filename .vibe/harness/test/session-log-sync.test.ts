@@ -104,6 +104,30 @@ describe('vibe-session-log-sync', () => {
     assert.match(stdout, /deduped=2/);
   });
 
+  it('keeps multi-tag entries contiguous and canonicalizes spaced tag clusters', async () => {
+    const root = await makeTempDir('session-log-tags-');
+    const filePath = await writeSessionLog(
+      root,
+      [
+        '# Session Log',
+        '',
+        '## Entries',
+        '- 2026-06-02T00:00:00.000Z [decision][sprint-roadmap-drafted] drafted roadmap',
+        '- 2026-06-03T00:00:00.000Z [decision] [planner-skip] sprint=sprint-M2 reason=trivial',
+        '- 2026-06-04T00:00:00.000Z [checkpoint] plain body [not a tag] later',
+        '',
+      ].join('\n'),
+    );
+
+    await runSync(root);
+    const content = await readFile(filePath, 'utf8');
+
+    assert.match(content, /\[decision\]\[sprint-roadmap-drafted\] drafted roadmap/);
+    assert.match(content, /\[decision\]\[planner-skip\] sprint=sprint-M2 reason=trivial/);
+    assert.match(content, /\[checkpoint\] plain body \[not a tag\] later/);
+    assert.doesNotMatch(content, /\] \[/);
+  });
+
   it('returns exit 2 while lock file is held', async () => {
     const root = await makeTempDir('session-log-lock-');
     const filePath = await writeSessionLog(root, '# Session Log\n\n## Entries\n');

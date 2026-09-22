@@ -178,10 +178,10 @@ function audit(root) {
   add(
     records,
     'session-log.roadmap',
-    /\[decision]\[sprint-roadmap-drafted]/.test(sessionLog ?? ''),
+    /\[decision\]\s*\[sprint-roadmap-drafted\]/.test(sessionLog ?? ''),
     sessionLog === null
       ? 'missing .vibe/agent/session-log.md'
-      : /\[decision]\[sprint-roadmap-drafted]/.test(sessionLog)
+      : /\[decision\]\s*\[sprint-roadmap-drafted\]/.test(sessionLog)
         ? 'session-log recorded [decision][sprint-roadmap-drafted]'
         : 'session-log missing [decision][sprint-roadmap-drafted]',
   );
