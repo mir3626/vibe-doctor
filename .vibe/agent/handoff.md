@@ -2,8 +2,8 @@
 
 <!-- vibe:auto-state:start -->
 > Auto-captured git snapshot (PreCompact); not a substitute for the narrative below.
-> Captured: 2026-09-22T05:01:47.501Z
-> Branch: main @ ac705a4 feat(harness): release v1.17.0 zod 4 runtime and sync/session-log fixes
+> Captured: 2026-09-22T05:24:13.656Z
+> Branch: main @ a95b4d5 fix(harness): release v1.17.1 zod 4 error-message assertion hotfix
 > Uncommitted: 14 file(s)
 > - M .vibe/agent/handoff.md
 > -  M .vibe/agent/session-log.md
@@ -19,19 +19,25 @@
 > - ?? docs/reports/review-0-2026-09-09.md
 > - ?? docs/reports/review-92-remediation-2026-09-22.md
 > - ?? docs/reports/vibe-goal-iterate-pro-decoupling-handoff-20260831.md
-> Staged: none; Unstaged: 3 files changed, 18 insertions(+), 18 deletions(-)
+> Staged: none; Unstaged: 3 files changed, 13 insertions(+), 5 deletions(-)
 > Recent commits:
+> - a95b4d5 fix(harness): release v1.17.1 zod 4 error-message assertion hotfix
+> - 409e8e8 docs: record v1.17.0 publication and downstream syncs
 > - ac705a4 feat(harness): release v1.17.0 zod 4 runtime and sync/session-log fixes
 > - 5d5743c feat(harness): release v1.16.0 Stagehand browser automation
 > - f8737a5 docs: record v1.15.5 publication and verification
-> - 7ad858f fix(harness): release v1.15.5 bounded review inputs
-> - ddffb1d docs: record v1.15.4 publication and verification
 <!-- vibe:auto-state:end -->
 
 PROJECT NOT INITIALIZED.
 This is the upstream template; downstream product work still requires /vibe-init.
 
-## Current — v1.17.0 published; downstream osint + vibe-office synced / 2026-09-22
+## Current — v1.17.1 published; downstream osint + vibe-office on 1.17.1 / 2026-09-22
+
+- v1.17.1 hotfix published (commit `a95b4d5b5b87634150723de88565ac8eabc3781e`, tag object
+  `00299f51903e56947bda187b6f35c7871e0e1781`): v1.17.0 CI failed on one Pro roundtrip CLI test that
+  asserted the zod 3 issue message for a missing classification key; the assertion now accepts the
+  zod 4 code too. Full forced verify passed (622 / 621 / 1 skip / 0 fail). Downstream re-synced with the
+  same recipe: osint `0294d756` (21 customizations restored) and vibe-office `8a06562`, both pushed.
 
 - v1.16.0 is published: release commit `5d5743c7739ce9618647d5d0affe1c19fd7b471c`, annotated
   tag object `1c8ba07a23fc9d39f91d5f639eafa6362a98e09b`, atomic origin main+tag push verified.
@@ -99,8 +105,8 @@ This is the upstream template; downstream product work still requires /vibe-init
 
 ## Next steps
 
-1. Confirm remote CI for v1.17.0 (`verify` job relies on the runner's system Chrome; `chromiumSandbox: false`
-   is the documented fallback if the Linux launch is sandbox-blocked).
+1. Confirm remote CI for v1.17.1 (v1.16.0 CI passed incl. the Linux Stagehand UI run; v1.17.0 failed only on
+   the zod-message assertion fixed in v1.17.1).
 2. Downstream zod 4 migrations (product code + root `zod@^4`, drop `zod-to-json-schema` where only the
    harness used it) are user-owned; until then `vibe:gen-schemas` fails downstream with zod 3.
-3. Do not recreate or move v1.17.0, v1.16.0, v1.15.5 or any prior published tag.
+3. Do not recreate or move v1.17.1, v1.17.0, v1.16.0, v1.15.5 or any prior published tag.
