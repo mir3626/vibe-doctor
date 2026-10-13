@@ -10,7 +10,12 @@
 
 ## Latest Highlights
 
-### v1.18.1 (2026-10-13) - Template hygiene hotfix
+### v1.19.0 (2026-10-13) - Converged sync files, model-switch warning and Stagehand 4.2.1
+
+- `/vibe-sync` no longer reports a harness file as a conflict when its local bytes already equal the new upstream file, so downstream patches that upstream released sync cleanly. `--json` keeps stdout to the plan.
+- The statusline warns when `VIBE_ACTIVE_MODEL` names a different model than the one Claude Code reports (harness commands keep the declared model's profile until it changes). Unregistered strong Claude models stay legacy until a same-condition comparison registers them. Harness browser tests move to Stagehand 4.2.1. See [release notes](docs/release/v1.19.0.md).
+
+### Previous: v1.18.1 (2026-10-13) - Template hygiene hotfix
 
 - The downstream queue document added in v1.18.0 moves to `docs/plans/downstream/`, fixing the v1.18.0 CI template-hygiene failure; no runtime change. See [release notes](docs/release/v1.18.1.md).
 
@@ -412,7 +417,7 @@ Root `src/**`, `scripts/**`, `test/**`, `app/**`, `components/**`, and `lib/**` 
 
 ## 버전 / tag 정책
 
-현재 릴리스는 `harnessVersion: 1.18.1` 입니다. 릴리스를 자를 때는 `package.json`, `.vibe/config.json`, release note, tag를 같은 버전으로 맞춥니다.
+현재 릴리스는 `harnessVersion: 1.19.0` 입니다. 릴리스를 자를 때는 `package.json`, `.vibe/config.json`, release note, tag를 같은 버전으로 맞춥니다.
 
 - `harnessVersion` 은 `.vibe/config.json` 과 `package.json` 에 semver로 기록합니다.
 - 각 minor/patch 릴리스는 해당 커밋에 `vMAJOR.MINOR.PATCH` git tag를 붙인 뒤 origin에 push합니다.

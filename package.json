@@ -1,7 +1,7 @@
 {
   "name": "vibe-base-claude-code-ts",
   "version": "0.1.0",
-  "harnessVersion": "1.18.1",
+  "harnessVersion": "1.19.0",
   "private": true,
   "type": "module",
   "description": "TypeScript-first base template for Claude Code vibe coding orchestration.",
@@ -58,7 +58,7 @@
     "zod": "^4.6.5"
   },
   "devDependencies": {
-    "@browserbasehq/stagehand": "^4.1.0",
+    "@browserbasehq/stagehand": "^4.2.1",
     "@types/node": "^24.0.0",
     "tsx": "^4.20.0",
     "typescript": "^5.8.0"

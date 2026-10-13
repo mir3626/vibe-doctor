@@ -226,6 +226,18 @@ function getSprintModeStatus(root) {
   return 'partial';
 }
 
+// Harness commands see only VIBE_ACTIVE_MODEL, so after a model switch (for example /model) they keep
+// the old model's profile. Flag the mismatch with the model Claude Code reports.
+function getModelEnvWarning(input) {
+  const observed = getString(input?.model?.id);
+  const declared = getString(process.env.VIBE_ACTIVE_MODEL);
+  const base = (model) => model.replace(/\[[^\]]*\]$/, '');
+  if (!observed || !declared || base(observed) === base(declared)) {
+    return undefined;
+  }
+  return `${emojiWarning} VIBE_ACTIVE_MODEL ${declared} ≠ ${observed}`;
+}
+
 // Astra freezes pendingRisks as legacy state (.vibe/agent/astra-rules.md), so nothing resolves the
 // advisories left there; count only the open audit findings vibe-preflight still fails on.
 async function countOpenRisks(root, pendingRisks, input) {
@@ -291,6 +303,10 @@ async function main() {
   }
 
   parts.push(`${emojiWarning} ${openRisks}`);
+  const modelWarning = getModelEnvWarning(statuslineInput);
+  if (modelWarning) {
+    parts.push(modelWarning);
+  }
   const versionSuffix = getVersionSuffix(root);
   if (versionSuffix) {
     parts.push(`${emojiLabel} ${versionSuffix}`);

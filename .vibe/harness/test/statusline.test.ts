@@ -226,6 +226,22 @@ describe('statusline.mjs', () => {
     );
   });
 
+  it('flags a VIBE_ACTIVE_MODEL that differs from the model Claude Code reports', async () => {
+    const root = await makeTempDir('statusline-model-env-');
+    await writeStatus(root);
+    const env = { VIBE_ACTIVE_MODEL: 'claude-opus-5-5[1m]' };
+    const reported = (id: string) => `${JSON.stringify({ model: { id } })}\n`;
+
+    assert.equal(
+      runNodeStatusline(root, reported('claude-sonnet-5-5'), env).stdout,
+      `🎯 sprint-M9-statusline-permissions (2/3) | ${emojiWarning} 2 | ${emojiWarning} VIBE_ACTIVE_MODEL claude-opus-5-5[1m] ≠ claude-sonnet-5-5`,
+    );
+    // A context-window suffix names the same model; no input or no claim means nothing to compare.
+    assert.equal(runNodeStatusline(root, reported('claude-opus-5-5'), env).stdout, `🎯 sprint-M9-statusline-permissions (2/3) | ${emojiWarning} 2`);
+    assert.equal(runNodeStatusline(root, undefined, env).stdout, `🎯 sprint-M9-statusline-permissions (2/3) | ${emojiWarning} 2`);
+    assert.equal(runNodeStatusline(root, reported('claude-sonnet-5-5')).stdout, `🎯 sprint-M9-statusline-permissions (2/3) | ${emojiWarning} 2`);
+  });
+
   it('reads Claude usage from redirected stdin by default', async () => {
     const root = await makeTempDir('statusline-node-stdin-');
     await writeStatus(root);

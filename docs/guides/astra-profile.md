@@ -23,6 +23,10 @@ git-ignored `.claude/settings.local.json` `env`; Anthropic models are eligible o
 registry entry marked astra (`claude-opus-5-5`), a context-window suffix such as `[1m]` names the
 same model, and Claude 4.x and earlier, Sonnet and Haiku are known lower tiers. Other providers stay legacy.
 The statusline reads the model Claude Code reports to it and falls back to these variables.
+Harness commands (preflight, sprint-complete, audits, verify) cannot see that report: after `/model`
+they keep the profile of the model the variables name until the variables change. The statusline
+shows `⚠️ VIBE_ACTIVE_MODEL <declared> ≠ <reported>` while the two disagree; update or clear the
+variables then.
 The Codex wrapper instead selects its CHILD model from `-m`/`--model`, a model
 configuration override, or `CODEX_MODEL`. It never inherits `VIBE_ACTIVE_MODEL`.
 An ambiguous provider/profile override selects legacy. Default CLI model identity
@@ -34,6 +38,10 @@ unknown model. Verified successors are added explicitly as exact API IDs with
 `harnessProfile: "astra"` in the existing model registry. Do not infer eligibility
 from a version number or marketing label. Require a same-condition comparison
 before marking a successor. Known lower tiers cannot be promoted by that flag.
+A strong Claude model without such an entry, such as `claude-fable-5-1`, stays legacy until that
+comparison registers it. The CLAUDE.md legacy-model override gate (which mechanical overrides a
+session model needs, by capability tier) is a separate document rule: a model can be past that gate
+and still use the legacy harness profile.
 
 Requested model/effort are recorded separately from effective values. `null`
 means the provider has not confirmed the effective value. It is not billing telemetry.

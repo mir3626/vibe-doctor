@@ -530,7 +530,9 @@ async function main(): Promise<void> {
             `Use --ref ${floatingCandidate.baseRef} to stay on the base harness for this run.`,
         );
       }
-      logger.info(`Cloning upstream ${config.upstream.url}#${ref}`);
+      if (!jsonMode) {
+        logger.info(`Cloning upstream ${config.upstream.url}#${ref}`);
+      }
       upstreamRoot = await cloneUpstream(config.upstream.url, ref);
       cleanupRequired = true;
     }
@@ -566,7 +568,9 @@ async function main(): Promise<void> {
 
     if (!noBackup && backupTargets.length > 0) {
       const backupDir = await createBackup(paths.root, backupTargets);
-      logger.info(`Backup created at ${backupDir}`);
+      if (!jsonMode) {
+        logger.info(`Backup created at ${backupDir}`);
+      }
     }
 
     await applySyncPlan(paths.root, upstreamRoot, finalPlan, manifest);

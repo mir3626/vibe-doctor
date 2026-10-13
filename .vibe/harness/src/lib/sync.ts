@@ -442,6 +442,17 @@ export async function buildSyncPlan(
     const localHash = await computeFileHash(localPath);
     const trackedHash = syncHashes.files[relativePath];
 
+    // A downstream patch that upstream has since released byte for byte is not a conflict:
+    // replacing it changes nothing and records the new hash.
+    if (localHash !== trackedHash && localHash === (await computeFileHash(upstreamPath))) {
+      actions.push({
+        type: 'replace',
+        path: relativePath,
+        reason: 'local copy already matches upstream',
+      });
+      continue;
+    }
+
     if (!trackedHash) {
       actions.push({
         type: 'conflict',

@@ -713,6 +713,44 @@ describe('buildSyncPlan', () => {
     assert.equal(plan.actions.some((action) => action.type === 'line-merge' && action.path === '.gitignore'), true);
   });
 
+  it('replaces a local patch that upstream released byte for byte instead of reporting a conflict', async () => {
+    const localRoot = await makeTempDir('sync-local-converged-');
+    const upstreamRoot = await makeTempDir('sync-upstream-converged-');
+    const manifest: SyncManifest = {
+      manifestVersion: '1.0',
+      files: { harness: ['scripts/patched.mjs', 'scripts/new-local.mjs', 'scripts/diverged.mjs'], hybrid: {}, project: [] },
+      migrations: {},
+    };
+    for (const [root, key] of [[localRoot, 'harnessVersionInstalled'], [upstreamRoot, 'harnessVersion']] as const) {
+      await writeJson(path.join(root, '.vibe', 'config.json'), {
+        orchestrator: 'x',
+        [key]: '1.0.0',
+        sprintRoles: { planner: 'a', generator: 'b', evaluator: 'c' },
+        sprint: { unit: 'feature', subAgentPerRole: true, freshContextPerSprint: true },
+        providers: {},
+      });
+      await mkdir(path.join(root, 'scripts'), { recursive: true });
+    }
+    // patched: changed since the last sync, now identical to upstream. new-local: added downstream
+    // without sync history, identical to upstream. diverged: changed and still different.
+    await writeFile(path.join(localRoot, 'scripts/patched.mjs'), 'released fix', 'utf8');
+    await writeFile(path.join(upstreamRoot, 'scripts/patched.mjs'), 'released fix', 'utf8');
+    await writeFile(path.join(localRoot, 'scripts/new-local.mjs'), 'shared file', 'utf8');
+    await writeFile(path.join(upstreamRoot, 'scripts/new-local.mjs'), 'shared file', 'utf8');
+    await writeFile(path.join(localRoot, 'scripts/diverged.mjs'), 'local only', 'utf8');
+    await writeFile(path.join(upstreamRoot, 'scripts/diverged.mjs'), 'upstream', 'utf8');
+    await writeJson(path.join(localRoot, '.vibe', 'sync-hashes.json'), {
+      files: { 'scripts/patched.mjs': 'previous-upstream-hash', 'scripts/diverged.mjs': 'previous-upstream-hash' },
+    });
+
+    const plan = await buildSyncPlan(localRoot, upstreamRoot, manifest);
+    const byPath = new Map(plan.actions.map((action) => [action.path, action]));
+
+    assert.deepEqual(byPath.get('scripts/patched.mjs'), { type: 'replace', path: 'scripts/patched.mjs', reason: 'local copy already matches upstream' });
+    assert.deepEqual(byPath.get('scripts/new-local.mjs'), { type: 'replace', path: 'scripts/new-local.mjs', reason: 'local copy already matches upstream' });
+    assert.deepEqual(byPath.get('scripts/diverged.mjs'), { type: 'conflict', path: 'scripts/diverged.mjs', reason: 'local file changed since last sync' });
+  });
+
   it('expands glob harness entries and deduplicates exact file paths', async () => {
     const localRoot = await makeTempDir('sync-local-glob-');
     const upstreamRoot = await makeTempDir('sync-upstream-glob-');

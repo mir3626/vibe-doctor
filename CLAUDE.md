@@ -277,6 +277,7 @@ Sprint 프롬프트 **본문은 Planner가 작성**한다 (매 Sprint 소환 시
 ## Legacy-model 오버라이드 게이트
 
 나머지 기계적 오버라이드(단계적 실행·단계별 승인 대기, 서브에이전트 스워밍 강제, 10메시지 후 편집 전 재읽기, 2,000줄 분할 읽기, 절삭 인식, 편집 전후 재읽기, 6분류 grep 강제)는 구세대 모델의 실패 모드 보정용이다. **현재 세션 모델이 SOTA tier(예: Claude Opus 4.5 이상·Fable/Mythos급, GPT-5.5급 이상) 이상이면 적용하지 않는다** — 규칙 준수에 드는 재읽기·분할·승인 대기 비용이 편익을 초과한다. 그 미만 tier 모델을 Orchestrator 또는 Generator로 돌릴 때만 `docs/context/legacy-model-overrides.md`를 읽고 전부 적용한다. tier 판단이 불확실하면 샤드를 읽는 쪽이 기본값.
+이 tier 판단은 하네스 프로필과 별개다. Astra 프로필은 모델 레지스트리에 `harnessProfile: astra` 로 등록된 모델만 받으므로, 이 게이트를 넘는 모델(예: 미등록 `claude-fable-5-1`)도 하네스 프로필은 legacy 일 수 있다(`docs/guides/astra-profile.md`).
 <!-- END:HARNESS:mechanical-overrides -->
 
 ## Context shards pointer

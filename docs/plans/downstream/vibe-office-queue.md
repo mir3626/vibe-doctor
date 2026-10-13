@@ -27,7 +27,19 @@ next batch small.
 | B1 | `rm` guard: PreToolUse hook `vibe-rm-guard.mjs`, its test and verification-group entry, `codex-execution.md` §3.4 (vibe-office `d6cf3df`, `2b4ad94`, `ad63514`) | ① The allowed places are hard-coded: `.office-scratch/` is a vibe-office product folder. ② The sibling-clone default (`<repo>-*`) deletes without asking; downstream it already covers a live runner worktree. Move all places into a project-owned setting with an empty default. ③ The template settings and both `agent-delegation*.json` presets deny `Bash(rm *)` / `Bash(rmdir *)`; deny wins over the hook, so remove them when the guard ships. ④ Drop vibe-office decisions, drive letters and staff wording from §3.4. Register the test in `test/groups.json` and do not put `@ts-expect-error` on its `.mjs` import (`allowJs` makes the directive unused and fails the typecheck). |
 | B2 | CLAUDE.md sharding: legacy ceremonies to `docs/context/legacy-sprint-flow.md`, hook table to `docs/context/hooks.md`, pointer edits in `_common-rules.md`, `orchestration.md`, `vibe-init/phases/phase-3-interview.md`, `re-incarnation.md` (vibe-office `0f5cdd5`) | ① Add both shards to the manifest harness list. ② Keep the nominal-mode sentence (Claude Opus Orchestrator + Codex Generator, Claude not forced as the only Orchestrator) that the downstream cut dropped. ③ Mirror the same principle in AGENTS.md. Size table: vibe-office `docs/plans/harness-upstream-d2.md` §3. |
 | B3 | Claude-session `env` `PYTHONUTF8` / `PYTHONIOENCODING` (vibe-office `23b60c0`) | Harmless on other systems. `env` is in neither `harnessKeys` nor `projectKeys` of the settings merge; decide ownership, then add it as a template default. The UTF-8, `cygpath -w` and long-heredoc notes belong in a guide, not CLAUDE.md. Gap `gap-claude-session-windows-text`. |
-| B4 | Sync silently replaces downstream edits in section-merge harness sections and json-deep-merge harness keys | Raise a conflict for those the way locally changed harness files already do. Gap `gap-sync-silent-hybrid-overwrite`. |
+| B4 | Sync silently replaces downstream edits in section-merge harness sections and json-deep-merge harness keys | Raise a conflict for those the way locally changed harness files already do. Gap `gap-sync-silent-hybrid-overwrite`. Second downstream case: osint-stock-screener carried A1 locally; a sync before A1's release would have reverted its CLAUDE.md wording while its code still judged Claude as Astra (`docs/reports/harness-upstream-handoff-claude-opus-astra-profile.md` there, §4). |
+
+## Shipped in v1.19.0 (osint-stock-screener handoff)
+
+The second downstream project's handoff (osint-stock-screener `docs/reports/harness-upstream-handoff-claude-opus-astra-profile.md`, 2026-10-13) asked for A1 (shipped in v1.18.0) and three upstream decisions:
+
+| Question | Answer in v1.19.0 |
+|---|---|
+| Stale `VIBE_ACTIVE_MODEL` after `/model` | Harness commands cannot see the model Claude Code reports. The statusline now shows `⚠️ VIBE_ACTIVE_MODEL <declared> ≠ <reported>` while they disagree, and the profile guide states the limit. |
+| Strong Claude models without a registry entry (`claude-fable-5-1`) | Not registered without a same-condition comparison; they stay legacy. CLAUDE.md's legacy-model override gate now says it is separate from the harness profile. |
+| Converged files reported as conflicts | `buildSyncPlan` replaces a harness file whose local bytes already equal upstream (`local copy already matches upstream`), with or without sync history. |
+
+Also: `vibe:sync --json` no longer prints the clone and backup log lines to stdout, so the plan parses as JSON.
 
 ## C — stays downstream
 
