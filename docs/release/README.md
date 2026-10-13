@@ -6,6 +6,7 @@ and in version-specific notes.
 
 ## Current
 
+- [v1.18.1](v1.18.1.md) - Template hygiene hotfix (downstream queue document location)
 - [v1.18.0](v1.18.0.md) - Claude Opus 5.5 Astra profile and downstream dogfood fixes
 - [v1.17.1](v1.17.1.md) - zod 4 error-message assertion hotfix
 - [v1.17.0](v1.17.0.md) - zod 4 runtime, nested role-table preservation and contiguous session-log tags
