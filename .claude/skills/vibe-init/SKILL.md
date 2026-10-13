@@ -21,6 +21,17 @@ description: 프로젝트 초기 세팅을 대화형으로 진행합니다. 환�
 The shard files above are mandatory continuation context. They are listed in
 execution order and are covered by `npm run vibe:init-shard-audit`.
 
+## lite 시작 (가벼운 새 저장소)
+
+하네스를 들일 제품이 아니라 하루~며칠짜리 콘텐츠·도구 저장소(예: 여행 일정 페이지)는 Phase 1~4 를 돌리지 않는다.
+인터뷰·로드맵·Sprint 상태·`.vibe/` 없이, `git init` 뒤 첫 커밋 전에 아래 세 파일만 복사해 `{{…}}` 를 채운다.
+
+- `.claude/skills/vibe-init/templates/lite/CLAUDE.template.md` → `CLAUDE.md`(Codex 도 쓰면 같은 내용으로 `AGENTS.md`)
+- `.claude/skills/vibe-init/templates/lite/RULEBOOK.md` → `RULEBOOK.md` — 사용자 피드백에서 온 규칙은 §2 에 쌓는다
+- `.claude/skills/vibe-init/templates/lite/.gitattributes` → `.gitattributes`(줄끝 LF 고정)
+
+일이 커져 Sprint 가 필요해지면 그때 아래 Phase 1 부터 진행한다.
+
 ---
 
 ## Phase 1 — 환경 점검 (doctor)

@@ -60,6 +60,22 @@
               "summary": {
                 "type": "string"
               },
+              "carryover": {
+                "type": "object",
+                "properties": {
+                  "backlogDoc": {
+                    "type": "string"
+                  },
+                  "open": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "additionalProperties": {},
+                "description": "Un-implemented backlog carried into later iterations. Full detail lives in `backlogDoc` (a repo-relative path); `open` is a short headline list the differential interview reads without loading the whole doc."
+              },
               "executionBinding": {
                 "oneOf": [
                   {

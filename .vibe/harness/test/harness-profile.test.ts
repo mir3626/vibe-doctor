@@ -11,7 +11,7 @@ import { resolveGitBashPath } from '../src/lib/shell.js';
 
 const root = process.cwd();
 const dispatcher = path.resolve('.vibe/harness/scripts/vibe-codex-dispatch.mjs');
-const astraEnv = { ...process.env, CODEX_MODEL: 'gpt-6-astra', VIBE_ACTIVE_MODEL: 'gpt-6-astra',
+const astraEnv = { ...process.env, CODEX_MODEL: 'gpt-6-astra', VIBE_ACTIVE_MODEL: 'gpt-6-astra', VIBE_ACTIVE_PROVIDER: 'codex',
   VIBE_HARNESS_PROFILE: '', CODEX_EXTRA_CONFIG: '', CODEX_SANDBOX: 'danger-full-access' };
 
 it('only explicit eligible models get Astra; unknown, aliases and lower tiers retain legacy', () => {
@@ -28,6 +28,27 @@ it('only explicit eligible models get Astra; unknown, aliases and lower tiers re
   const wrongRegistry = { schemaVersion: 1, providers: { codex: { knownModels: { lower: { apiId: 'gpt-5.5', harnessProfile: 'astra' } } } } };
   assert.equal(resolveHarnessProfile({ model: 'gpt-5.5', registry: wrongRegistry }).profile, 'legacy');
   assert.equal(runtimeHarnessProfile({ CODEX_MODEL: 'gpt-6-astra' }).profile, 'legacy');
+});
+
+it('Claude Opus 5.5 gets Astra only through an explicit anthropic registry entry', () => {
+  const registry = { schemaVersion: 1, providers: { anthropic: { knownModels: {
+    opus: { apiId: 'claude-opus-5-5', harnessProfile: 'astra' },
+    oldOpus: { apiId: 'claude-opus-4-6', harnessProfile: 'astra' },
+    sonnet: { apiId: 'claude-sonnet-5', harnessProfile: 'astra' },
+  } } } };
+  for (const provider of ['anthropic', 'claude']) {
+    assert.equal(resolveHarnessProfile({ model: 'claude-opus-5-5', provider, registry }).profile, 'astra', provider);
+    assert.equal(resolveHarnessProfile({ model: 'claude-opus-5-5[1m]', provider, registry }).profile, 'astra', provider);
+  }
+  assert.equal(resolveHarnessProfile({ model: 'claude-opus-5-5', provider: 'anthropic' }).profile, 'legacy');
+  assert.equal(resolveHarnessProfile({ model: 'claude-opus-5-5', provider: 'anthropic', registry, override: 'legacy' }).profile, 'legacy');
+  for (const model of ['claude-opus-4-6', 'claude-sonnet-5', 'claude-haiku-4-5', 'claude-opus-5-5-preview', undefined]) {
+    assert.equal(resolveHarnessProfile({ model, provider: 'anthropic', registry }).profile, 'legacy', String(model));
+  }
+  assert.equal(resolveHarnessProfile({ model: 'claude-opus-5-5', provider: 'codex', registry }).profile, 'legacy');
+  assert.equal(resolveHarnessProfile({ model: 'claude-opus-5-5', provider: 'gemini', registry }).profile, 'legacy');
+  assert.equal(runtimeHarnessProfile({ VIBE_ACTIVE_PROVIDER: 'anthropic', VIBE_ACTIVE_MODEL: 'claude-opus-5-5[1m]' }).profile, 'astra');
+  assert.equal(runtimeHarnessProfile({ VIBE_ACTIVE_MODEL: 'claude-opus-5-5[1m]' }).profile, 'legacy');
 });
 
 it('child arguments and configuration ambiguity cannot inherit or smuggle an Astra profile', () => {

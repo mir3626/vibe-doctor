@@ -124,10 +124,16 @@
     ],
     "PostToolUse": [
       {
-        "matcher": "Edit|Write|MultiEdit",
+        "matcher": "Bash",
         "hooks": [
           {
             "type": "command",
+            "if": "Bash(git add *)",
+            "command": "npm --prefix \"${CLAUDE_PROJECT_DIR}\" run --silent vibe:config-audit -- --hook"
+          },
+          {
+            "type": "command",
+            "if": "Bash(git commit *)",
             "command": "npm --prefix \"${CLAUDE_PROJECT_DIR}\" run --silent vibe:config-audit -- --hook"
           }
         ]

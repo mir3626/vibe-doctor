@@ -474,8 +474,11 @@ describe('verification group manifest and planner', () => {
   it('defaults patch tests to changed groups while keeping explicit full and release checks forced', async () => {
     const packageJson = JSON.parse(
       await readFile(path.resolve('package.json'), 'utf8'),
-    ) as { scripts?: Record<string, string> };
-    assert.equal(packageJson.scripts?.test, 'npm run vibe:self-test');
+    ) as { name?: string; scripts?: Record<string, string> };
+    // `scripts.test` is a project key in the sync manifest; only the template routes it to the harness.
+    if (packageJson.name === 'vibe-doctor') {
+      assert.equal(packageJson.scripts?.test, 'npm run vibe:self-test');
+    }
     assert.match(packageJson.scripts?.['vibe:self-test'] ?? '', /--changed --tests-only$/);
     assert.match(packageJson.scripts?.['vibe:self-test:all'] ?? '', /--all --tests-only --force/);
     assert.match(packageJson.scripts?.['vibe:self-test:smart'] ?? '', /--changed --tests-only/);

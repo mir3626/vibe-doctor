@@ -1,14 +1,26 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 
+// Models that can never be promoted, even when a registry entry claims `harnessProfile: astra`.
+const KNOWN_LOWER = {
+  codex: /^(?:gpt-[0-5](?:[.-]|$)|gpt-6-(?:luna|sol|terra|mini|nano)(?:-|$))/,
+  anthropic: /^claude-(?:(?:opus|sonnet|haiku)-[0-4](?:[.-]|$)|sonnet-|haiku-)/,
+};
+const PROVIDER_ALIASES = { claude: 'anthropic' };
+
 // Eligibility is explicit, never an ordering comparison on a model name.
+// Codex: `gpt-6-astra`, or a registry entry marked astra. Anthropic:
+// only a registry entry marked astra (Claude Opus 5.5); a context-window suffix such as `[1m]` is the same model.
 export function resolveHarnessProfile({ model, provider = 'codex', override, registry } = {}) {
   const requestedModel = typeof model === 'string' && model.trim() ? model.trim() : null;
-  const entry = Object.values(registry?.schemaVersion === 1 ? registry?.providers?.[provider]?.knownModels ?? {} : {})
-    .find((candidate) => candidate && typeof candidate === 'object' && candidate.apiId === requestedModel);
-  const knownLower = /^(?:gpt-[0-5](?:[.-]|$)|gpt-6-(?:luna|sol|terra|mini|nano)(?:-|$))/.test(requestedModel ?? '');
-  const eligible = provider === 'codex' && (requestedModel === 'gpt-6-astra'
-    || (!knownLower && requestedModel !== null && entry?.harnessProfile === 'astra'));
+  const family = PROVIDER_ALIASES[provider] ?? provider;
+  const baseModel = requestedModel?.replace(/\[[^\]]*\]$/, '') ?? null;
+  const entry = Object.values(registry?.schemaVersion === 1 ? registry?.providers?.[family]?.knownModels ?? {} : {})
+    .find((candidate) => candidate && typeof candidate === 'object' && candidate.apiId === baseModel);
+  const knownLower = (KNOWN_LOWER[family] ?? /^/).test(baseModel ?? '');
+  const registered = !knownLower && baseModel !== null && entry?.harnessProfile === 'astra';
+  const eligible = family === 'codex' ? requestedModel === 'gpt-6-astra' || registered
+    : family === 'anthropic' ? registered : false;
   const profile = eligible && override !== 'legacy' ? 'astra' : 'legacy';
   return { profile, requestedModel, effectiveModel: null, effectiveEffort: null,
     reason: override === 'legacy' ? 'explicit-legacy' : eligible ? 'verified-model' : 'lower-or-unknown-model' };

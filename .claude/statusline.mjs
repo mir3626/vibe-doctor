@@ -226,6 +226,31 @@ function getSprintModeStatus(root) {
   return 'partial';
 }
 
+// Astra freezes pendingRisks as legacy state (.vibe/agent/astra-rules.md), so nothing resolves the
+// advisories left there; count only the open audit findings vibe-preflight still fails on.
+async function countOpenRisks(root, pendingRisks, input) {
+  const open = pendingRisks.filter((entry) => entry?.status === 'open').length;
+  try {
+    const harness = new URL('../.vibe/harness/', import.meta.url);
+    const { resolveHarnessProfile } = await import(new URL('src/lib/harness-profile.mjs', harness).href);
+    // Claude Code reports the model it is running; the env claim covers callers without that input.
+    const model = getString(input?.model?.id);
+    const { profile } = resolveHarnessProfile({
+      model: model ?? process.env.VIBE_ACTIVE_MODEL,
+      provider: model ? 'anthropic' : process.env.VIBE_ACTIVE_PROVIDER ?? 'codex',
+      override: process.env.VIBE_HARNESS_PROFILE,
+      registry: readJsonOptional(path.join(root, '.vibe', 'model-registry.json')),
+    });
+    if (profile !== 'astra') {
+      return open;
+    }
+    const { classifyAstraAuditRisks } = await import(new URL('scripts/lib/audit-counter-policy.mjs', harness).href);
+    return classifyAstraAuditRisks(pendingRisks).findings.length;
+  } catch {
+    return open;
+  }
+}
+
 async function main() {
   const root = process.cwd();
   const statusPath = path.join(root, '.vibe', 'agent', 'sprint-status.json');
@@ -244,7 +269,7 @@ async function main() {
       : 'idle';
   const passedCount = sprints.filter((entry) => entry?.status === 'passed').length;
   const totalCount = sprints.length;
-  const openRisks = pendingRisks.filter((entry) => entry?.status === 'open').length;
+  const openRisks = await countOpenRisks(root, pendingRisks, statuslineInput);
   const parts = [`${emojiTarget} ${currentSprintId} (${passedCount}/${totalCount})`];
   const sprintModeStatus = getSprintModeStatus(root);
   if (sprintModeStatus !== 'off') {

@@ -18,6 +18,7 @@ When this skill is invoked in Codex, open the repository-root path and follow:
 Codex notes:
 
 - If `docs/context/product.md` or `.vibe/agent/sprint-status.json` is missing, empty, malformed, or still describes the `vibe-doctor` template, treat this skill as the only allowed workflow before any product or harness maintenance work.
+- A light content or tool repository follows the source's lite start instead (copy the three `templates/lite/` files into a new repository without `.vibe/`); the rule above applies to harness checkouts.
 - Treat Claude-specific UI references as references to the active agent session unless the source explicitly describes Claude-only behavior.
 - Perform Step 1-0 before any bootstrap command. Ask whether this session is `human` or `agent` driven.
 - If the user chooses `human`, run `npm run vibe:init -- --from-agent-skill --mode=human` when the source skill reaches Phase 1-1.

@@ -16,6 +16,7 @@ Sub-agent는 **context checkpoint 메커니즘**이다. 하지만 Orchestrator �
 ## Boot sequence (반드시 이 순서)
 
 새 Orchestrator는 사용자에게 첫 응답을 하기 전에 다음을 기계적으로 수행한다.
+Astra 프로필은 `astra-rules.md` 상태 계약대로 handoff 맨 위 「현재」 절과 프로젝트 큐 문서부터 읽고 4·5번을 건너뛴다.
 
 1. **`CLAUDE.md`** — 역할 제약, 트리거 매트릭스, Sprint 흐름. Claude Code harness가
    시스템 프롬프트에 자동 주입하므로 별도 Read 불필요.
@@ -39,7 +40,7 @@ Sub-agent는 **context checkpoint 메커니즘**이다. 하지만 Orchestrator �
 
 ## Checkpoint 규정 (현재 Orchestrator가 언제 handoff를 갱신하는가)
 
-다음 시점마다 `handoff.md` + `sprint-status.json`의 `handoff` 필드를 동시에 갱신한다.
+다음 시점마다 `handoff.md` + `sprint-status.json`의 `handoff` 필드를 동시에 갱신한다(legacy. Astra 는 handoff 「현재」 절만).
 
 - **Must**: 각 P0/P1 항목 완료 직후, Sprint status 변경 시, 사용자 중요 결정 합의 직후
 - **Must**: `orchestratorContextBudget`이 본인 판단 "medium → high"로 올라갔다고 느낄 때
@@ -60,8 +61,9 @@ Sub-agent는 **context checkpoint 메커니즘**이다. 하지만 Orchestrator �
   작업 중복 시도, tone/language 이탈) 1건 이상 감지 OR 연속 tool call ≥40. → **지금 즉시**
   handoff + session-log 갱신 → 현재 작업을 Generator/Evaluator로 위임해 격리.
 
-PreCompact hook이 동일 규칙을 기계적으로 강제한다 (`.vibe/harness/scripts/vibe-checkpoint.mjs`).
-self-assessment와 hook은 이중 안전망이다.
+PreCompact hook(`.vibe/harness/scripts/vibe-checkpoint.mjs`)은 이 규칙을 강제하지 않는다. git 스냅샷을
+`.vibe/runs/precompact-snapshot.md`(git 무시)에 남기고, 서술이 묵었으면 경고만 한다 — 상태 파일을 고치거나
+압축을 막지 않는다(파일 없음·문서 손상일 때만 막는다). 갱신 책임은 self-assessment 에 있다.
 
 ## Re-incarnation 트리거 (드물지만 명시)
 
@@ -70,8 +72,8 @@ self-assessment와 hook은 이중 안전망이다.
 
 > "handoff.md 갱신 완료. 새 세션에서 `.vibe/agent/handoff.md`부터 읽고 이어가면 됨."
 
-그 외의 경우에는 자발적 재인스턴스화를 사용자에게 권하지 않는다 — 자동 압축이 알아서
-발생한다.
+맥락이 절반 넘게 찬 채로 앞 일과 무관한 큰 일이나 다른 저장소 일을 시작하려 하면, handoff 「현재」 절을
+갱신하고 새 세션을 한 줄로 권한다(결정은 사용자). 그 밖에는 권하지 않는다 — 자동 압축이 알아서 발생한다.
 
 ## 금지 사항
 

@@ -1,6 +1,6 @@
 # Astra harness profile
 
-GPT-6 Astra uses a short execution contract in `.vibe/agent/astra-rules.md`.
+GPT-6 Astra and Claude Opus 5.5 use a short execution contract in `.vibe/agent/astra-rules.md`.
 Lower and unknown models retain the existing prompts and workflow obligations.
 Runtime correctness and test infrastructure improvements are shared by all models.
 This is workflow selection, not a security boundary or proof of model quality.
@@ -17,7 +17,12 @@ node --import tsx .vibe/harness/src/commands/verify.ts --changed
 ```
 
 Do not persist this variable globally. Clear/reselect it on model switches and
-delegation. `VIBE_ACTIVE_PROVIDER` defaults to `codex`; other providers stay legacy.
+delegation. `VIBE_ACTIVE_PROVIDER` defaults to `codex`. A Claude session sets
+`VIBE_ACTIVE_PROVIDER=anthropic` (alias `claude`) with its model, for example in the project's
+git-ignored `.claude/settings.local.json` `env`; Anthropic models are eligible only through a
+registry entry marked astra (`claude-opus-5-5`), a context-window suffix such as `[1m]` names the
+same model, and Claude 4.x and earlier, Sonnet and Haiku are known lower tiers. Other providers stay legacy.
+The statusline reads the model Claude Code reports to it and falls back to these variables.
 The Codex wrapper instead selects its CHILD model from `-m`/`--model`, a model
 configuration override, or `CODEX_MODEL`. It never inherits `VIBE_ACTIVE_MODEL`.
 An ambiguous provider/profile override selects legacy. Default CLI model identity

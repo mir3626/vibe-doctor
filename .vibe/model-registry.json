@@ -1,13 +1,19 @@
 {
   "$schema": "./model-registry.schema.json",
   "schemaVersion": 1,
-  "updatedAt": "2026-09-07T00:00:00.000Z",
+  "updatedAt": "2026-09-25T00:00:00.000Z",
   "source": "vibe-doctor-upstream",
   "providers": {
     "codex": {
-      "tiers": { "flagship": "astra" },
+      "tiers": {
+        "flagship": "astra"
+      },
       "knownModels": {
-        "astra": { "apiId": "gpt-6-astra", "release": "unknown", "harnessProfile": "astra" }
+        "astra": {
+          "apiId": "gpt-6-astra",
+          "release": "unknown",
+          "harnessProfile": "astra"
+        }
       }
     },
     "anthropic": {
@@ -18,8 +24,9 @@
       },
       "knownModels": {
         "opus": {
-          "apiId": "claude-opus-4-6",
-          "release": "2026-04"
+          "apiId": "claude-opus-5-5",
+          "release": "2026-09",
+          "harnessProfile": "astra"
         },
         "sonnet": {
           "apiId": "claude-sonnet-4-6",

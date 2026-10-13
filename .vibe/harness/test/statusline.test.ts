@@ -16,6 +16,10 @@ const settingsPath = path.resolve('.claude', 'settings.json');
 const emojiTarget = '\u{1F3AF}';
 const emojiWarning = '\u26A0\uFE0F';
 const emojiSprint = '\u{1F3C3}';
+// The risk count depends on the harness profile; keep the session's own model claim out of the fixtures.
+const statuslineEnv: NodeJS.ProcessEnv = Object.fromEntries(
+  Object.entries(process.env).filter(([key]) => !['VIBE_ACTIVE_MODEL', 'VIBE_ACTIVE_PROVIDER', 'VIBE_HARNESS_PROFILE'].includes(key)),
+);
 
 function detectWorkingBash(): string | null {
   try {
@@ -83,14 +87,14 @@ async function writeStatus(root: string): Promise<void> {
 async function runBashStatusline(root: string) {
   return execFile(bashCommand ?? 'bash', [bashScriptPath], {
     cwd: root,
-    env: process.env,
+    env: statuslineEnv,
   });
 }
 
-function runNodeStatusline(root: string, input?: string) {
+function runNodeStatusline(root: string, input?: string, envOverride: NodeJS.ProcessEnv = {}) {
   const result = spawnSync(process.execPath, [nodeScriptPath], {
     cwd: root,
-    env: process.env,
+    env: { ...statuslineEnv, ...envOverride },
     input,
     encoding: 'utf8',
   });
@@ -101,7 +105,7 @@ function runNodeStatusline(root: string, input?: string) {
 function runBashStatuslineBytes(root: string, input?: string, envOverride: NodeJS.ProcessEnv = {}): Buffer {
   const result = spawnSync(bashCommand ?? 'bash', [bashScriptPath], {
     cwd: root,
-    env: { ...process.env, ...envOverride },
+    env: { ...statuslineEnv, ...envOverride },
     input,
   });
 
@@ -113,7 +117,7 @@ function runBashStatuslineBytes(root: string, input?: string, envOverride: NodeJ
 async function runPowerShellStatusline(root: string) {
   return execFile('powershell', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', powershellScriptPath], {
     cwd: root,
-    env: process.env,
+    env: statuslineEnv,
   });
 }
 
@@ -124,7 +128,7 @@ describe('statusline wiring', () => {
       hooks?: {
         SessionStart?: Array<{ hooks?: Array<{ command?: string }> }>;
         Notification?: Array<{ matcher?: string; hooks?: Array<{ command?: string }> }>;
-        PostToolUse?: Array<{ hooks?: Array<{ command?: string }> }>;
+        PostToolUse?: Array<{ matcher?: string; hooks?: Array<{ command?: string; if?: string }> }>;
         Stop?: Array<{ hooks?: Array<{ command?: string }> }>;
         PreCompact?: Array<{ hooks?: Array<{ command?: string }> }>;
       };
@@ -146,7 +150,14 @@ describe('statusline wiring', () => {
       assert.equal(entry.hooks?.[0]?.command, 'node "${CLAUDE_PROJECT_DIR}/.vibe/harness/scripts/vibe-attention-notify.mjs" --hook');
       assert.doesNotMatch(entry.hooks?.[0]?.command ?? '', /\/dev\/null|\|\| true/);
     }
-    assert.equal(settings.hooks?.PostToolUse?.[0]?.hooks?.[0]?.command, 'npm --prefix "${CLAUDE_PROJECT_DIR}" run --silent vibe:config-audit -- --hook');
+    // Edit/Write cannot change the tracked file list, so the audit runs
+    // only after the Bash calls that can (git add / git commit), not after every edit.
+    assert.equal(settings.hooks?.PostToolUse?.length, 1);
+    assert.equal(settings.hooks?.PostToolUse?.[0]?.matcher, 'Bash');
+    assert.deepEqual(settings.hooks?.PostToolUse?.[0]?.hooks?.map((hook) => hook.if), ['Bash(git add *)', 'Bash(git commit *)']);
+    for (const hook of settings.hooks?.PostToolUse?.[0]?.hooks ?? []) {
+      assert.equal(hook.command, 'npm --prefix "${CLAUDE_PROJECT_DIR}" run --silent vibe:config-audit -- --hook');
+    }
     assert.equal(settings.hooks?.Stop?.[0]?.hooks?.[0]?.command, 'node "${CLAUDE_PROJECT_DIR}/.vibe/harness/scripts/vibe-stop-qa-gate.mjs" --hook');
     assert.equal(settings.hooks?.PreCompact?.[0]?.hooks?.[0]?.command, 'node "${CLAUDE_PROJECT_DIR}/.vibe/harness/scripts/vibe-checkpoint.mjs" --auto-refresh --precompact-hook');
   });
@@ -185,6 +196,36 @@ describe('statusline.mjs', () => {
     assert.equal(stdout, `${emojiTarget} idle (0/0) | ${emojiWarning} 0`);
   });
 
+  it('counts only open audit findings under Astra, where legacy advisories are never resolved', async () => {
+    const root = await makeTempDir('statusline-astra-risks-');
+    await writeJson(root, path.join('.vibe', 'model-registry.json'), {
+      schemaVersion: 1,
+      providers: { anthropic: { knownModels: { opus: { apiId: 'claude-opus-5-5', harnessProfile: 'astra' } } } },
+    });
+    await writeJson(root, path.join('.vibe', 'agent', 'sprint-status.json'), {
+      handoff: { currentSprintId: 'idle' },
+      sprints: [],
+      pendingRisks: [
+        { id: 'lightweight-audit-sprint-M1', raisedBy: 'vibe-audit-lightweight', targetSprint: '*', status: 'open', level: 'INFO', text: 'app LOC 4321 > 2000' },
+        { id: 'audit-after-sprint-M2', raisedBy: 'vibe-sprint-complete', targetSprint: '*', status: 'open', createdAt: '2026-09-22T00:00:00.000Z', text: 'Evaluator audit due (sprintsSinceLastAudit=5, everyN=5).' },
+        { id: 'audit-finding-a', raisedBy: 'evaluator', targetSprint: '*', status: 'open', text: 'real finding' },
+        { id: 'audit-finding-b', raisedBy: 'evaluator', targetSprint: '*', status: 'resolved', text: 'closed finding' },
+      ],
+    });
+    const input = `${JSON.stringify({ model: { id: 'claude-opus-5-5[1m]' } })}\n`;
+
+    assert.equal(runNodeStatusline(root, input).stdout, `${emojiTarget} idle (0/0) | ${emojiWarning} 1`);
+    assert.equal(runNodeStatusline(root, input, { VIBE_HARNESS_PROFILE: 'legacy' }).stdout, `${emojiTarget} idle (0/0) | ${emojiWarning} 3`);
+    assert.equal(
+      runNodeStatusline(root, `${JSON.stringify({ model: { id: 'claude-sonnet-5-5' } })}\n`).stdout,
+      `${emojiTarget} idle (0/0) | ${emojiWarning} 3`,
+    );
+    assert.equal(
+      runNodeStatusline(root, undefined, { VIBE_ACTIVE_PROVIDER: 'anthropic', VIBE_ACTIVE_MODEL: 'claude-opus-5-5' }).stdout,
+      `${emojiTarget} idle (0/0) | ${emojiWarning} 1`,
+    );
+  });
+
   it('reads Claude usage from redirected stdin by default', async () => {
     const root = await makeTempDir('statusline-node-stdin-');
     await writeStatus(root);
@@ -206,7 +247,7 @@ describe('statusline.mjs', () => {
     await writeText(root, 'transcript.jsonl', JSON.stringify({ message: { usage: { input_tokens: 1500, output_tokens: 500 } } }));
     await writeText(root, 'stdin-ready.mjs', "process.stdin.once('resume', () => process.stdout.write('STDIN_READY\\n'));\n");
     const child = spawn(process.execPath, ['--import', pathToFileURL(path.join(root, 'stdin-ready.mjs')).href, nodeScriptPath], {
-      cwd: root, env: process.env, stdio: ['pipe', 'pipe', 'pipe'],
+      cwd: root, env: statuslineEnv, stdio: ['pipe', 'pipe', 'pipe'],
     });
     t.after(() => child.kill());
     let stdout = '', stderr = '';

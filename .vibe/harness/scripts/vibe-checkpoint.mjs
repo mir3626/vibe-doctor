@@ -3,8 +3,8 @@
 // Usage: node .vibe/harness/scripts/vibe-checkpoint.mjs [--json] [--auto-refresh] [--precompact-hook]
 
 import { execSync } from 'node:child_process';
-import { existsSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
 
 function readHookInput() {
   if (process.stdin.isTTY) {
@@ -47,8 +47,6 @@ const results = [];
 const MAX_HANDOFF_BYTES = Number.parseInt(process.env.VIBE_HANDOFF_MAX_BYTES ?? '', 10) || 96 * 1024;
 const MAX_HANDOFF_LINES = Number.parseInt(process.env.VIBE_HANDOFF_MAX_LINES ?? '', 10) || 1200;
 const MIN_DOC_BYTES = Number.parseInt(process.env.VIBE_DOC_MIN_BYTES ?? '', 10) || 64;
-const AUTO_STATE_START = '<!-- vibe:auto-state:start -->';
-const AUTO_STATE_END = '<!-- vibe:auto-state:end -->';
 const DOC_INTEGRITY_FIXED = ['CLAUDE.md', 'AGENTS.md', 'GEMINI.md', '.vibe/agent/_common-rules.md'];
 
 function record(id, ok, detail) {
@@ -80,6 +78,7 @@ function getLastCommitDate() {
 const handoffPath = resolve('.vibe/agent/handoff.md');
 const sessionLogPath = resolve('.vibe/agent/session-log.md');
 const statusPath = resolve('.vibe/agent/sprint-status.json');
+const snapshotPath = resolve('.vibe/runs/precompact-snapshot.md');
 
 function getHandoffFreshness(status, lastCommit) {
   const updatedAt = parseIso(status?.handoff?.updatedAt);
@@ -97,45 +96,17 @@ function getHandoffFreshness(status, lastCommit) {
 
   return {
     fresh: Boolean(freshByTime || freshByCommit),
-    updatedAt,
+    freshest,
     detail: freshByTime || freshByCommit ? detail : `handoff stale: ${detail}`,
   };
 }
 
-function upsertAutoStateBlock(content, block) {
-  const start = content.indexOf(AUTO_STATE_START);
-  const end = content.indexOf(AUTO_STATE_END);
-  if (start !== -1 && end > start) {
-    return content.slice(0, start) + block + content.slice(end + AUTO_STATE_END.length);
-  }
-
-  const match = content.match(/^# .*$/m);
-  if (match?.index !== undefined) {
-    const at = match.index + match[0].length;
-    return `${content.slice(0, at)}\n\n${block}${content.slice(at)}`;
-  }
-
-  return `${block}\n\n${content}`;
-}
-
+// The snapshot used to be spliced into handoff.md and to bump
+// sprint-status handoff.updatedAt, which left two tracked files dirty after every
+// compaction and made handoff.fresh pass on its own. It now goes to the git-ignored run
+// folder, so tracked state changes only when someone writes the narrative.
 function runAutoRefresh() {
   try {
-    if (!existsSync(handoffPath) || !existsSync(statusPath)) {
-      return;
-    }
-
-    const status = JSON.parse(readFileSync(statusPath, 'utf8'));
-    if (
-      !status
-      || typeof status !== 'object'
-      || Array.isArray(status)
-      || !status.handoff
-      || typeof status.handoff !== 'object'
-      || Array.isArray(status.handoff)
-    ) {
-      return;
-    }
-
     const g = (cmd) => {
       try {
         return sh(cmd);
@@ -147,23 +118,16 @@ function runAutoRefresh() {
       return;
     }
 
-    const lastCommit = getLastCommitDate();
-    const { fresh, updatedAt } = getHandoffFreshness(status, lastCommit);
     const porcelain = g('git status --porcelain').split(/\r?\n/).filter(Boolean);
-    const isOutdated = porcelain.length > 0 || Boolean(lastCommit && updatedAt && lastCommit.getTime() > updatedAt.getTime());
-    if (fresh && !isOutdated) {
-      return;
-    }
-
-    const now = new Date().toISOString();
     const recentCommits = g('git log -5 --format=%h%x09%s')
       .split(/\r?\n/)
       .filter(Boolean)
-      .slice(0, 5)
       .map((line) => `- ${line.replace('\t', ' ')}`);
-    const body = [
-      'Auto-captured git snapshot (PreCompact); not a substitute for the narrative below.',
-      `Captured: ${now}`,
+    const lines = [
+      '# PreCompact git snapshot',
+      '',
+      'Mechanical snapshot only; the narrative lives in .vibe/agent/handoff.md.',
+      `Captured: ${new Date().toISOString()}`,
       `Branch: ${g('git rev-parse --abbrev-ref HEAD') || 'n/a'} @ ${(g('git log -1 --format=%h%x09%s') || 'n/a').replace('\t', ' ')}`,
       `Uncommitted: ${porcelain.length} file(s)`,
       ...porcelain.slice(0, 20).map((line) => `- ${line}`),
@@ -172,13 +136,18 @@ function runAutoRefresh() {
       'Recent commits:',
       ...(recentCommits.length > 0 ? recentCommits : ['- n/a']),
     ];
-    const block = [AUTO_STATE_START, ...body.map((line) => `> ${line}`), AUTO_STATE_END].join('\n');
-
-    writeFileSync(handoffPath, upsertAutoStateBlock(readFileSync(handoffPath, 'utf8'), block), 'utf8');
-    status.handoff.updatedAt = now;
-    writeFileSync(statusPath, `${JSON.stringify(status, null, 2)}\n`, 'utf8');
+    mkdirSync(dirname(snapshotPath), { recursive: true });
+    writeFileSync(snapshotPath, `${lines.join('\n')}\n`, 'utf8');
   } catch {
   }
+}
+
+function describeAge(date) {
+  if (!date) {
+    return 'unknown';
+  }
+  const hours = Math.floor((Date.now() - date.getTime()) / (60 * 60 * 1000));
+  return hours < 48 ? `${hours}h ago` : `${Math.floor(hours / 24)}d ago`;
 }
 
 function getDocIntegrityTargets() {
@@ -222,6 +191,8 @@ record('session-log.exists', existsSync(sessionLogPath), existsSync(sessionLogPa
 
 let status = null;
 let statusOk = false;
+let handoffFreshest = null;
+let sessionLogLastDate = null;
 try {
   if (!existsSync(statusPath)) {
     record('status.exists', false, `missing: ${statusPath}`);
@@ -241,7 +212,8 @@ try {
     record('handoff.fresh', false, 'sprint-status.json unavailable for freshness check');
   } else {
     const lastCommit = getLastCommitDate();
-    const { fresh, detail } = getHandoffFreshness(status, lastCommit);
+    const { fresh, freshest, detail } = getHandoffFreshness(status, lastCommit);
+    handoffFreshest = freshest;
     record('handoff.fresh', fresh, detail);
   }
 } catch (e) {
@@ -307,6 +279,7 @@ try {
     } else {
       const entriesContent = content.slice(entriesIndex);
       const bulletCount = (entriesContent.match(/^- /gm) ?? []).length;
+      sessionLogLastDate = [...entriesContent.matchAll(/^- (\d{4}-\d{2}-\d{2})/gm)].map((m) => m[1]).sort().at(-1) ?? null;
       record('session-log.not-empty', bulletCount > 0, bulletCount > 0 ? `${bulletCount} entries` : 'no bullet entries under ## Entries');
     }
   }
@@ -336,13 +309,23 @@ try {
 const anyFail = results.some((r) => !r.ok);
 
 if (PRECOMPACT_HOOK_MODE) {
-  if (anyFail) {
-    for (const r of results.filter((entry) => !entry.ok)) {
+  // A stale narrative only warns before compaction: blocking a full context helps
+  // nobody. Missing or broken state still blocks, as before.
+  const blocking = results.filter((entry) => !entry.ok && entry.id !== 'handoff.fresh');
+  if (blocking.length > 0) {
+    for (const r of blocking) {
       process.stderr.write(`[FAIL] ${r.id} - ${r.detail}\n`);
     }
     process.stderr.write('Checkpoint blocked - update .vibe/agent/handoff.md + session-log.md then retry.\n');
+    process.exit(2);
   }
-  process.exit(anyFail ? 2 : 0);
+  if (anyFail) {
+    const systemMessage = `[vibe-checkpoint] handoff narrative last updated ${describeAge(handoffFreshest)}; `
+      + `session-log last entry ${sessionLogLastDate ?? 'n/a'}. Compaction continues - refresh the current-state `
+      + 'section of .vibe/agent/handoff.md at the next boundary.';
+    process.stdout.write(`${JSON.stringify({ systemMessage })}\n`);
+  }
+  process.exit(0);
 }
 
 if (JSON_MODE) {

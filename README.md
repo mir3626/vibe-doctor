@@ -10,7 +10,13 @@
 
 ## Latest Highlights
 
-### v1.17.1 (2026-09-22) - zod 4 error-message assertion hotfix
+### v1.18.0 (2026-10-13) - Claude Opus 5.5 Astra profile and downstream dogfood fixes
+
+- Claude Opus 5.5 uses the Astra execution contract through the model registry (`claude-opus-5-5`, `[1m]` is the same model; Claude 4.x and earlier, Sonnet and Haiku stay legacy). The contract now defines restart state and marks sprint-status, iteration-history and pendingRisks as legacy-only.
+- PreCompact writes its git snapshot to git-ignored `.vibe/runs/` instead of tracked handoff state; config-audit runs only after `git add` / `git commit`; the Astra statusline counts only open audit findings; a downstream-only test failure on `scripts.test` is fixed.
+- vibe-init gains a lite start for short-lived repositories, and iteration history accepts an optional `carryover`. See [release notes](docs/release/v1.18.0.md).
+
+### Previous: v1.17.1 (2026-09-22) - zod 4 error-message assertion hotfix
 
 - The Pro roundtrip CLI test that asserted a zod 3 issue message now accepts the zod 4 form, fixing the v1.17.0 CI failure; no runtime change. See [release notes](docs/release/v1.17.1.md).
 
@@ -402,7 +408,7 @@ Root `src/**`, `scripts/**`, `test/**`, `app/**`, `components/**`, and `lib/**` 
 
 ## 버전 / tag 정책
 
-현재 릴리스는 `harnessVersion: 1.17.1` 입니다. 릴리스를 자를 때는 `package.json`, `.vibe/config.json`, release note, tag를 같은 버전으로 맞춥니다.
+현재 릴리스는 `harnessVersion: 1.18.0` 입니다. 릴리스를 자를 때는 `package.json`, `.vibe/config.json`, release note, tag를 같은 버전으로 맞춥니다.
 
 - `harnessVersion` 은 `.vibe/config.json` 과 `package.json` 에 semver로 기록합니다.
 - 각 minor/patch 릴리스는 해당 커밋에 `vMAJOR.MINOR.PATCH` git tag를 붙인 뒤 origin에 push합니다.

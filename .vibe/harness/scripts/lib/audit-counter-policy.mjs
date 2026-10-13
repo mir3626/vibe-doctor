@@ -8,3 +8,12 @@ export function isCounterOnlyAuditRisk(risk) {
   return typeof risk.text === 'string'
     && /^Evaluator audit due \(sprintsSinceLastAudit=\d+, everyN=\d+\)\.$/u.test(risk.text);
 }
+
+// Astra reads pendingRisks only for open `audit-*` records; of those, every record but a
+// counter reminder is a finding that still needs resolution (preflight audit.overdue, statusline).
+export function classifyAstraAuditRisks(pendingRisks) {
+  const open = (Array.isArray(pendingRisks) ? pendingRisks : [])
+    .filter((risk) => risk?.status === 'open' && typeof risk?.id === 'string' && risk.id.startsWith('audit-'));
+  const findings = open.filter((risk) => !isCounterOnlyAuditRisk(risk));
+  return { reminders: open.length - findings.length, findings };
+}

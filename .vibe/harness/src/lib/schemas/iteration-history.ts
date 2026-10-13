@@ -26,6 +26,15 @@ export const IterationEntrySchema = z
     completedSprints: z.array(z.string()),
     milestoneProgress: z.record(z.string(), z.number()),
     summary: z.string(),
+    carryover: z
+      .looseObject({
+        backlogDoc: z.string().optional(),
+        open: z.array(z.string()).optional(),
+      })
+      .describe(
+        'Un-implemented backlog carried into later iterations. Full detail lives in `backlogDoc` (a repo-relative path); `open` is a short headline list the differential interview reads without loading the whole doc.',
+      )
+      .optional(),
     executionBinding: IterationExecutionBindingSchema.optional(),
   })
   .passthrough();

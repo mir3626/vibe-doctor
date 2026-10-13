@@ -1153,12 +1153,11 @@ try {
 
 // 6. product.md existence (Phase 0 gate)
 if (astra) {
-  const { isCounterOnlyAuditRisk } = await import('./lib/audit-counter-policy.mjs');
-  const risks = (sprintStatus?.pendingRisks ?? []).filter((risk) => risk?.status === 'open' && risk?.id?.startsWith('audit-'));
-  const findings = risks.filter((risk) => !isCounterOnlyAuditRisk(risk));
+  const { classifyAstraAuditRisks } = await import('./lib/audit-counter-policy.mjs');
+  const { reminders, findings } = classifyAstraAuditRisks(sprintStatus?.pendingRisks);
   record('audit.overdue', findings.length === 0,
-    `Astra: counter is advisory; ${risks.length - findings.length} preserved counter reminders; ${findings.length} open audit findings require resolution`,
-    findings.length ? 'fail' : risks.length ? 'warn' : 'info');
+    `Astra: counter is advisory; ${reminders} preserved counter reminders; ${findings.length} open audit findings require resolution`,
+    findings.length ? 'fail' : reminders ? 'warn' : 'info');
 } else if (BOOTSTRAP_MODE) {
   record('audit.overdue', true, 'bootstrap mode - audit gate skipped');
 } else if (sprintStatus) {

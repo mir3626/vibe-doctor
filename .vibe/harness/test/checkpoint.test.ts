@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, utimes, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, it } from 'node:test';
@@ -287,55 +287,53 @@ describe('vibe-checkpoint', () => {
   });
 
   describe('--auto-refresh', () => {
-    it('injects an auto-state block and bumps handoff.updatedAt for stale git-backed state', async () => {
-      const root = await makeTempDir('checkpoint-auto-refresh-');
-      const originalUpdatedAt = '2000-01-01T00:00:00.000Z';
-      await writeCheckpointState(root, originalUpdatedAt);
+    // The snapshot must not dirty tracked state or refresh freshness.
+    async function staleGitState(prefix: string): Promise<{ root: string; handoff: string; status: string }> {
+      const root = await makeTempDir(prefix);
+      await writeCheckpointState(root, '2000-01-01T00:00:00.000Z');
+      const old = new Date('2000-01-01T00:00:00.000Z');
+      await utimes(path.join(root, '.vibe', 'agent', 'handoff.md'), old, old);
       runGit(root, ['init']);
       runGit(root, ['config', 'user.email', 'checkpoint@example.test']);
       runGit(root, ['config', 'user.name', 'Checkpoint Test']);
       runGit(root, ['add', '.']);
       runGit(root, ['commit', '-m', 'initial checkpoint state']);
+      return {
+        root,
+        handoff: await readFile(path.join(root, '.vibe', 'agent', 'handoff.md'), 'utf8'),
+        status: await readFile(path.join(root, '.vibe', 'agent', 'sprint-status.json'), 'utf8'),
+      };
+    }
 
-      const result = spawnSync(process.execPath, [checkpointScriptPath, '--auto-refresh'], {
+    it('writes the git snapshot to the ignored run folder and leaves tracked state untouched', async () => {
+      const { root, handoff, status } = await staleGitState('checkpoint-auto-refresh-');
+
+      const result = spawnSync(process.execPath, [checkpointScriptPath, '--auto-refresh', '--json'], {
         cwd: root,
         encoding: 'utf8',
       });
-      const handoff = await readFile(path.join(root, '.vibe', 'agent', 'handoff.md'), 'utf8');
-      const status = JSON.parse(await readFile(path.join(root, '.vibe', 'agent', 'sprint-status.json'), 'utf8')) as {
-        handoff: { updatedAt: string };
-      };
+      const snapshot = await readFile(path.join(root, '.vibe', 'runs', 'precompact-snapshot.md'), 'utf8');
 
-      assert.equal(result.status, 0);
-      assert.match(handoff, /vibe:auto-state:start/);
-      assert.match(handoff, /vibe:auto-state:end/);
-      assert.ok(Date.parse(status.handoff.updatedAt) > Date.parse(originalUpdatedAt));
+      assert.match(snapshot, /^Branch: .+ @ [0-9a-f]+ initial checkpoint state$/m);
+      assert.equal(await readFile(path.join(root, '.vibe', 'agent', 'handoff.md'), 'utf8'), handoff);
+      assert.equal(await readFile(path.join(root, '.vibe', 'agent', 'sprint-status.json'), 'utf8'), status);
+      assert.equal(getRecord(result.stdout, 'handoff.fresh').ok, false);
+      assert.equal(result.status, 1);
     });
 
-    it('replaces the managed block without duplicating markers', async () => {
-      const root = await makeTempDir('checkpoint-auto-refresh-idempotent-');
-      const originalUpdatedAt = '2000-01-01T00:00:00.000Z';
-      await writeCheckpointState(root, originalUpdatedAt);
-      runGit(root, ['init']);
-      runGit(root, ['config', 'user.email', 'checkpoint@example.test']);
-      runGit(root, ['config', 'user.name', 'Checkpoint Test']);
-      runGit(root, ['add', '.']);
-      runGit(root, ['commit', '-m', 'initial checkpoint state']);
+    it('warns instead of blocking compaction when only the narrative is stale', async () => {
+      const { root } = await staleGitState('checkpoint-precompact-stale-');
 
-      const first = spawnSync(process.execPath, [checkpointScriptPath, '--auto-refresh'], {
+      const result = spawnSync(process.execPath, [checkpointScriptPath, '--auto-refresh', '--precompact-hook'], {
         cwd: root,
         encoding: 'utf8',
+        env: { ...process.env, CLAUDE_PROJECT_DIR: root },
       });
-      const second = spawnSync(process.execPath, [checkpointScriptPath, '--auto-refresh'], {
-        cwd: root,
-        encoding: 'utf8',
-      });
-      const handoff = await readFile(path.join(root, '.vibe', 'agent', 'handoff.md'), 'utf8');
+      const output = JSON.parse(result.stdout) as { systemMessage?: string };
 
-      assert.equal(first.status, 0);
-      assert.equal(second.status, 0);
-      assert.equal((handoff.match(/vibe:auto-state:start/g) ?? []).length, 1);
-      assert.equal((handoff.match(/vibe:auto-state:end/g) ?? []).length, 1);
+      assert.equal(result.status, 0);
+      assert.equal(result.stderr, '');
+      assert.match(output.systemMessage ?? '', /handoff narrative last updated \d+d ago; session-log last entry 2026-04-16/);
     });
 
     it('leaves handoff.md unchanged without the opt-in flag', async () => {

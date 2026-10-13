@@ -113,7 +113,7 @@ test('run-agent resolves target-checkout roles and sends the pinned model and ro
   await writeFile(path.join(root, '.vibe/config.json'), JSON.stringify(config));
   await writeFile(path.join(root, '.vibe/model-registry.json'), JSON.stringify(registry));
   await writeFile(path.join(root, 'task.md'), '한글 기획 요청: 승인된 범위만 조사한다.');
-  const env = { ...process.env, VIBE_ACTIVE_MODEL: 'gpt-5.5', VIBE_HARNESS_PROFILE: '',
+  const env = { ...process.env, VIBE_ACTIVE_MODEL: 'gpt-5.5', VIBE_ACTIVE_PROVIDER: 'codex', VIBE_HARNESS_PROFILE: '',
     CODEX_MODEL: '', CODEX_EXTRA_CONFIG: '', VIBE_SKIP_AGENT_SESSION_START: '1', VIBE_DISABLE_ATTENTION: '1' };
   const loader = pathToFileURL(path.join(sourceRoot, 'node_modules/tsx/dist/loader.mjs')).href;
   const cli = path.join(sourceRoot, '.vibe/harness/src/commands/run-agent.ts');

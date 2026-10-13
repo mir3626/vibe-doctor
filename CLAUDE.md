@@ -2,10 +2,12 @@
 # Claude project memory
 
 Model selection applies to this entire Charter and the Extensions below.
-Verified active Codex GPT-6 Astra (or an explicitly registered successor), without
+Verified active Codex GPT-6 Astra or Claude Opus 5.5 (or an explicitly registered
+successor with `harnessProfile: astra` in `.vibe/model-registry.json`), without
 the legacy override, uses `.vibe/agent/astra-rules.md` instead of role, fresh-context,
-LOC, interview and repeated-QA ceremonies. This never promotes a Claude or unknown
-child. Explicit scope, ownership, initialization and evidence remain required.
+LOC, interview and repeated-QA ceremonies. This never promotes a lower or unknown
+child, and a parent's profile never grants eligibility to a child.
+Explicit scope, ownership, initialization and evidence remain required.
 
 Claude 세션에서는 Claude가 nominal 메인 Orchestrator다. 모든 개발은 Sprint 단위로 진행하며, 기본값은 Orchestrator 단독 진행 + self-QA다.
 이 문서는 **nominal harness mode**(Claude Opus 메인 Orchestrator + Codex Generator)를 기준으로 하며, Claude를 유일한 Orchestrator로 강제하지 않는다.
@@ -72,10 +74,11 @@ Soft freeze는 문서 선언이 아니라 Sprint scope gate다.
 5. Status display — human: statusline emoji + 한국어. agent: JSON log line (`{ "sprint": "...", "elapsed": N, "tokens": N }`) — 구현: iter-4+ (defer)
 
 <!-- BEGIN:HARNESS:core-framing -->
-For a verified active GPT-6 Astra model, read `.vibe/agent/astra-rules.md` and use
+For a verified active GPT-6 Astra or Claude Opus 5.5 model, read `.vibe/agent/astra-rules.md` and use
 its execution workflow instead of legacy ceremonies throughout this document. This exception
-never applies by inheritance to Claude, lower, or unknown models. Project rules,
-init, scope, ownership and explicit authorization boundaries remain applicable.
+never applies by inheritance to lower or unknown models (a Claude sub-agent is evaluated by its
+own model). Project rules, init, scope, ownership and explicit authorization boundaries remain
+applicable.
 
 ## 핵심 재프레임 — 왜 sub-agent인가
 
@@ -147,7 +150,7 @@ Orchestrator는 Phase 0 네이티브 인터뷰 (`.vibe/harness/scripts/vibe-inte
 | Sprint 시작 전 | `node .vibe/harness/scripts/vibe-preflight.mjs` | git·deps·provider·product.md·handoff 체크 |
 | Generator 호출 시 | `./.vibe/harness/scripts/run-codex.sh` | `_common-rules.md` 자동 prepend + 명시 참조된 rule/context MD 자동 주입 + UTF-8 + 재시도 |
 | Sprint 완료 시 | `node .vibe/harness/scripts/vibe-sprint-complete.mjs` | sprint-status·handoff·session-log 자동 갱신 + 활성 Pro flow exact-HEAD 누적/최종 보고 gate |
-| Context 압축 전 | `node .vibe/harness/scripts/vibe-checkpoint.mjs --auto-refresh` | handoff stale/outdated(uncommitted 변경 또는 updatedAt 이후 새 커밋) 시 기계적 git 스냅샷(브랜치·HEAD·변경파일·diffstat·최근커밋) 마커 블록 자동 갱신 + `handoff.updatedAt` bump, 이후 freshness/budget/session-log 검증. `--auto-refresh` 미지정 시 검증 전용(기존 동작 불변). 서사(narrative)는 Orchestrator가 작성. first-read 문서(CLAUDE.md·AGENTS.md·GEMINI.md·`_common-rules.md`·docs/context 샤드) `docs.integrity` 체크 포함 — tracked∧exists 문서가 비었거나 64B 미만이면 FAIL, 보고 전용(auto-refresh가 문서를 재작성하지 않음). |
+| Context 압축 전 | `node .vibe/harness/scripts/vibe-checkpoint.mjs --auto-refresh` | 기계적 git 스냅샷(브랜치·HEAD·변경파일·diffstat·최근커밋)을 git 무시 `.vibe/runs/precompact-snapshot.md`에 쓰고(추적 파일·`updatedAt`은 건드리지 않음), freshness/budget/session-log/`docs.integrity`(tracked∧exists first-read 문서가 비었거나 64B 미만이면 FAIL) 검증. 서사(narrative)는 Orchestrator가 작성. |
 | 세션 시작 시 | `node .vibe/harness/scripts/vibe-agent-session-start.mjs --hook` | 일일 lifecycle 이벤트 + 버전/model registry 점검. 동일 `session_id + source`의 60초 내 중복 전달은 원자적으로 1회만 실행하고 source 전환은 보존 |
 | 턴 종료 시 (Stop) | `node .vibe/harness/scripts/vibe-stop-qa-gate.mjs` | sync manifest 기준 하네스 소유 변경만 감지 → detached hidden worker에 `vibe:typecheck` + `vibe:self-test` 예약 후 즉시 반환. 제품 QA는 실행하지 않으며 동일 상태·동시 Stop은 잠금/결과 지문으로 중복 제거 |
 | Sprint 커밋 시 | `node .vibe/harness/scripts/vibe-sprint-commit.mjs` | state 갱신 + auto-stage + 템플릿 커밋 메시지 |
@@ -170,7 +173,7 @@ Orchestrator는 Phase 0 네이티브 인터뷰 (`.vibe/harness/scripts/vibe-inte
 | Audit skip directive | `node .vibe/harness/scripts/vibe-audit-skip-set.mjs` | Sets or clears `.vibe/config.local.json` userDirectives.auditSkippedMode and records a session-log `[decision]` |
 | Codex 호출 실패 시 | `.vibe/harness/scripts/run-codex.sh` + `.vibe/agent/codex-unavailable.flag` | 3회 retry 소진 시 flag touch + stderr CODEX_UNAVAILABLE 블록 출력. Orchestrator 는 flag 존재 시 Generator 위임 대신 사용자 승인 분기 진입. 다음 성공 호출 시 flag auto-remove. |
 
-**원칙**: 스크립트가 FAIL을 반환하면 다음 단계로 진행하지 않는다. Claude Code 훅 명령은 `${CLAUDE_PROJECT_DIR}`에 절대 결합하고 hook mode를 사용한다. hook mode의 정상·skip 결과는 stdout을 비우며, 사용자에게 알려야 하는 비차단 결과만 단일 JSON `systemMessage`로 출력한다. PreCompact 검증 실패는 stdout 없이 exit 2 + stderr로 압축을 막는다. Stop foreground는 하네스 소유 변경 판정과 detached worker 예약만 수행하고 즉시 exit 0 한다. worker는 제품 `vibe:qa` 대신 하네스 `vibe:typecheck`와 `vibe:self-test`만 실행하고, `CLAUDE_PROJECT_DIR`를 제거하며 `VIBE_SKIP_AGENT_SESSION_START=1`을 강제한 hidden child에서 수행한다. 실패 결과는 다음 Stop에서 단 한 번 JSON 알림으로 전달한다. 동일 상태·동시 Stop은 원자적 잠금과 SHA-256 결과 receipt로 중복 제거한다. 동일 SessionStart lifecycle 전달은 `session_id + source` 기준 60초 동안 중복 제거하되 startup/resume/clear/compact 전환은 별도 이벤트로 보존한다. 하네스와 무관한 세션(예: 프로젝트 API/CLI가 같은 repo에서 spawn하는 헤드리스 에이전트)은 spawn 환경에 `VIBE_HARNESS_HOOKS=off`를 설정하면 모든 하네스 훅 진입점(Stop QA·SessionStart·Notification·PostToolUse config-audit·PreCompact checkpoint)이 즉시 exit 0으로 skip된다.
+**원칙**: 스크립트가 FAIL을 반환하면 다음 단계로 진행하지 않는다. Claude Code 훅 명령은 `${CLAUDE_PROJECT_DIR}`에 절대 결합하고 hook mode를 사용한다. hook mode의 정상·skip 결과는 stdout을 비우며, 사용자에게 알려야 하는 비차단 결과만 단일 JSON `systemMessage`로 출력한다. PreCompact는 상태 파일 없음·문서 손상일 때만 stdout 없이 exit 2 + stderr로 압축을 막고, 서술이 묵은 것은 `systemMessage` 경고만 낸다. PostToolUse config-audit는 `git add`/`git commit` Bash 호출 뒤에만 돈다(`if` 조건). Stop foreground는 하네스 소유 변경 판정과 detached worker 예약만 수행하고 즉시 exit 0 한다. worker는 제품 `vibe:qa` 대신 하네스 `vibe:typecheck`와 `vibe:self-test`만 실행하고, `CLAUDE_PROJECT_DIR`를 제거하며 `VIBE_SKIP_AGENT_SESSION_START=1`을 강제한 hidden child에서 수행한다. 실패 결과는 다음 Stop에서 단 한 번 JSON 알림으로 전달한다. 동일 상태·동시 Stop은 원자적 잠금과 SHA-256 결과 receipt로 중복 제거한다. 동일 SessionStart lifecycle 전달은 `session_id + source` 기준 60초 동안 중복 제거하되 startup/resume/clear/compact 전환은 별도 이벤트로 보존한다. 하네스와 무관한 세션(예: 프로젝트 API/CLI가 같은 repo에서 spawn하는 헤드리스 에이전트)은 spawn 환경에 `VIBE_HARNESS_HOOKS=off`를 설정하면 모든 하네스 훅 진입점(Stop QA·SessionStart·Notification·PostToolUse config-audit·PreCompact checkpoint)이 즉시 exit 0으로 skip된다.
 <!-- END:HARNESS:hook-enforcement -->
 
 > **CRITICAL — provider별 호출 방법**:
@@ -230,7 +233,7 @@ Orchestrator는 Phase 0 네이티브 인터뷰 (`.vibe/harness/scripts/vibe-inte
 8. **단일 커밋 원칙 (v1.1.1+)**: `node .vibe/harness/scripts/vibe-sprint-commit.mjs <sprintId> passed [--scope <glob>]` 래퍼가 Generator 산출 파일 + 3종 state 파일(`.vibe/agent/sprint-status.json`, `handoff.md`, `session-log.md`) + 아카이브 prompts 를 **한 git commit** 에 묶어 생성. pending risk 가 열려있으면 거부. LOC 자동 계산.
 9. 다음 Sprint → (1)로 반복. **로드맵 마지막 sprint 완료 시 자동**: `.vibe/harness/scripts/vibe-sprint-complete.mjs` 가 `.vibe/harness/scripts/vibe-project-report.mjs` 호출 → `docs/reports/project-report.html` 생성 + 브라우저 1회 오픈(짧은 시간 내 중복 오픈은 suppress). 이후 추가 개선은 `/vibe-iterate` 로 다음 iteration 진입 (차등 인터뷰 + carryover + iteration-history.json 갱신). `/vibe-iterate` 종료 단계에서 같은 report 명령을 다시 실행하지 않는다.
 
-> Planner / Generator / Evaluator는 Sprint 내에서만 존재하고 Sprint 간 context를 공유하지 않는다. Sprint 간 상태는 `.vibe/agent/sprint-status.json` + `handoff.md` + `session-log.md` 3종으로만 전달하고, **context 압축 직후**에는 작업 전에 먼저 이 세 파일 + 관련 memory shard를 읽어 상태를 복원한다.
+> Planner / Generator / Evaluator는 Sprint 내에서만 존재하고 Sprint 간 context를 공유하지 않는다. Sprint 간 상태는 `.vibe/agent/sprint-status.json` + `handoff.md` + `session-log.md` 3종으로만 전달하고, **context 압축 직후**에는 작업 전에 먼저 이 세 파일 + 관련 memory shard를 읽어 상태를 복원한다(Astra 는 handoff 「현재」 절).
 
 ## Sprint 프롬프트 작성자
 
@@ -245,7 +248,7 @@ Sprint 프롬프트 **본문은 Planner가 작성**한다 (매 Sprint 소환 시
 
 ## Agent 오케스트레이션 레이어 (`.vibe/agent/`)
 
-상태/핸드오프/재인스턴스화 프로토콜 + Sprint 프롬프트 공용 조각. 파일별 역할은 `.vibe/agent/README.md` 참조. 압축 직후 최우선 읽기 대상은 `handoff.md` + `session-log.md` + `sprint-status.json`.
+상태/핸드오프/재인스턴스화 프로토콜 + Sprint 프롬프트 공용 조각. 파일별 역할은 `.vibe/agent/README.md` 참조. 압축 직후 최우선 읽기 대상은 `handoff.md` + `session-log.md` + `sprint-status.json`(legacy. Astra 는 `astra-rules.md` 상태 계약대로 handoff 맨 위 「현재」 절).
 
 ## 관련 스킬
 `/vibe-init`, `/vibe-interview`, `/vibe-iterate`, `/vibe-sync`, `/vibe-sprint-mode`, `/vibe-review`, `/goal-to-plan`, `/self-qa`, `/write-report`, `/maintain-context`, `$vibe-pro-go`.
