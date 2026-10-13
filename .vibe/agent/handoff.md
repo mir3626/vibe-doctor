@@ -1,37 +1,36 @@
 # Orchestrator Handoff — vibe-doctor
 
-<!-- vibe:auto-state:start -->
-> Auto-captured git snapshot (PreCompact); not a substitute for the narrative below.
-> Captured: 2026-09-22T05:24:13.656Z
-> Branch: main @ a95b4d5 fix(harness): release v1.17.1 zod 4 error-message assertion hotfix
-> Uncommitted: 14 file(s)
-> - M .vibe/agent/handoff.md
-> -  M .vibe/agent/session-log.md
-> -  M .vibe/agent/tokens.json
-> - ?? .tmp/
-> - ?? .vibe/archive/handoff-before-review-92-fixes-upstream-2026-09-22.md
-> - ?? docs/plans/astra-harness-implementation.md
-> - ?? docs/prompts/goal-vibe-goal-iterate-pro-decoupling.md
-> - ?? docs/prompts/sprint-stagehand-migration.md
-> - ?? docs/reports/astra-harness-implementation-2026-09-07.md
-> - ?? docs/reports/astra-role-improvements-2026-09-09.md
-> - ?? docs/reports/review-0-2026-09-07.md
-> - ?? docs/reports/review-0-2026-09-09.md
-> - ?? docs/reports/review-92-remediation-2026-09-22.md
-> - ?? docs/reports/vibe-goal-iterate-pro-decoupling-handoff-20260831.md
-> Staged: none; Unstaged: 3 files changed, 13 insertions(+), 5 deletions(-)
-> Recent commits:
-> - a95b4d5 fix(harness): release v1.17.1 zod 4 error-message assertion hotfix
-> - 409e8e8 docs: record v1.17.0 publication and downstream syncs
-> - ac705a4 feat(harness): release v1.17.0 zod 4 runtime and sync/session-log fixes
-> - 5d5743c feat(harness): release v1.16.0 Stagehand browser automation
-> - f8737a5 docs: record v1.15.5 publication and verification
-<!-- vibe:auto-state:end -->
-
 PROJECT NOT INITIALIZED.
 This is the upstream template; downstream product work still requires /vibe-init.
 
-## Current — v1.17.1 published; downstream osint + vibe-office on 1.17.1 / 2026-09-22
+## Current — v1.19.0 published; vibe-office on 1.19.0 / 2026-10-13
+
+- Source: vibe-office dogfooding. After its v1.17.1 sync, vibe-office classified all 34 harness-owned
+  changes it had made (A: general, B: needs generalizing, C: project-only). The user chose no fork:
+  general fixes go upstream as releases. The queue for what remains is
+  `docs/plans/downstream/vibe-office-queue.md` (B1 rm guard, B2 CLAUDE.md sharding, B3 Claude-session
+  env, B4 silent hybrid overwrite on sync).
+- v1.18.0 (commit `7994e38d3d1d2cad220ca3d5f3e0501665af23b8`, tag object `8336e38bcb7090007dc1874bef4ea43626035012`):
+  group A — Claude Opus 5.5 Astra eligibility, astra-rules state contract, PreCompact snapshot to
+  git-ignored `.vibe/runs/`, config-audit only after git add/commit, Astra statusline risk count,
+  downstream `scripts.test` test fix, vibe-init lite start, iteration carryover, harness-gaps rows.
+  Remote CI failed on template hygiene (queue doc at the top of `docs/plans/`; the local release check
+  ran before the file was tracked).
+- v1.18.1 (commit `4a08575de16ea78239879d992e6da948a5666dc0`, tag object `2c3de32f38fa7f03289e877f66382883504b0410`):
+  queue doc moved to `docs/plans/downstream/`; CI green.
+- v1.19.0 (commit `76e5e5fdeb7748b94206445c1333f5b08ccd80bc`, tag object `d08080625d35a25db36c75b05665ac62eb398e5b`):
+  answers the osint-stock-screener handoff (converged sync files are not conflicts, statusline
+  model-switch warning, unregistered strong Claude models stay legacy), `vibe:sync --json` stdout clean,
+  Stagehand ^4.2.1. Forced release verify neutral 626/625/1 skip, Opus 5.5 Astra session 618/616/2 skips,
+  vibe:test-ui 2/2; CI green.
+- Downstream: vibe-office synced to 1.19.0 at `415afaf` with the upstream v1.19.0 sync code from the GitHub
+  tag (14 conflicts merged; CLAUDE.md sharding and the rm-guard PreToolUse hook restored by hand — B4).
+  osint-stock-screener is still on its own A1 copy and has not synced.
+- Pitfalls found: this working tree holds 21 harness files with stale CRLF line endings (the index is LF),
+  so `--from <this checkout>` copies CRLF bytes downstream; sync from the tag instead. Stage every
+  release file before `vibe:verify:release`; template-hygiene checks tracked files only.
+
+## Previous — v1.17.1 published; downstream osint + vibe-office on 1.17.1 / 2026-09-22
 
 - v1.17.1 hotfix published (commit `a95b4d5b5b87634150723de88565ac8eabc3781e`, tag object
   `00299f51903e56947bda187b6f35c7871e0e1781`): v1.17.0 CI failed on one Pro roundtrip CLI test that
