@@ -6,6 +6,7 @@ and in version-specific notes.
 
 ## Current
 
+- [v1.20.0](v1.20.0.md) - Deterministic PowerShell runs (`vibe:ps`)
 - [v1.19.0](v1.19.0.md) - Converged sync files, model-switch warning, JSON-clean sync output and Stagehand 4.2.1
 - [v1.18.1](v1.18.1.md) - Template hygiene hotfix (downstream queue document location)
 - [v1.18.0](v1.18.0.md) - Claude Opus 5.5 Astra profile and downstream dogfood fixes

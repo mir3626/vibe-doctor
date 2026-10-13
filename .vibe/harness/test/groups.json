@@ -115,7 +115,8 @@
         ".vibe/harness/scripts/vibe-preflight.mjs",
         ".vibe/harness/scripts/vibe-rule-audit.mjs",
         ".vibe/harness/scripts/vibe-audit-lightweight.mjs",
-        ".vibe/harness/scripts/vibe-codex-exec.mjs"
+        ".vibe/harness/scripts/vibe-codex-exec.mjs",
+        ".vibe/harness/scripts/vibe-ps.mjs"
       ],
       "impactPatterns": [
         ".vibe/harness/src/commands/doctor.ts",
@@ -134,7 +135,8 @@
         ".vibe/harness/scripts/vibe-preflight.mjs",
         ".vibe/harness/scripts/vibe-rule-audit.mjs",
         ".vibe/harness/scripts/vibe-audit-lightweight.mjs",
-        ".vibe/harness/scripts/vibe-codex-exec.mjs"
+        ".vibe/harness/scripts/vibe-codex-exec.mjs",
+        ".vibe/harness/scripts/vibe-ps.mjs"
       ]
     },
     {
@@ -264,6 +266,7 @@
         ".vibe/harness/test/shell.test.ts",
         ".vibe/harness/test/statusline.test.ts",
         ".vibe/harness/test/stop-qa-gate.test.ts",
+        ".vibe/harness/test/vibe-ps.test.ts",
         ".vibe/harness/test/windows-hide-child-process.test.ts"
       ],
       "inputPatterns": [
@@ -280,7 +283,8 @@
         ".vibe/harness/scripts/vibe-stop-qa-gate.mjs",
         ".vibe/harness/src/lib/shell.ts",
         ".vibe/harness/scripts/vibe-codex-dispatch.mjs",
-        ".vibe/harness/scripts/vibe-codex-exec.mjs"
+        ".vibe/harness/scripts/vibe-codex-exec.mjs",
+        ".vibe/harness/scripts/vibe-ps.mjs"
       ],
       "impactPatterns": [
         ".claude/settings.json",
@@ -296,7 +300,8 @@
         ".vibe/harness/scripts/vibe-stop-qa-gate.mjs",
         ".vibe/harness/src/lib/shell.ts",
         ".vibe/harness/scripts/vibe-codex-dispatch.mjs",
-        ".vibe/harness/scripts/vibe-codex-exec.mjs"
+        ".vibe/harness/scripts/vibe-codex-exec.mjs",
+        ".vibe/harness/scripts/vibe-ps.mjs"
       ]
     },
     {

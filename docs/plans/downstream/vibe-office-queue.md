@@ -41,6 +41,10 @@ The second downstream project's handoff (osint-stock-screener `docs/reports/harn
 
 Also: `vibe:sync --json` no longer prints the clone and backup log lines to stdout, so the plan parses as JSON.
 
+## Shipped in v1.20.0 (vibe-office chairman request)
+
+The chairman asked for PowerShell runs that do not break on quotes, variables, spaces and em dashes (2026-10-13). `vibe-ps.mjs` runs code from a `.ps1` file (or one `-c` string) with every piece of text passed as data, reads the code as UTF-8, and refuses typographic quotes/dashes outside comments before running. Gap `gap-powershell-inline-quoting`.
+
 ## C — stays downstream
 
 - Settings `permissions` drive-root denies (vibe-office `d6cf3df`, `72ab9f8`): project-owned and machine-specific. The only portable lesson: in a rule, a backslash right before `)` escapes it, so the content `rm * C:\` needs the rule text `Bash(rm * C:\\)`, which is `"Bash(rm * C:\\\\)"` in JSON.

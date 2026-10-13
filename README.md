@@ -10,7 +10,11 @@
 
 ## Latest Highlights
 
-### v1.19.0 (2026-10-13) - Converged sync files, model-switch warning and Stagehand 4.2.1
+### v1.20.0 (2026-10-13) - Deterministic PowerShell runs
+
+- `npm run vibe:ps -- <file.ps1> [args...]` runs PowerShell with the code in a file and every piece of text as data (arguments, `--param`, `--param-file`, `--env`), so quotes, `$`, backticks, spaces, typographic quotes/dashes and Korean reach the script unchanged on Windows PowerShell 5.1 and PowerShell 7. The code is read as UTF-8 whether or not it has a BOM, and typographic quotes/dashes outside comments are refused before anything runs. See [release notes](docs/release/v1.20.0.md).
+
+### Previous: v1.19.0 (2026-10-13) - Converged sync files, model-switch warning and Stagehand 4.2.1
 
 - `/vibe-sync` no longer reports a harness file as a conflict when its local bytes already equal the new upstream file, so downstream patches that upstream released sync cleanly. `--json` keeps stdout to the plan.
 - The statusline warns when `VIBE_ACTIVE_MODEL` names a different model than the one Claude Code reports (harness commands keep the declared model's profile until it changes). Unregistered strong Claude models stay legacy until a same-condition comparison registers them. Harness browser tests move to Stagehand 4.2.1. See [release notes](docs/release/v1.19.0.md).
@@ -263,6 +267,7 @@ npm run vibe:roadmap-maintenance       # sprint-roadmap 활성 구간/아카이�
 npm run vibe:pro-go                    # 현재 repo/branch의 최신 Web Pro flow sync + 다음 행동
 npm run vibe:pro-go -- doctor          # bridge/protocol 상태와 Web M0 수동 gate 점검
 npm run vibe:pro-go -- confirm-skip on|off|status  # 발행 확인 skip 디렉티브 (config.local.json, opt-in)
+npm run vibe:ps -- <file.ps1> [args...]  # PowerShell 결정적 실행 (코드는 파일, 데이터는 인자/--param/--env)
 
 # 싱크 / 업그레이드
 npm run vibe:sync -- --dry-run         # 업스트림 plan 미리보기
@@ -316,6 +321,7 @@ Orchestrator 가 주로 호출합니다. 사용자가 직접 쓸 일은 드뭅�
 | `vibe-daily-log.mjs` | 일일 이벤트 타임라인 JSONL (dashboard 백엔드) |
 | `vibe-attention.mjs` / `vibe-attention-notify.mjs` | 사용자 개입 필요 이벤트 → dashboard toast / desktop notification |
 | `vibe-session-started.mjs` | SessionStart 이벤트 기록 |
+| `vibe-ps.mjs` | PowerShell 결정적 실행 — 코드는 `.ps1`/`-c`, 데이터는 인자·`--param`·`--param-file`·`--env`(JSON 으로 env 전달), UTF-8 로 읽기, 타이포그래피 따옴표·대시 거부 |
 | `run-codex.sh` / `run-codex.cmd` | Codex CLI 래퍼 (UTF-8 + retry + `--health` + MD injection diagnostic + auto status-tick + session-start stdin 격리) |
 
 Shared script helpers live under `.vibe/harness/scripts/lib/` and include browser-open handling, dashboard/report templates, interview-engine helpers, and shard-audit utilities.

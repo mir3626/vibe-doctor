@@ -1,7 +1,7 @@
 {
   "name": "vibe-base-claude-code-ts",
   "version": "0.1.0",
-  "harnessVersion": "1.19.0",
+  "harnessVersion": "1.20.0",
   "private": true,
   "type": "module",
   "description": "TypeScript-first base template for Claude Code vibe coding orchestration.",
@@ -52,7 +52,8 @@
     "vibe:dashboard": "node .vibe/harness/scripts/vibe-dashboard.mjs",
     "vibe:session-start": "node .vibe/harness/scripts/vibe-agent-session-start.mjs",
     "vibe:checkpoint": "node .vibe/harness/scripts/vibe-checkpoint.mjs",
-    "vibe:pro-go": "node .vibe/harness/scripts/vibe-pro-go.mjs"
+    "vibe:pro-go": "node .vibe/harness/scripts/vibe-pro-go.mjs",
+    "vibe:ps": "node .vibe/harness/scripts/vibe-ps.mjs"
   },
   "dependencies": {
     "zod": "^4.6.5"
