@@ -3,7 +3,7 @@
 PROJECT NOT INITIALIZED.
 This is the upstream template; downstream product work still requires /vibe-init.
 
-## Current — v1.19.0 published; vibe-office on 1.19.0 / 2026-10-13
+## Current — v1.20.0 published; vibe-office on 1.20.0 / 2026-10-13
 
 - Source: vibe-office dogfooding. After its v1.17.1 sync, vibe-office classified all 34 harness-owned
   changes it had made (A: general, B: needs generalizing, C: project-only). The user chose no fork:
@@ -23,7 +23,14 @@ This is the upstream template; downstream product work still requires /vibe-init
   model-switch warning, unregistered strong Claude models stay legacy), `vibe:sync --json` stdout clean,
   Stagehand ^4.2.1. Forced release verify neutral 626/625/1 skip, Opus 5.5 Astra session 618/616/2 skips,
   vibe:test-ui 2/2; CI green.
-- Downstream: vibe-office synced to 1.19.0 at `415afaf` with the upstream v1.19.0 sync code from the GitHub
+- v1.20.0 (commit `2a5b53ee633f9ec06175e6c6a868819b080f8dc2`, tag object `6873019b61f872e5cd64e80197759bc0d8a1f497`): deterministic
+  PowerShell runs (`vibe:ps`, the user's request from vibe-office): code from a file, data only through env JSON,
+  code read as UTF-8, typographic quotes/dashes outside comments refused with exit 65. Forced release verify
+  neutral 640/639/1 skip, Opus 5.5 Astra session 632/630/2 skips; CI green (verify, astra, windows-contracts).
+  After the tag, `vibe-ps.mjs` was found in the `core` test group's patterns too (an edit-script slip);
+  removed on main, ships with the next release.
+- Downstream: vibe-office synced to 1.20.0 at `42d28c1` (6 conflicts merged; CLAUDE.md sharding and the
+  rm-guard PreToolUse hook restored again — B4). Earlier: vibe-office synced to 1.19.0 at `415afaf` with the upstream v1.19.0 sync code from the GitHub
   tag (14 conflicts merged; CLAUDE.md sharding and the rm-guard PreToolUse hook restored by hand — B4).
   osint-stock-screener is still on its own A1 copy and has not synced.
 - Pitfalls found: this working tree holds 21 harness files with stale CRLF line endings (the index is LF),

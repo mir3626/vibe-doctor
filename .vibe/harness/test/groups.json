@@ -115,8 +115,7 @@
         ".vibe/harness/scripts/vibe-preflight.mjs",
         ".vibe/harness/scripts/vibe-rule-audit.mjs",
         ".vibe/harness/scripts/vibe-audit-lightweight.mjs",
-        ".vibe/harness/scripts/vibe-codex-exec.mjs",
-        ".vibe/harness/scripts/vibe-ps.mjs"
+        ".vibe/harness/scripts/vibe-codex-exec.mjs"
       ],
       "impactPatterns": [
         ".vibe/harness/src/commands/doctor.ts",
@@ -135,8 +134,7 @@
         ".vibe/harness/scripts/vibe-preflight.mjs",
         ".vibe/harness/scripts/vibe-rule-audit.mjs",
         ".vibe/harness/scripts/vibe-audit-lightweight.mjs",
-        ".vibe/harness/scripts/vibe-codex-exec.mjs",
-        ".vibe/harness/scripts/vibe-ps.mjs"
+        ".vibe/harness/scripts/vibe-codex-exec.mjs"
       ]
     },
     {
