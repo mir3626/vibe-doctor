@@ -3,39 +3,40 @@
 PROJECT NOT INITIALIZED.
 This is the upstream template; downstream product work still requires /vibe-init.
 
-## Current — v1.20.1 release and downstream sync in progress / 2026-10-20
+## Current — v1.20.1 released and both downstreams synced / 2026-10-20
 
-- Release base: upstream `main` at `5a12182`, latest published tag `v1.20.0`.
-  The user authorized publishing `v1.20.1` and syncing `vibe-office` plus
-  `osint-stock-screener`, preserving their project-specific work.
-- Changed `C:/Users/Tony/.codex/skills/limit-break/SKILL.md` and
-  `references/domain-playbook.md`: select useful outcome/depth/adjacent methods,
-  connect primary inputs and assumptions to evidence, distinguish measured
-  outcomes from model review, and keep compact proposals free of exemplar quotas.
-- `.vibe/agent/astra-rules.md` now applies deeper evidence planning only to
-  material uncertainty or outcome claims. Known-cause repairs and routine edits
-  retain targeted checks; no new phase, document, reviewer, tool, or approval gate.
-- Verification: `npm run vibe:verify` with the Astra profile passed eight selected
-  groups, including typecheck; 558 tests / 556 pass / 2 test skips / 0 fail.
-  Unrelated Pro roundtrip was not selected. Skill validation and fresh app-server
-  `skills/list` passed: one enabled user skill at the expected path, zero errors.
-- An independent six-case proposal/interpretation check exposed an ambiguous
-  compact-briefing quota; the two quality-gate bullets now explicitly exempt
-  compact proposals. This is instruction validation, not a product-quality A/B.
-- Release metadata is aligned to `1.20.1`; all eight release-owned files are staged.
-  Full forced release verification passed all nine groups: 625 tests / 624 pass /
-  1 conditional skip / 0 fail. Build, Stagehand UI 2/2, tracked wrapper/shard/sync/
-  config audits, checkpoint and encoding checks passed.
-- Next: publish main plus an annotated tag atomically, then sync from that exact
-  tag and verify/push each downstream branch.
-- Preserve Claude's global skill/playbook, explicit-only Codex invocation metadata,
-  the upstream tokens edit and unrelated inputs. `vibe-office` started clean at
-  `a5f9aee`; osint started at `a2e96d08` with existing session-log/sprint-status edits
-  and an untracked owner-decisions JSON. Preserve local hooks and document shards.
-- Evidence and before-copies: `.tmp/ambition-update-20261020/` and
-  `.tmp/release-1.20.1/`. Existing release
-  history remains below; unrelated downstream work remains in
-  `docs/plans/downstream/vibe-office-queue.md`.
+- Published `v1.20.1` at `088bc3284b3c4e6fcb7f4da12542447b4a4cbcf6`;
+  annotated tag object `fba2c268bbef3ad5fdf476ebab4ee3417c885ddb`.
+  Atomic push and exact remote refs verified. Release main and tag CI
+  passed `verify`, `astra` and `windows-contracts` (runs 39379467422 / 39379467205).
+- Codex-only global `limit-break` skill/playbook updated at
+  `C:/Users/Tony/.codex/skills/limit-break/`; validation and fresh discovery passed.
+  Claude's copy and explicit-only invocation metadata were preserved. Compact
+  proposals have no exemplar quota. Interpretation checks are not a quality A/B.
+- Astra evidence planning applies only to material uncertainty or outcome claims.
+  Routine edits and known-cause repairs retain normal checks without a new phase,
+  document, reviewer, tool or approval gate.
+- Local release verification: all nine groups, 625 tests / 624 pass / 1 skip /
+  0 fail; build, UI 2/2, tracked wrapper/shard/sync/config audits and encoding passed.
+- `vibe-office/main` pushed at `2284c8980acaa92f3dce322717c011a7855cbdc6`;
+  Astra verification: nine groups, 624 tests / 619 pass / 5 skips / 0 fail.
+- `osint-stock-screener/improve/post-refactor-all` pushed at
+  `7f8b8d75d4fada9738091e4a9c92a461bb6bff4a`;
+  Astra verification: nine groups, 644 tests / 639 pass / 5 skips / 0 fail.
+- Both downstreams use the exact published guidance and aligned `1.20.1` metadata.
+  Exact origin branch refs, bootstrap, sync audit, checkpoint, encoding and baseline
+  preservation checks passed. Six office conflicts and 21 osint conflicts plus
+  hybrid overrides were retained, including document shards, hooks and providers.
+- Office is clean. Osint's original session-log/sprint-status edits and untracked
+  owner-decisions JSON remain; only our single log entry was staged. Upstream's
+  original tokens edit and unrelated untracked files remain outside this release.
+- New downstream CI runs 39381258586 / 39381284356, like their pre-sync baselines,
+  were blocked before any step by GitHub account payment/spending restrictions.
+  Next external action: resolve that account restriction, then rerun those CIs;
+  product CI was not executed and no billing settings were changed.
+- Evidence/backups: `.tmp/ambition-update-20261020/`, `.tmp/release-1.20.1/`, and
+  each downstream's `.vibe/sync-backup/2026-10-20T06-18-*` or `06-19-*`.
+  Other harness work remains in `docs/plans/downstream/vibe-office-queue.md`.
 
 ## Previous — v1.20.0 published; vibe-office on 1.20.0 / 2026-10-13
 
