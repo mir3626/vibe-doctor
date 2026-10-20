@@ -42,6 +42,17 @@ is the rollback and comparison path. It cannot enable Astra for another model.
   and relevant environment match. Release validation remains full and forced.
   Windows alone does not prohibit builds, tests, installs, schemas, or subprocesses.
   Respect the real sandbox/network/permissions and preserve UTF-8.
+- Use deeper evidence planning only when acceptance depends on a material unverified
+  assumption or an outcome beyond directly specified behavior: for example,
+  root-cause investigation, performance improvement, data/research conclusions,
+  or semantic AI quality. In the existing plan or acceptance criteria, connect
+  primary inputs, the assumption, the method, and a disconfirming or passing
+  observation. Distinguish technical checks from demonstrated task outcomes;
+  model agreement alone does not establish the latter. Report unmeasured outcomes.
+  Routine wording/layout/config edits and known-cause repairs with clear expected
+  results keep their normal targeted checks unless they introduce such a claim.
+  Select by uncertainty and acceptance, not task size. This adds no mandatory
+  phase, document, reviewer, tool, or approval gate.
 - Keep scope tied to the goal. Refactor or remove dead code only when useful to it;
   do not force creative changes, extra commits, or expansion for file size alone.
 - Resolve durable `executionBinding` before ambient Pro state. Standalone remains

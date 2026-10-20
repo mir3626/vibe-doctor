@@ -10,7 +10,11 @@
 
 ## Latest Highlights
 
-### v1.20.0 (2026-10-13) - Deterministic PowerShell runs
+### v1.20.1 (2026-10-20) - Evidence planning where acceptance needs it
+
+- Astra connects primary inputs, material assumptions, methods and observable outcomes when a task's acceptance needs deeper evidence. Routine edits and known-cause repairs keep their usual targeted checks; no extra phase, document, reviewer or approval gate is required. See [release notes](docs/release/v1.20.1.md).
+
+### Previous: v1.20.0 (2026-10-13) - Deterministic PowerShell runs
 
 - `npm run vibe:ps -- <file.ps1> [args...]` runs PowerShell with the code in a file and every piece of text as data (arguments, `--param`, `--param-file`, `--env`), so quotes, `$`, backticks, spaces, typographic quotes/dashes and Korean reach the script unchanged on Windows PowerShell 5.1 and PowerShell 7. The code is read as UTF-8 whether or not it has a BOM, and typographic quotes/dashes outside comments are refused before anything runs. See [release notes](docs/release/v1.20.0.md).
 
@@ -423,7 +427,7 @@ Root `src/**`, `scripts/**`, `test/**`, `app/**`, `components/**`, and `lib/**` 
 
 ## 버전 / tag 정책
 
-현재 릴리스는 `harnessVersion: 1.19.0` 입니다. 릴리스를 자를 때는 `package.json`, `.vibe/config.json`, release note, tag를 같은 버전으로 맞춥니다.
+현재 릴리스는 `harnessVersion: 1.20.1` 입니다. 릴리스를 자를 때는 `package.json`, `.vibe/config.json`, release note, tag를 같은 버전으로 맞춥니다.
 
 - `harnessVersion` 은 `.vibe/config.json` 과 `package.json` 에 semver로 기록합니다.
 - 각 minor/patch 릴리스는 해당 커밋에 `vMAJOR.MINOR.PATCH` git tag를 붙인 뒤 origin에 push합니다.

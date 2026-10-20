@@ -3,7 +3,41 @@
 PROJECT NOT INITIALIZED.
 This is the upstream template; downstream product work still requires /vibe-init.
 
-## Current — v1.20.0 published; vibe-office on 1.20.0 / 2026-10-13
+## Current — v1.20.1 release and downstream sync in progress / 2026-10-20
+
+- Release base: upstream `main` at `5a12182`, latest published tag `v1.20.0`.
+  The user authorized publishing `v1.20.1` and syncing `vibe-office` plus
+  `osint-stock-screener`, preserving their project-specific work.
+- Changed `C:/Users/Tony/.codex/skills/limit-break/SKILL.md` and
+  `references/domain-playbook.md`: select useful outcome/depth/adjacent methods,
+  connect primary inputs and assumptions to evidence, distinguish measured
+  outcomes from model review, and keep compact proposals free of exemplar quotas.
+- `.vibe/agent/astra-rules.md` now applies deeper evidence planning only to
+  material uncertainty or outcome claims. Known-cause repairs and routine edits
+  retain targeted checks; no new phase, document, reviewer, tool, or approval gate.
+- Verification: `npm run vibe:verify` with the Astra profile passed eight selected
+  groups, including typecheck; 558 tests / 556 pass / 2 test skips / 0 fail.
+  Unrelated Pro roundtrip was not selected. Skill validation and fresh app-server
+  `skills/list` passed: one enabled user skill at the expected path, zero errors.
+- An independent six-case proposal/interpretation check exposed an ambiguous
+  compact-briefing quota; the two quality-gate bullets now explicitly exempt
+  compact proposals. This is instruction validation, not a product-quality A/B.
+- Release metadata is aligned to `1.20.1`; all eight release-owned files are staged.
+  Full forced release verification passed all nine groups: 625 tests / 624 pass /
+  1 conditional skip / 0 fail. Build, Stagehand UI 2/2, tracked wrapper/shard/sync/
+  config audits, checkpoint and encoding checks passed.
+- Next: publish main plus an annotated tag atomically, then sync from that exact
+  tag and verify/push each downstream branch.
+- Preserve Claude's global skill/playbook, explicit-only Codex invocation metadata,
+  the upstream tokens edit and unrelated inputs. `vibe-office` started clean at
+  `a5f9aee`; osint started at `a2e96d08` with existing session-log/sprint-status edits
+  and an untracked owner-decisions JSON. Preserve local hooks and document shards.
+- Evidence and before-copies: `.tmp/ambition-update-20261020/` and
+  `.tmp/release-1.20.1/`. Existing release
+  history remains below; unrelated downstream work remains in
+  `docs/plans/downstream/vibe-office-queue.md`.
+
+## Previous — v1.20.0 published; vibe-office on 1.20.0 / 2026-10-13
 
 - Source: vibe-office dogfooding. After its v1.17.1 sync, vibe-office classified all 34 harness-owned
   changes it had made (A: general, B: needs generalizing, C: project-only). The user chose no fork:
