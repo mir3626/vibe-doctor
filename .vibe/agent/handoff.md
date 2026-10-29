@@ -3,29 +3,27 @@
 PROJECT NOT INITIALIZED.
 This is the upstream template; downstream product work still requires /vibe-init.
 
-## Current — v1.21.0 release and vibe-office sync in progress / 2026-10-29
+## Current — v1.21.0 released and vibe-office synced / 2026-10-29
 
-- Release base: upstream `main` at `39c8829` (one commit on `fb192e1`), latest published
-  tag `v1.20.1`. The user authorized committing, releasing `v1.21.0` and syncing
-  `vibe-office`; `osint-stock-screener` is not part of this rollout and stays on 1.20.1.
-- Source: the user's review of upstream-capping prompts in vibe-doctor and vibe-office.
-  These products serve non-developers who may want a quick MVP or a quality-first result,
-  so the caps became one speed-quality pace (`docs/context/orchestration.md` §9) instead
-  of being removed. Problems unrelated to the ceiling were fixed directly: Opus 5.5
-  delegation routing, the owner-facing interview and bundle question, the legacy LOC
-  target and escalation. Approval gates and the human default mode stay (user decision).
-- Release metadata is aligned to `1.21.0`; all six release-owned files are staged. Full
-  forced release verification passed all nine groups: 637 tests / 636 pass / 1 conditional
-  skip / 0 fail. Build, Stagehand UI 2/2, tracked wrapper/shard/sprint-mode/sync/config
-  audits, checkpoint and the UTF-8 check of the 40 changed files passed.
-- Downstream preview: vibe-office's six local-modification conflicts are the v1.20.1 set;
-  `_common-rules.md`, `phase-3-interview.md` and `orchestration.md` merge three-way
-  cleanly (base v1.20.1). Keep its CLAUDE.md shards (add the pace pointer to the
-  sprint-flow shard) and its `hooks.PreToolUse` rm guard after the forced sync.
-- Next: publish main plus an annotated tag atomically, then sync vibe-office from that
-  exact tag, verify it and commit there. vibe-office's own pace lever (office setting,
-  composer, plan card) is committed in that repository separately.
-- Preserve the upstream tokens edit and unrelated untracked inputs.
+- Published `v1.21.0` at `7c288d9a2e4b39de5a53dbe14ba0efe4d11a3051`; annotated tag object
+  `14ae13bb83a21fb2b81622d67181df58d5f84b65`. Atomic push and exact remote refs verified.
+  Release main and tag CI passed `verify`, `astra` and `windows-contracts`
+  (runs 40832363288 / 40832363315).
+- Content (`39c8829`): the speed-quality pace (`docs/context/orchestration.md` §9), Claude
+  Opus 5.5 delegation routing, the owner-facing interview, and the legacy LOC target and
+  escalation fixes. Approval gates and the human default mode stay (user decision).
+- Local release verification: nine groups, 637 tests / 636 pass / 1 skip / 0 fail; build,
+  Stagehand UI 2/2, tracked wrapper/shard/sprint-mode/sync/config audits, checkpoint and
+  UTF-8 checks passed.
+- `vibe-office/main` committed at `aeda9cd` (this sync) on `05757b6` (its own pace lever:
+  office setting, composer choice, plan-card line); not pushed, as the user authorized
+  commit and sync. Astra verification: nine groups, 636 tests / 631 pass / 5 skips /
+  0 fail; bootstrap, sync audit, checkpoint and encoding passed. The three conflicted files
+  this release changes merged three-way; the other three local conflicts, the CLAUDE.md
+  shards (plus one pace pointer), the rm guard and the role configuration were kept.
+- `osint-stock-screener` stays on 1.20.1; it was not part of this rollout.
+- Preserve the upstream tokens edit and unrelated untracked inputs. Other harness work
+  remains in `docs/plans/downstream/vibe-office-queue.md`.
 
 ## Previous — v1.20.1 released and both downstreams synced / 2026-10-20
 
