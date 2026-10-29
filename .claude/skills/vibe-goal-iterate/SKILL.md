@@ -5,7 +5,7 @@ description: Convert a fully settled design into repeated /goal + $vibe-iterate 
 
 # Vibe Goal Iterate
 
-For a verified active GPT-6 Astra model, first read `.vibe/agent/astra-rules.md`.
+For a verified active Astra-profile model (GPT-6 Astra, Claude Opus 5.5, or a registry successor marked `harnessProfile: astra`), first read `.vibe/agent/astra-rules.md`.
 Use that workflow for this skill: act on settled requirements, keep a durable
 queue/design/handoff, and select relevant checks. The legacy role, interview,
 per-item goal, creative, report-opening and repeated-QA ceremonies below do not

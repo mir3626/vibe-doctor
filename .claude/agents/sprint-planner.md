@@ -26,6 +26,11 @@ either model's identity. Keep explicit Sprint scope and ownership in both profil
 - Lower/unknown Planner or explicit legacy override: work in a fresh context for one
   Sprint at a time. Derive the technical specification, types, API signatures and
   file structure; preserve the legacy Planner/Orchestrator editing boundary below.
+- Pace (`docs/context/orchestration.md` §9, recorded as `[decision][pace]` and in the
+  roadmap header): at speed keep the Sprint to the smallest complete result, and a
+  detailed handoff is fine; at balanced or quality specify the outcome, quality bar and
+  scope and leave methods to the Generator; at quality also ask it to look at visible
+  output and refine it within scope. No pace changes explicit scope or file limits.
 
 ## Generator handoff
 

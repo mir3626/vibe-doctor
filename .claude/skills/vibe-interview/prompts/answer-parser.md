@@ -10,7 +10,8 @@ Context:
 - User answer: `{{USER_ANSWER}}`
 
 Rules:
-- If the answer says 모름, 미정, 나중에, 확실하지 않음, pass, not sure, don't know, or clear language-equivalent uncertainty, mark the affected entry as `"deferred": true` and set `"value": ""`.
+- If a question in `{{LAST_QUESTIONS}}` offered a recommended option (marked `(추천)` / `(recommended)`) and the answer accepts it or hands the choice back (추천해줘, 추천대로, 알아서, 좋아, 모름, 미정, 확실하지 않음, don't know, clear language-equivalents), record that recommended option as the value with `"deferred": false` and confidence 0.6, and say in `rationale` that the owner accepted the recommendation. The owner can change it later.
+- Otherwise, if the answer says 모름, 미정, 나중에, 확실하지 않음, pass, not sure, don't know, or clear language-equivalent uncertainty, mark the affected entry as `"deferred": true` and set `"value": ""`. An explicit "나중에 정할게" stays deferred even when a recommendation was offered.
 - `confidence` must be between 0 and 1 and represent how clearly the answer addressed that sub-field.
 - `cross_dimension_signals` is optional. Use it only when the answer clearly leaks useful coverage into another dimension.
 - `cross_dimension_signals` may contain at most 3 entries.

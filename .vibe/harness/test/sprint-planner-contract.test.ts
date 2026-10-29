@@ -41,4 +41,24 @@ describe('sprint-planner contract', () => {
     assert.match(orchestration, /Sprint Contract/);
     assert.match(orchestration, /proof predicates.*public contract/i);
   });
+
+  it('keeps one speed-quality pace rule that the planner, generators and roadmap steps point to', async () => {
+    const orchestration = await readFile('docs/context/orchestration.md', 'utf8');
+    const rule = orchestration.split('## 9. 속도와 품질 (pace)')[1] ?? '';
+    for (const signal of [/이번 요청의 말/, /`pace`/, /reasoning effort/, /legacy면 speed/, /\[decision\]\[pace\]/, /범위·파일 경계·검증·권한 규칙을 바꾸지 않는다/]) {
+      assert.match(rule, signal);
+    }
+    const pointers = [
+      'CLAUDE.md',
+      'AGENTS.md',
+      '.claude/agents/sprint-planner.md',
+      '.vibe/agent/_common-rules.md',
+      '.claude/templates/agent-delegation-legacy.md',
+      '.claude/skills/vibe-init/phases/phase-3-interview.md',
+    ];
+    for (const file of pointers) {
+      assert.match(await readFile(file, 'utf8'), /orchestration\.md` §9/, file);
+    }
+    assert.match(await readFile('.vibe/agent/astra-rules.md', 'utf8'), /orchestration\.md`\s+section 9/);
+  });
 });

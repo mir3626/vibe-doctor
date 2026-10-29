@@ -23,7 +23,9 @@ rendered delegation prompt. Keep current user authorization authoritative.
      MVP 구현 산출물을 만들거나 수정하지 않는다.
    - 통과하면 `.vibe/agent/session-log.md` 에 `[decision][init-ready-gate] passed before MVP work`
      한 줄을 기록한다.
-3. Sprint 로드맵은 **MVP 수준 3~5 sprint 이내**. 각 Sprint 목표 <500 LOC 지향.
+3. Sprint 로드맵 크기는 속도와 품질(pace, `docs/context/orchestration.md` §9)을 따른다 — speed(legacy 기본)면
+   **MVP 수준 3~5 sprint 이내**, balanced·quality면 사용자 가치 단위로 필요한 만큼. 어느 쪽이든 Sprint 범위는
+   LOC 같은 수량 상한이 아니라 사용자 가치와 검증 가능한 품질 기준으로 자른다 (CLAUDE.md의 product 수량 상한 금지 규칙).
 4. 각 Sprint 시작 전 trivial exception 3 조건 자기 평가:
    - 직전 Sprint 패턴 그대로 계승
    - 아키텍처 결정 없음
@@ -68,8 +70,11 @@ rendered delegation prompt. Keep current user authorization authoritative.
 
 ## Escalation
 
-- Sprint 2 회 연속 불합격 → 사용자 에스컬레이션 (스펙 축소 / 기술 스택 변경 / 수동 개입
-  중 선택). agent 혼자 판단으로 스펙 변경 금지.
+- Sprint 2 회 연속 불합격 → 먼저 원인을 진단하고, 접근 방식이나 기술 스택 변경처럼 기술적인 해법은
+  agent 가 정해 다시 시도한 뒤 Final report 에 기록한다. 그래도 막히면 사용자에게 쉬운 말로 알리고,
+  스펙 축소처럼 사용자가 받을 결과가 바뀌는 선택이나 수동 개입만 묻는다. agent 혼자 판단으로 스펙을
+  줄이지 않는다.
 - Codex sandbox 밖 검증 실패 (tsc / test 지속 fail) → 3 회 재위임 후에도 해결 안 되면
   에스컬레이션.
-- 기타 ambiguity → Final report Deviations 에 기록 + 사용자 에스컬레이션.
+- 기타 ambiguity → 사용자 의도에 가장 맞는 쪽으로 정하고 Final report Deviations 에 기록한다.
+  사용자만 답할 수 있는 사실이나 취향일 때만 사용자에게 묻는다.

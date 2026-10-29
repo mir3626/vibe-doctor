@@ -39,7 +39,7 @@ Narrow exception: if the user explicitly asks for `/vibe-review` or a harness/te
 - Planner의 스펙과 체크리스트 범위를 벗어나지 않는다.
 - 구현 방법(HOW)은 너의 재량이다 — 기술 스택, 디자인 패턴, 파일 구조를 자유롭게 선택한다.
 - 체크리스트의 각 항목을 만족하는 코드를 생성한다.
-- 코드 변경은 최소 범위로 한다.
+- 코드 변경은 체크리스트 범위 안에서 한다. 속도와 품질(pace, `docs/context/orchestration.md` §9)이 speed면 최소 변경으로, quality면 범위 안에서 목표를 가장 잘 이루는 변경으로 한다.
 - 테스트 가능성을 높이는 방향을 우선한다.
 - Astra는 승인된 범위의 구현 방법을 조사하여 결정하고, 범위·결과·권한을 바꾸는 중요한 미결정 사항만 상위 Orchestrator에게 질문한다. Legacy는 불확실한 설계 판단을 에스컬레이션한다.
 - 구현이 끝나면 변경 파일, 테스트 포인트, 리스크를 짧게 남긴다.

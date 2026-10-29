@@ -55,6 +55,11 @@ is the rollback and comparison path. It cannot enable Astra for another model.
   phase, document, reviewer, tool, or approval gate.
 - Keep scope tied to the goal. Refactor or remove dead code only when useful to it;
   do not force creative changes, extra commits, or expansion for file size alone.
+- Follow the request's pace (speed, balanced or quality; `docs/context/orchestration.md`
+  section 9, recorded as `[decision][pace]`): speed delivers the smallest complete result
+  and lists the rest; balanced fills the request and settles open points by its goal;
+  quality aims at the goal at its best and refines visible output after looking at it.
+  No pace widens explicit scope, file limits or authorization.
 - Resolve durable `executionBinding` before ambient Pro state. Standalone remains
   standalone; a Pro binding selects exactly its flow. Missing legacy/corrupt
   binding needs an explicit resolution, never silent attachment to ACTIVE.json.

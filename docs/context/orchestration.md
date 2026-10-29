@@ -207,8 +207,10 @@ Evaluator 소환 (Tribunal)
   ├─ 스펙 문제 → Planner 재소환 → 체크리스트 수정 → Sprint 재실행
   └─ 구현 문제 → Generator 재위임 (구체 수정 지시)
   ↓
-2회 연속 불합격 → 사용자 에스컬레이션
-  (스펙 축소 / 기술 스택 변경 / 수동 개입 중 선택)
+2회 연속 불합격 → 원인 진단, 기술적 해법(접근·기술 스택 변경)은 Orchestrator가 정해 재시도·기록
+  ↓
+그래도 막히면 사용자 에스컬레이션 — 쉬운 말로, 결과가 바뀌는 선택만
+  (스펙 축소 / 수동 개입 중 선택)
   ↓
 최종 결과 + 사유 → docs/reports/에 기록
 ```
@@ -236,3 +238,14 @@ Evaluator 소환 (Tribunal)
 - **`.vibe/harness/scripts/vibe-preflight.mjs`** — 파일 존재 체크 (향후 code 확장 예정)
 
 업데이트 시: 이 문서와 CLAUDE.md의 매트릭스가 서로 모순되지 않도록 동시 수정한다. 모순 발견 시 `docs/context/orchestration.md`가 우선.
+
+## 9. 속도와 품질 (pace)
+
+비개발자의 요청은 빠른 MVP일 수도, 품질이 먼저인 결과일 수도 있다. 요청마다 「빠르게(speed) · 균형(balanced) · 품질 우선(quality)」 중 하나로 진행한다.
+
+- 정하는 순서: ① 이번 요청의 말 — "일단·빨리·간단히·MVP·프로토타입·초안"은 speed, "제대로·출시용·완성도·퀄리티·공들여"는 quality ② `.vibe/config.json`의 `pace`(없거나 `auto`면 건너뜀) ③ 사용자가 정한 reasoning effort를 알 수 있으면 low·medium → speed, max → quality ④ 모델 프로필이 legacy면 speed ⑤ 그 밖에는 balanced.
+- 따로 묻지 않는다. 정한 값과 근거 한 줄을 `session-log.md`에 `[decision][pace]`로, Sprint 로드맵 머리말에 「속도와 품질: …」로 적고 보고에 밝힌다. 사용자가 바꾸면 그 값을 따른다. 새 iteration이나 새 요청마다 다시 정한다.
+- speed: MVP 범위 — 로드맵은 3~5 Sprint, Planner가 파일·타입·시그니처까지 정해 Generator가 바로 쓰게 하고, 최소 변경으로 끝낸다. 더 할 것은 보고에 남긴다.
+- balanced: 요청을 빠짐없이 — Sprint 수는 사용자 가치 단위로 필요한 만큼, Planner는 의도·품질 기준·범위를 정하고 방법은 Generator가 고른다. 정해지지 않은 부분은 목표에 맞게 판단한다.
+- quality: balanced에 더해 목표를 가장 잘 이루는 결과를 겨눈다 — 화면·출력처럼 눈으로 판단하는 결과는 직접 보고 다듬고, 범위 안에서 가장 좋은 변경을 한다.
+- 어떤 pace도 사용자가 정한 범위·파일 경계·검증·권한 규칙을 바꾸지 않는다.

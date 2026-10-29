@@ -3,7 +3,7 @@ name: self-qa
 description: Run or design verification before declaring a task complete.
 ---
 
-For a verified active GPT-6 Astra model, use `.vibe/agent/astra-rules.md`
+For a verified active Astra-profile model (GPT-6 Astra, Claude Opus 5.5, or a registry successor marked `harnessProfile: astra`), use `.vibe/agent/astra-rules.md`
 unless the legacy comparison/rollback profile was explicitly selected. It replaces
 mandatory role, interview, per-item goal, creative and repeated-QA ceremonies in
 this runbook. Keep the concrete initialization, state, ownership and authorization

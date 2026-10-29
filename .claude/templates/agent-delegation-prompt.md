@@ -13,10 +13,11 @@ The sender's active model is not evidence of the receiver's model.
 수신 세션 자신의 확인된 모델로 선택한다. 이 프롬프트를 생성한 부모의 모델,
 환경 변수나 역할 이름만으로 Astra를 선택하지 않는다.
 
-- active Codex 모델이 `gpt-6-astra` 또는 registry에서 명시적으로 검증된
-  Astra successor이고 legacy override가 없으면 `.vibe/agent/astra-rules.md`를 따른다.
+- active 모델이 Astra 프로필(Codex `gpt-6-astra`, Claude `claude-opus-5-5`와 그 컨텍스트 창
+  변형, 또는 registry에서 `harnessProfile: astra`로 명시적으로 검증된 successor)이고 legacy
+  override가 없으면 `.vibe/agent/astra-rules.md`를 따른다.
   확정된 요구사항에서 자율 진행하고, 역할 분리와 독립 검토는 필요한 경우 선택한다.
-- lower/unknown 모델, Claude runtime 또는 explicit legacy override이면
+- lower/unknown 모델 또는 explicit legacy override이면
   `.claude/templates/agent-delegation-legacy.md`를 읽고 기존 절차를 따른다.
 - 모델 전환과 각 자식 호출에서 다시 선택한다. child 모델은 실제 호출에 명시하고,
   requested 값과 확인되지 않은 effective 값을 구분한다.

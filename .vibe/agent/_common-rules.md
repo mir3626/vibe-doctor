@@ -139,7 +139,7 @@ Short markdown으로 아래 섹션을 순서대로 포함:
 
 ## 10. Sprint 프롬프트 작성자 경계 (Planner 책임)
 
-Sprint 프롬프트 **본문은 Planner가 작성**한다. 즉 `docs/prompts/sprint-NN-*.md` 의 "생성할 파일 / 수정할 파일 / 타입 정의 / 함수 시그니처 / 동작 규약 / 테스트 요구사항 / 완료 체크리스트" 섹션은 매 Sprint 시작 시 소환된 Planner subagent의 fresh context 산출물이다.
+Sprint 프롬프트 **본문은 Planner가 작성**한다. 즉 `docs/prompts/sprint-NN-*.md` 의 "생성할 파일 / 수정할 파일 / 타입 정의 / 함수 시그니처 / 동작 규약 / 테스트 요구사항 / 완료 체크리스트" 섹션은 매 Sprint 시작 시 소환된 Planner subagent의 fresh context 산출물이다. 속도와 품질(pace, `docs/context/orchestration.md` §9)이 speed면 이 섹션들을 세부까지 정해 Generator가 바로 쓰게 하고, balanced·quality면 함수 시그니처·내부 구현은 권장으로만 적고 의도·품질 기준·범위·검증을 계약으로 쓴다.
 
 Orchestrator가 허용되는 **메타 편집** 범위 (본문 재작성 X):
 - scope expansion 헤더 prepend (예: `# SCOPE EXPANSION: aria-label 체크리스트 커버리지를 위해 ... 추가 허용` 한 블록)

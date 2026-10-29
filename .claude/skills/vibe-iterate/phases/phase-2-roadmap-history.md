@@ -8,6 +8,9 @@ new iteration goals. Write the new current section to
 ## Iteration iter-<N>
 ```
 
+Decide this iteration's pace again from the new request (`docs/context/orchestration.md`
+section 9), log it as `[decision][pace]`, and put it under the heading as one line.
+
 Never delete existing roadmap content unless it has first been archived under
 `docs/plans/archive/roadmaps/<iter-id>.md`. The active roadmap file should hold
 only the current iteration plus the current-sprint pointer block.

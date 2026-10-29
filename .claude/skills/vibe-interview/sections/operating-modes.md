@@ -14,5 +14,6 @@
 ## "I don't know" / "미정" Handling
 
 - Pass the answer text exactly as spoken or inferred.
-- The parser prompt maps uncertainty to `deferred` sub-fields.
+- When the question offered a recommended option, the parser records "추천해줘 / 알아서 / 모름" as accepting it; the owner isn't expected to know expert answers.
+- Otherwise the parser maps uncertainty to `deferred` sub-fields.
 - The engine does not stop on deferred answers. It keeps probing adjacent dimensions until termination criteria are met.

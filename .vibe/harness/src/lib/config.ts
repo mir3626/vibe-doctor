@@ -72,6 +72,11 @@ export interface VibeConfig {
   bundle?: BundleConfig;
   browserSmoke?: BrowserSmokeConfig;
   audit?: AuditConfig;
+  /**
+   * The project's standing speed↔quality pace (`docs/context/orchestration.md` §9). Absent or `auto`: each request's
+   * words, the user's effort and the model profile decide; a request's own words still override a standing value.
+   */
+  pace?: 'auto' | 'speed' | 'balanced' | 'quality';
 }
 
 export type VibeConfigOverride = Partial<

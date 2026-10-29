@@ -711,7 +711,7 @@ async function customizeUtilityPolicy(rl: readline.Interface): Promise<void> {
 
   const policyAnswer = await ask(
     rl,
-    '  번들 크기 검증 정책을 선택해주세요. [automatic]\n  선택지: automatic / custom / off\n  > ',
+    '  번들 크기(앱이 처음 열릴 때 내려받는 양) 검증 정책을 선택해주세요. [automatic — 추천]\n  선택지: automatic / custom / off\n  > ',
   );
   const policy = parseBundlePolicyAnswer(policyAnswer);
   const sharedConfig = (await fileExists(paths.sharedConfig))

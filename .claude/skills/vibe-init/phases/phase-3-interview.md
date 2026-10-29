@@ -21,7 +21,8 @@ Phase 3 인터뷰는 `.vibe/harness/scripts/vibe-interview.mjs`만 사용합니�
 
 - `vibe-interview`는 10개 핵심 dimension을 backbone으로 삼고, 다음 질문은 Orchestrator LLM이 생성합니다.
 - 각 라운드는 누락 coverage와 모호도가 높은 dimension을 중심으로 1-3개의 질문을 만듭니다.
-- 사용자가 "모름 / 미정 / 추천해줘"라고 답하면 해당 sub-field를 deferred로 기록하고, 다음 우선순위 dimension으로 넘어갑니다.
+- 질문은 개발자도 분야 전문가도 아닌 사용자를 기준으로 씁니다. 기술·분야 결정은 Orchestrator가 내리고, 결과가 사용자에게 돌아가는 것(비용, 속도, 사용자가 느낄 차이)만 쉬운 말로 추천안과 함께 묻습니다.
+- 추천안이 있던 질문에 사용자가 "모름 / 미정 / 추천해줘 / 알아서"라고 답하면 추천안을 채택한 것으로 기록합니다(나중에 바꿀 수 있음). 추천안이 없던 질문(사용자만 아는 사실)이나 "나중에 정할게"만 deferred로 기록하고, 다음 우선순위 dimension으로 넘어갑니다.
 - 종료 조건은 다음 중 하나입니다.
   - ambiguity <= 0.2
   - roundNumber > maxRounds
@@ -114,16 +115,15 @@ Decision flow:
   - browser/frontend app: set `bundle.enabled = true` with an agent-selected budget.
   - canvas/WebGL/Three.js/game or other asset-heavy frontend: either set a project-appropriate custom budget or set `bundle.enabled = false` only with rationale and replacement evidence.
   - non-frontend project: leave `bundle.enabled = false` with rationale that bundle gate is not applicable.
-- Manual mode: ask exactly these questions
+- Manual mode: ask only question 1, with the plain-language note, and question 2 only when the user chose custom. Decide browser smoke yourself from `platform` (a browser UI turns it on) and state the decision; don't ask it.
 
 ```
-1) 번들 크기 검증 정책을 어떻게 둘까요? [automatic]
+1) 번들 크기(앱이 처음 열릴 때 내려받는 양) 검증을 어떻게 둘까요? 잘 모르면 그냥 넘어가세요. [automatic (추천)]
    choices: automatic / custom / off
-   - automatic: 인터뷰 이후 에이전트가 프로젝트 유형에 따라 켜거나 끄고 rationale을 남김
-   - custom: 사용자가 gzip budget을 입력
-   - off: 끄되 rationale + replacement evidence 필요
+   - automatic (추천): 인터뷰 이후 에이전트가 프로젝트 유형에 맞춰 켜거나 끄고 이유를 남김
+   - custom: 사용자가 gzip budget을 직접 입력
+   - off: 끄되 이유와 대체 검증 근거 필요
 2) custom이면 gzip budget KB를 입력해주세요. 예: 250KB [80]
-3) 브라우저 UI 가 있어 smoke 검증을 활성화할까요? [y/N]
 ```
 
 If the user answer is unclear, missing, "모름", "미정", "추천해줘", "default", or equivalent, record `bundle.policy = "automatic"`.
@@ -197,14 +197,17 @@ Step 3-4 의 context shard 작성 직후, Orchestrator 가 **product 맥락을 �
 절차:
 
 1. 입력: `docs/context/product.md` + `docs/context/architecture.md` + 인터뷰 seed
-2. 산출: `docs/plans/sprint-roadmap.md` 에 Iteration 1 섹션 작성
-3. 각 Sprint 항목은 `{id, name, 한 줄 목표, 의존, 예상 LOC}` 형태
-4. N 은 프로젝트 규모에 따라 3~10 개 권장. 너무 많은 Sprint 는 재평가 필요.
+2. 속도와 품질(pace)을 `docs/context/orchestration.md` §9 순서로 정해 `session-log.md`에 `[decision][pace]` 한 줄로 남긴다. 사용자에게 따로 묻지 않는다.
+3. 산출: `docs/plans/sprint-roadmap.md` 에 Iteration 1 섹션 작성 (머리말에 「속도와 품질: …」 한 줄)
+4. 각 Sprint 항목은 `{id, name, 한 줄 목표, 의존, 예상 LOC}` 형태
+5. N 은 pace 와 프로젝트 규모로 정한다 — speed 면 3~5 개(MVP), balanced·quality 면 사용자 가치 단위로 필요한 만큼(보통 3~10 개). 너무 많은 Sprint 는 재평가 필요.
 
 포맷 예시:
 
 ```md
 # Iteration 1 — <project-slug> (v0.1.0)
+
+속도와 품질: <빠르게|균형|품질 우선> — <근거 한 줄>
 
 ## Sprint M1 — <one-line-goal>
 - id: sprint-M1-<slug>
