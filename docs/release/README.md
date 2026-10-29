@@ -6,6 +6,7 @@ and in version-specific notes.
 
 ## Current
 
+- [v1.21.0](v1.21.0.md) - Speed-quality pace, Opus 5.5 delegation routing and an owner-facing interview
 - [v1.20.1](v1.20.1.md) - Evidence planning where acceptance needs it
 - [v1.20.0](v1.20.0.md) - Deterministic PowerShell runs (`vibe:ps`)
 - [v1.19.0](v1.19.0.md) - Converged sync files, model-switch warning, JSON-clean sync output and Stagehand 4.2.1

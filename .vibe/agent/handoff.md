@@ -3,7 +3,31 @@
 PROJECT NOT INITIALIZED.
 This is the upstream template; downstream product work still requires /vibe-init.
 
-## Current — v1.20.1 released and both downstreams synced / 2026-10-20
+## Current — v1.21.0 release and vibe-office sync in progress / 2026-10-29
+
+- Release base: upstream `main` at `39c8829` (one commit on `fb192e1`), latest published
+  tag `v1.20.1`. The user authorized committing, releasing `v1.21.0` and syncing
+  `vibe-office`; `osint-stock-screener` is not part of this rollout and stays on 1.20.1.
+- Source: the user's review of upstream-capping prompts in vibe-doctor and vibe-office.
+  These products serve non-developers who may want a quick MVP or a quality-first result,
+  so the caps became one speed-quality pace (`docs/context/orchestration.md` §9) instead
+  of being removed. Problems unrelated to the ceiling were fixed directly: Opus 5.5
+  delegation routing, the owner-facing interview and bundle question, the legacy LOC
+  target and escalation. Approval gates and the human default mode stay (user decision).
+- Release metadata is aligned to `1.21.0`; all six release-owned files are staged. Full
+  forced release verification passed all nine groups: 637 tests / 636 pass / 1 conditional
+  skip / 0 fail. Build, Stagehand UI 2/2, tracked wrapper/shard/sprint-mode/sync/config
+  audits, checkpoint and the UTF-8 check of the 40 changed files passed.
+- Downstream preview: vibe-office's six local-modification conflicts are the v1.20.1 set;
+  `_common-rules.md`, `phase-3-interview.md` and `orchestration.md` merge three-way
+  cleanly (base v1.20.1). Keep its CLAUDE.md shards (add the pace pointer to the
+  sprint-flow shard) and its `hooks.PreToolUse` rm guard after the forced sync.
+- Next: publish main plus an annotated tag atomically, then sync vibe-office from that
+  exact tag, verify it and commit there. vibe-office's own pace lever (office setting,
+  composer, plan card) is committed in that repository separately.
+- Preserve the upstream tokens edit and unrelated untracked inputs.
+
+## Previous — v1.20.1 released and both downstreams synced / 2026-10-20
 
 - Published `v1.20.1` at `088bc3284b3c4e6fcb7f4da12542447b4a4cbcf6`;
   annotated tag object `fba2c268bbef3ad5fdf476ebab4ee3417c885ddb`.
