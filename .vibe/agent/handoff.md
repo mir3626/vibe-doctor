@@ -3,7 +3,7 @@
 PROJECT NOT INITIALIZED.
 This is the upstream template; downstream product work still requires /vibe-init.
 
-## Current — v1.21.0 released and vibe-office synced / 2026-10-29
+## Current — v1.21.0 released and both downstreams synced / 2026-10-30
 
 - Published `v1.21.0` at `7c288d9a2e4b39de5a53dbe14ba0efe4d11a3051`; annotated tag object
   `14ae13bb83a21fb2b81622d67181df58d5f84b65`. Atomic push and exact remote refs verified.
@@ -15,13 +15,20 @@ This is the upstream template; downstream product work still requires /vibe-init
 - Local release verification: nine groups, 637 tests / 636 pass / 1 skip / 0 fail; build,
   Stagehand UI 2/2, tracked wrapper/shard/sprint-mode/sync/config audits, checkpoint and
   UTF-8 checks passed.
-- `vibe-office/main` committed at `aeda9cd` (this sync) on `05757b6` (its own pace lever:
-  office setting, composer choice, plan-card line); not pushed, as the user authorized
-  commit and sync. Astra verification: nine groups, 636 tests / 631 pass / 5 skips /
-  0 fail; bootstrap, sync audit, checkpoint and encoding passed. The three conflicted files
-  this release changes merged three-way; the other three local conflicts, the CLAUDE.md
-  shards (plus one pace pointer), the rm guard and the role configuration were kept.
-- `osint-stock-screener` stays on 1.20.1; it was not part of this rollout.
+- `vibe-office/main` pushed at `aeda9cd8d19c151b842cb0bcff1dd209084ed7f9` (this sync, on
+  `05757b6`, its own pace lever: office setting, composer choice, plan-card line). Astra
+  verification: nine groups, 636 tests / 631 pass / 5 skips / 0 fail; bootstrap, sync
+  audit, checkpoint and encoding passed. The three conflicted files this release changes
+  merged three-way; the other three local conflicts, the CLAUDE.md shards (plus one pace
+  pointer), the rm guard and the role configuration were kept.
+- `osint-stock-screener/improve/post-refactor-all` pushed at
+  `a932d271a06979ddb46e985d632eeb943285300e` (user asked on 2026-10-30). Astra
+  verification: nine groups, 656 tests / 651 pass / 5 skips / 0 fail; bootstrap, sync
+  audit, checkpoint and encoding passed. The release's changes were merged three-way onto
+  its three touched local conflicts and CLAUDE.md/AGENTS.md; the other 18 conflicts,
+  project configuration and the owner's two untracked files were kept.
+- Downstream CI runs 40917026130 (office) and 40918988261 (osint) were again blocked before
+  any step by GitHub account payment/spending restrictions; no billing settings changed.
 - Preserve the upstream tokens edit and unrelated untracked inputs. Other harness work
   remains in `docs/plans/downstream/vibe-office-queue.md`.
 
