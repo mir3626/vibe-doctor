@@ -6,6 +6,7 @@ This file is project-owned runtime state. Downstream `/vibe-init` rewrites it be
 
 ## Entries
 
+- 2026-11-04T15:55:00+09:00 [release][v1.22.0] Published 8bb9f6a plus annotated tag 53f45373 atomically; exact remote refs and both CI runs passed (verify, astra, windows-contracts; 41785252447 / 41785252524). vibe-office synced with --keep-local (CLAUDE.md and rm-guard hook preserved); osint-stock-screener not synced.
 - 2026-11-04T15:40:00+09:00 [release][v1.22.0] vibe-office chairman approved his skill-audit recommendations (D20): sync B4 (region hashes, three-way check, conflicts that still merge) and skill/rule doc fixes; notes docs/release/v1.22.0.md.
 - 2026-11-04T14:20:00+09:00 [release][v1.21.1] Published b2e69ec plus annotated tag 10a0991f atomically; exact remote refs and both CI runs passed (verify, astra, windows-contracts; 41775568835 / 41775568630). Downstreams not synced (not requested).
 - 2026-11-04T13:55:00+09:00 [release][v1.21.1] User asked to carry the osint fix upstream and cut a version: the extended preset drops the three `Write(...)` deny rules Claude Code never matches (Edit twins stay) and `vibe-sprint-mode` strips them from existing settings on on/off. Full forced verification, 9 groups: legacy 638 tests/637 pass/1 skip/0 fail, Astra 630/628/2/0; build, Stagehand UI 2/2, audits and checkpoint passed. Evidence: .tmp/release-1.21.1/.

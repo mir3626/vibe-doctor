@@ -3,8 +3,17 @@
 PROJECT NOT INITIALIZED.
 This is the upstream template; downstream product work still requires /vibe-init.
 
-## Current — v1.22.0 in release (sync B4 and skill-authoring fixes) / 2026-11-04
+## Current — v1.22.0 released (sync B4 and skill-authoring fixes) / 2026-11-04
 
+- Published `v1.22.0` at `8bb9f6a9edbcea9128e1b4c93f126302a751571b`; annotated tag object
+  `53f45373fd2b52343d217c4a8c645c0c86192bb3`. Atomic push and exact remote refs verified.
+  Release main and tag CI passed `verify`, `astra` and `windows-contracts`
+  (runs 41785252447 / 41785252524).
+- vibe-office synced 1.21.0 → 1.22.0 with the new sync code run directly (`--ref v1.22.0
+  --keep-local`): CLAUDE.md kept CHARTER and FREEZE-POSTURE local and reported EXTENSIONS (its
+  sharding) as a conflict kept local, byte-identical to before; settings `hooks` (rm guard) kept
+  local without a conflict. Six B1/B2 harness files kept local with this release's contents lists
+  ported by hand. Not committed there (vibe-office has other uncommitted work).
 - The vibe-office chairman approved the recommended set from his skill audit against Anthropic's
   skill-authoring rules (vibe-office `docs/reports/skill-7-rules-audit-2026-11-04.html`, D20).
 - B4 fixed: sync records each harness section's and key's hash (`sync-hashes.json` `regions`) and
@@ -20,9 +29,8 @@ This is the upstream template; downstream product work still requires /vibe-init
   legacy profile (no model override) nine groups, 647 tests / 646 pass / 1 skip / 0 fail; Astra
   profile (`claude-opus-5-5[1m]`) nine groups, 639 tests / 637 pass / 2 skips / 0 fail. Build,
   Stagehand UI 2/2, tracked wrapper, shard, sprint-mode, sync and config audits and checkpoint passed.
-- Next: commit, annotated tag, atomic push, CI, then sync vibe-office with the new sync code run
-  directly (`--keep-local`; its CLAUDE.md sharding and rm-guard hook should come back as kept-local
-  or conflicts).
+- Open: B1/B2 (rm guard, CLAUDE.md sharding) still downstream-only, so vibe-office reports them as
+  conflicts every sync until they ship here; osint-stock-screener not synced (not requested).
 - Preserve the upstream tokens edit and unrelated untracked inputs.
 
 ## Previous — v1.21.1 released (Write() deny-rule warnings) / 2026-11-04
