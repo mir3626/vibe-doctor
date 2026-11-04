@@ -1,6 +1,6 @@
 ---
 name: vibe-review
-description: Template/harness review for vibe-doctor process health
+description: Template/harness review for vibe-doctor process health (orchestration rules, sync, agent contracts). Use when the user asks for /vibe-review or a harness or process review; a product code review does not use it.
 ---
 
 For a verified active Astra-profile model (GPT-6 Astra, Claude Opus 5.5, or a registry successor marked `harnessProfile: astra`), use `.vibe/agent/astra-rules.md`
@@ -24,3 +24,5 @@ only explicit shard blocks, so every section shard must stay listed here.
 - `.claude/skills/vibe-review/sections/automatic-checks.md`
 - `.claude/skills/vibe-review/sections/report-shape.md`
 <!-- END:VIBE-REVIEW:SECTION-SHARDS -->
+
+The automatic checks read the gap ledger `docs/context/harness-gaps.md`; open it directly when a finding names a gap id.

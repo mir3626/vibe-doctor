@@ -1,5 +1,11 @@
 ## Phase 2 — Sprint 역할별 Provider 배정 및 인증
 
+### 목차
+
+- Step 2-1: 역할별 Provider 선택
+- Step 2-2: 선택된 Provider 인증 확인
+- Step 2-3: 설정 파일 업데이트
+
 사용자에게 Sprint의 3가지 역할에 대해 **각각** 어떤 AI를 사용할지 물어봅니다.
 
 ### Step 2-1: 역할별 Provider 선택

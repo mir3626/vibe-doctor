@@ -27,7 +27,6 @@ next batch small.
 | B1 | `rm` guard: PreToolUse hook `vibe-rm-guard.mjs`, its test and verification-group entry, `codex-execution.md` §3.4 (vibe-office `d6cf3df`, `2b4ad94`, `ad63514`) | ① The allowed places are hard-coded: `.office-scratch/` is a vibe-office product folder. ② The sibling-clone default (`<repo>-*`) deletes without asking; downstream it already covers a live runner worktree. Move all places into a project-owned setting with an empty default. ③ The template settings and both `agent-delegation*.json` presets deny `Bash(rm *)` / `Bash(rmdir *)`; deny wins over the hook, so remove them when the guard ships. ④ Drop vibe-office decisions, drive letters and staff wording from §3.4. Register the test in `test/groups.json` and do not put `@ts-expect-error` on its `.mjs` import (`allowJs` makes the directive unused and fails the typecheck). |
 | B2 | CLAUDE.md sharding: legacy ceremonies to `docs/context/legacy-sprint-flow.md`, hook table to `docs/context/hooks.md`, pointer edits in `_common-rules.md`, `orchestration.md`, `vibe-init/phases/phase-3-interview.md`, `re-incarnation.md` (vibe-office `0f5cdd5`) | ① Add both shards to the manifest harness list. ② Keep the nominal-mode sentence (Claude Opus Orchestrator + Codex Generator, Claude not forced as the only Orchestrator) that the downstream cut dropped. ③ Mirror the same principle in AGENTS.md. Size table: vibe-office `docs/plans/harness-upstream-d2.md` §3. |
 | B3 | Claude-session `env` `PYTHONUTF8` / `PYTHONIOENCODING` (vibe-office `23b60c0`) | Harmless on other systems. `env` is in neither `harnessKeys` nor `projectKeys` of the settings merge; decide ownership, then add it as a template default. The UTF-8, `cygpath -w` and long-heredoc notes belong in a guide, not CLAUDE.md. Gap `gap-claude-session-windows-text`. |
-| B4 | Sync silently replaces downstream edits in section-merge harness sections and json-deep-merge harness keys | Raise a conflict for those the way locally changed harness files already do. Gap `gap-sync-silent-hybrid-overwrite`. Second downstream case: osint-stock-screener carried A1 locally; a sync before A1's release would have reverted its CLAUDE.md wording while its code still judged Claude as Astra (`docs/reports/harness-upstream-handoff-claude-opus-astra-profile.md` there, §4). |
 
 ## Shipped in v1.19.0 (osint-stock-screener handoff)
 
@@ -41,6 +40,13 @@ The second downstream project's handoff (osint-stock-screener `docs/reports/harn
 
 Also: `vibe:sync --json` no longer prints the clone and backup log lines to stdout, so the plan parses as JSON.
 
+## Shipped in v1.22.0 (B4 and the skill audit)
+
+| Item | What shipped |
+|---|---|
+| B4 | Sync records each harness section's and key's hash and compares base, local and upstream. A section or key changed on both sides is a conflict whose accept or skip still merges the file (project sections and keys stay); one only the downstream changed stays local; the first sync without history clones the installed version as the base. Gap `gap-sync-silent-hybrid-overwrite` covered. The second downstream case was osint-stock-screener, which carried A1 locally. |
+| Skill audit | The chairman's 2026-11-04 audit against Anthropic's skill-authoring rules (vibe-office `docs/reports/skill-7-rules-audit-2026-11-04.html`): contents lists on long reference files, one-level references, a corrected mechanical-overrides sentence, check-fix-rerun lines, install lines, "when to use" in skill descriptions, sprint-mode tier remembered instead of asked every Phase. |
+
 ## Shipped in v1.20.0 (vibe-office chairman request)
 
 The chairman asked for PowerShell runs that do not break on quotes, variables, spaces and em dashes (2026-10-13). `vibe-ps.mjs` runs code from a `.ps1` file (or one `-c` string) with every piece of text passed as data, reads the code as UTF-8, and refuses typographic quotes/dashes outside comments before running. Gap `gap-powershell-inline-quoting`.
@@ -53,4 +59,4 @@ The chairman asked for PowerShell runs that do not break on quotes, variables, s
 ## Process
 
 - Downstream harness work keeps project values in project-owned places (`.vibe/config.json` project keys, CLAUDE.md `PROJECT:*`, settings `permissions`) from the start, so a change ships upstream without a generalization pass.
-- Each downstream harness window ends with an upstream release and a downstream sync. Drift check from the downstream root: `npm run vibe:sync -- --dry-run --json --from <vibe-doctor>`; done when it reports no conflicts. Until B4 lands, also diff CLAUDE.md and settings `hooks` by hand.
+- Each downstream harness window ends with an upstream release and a downstream sync. Drift check from the downstream root: `npm run vibe:sync -- --dry-run --json --from <vibe-doctor>`; done when it reports no conflicts. Since v1.22.0 a downstream edit to a harness section or key shows up as `kept local` or a conflict instead of vanishing.

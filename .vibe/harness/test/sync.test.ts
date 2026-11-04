@@ -12,12 +12,16 @@ import {
   jsonArrayUnionMerge,
   jsonDeepMerge,
   lineUnionMerge,
+  missingRegionHistory,
   sectionMerge,
   type HybridFileConfig,
+  type SyncAction,
   type SyncManifest,
 } from '../src/lib/sync.js';
 import {
+  applyConflictPolicy,
   hasVibeInitArtifacts,
+  resolveConflict,
   resolveMissingUpstream,
   resolveFloatingRefUpdateCandidate,
   resolvePostSyncTypecheckArgs,
@@ -1495,5 +1499,262 @@ describe('v1.16.0 migration', () => {
 
     assert.match(stdout, /removedRetiredHarness=0 retainedRetiredHarness=0 packageScripts=rewritten:0 playwrightDevDependency=absent conventions=missing/);
     await assert.rejects(readFile(path.join(root, '.vibe', 'harness-migration-1.16.0.md'), 'utf8'), /ENOENT/);
+  });
+});
+
+describe('hybrid section and key history (B4)', () => {
+  const manifest: SyncManifest = {
+    manifestVersion: '1.0',
+    files: {
+      harness: [],
+      hybrid: {
+        'CLAUDE.md': {
+          strategy: 'section-merge',
+          harnessMarkers: ['HARNESS:a', 'HARNESS:b'],
+          preserveMarkers: ['PROJECT:custom-rules'],
+        },
+        '.claude/settings.json': {
+          strategy: 'json-deep-merge',
+          harnessKeys: ['hooks', 'statusLine'],
+          projectKeys: ['permissions'],
+        },
+      },
+      project: [],
+    },
+    migrations: {},
+  };
+
+  function claudeMd(a: string, b: string, custom = 'project rules'): string {
+    return [
+      '# Agent memory',
+      '<!-- BEGIN:HARNESS:a -->',
+      a,
+      '<!-- END:HARNESS:a -->',
+      '<!-- BEGIN:HARNESS:b -->',
+      b,
+      '<!-- END:HARNESS:b -->',
+      '<!-- BEGIN:PROJECT:custom-rules -->',
+      custom,
+      '<!-- END:PROJECT:custom-rules -->',
+      '',
+    ].join('\n');
+  }
+
+  async function makeRoot(prefix: string, version: { installed?: string; shipped?: string }): Promise<string> {
+    const root = await makeTempDir(prefix);
+    await writeJson(path.join(root, '.vibe', 'config.json'), {
+      orchestrator: 'x',
+      ...(version.installed ? { harnessVersionInstalled: version.installed } : {}),
+      ...(version.shipped ? { harnessVersion: version.shipped } : {}),
+      sprintRoles: { planner: 'a', generator: 'b', evaluator: 'c' },
+      sprint: { unit: 'feature', subAgentPerRole: true, freshContextPerSprint: true },
+      providers: {},
+    });
+    return root;
+  }
+
+  async function writeHybrid(root: string, markdown: string, settings: unknown): Promise<void> {
+    await writeFile(path.join(root, 'CLAUDE.md'), markdown, 'utf8');
+    await writeJson(path.join(root, '.claude', 'settings.json'), settings);
+  }
+
+  /** A local project that synced the base content once, so its region history is recorded. */
+  async function syncedOnce(): Promise<string> {
+    const local = await makeRoot('b4-local-', { installed: '1.0.0' });
+    const base = await makeRoot('b4-base-', { shipped: '1.0.0' });
+    const settings = { hooks: { Stop: ['base'] }, statusLine: { command: 'base' }, permissions: { allow: ['x'] } };
+    await writeHybrid(local, claudeMd('A1', 'B1', 'mine'), settings);
+    await writeHybrid(base, claudeMd('A1', 'B1'), settings);
+    await applySyncPlan(local, base, await buildSyncPlan(local, base, manifest), manifest);
+    return local;
+  }
+
+  function actionFor(actions: SyncAction[], filePath: string): SyncAction | undefined {
+    return actions.find((action) => action.path === filePath);
+  }
+
+  it('records region hashes for harness sections and keys only', async () => {
+    const local = await syncedOnce();
+    const hashes = JSON.parse(await readFile(path.join(local, '.vibe', 'sync-hashes.json'), 'utf8')) as {
+      regions: Record<string, Record<string, string>>;
+    };
+
+    assert.deepEqual(Object.keys(hashes.regions['CLAUDE.md'] ?? {}).sort(), ['HARNESS:a', 'HARNESS:b']);
+    assert.deepEqual(Object.keys(hashes.regions['.claude/settings.json'] ?? {}).sort(), ['hooks', 'statusLine']);
+    assert.equal(await missingRegionHistory(local, manifest), false);
+  });
+
+  it('keeps a downstream edit to a section upstream left alone, without a conflict', async () => {
+    const local = await syncedOnce();
+    const upstream = await makeRoot('b4-up-', { shipped: '1.1.0' });
+    await writeFile(path.join(local, 'CLAUDE.md'), claudeMd('A1', 'B local', 'mine'), 'utf8');
+    await writeHybrid(upstream, claudeMd('A2', 'B1'), { hooks: { Stop: ['base'] }, statusLine: { command: 'base' } });
+
+    const plan = await buildSyncPlan(local, upstream, manifest);
+    assert.deepEqual(actionFor(plan.actions, 'CLAUDE.md'), {
+      type: 'section-merge',
+      path: 'CLAUDE.md',
+      sections: ['HARNESS:a', 'HARNESS:b', 'PROJECT:custom-rules'],
+      keepLocal: ['HARNESS:b'],
+    });
+
+    await applySyncPlan(local, upstream, plan, manifest);
+    const merged = await readFile(path.join(local, 'CLAUDE.md'), 'utf8');
+    assert.match(merged, /A2/);
+    assert.match(merged, /B local/);
+    assert.match(merged, /mine/);
+  });
+
+  it('reports a section changed on both sides, and accepting it keeps the project sections', async () => {
+    const local = await syncedOnce();
+    const upstream = await makeRoot('b4-up-', { shipped: '1.1.0' });
+    await writeFile(path.join(local, 'CLAUDE.md'), claudeMd('A local', 'B1', 'mine'), 'utf8');
+    await writeHybrid(upstream, claudeMd('A2', 'B1'), { hooks: { Stop: ['base'] }, statusLine: { command: 'base' } });
+
+    const plan = await buildSyncPlan(local, upstream, manifest);
+    const conflict = actionFor(plan.actions, 'CLAUDE.md');
+    assert.equal(conflict?.type, 'conflict');
+    assert.deepEqual(conflict?.type === 'conflict' ? conflict.regions : undefined, ['HARNESS:a']);
+
+    const accepted = plan.actions.map((action) => resolveConflict(action, 'accept'));
+    assert.equal(actionFor(accepted, 'CLAUDE.md')?.type, 'section-merge');
+    await applySyncPlan(local, upstream, { ...plan, actions: accepted }, manifest);
+    const merged = await readFile(path.join(local, 'CLAUDE.md'), 'utf8');
+    assert.match(merged, /A2/);
+    assert.doesNotMatch(merged, /A local/);
+    assert.match(merged, /mine/);
+  });
+
+  it('keeps a skipped section and reports it again on the next sync', async () => {
+    const local = await syncedOnce();
+    const upstream = await makeRoot('b4-up-', { shipped: '1.1.0' });
+    await writeFile(path.join(local, 'CLAUDE.md'), claudeMd('A local', 'B1', 'mine'), 'utf8');
+    await writeHybrid(upstream, claudeMd('A2', 'B2'), { hooks: { Stop: ['base'] }, statusLine: { command: 'base' } });
+
+    const plan = await buildSyncPlan(local, upstream, manifest);
+    const skipped = plan.actions.map((action) => resolveConflict(action, 'skip'));
+    assert.deepEqual(actionFor(skipped, 'CLAUDE.md'), {
+      type: 'section-merge',
+      path: 'CLAUDE.md',
+      sections: ['HARNESS:a', 'HARNESS:b', 'PROJECT:custom-rules'],
+      keepLocal: ['HARNESS:a'],
+      unresolved: ['HARNESS:a'],
+    });
+    await applySyncPlan(local, upstream, { ...plan, actions: skipped }, manifest);
+    const merged = await readFile(path.join(local, 'CLAUDE.md'), 'utf8');
+    assert.match(merged, /A local/);
+    assert.match(merged, /B2/);
+
+    const again = await buildSyncPlan(local, upstream, manifest);
+    assert.equal(actionFor(again.actions, 'CLAUDE.md')?.type, 'conflict');
+  });
+
+  it('reports a harness key changed on both sides and keeps one only the project changed', async () => {
+    const local = await syncedOnce();
+    const upstream = await makeRoot('b4-up-', { shipped: '1.1.0' });
+    await writeJson(path.join(local, '.claude', 'settings.json'), {
+      hooks: { Stop: ['base'], PreToolUse: ['rm guard'] },
+      statusLine: { command: 'local line' },
+      permissions: { allow: ['x'] },
+    });
+    await writeHybrid(upstream, claudeMd('A1', 'B1'), { hooks: { Stop: ['new'] }, statusLine: { command: 'base' } });
+
+    const plan = await buildSyncPlan(local, upstream, manifest);
+    const conflict = actionFor(plan.actions, '.claude/settings.json');
+    assert.equal(conflict?.type, 'conflict');
+    if (conflict?.type !== 'conflict') {
+      return;
+    }
+    assert.deepEqual(conflict.regions, ['hooks']);
+    assert.deepEqual(conflict.merge?.keepLocal, ['statusLine']);
+
+    const skipped = plan.actions.map((action) => resolveConflict(action, 'skip'));
+    await applySyncPlan(local, upstream, { ...plan, actions: skipped }, manifest);
+    const settings = JSON.parse(await readFile(path.join(local, '.claude', 'settings.json'), 'utf8')) as {
+      hooks: Record<string, string[]>;
+      statusLine: { command: string };
+      permissions: { allow: string[] };
+    };
+    assert.deepEqual(settings.hooks, { Stop: ['base'], PreToolUse: ['rm guard'] });
+    assert.equal(settings.statusLine.command, 'local line');
+    assert.deepEqual(settings.permissions.allow, ['x']);
+  });
+
+  it('uses the installed version as the base when no region history exists', async () => {
+    const local = await makeRoot('b4-local-', { installed: '1.0.0' });
+    const base = await makeRoot('b4-base-', { shipped: '1.0.0' });
+    const upstream = await makeRoot('b4-up-', { shipped: '1.1.0' });
+    await writeHybrid(local, claudeMd('A1', 'B local', 'mine'), { hooks: { Stop: ['base'], PreToolUse: ['guard'] } });
+    await writeHybrid(base, claudeMd('A1', 'B1'), { hooks: { Stop: ['base'] } });
+    await writeHybrid(upstream, claudeMd('A2', 'B1'), { hooks: { Stop: ['new'] } });
+    assert.equal(await missingRegionHistory(local, manifest), true);
+
+    const plan = await buildSyncPlan(local, upstream, manifest, { baseRoot: base });
+
+    assert.deepEqual(actionFor(plan.actions, 'CLAUDE.md'), {
+      type: 'section-merge',
+      path: 'CLAUDE.md',
+      sections: ['HARNESS:a', 'HARNESS:b', 'PROJECT:custom-rules'],
+      keepLocal: ['HARNESS:b'],
+    });
+    const settings = actionFor(plan.actions, '.claude/settings.json');
+    assert.equal(settings?.type, 'conflict');
+    assert.deepEqual(settings?.type === 'conflict' ? settings.regions : undefined, ['hooks']);
+  });
+
+  it('without history or base, takes upstream for an unchanged file and reports an edited one', async () => {
+    const unchanged = await makeRoot('b4-local-', { installed: '1.0.0' });
+    const edited = await makeRoot('b4-local-', { installed: '1.0.0' });
+    const upstream = await makeRoot('b4-up-', { shipped: '1.1.0' });
+    for (const root of [unchanged, edited]) {
+      await writeHybrid(root, claudeMd('A1', 'B1', 'mine'), { hooks: { Stop: ['base'] } });
+    }
+    const added = '<!-- BEGIN:HARNESS:new -->\nadded\n<!-- END:HARNESS:new -->\n';
+    await writeHybrid(upstream, `${claudeMd('A2', 'B1')}${added}`, { hooks: { Stop: ['new'] } });
+    await writeJson(path.join(unchanged, '.vibe', 'sync-hashes.json'), {
+      files: {
+        'CLAUDE.md': await computeFileHash(path.join(unchanged, 'CLAUDE.md')),
+        '.claude/settings.json': await computeFileHash(path.join(unchanged, '.claude', 'settings.json')),
+      },
+    });
+
+    const quiet = await buildSyncPlan(unchanged, upstream, manifest);
+    assert.equal(actionFor(quiet.actions, 'CLAUDE.md')?.type, 'section-merge');
+    assert.equal(actionFor(quiet.actions, '.claude/settings.json')?.type, 'json-merge');
+
+    const loud = await buildSyncPlan(edited, upstream, manifest);
+    const conflict = actionFor(loud.actions, 'CLAUDE.md');
+    assert.equal(conflict?.type, 'conflict');
+    // A section the project never had is new upstream text, not an edit.
+    assert.deepEqual(conflict?.type === 'conflict' ? conflict.regions : undefined, ['HARNESS:a']);
+  });
+
+  it('applies the non-interactive conflict policies without replacing a hybrid file', () => {
+    const merge = { type: 'section-merge' as const, path: 'CLAUDE.md', sections: ['HARNESS:a'], keepLocal: ['HARNESS:b'] };
+    const actions: SyncAction[] = [
+      { type: 'conflict', path: 'scripts/a.mjs', reason: 'local file changed since last sync' },
+      { type: 'conflict', path: 'CLAUDE.md', reason: 'harness section changed locally and upstream: HARNESS:a', regions: ['HARNESS:a'], merge },
+      { type: 'replace', path: 'scripts/b.mjs', reason: 'tracked harness file' },
+    ];
+
+    assert.deepEqual(applyConflictPolicy(actions, null), actions);
+    assert.deepEqual(applyConflictPolicy(actions, 'force').slice(0, 2), [
+      { type: 'replace', path: 'scripts/a.mjs', reason: 'forced: local file changed since last sync' },
+      merge,
+    ]);
+    assert.deepEqual(applyConflictPolicy(actions, 'keep-local').slice(0, 2), [
+      { type: 'skip', path: 'scripts/a.mjs', reason: 'kept local copy: local file changed since last sync' },
+      { ...merge, keepLocal: ['HARNESS:b', 'HARNESS:a'], unresolved: ['HARNESS:a'] },
+    ]);
+  });
+
+  it('keeps a kept section that upstream no longer ships, and still merges the rest', () => {
+    const config: HybridFileConfig = { strategy: 'section-merge', harnessMarkers: ['HARNESS:a'] };
+    const upstream = '# Agent memory\n<!-- BEGIN:HARNESS:a -->\nA2\n<!-- END:HARNESS:a -->\n';
+
+    const merged = sectionMerge(claudeMd('A local', 'B local', 'mine'), upstream, config, { keepLocal: ['HARNESS:b'] }) ?? '';
+
+    assert.match(merged, /A2/);
+    assert.match(merged, /<!-- BEGIN:HARNESS:b -->\nB local\n<!-- END:HARNESS:b -->/);
   });
 });

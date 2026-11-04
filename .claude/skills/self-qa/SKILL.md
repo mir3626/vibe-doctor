@@ -13,10 +13,13 @@ workflow below; each child re-evaluates its own model.
 
 Use this skill before saying work is complete.
 
-Checklist:
+Checklist, for what the change can affect (a docs-only change needs no test run):
 - narrowest relevant test
 - typecheck
 - lint
 - build
 - smoke verification
 - if not possible, create the minimum missing QA aid first
+
+If a check fails, fix the cause and rerun the same check. Report the work complete only when every check that
+applies passes; name a check that could not run and why, instead of counting it as passed.

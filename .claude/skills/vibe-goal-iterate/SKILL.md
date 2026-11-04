@@ -100,7 +100,7 @@ This skill narrows verification while the multi-item queue is still running.
 
 5. Implement, verify, persist, continue.
    - Implement the current item fully.
-   - Run only the targeted verification allowed by the Verification Override while queued items remain.
+   - Run only the targeted verification allowed by the Verification Override while queued items remain. If it fails, fix the item and rerun the same verification; do not mark the item `completed` until it passes.
    - Update `.vibe/agent/handoff.md`, `.vibe/agent/session-log.md`, and any project report/checkpoint artifacts after each completed item or before any long transition.
    - Commit/push only when the user has asked for it or the repo's current task explicitly requires it.
    - Re-read the durable queue state, select the next non-completed item, and continue without waiting for another prompt unless blocked.

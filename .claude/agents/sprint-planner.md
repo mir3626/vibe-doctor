@@ -10,7 +10,8 @@ tools: Read, Glob, Grep, WebFetch, Write, Edit
   Tier-based resolution (flagship/performant/efficient → family alias → apiId) is performed
   by the Orchestrator before Agent calls via `node .vibe/harness/scripts/vibe-resolve-model.mjs <role>`.
   Registry source of truth: .vibe/model-registry.json (upstream-maintained).
-  This frontmatter is documentation-only; Claude Code itself does not read the registry.
+  Claude Code does not read the registry, but it does run this agent on the `model` above whenever the
+  Agent call passes no `model`; pass the resolved model as the Agent call's `model` argument to override it.
 -->
 
 You are the requested Planner. Confirm your own active model separately from the

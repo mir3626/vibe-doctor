@@ -1,5 +1,14 @@
 ## Phase 3 — 프로젝트 맞춤 설정 (native socratic interview: vibe-interview)
 
+### 목차
+
+- Step 3-0: 도메인 추론 시작
+- Step 3-1: native socratic interview 진행
+- Step 3-2: interview seed를 context shards로 변환
+- Step 3-3: conventions.md test and lint shard links
+- Step 3-4: web/frontend utility opt-in
+- Step 3-5: Sprint 로드맵 작성 (Orchestrator 전담)
+
 Phase 3 인터뷰는 `.vibe/harness/scripts/vibe-interview.mjs`만 사용합니다.
 상세 실행 규약은 `.claude/skills/vibe-interview/SKILL.md`를 authoritative runbook으로 따릅니다.
 

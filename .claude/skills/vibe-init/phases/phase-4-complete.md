@@ -1,5 +1,13 @@
 ## Phase 4 — 설정 요약 및 완료
 
+### 목차
+
+- Step 4-0: Git 초기화 (CRITICAL — Codex/에이전트 위임 전제 조건)
+- Step 4-0a: Phase 0 seal commit
+- Step 4-0b: Agent delegation 권한 프리셋 (opt-in)
+- Step 4-0c: Pre-MVP init readiness gate (CRITICAL)
+- Step 4-1: 설정 요약 출력
+
 ### Step 4-0: Git 초기화 (CRITICAL — Codex/에이전트 위임 전제 조건)
 
 Sprint Generator가 **Codex CLI**(또는 trust-based sandbox를 쓰는 다른 provider)인 경우,

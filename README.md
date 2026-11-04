@@ -10,7 +10,11 @@
 
 ## Latest Highlights
 
-### v1.21.1 (2026-11-04) - No more Write() deny-rule warnings
+### v1.22.0 (2026-11-04) - Sync keeps downstream edits in harness sections and keys
+
+- `vibe:sync` used to overwrite a downstream edit in a harness section of `CLAUDE.md` or a harness key of `.claude/settings.json` without a word. It now remembers each harness section and key, keeps one only the project changed, and reports one both sides changed as a conflict whose accept or skip still keeps the project sections; `--keep-local` keeps the local side of every conflict in a run without a terminal. The skills also got contents lists on long references, one-level references, "when to use" descriptions and check-fix-rerun lines, and `/vibe-sprint-mode` asks for a tier once instead of every Phase. See [release notes](docs/release/v1.22.0.md).
+
+### Previous: v1.21.1 (2026-11-04) - No more Write() deny-rule warnings
 
 - The extended sprint-mode preset no longer ships `Write(.env*)`, `Write(secrets/**)` or `Write(config/credentials.json)` deny rules. Claude Code never matches a `Write(path)` deny rule and warned about each one at startup; the `Edit(path)` rules that actually block file writes stay. `/vibe-sprint-mode on` and `off` also drop those three lines from an existing `.claude/settings.local.json`. See [release notes](docs/release/v1.21.1.md).
 
@@ -435,7 +439,7 @@ Root `src/**`, `scripts/**`, `test/**`, `app/**`, `components/**`, and `lib/**` 
 
 ## 버전 / tag 정책
 
-현재 릴리스는 `harnessVersion: 1.21.1` 입니다. 릴리스를 자를 때는 `package.json`, `.vibe/config.json`, release note, tag를 같은 버전으로 맞춥니다.
+현재 릴리스는 `harnessVersion: 1.22.0` 입니다. 릴리스를 자를 때는 `package.json`, `.vibe/config.json`, release note, tag를 같은 버전으로 맞춥니다.
 
 - `harnessVersion` 은 `.vibe/config.json` 과 `package.json` 에 semver로 기록합니다.
 - 각 minor/patch 릴리스는 해당 커밋에 `vMAJOR.MINOR.PATCH` git tag를 붙인 뒤 origin에 push합니다.

@@ -1,5 +1,18 @@
 # Web ChatGPT Pro GitHub Runbook v1
 
+## Contents
+
+- 0. Mandatory GitHub-only mode
+- 1. Start boundary
+- 2. Read order
+- 3. Web-origin flow creation
+- 4. Design
+- 5. Review
+- 6. Approval
+- 7. Append-only write rules
+- 8. Reviewer declaration
+- 9. Failure behavior
+
 Use the official GitHub app to read code and append review artifacts. Read the
 same pinned `COMMON-HARNESS.md` first.
 

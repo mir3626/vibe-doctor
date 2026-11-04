@@ -1,5 +1,17 @@
 # Orchestration — 역할 × Phase 매트릭스 (single source of truth)
 
+## 목차
+
+- 1. 핵심 원칙
+- 2. 역할 요약
+- 3. Phase × 역할 매트릭스
+- 4. Phase 0 — 프로젝트 최초 1회 상세
+- 5. 매 Sprint 반복 상세
+- 6. Escalation 경로
+- 7. 안티 패턴 — 피해야 할 조합
+- 8. 안전장치 — 이 문서의 참조 경로
+- 9. 속도와 품질 (pace)
+
 Verified active GPT-6 Astra sessions use `.vibe/agent/astra-rules.md` unless the
 legacy comparison/rollback profile is selected. The role matrix, fresh-context,
 skip-log, mandatory evaluator and repeated-QA ceremonies below are legacy-only.

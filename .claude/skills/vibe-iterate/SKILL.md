@@ -28,7 +28,8 @@ Planner.
 
 Read `docs/context/workflow-integrity.md` before Phase 0. Every Sprint prompt,
 completion report, and final iteration report must preserve its Workflow
-Continuity block and cumulative journey evidence.
+Continuity block and cumulative journey evidence. Phase 4's release, tag,
+migration and compatibility boundaries are in `docs/guides/verification-reuse.md`.
 
 ## Phase Shards
 

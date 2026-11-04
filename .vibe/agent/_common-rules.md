@@ -6,6 +6,29 @@ executionBinding rules. Lower/unknown models continue with this file unchanged.
 
 # Sprint 공용 규칙 (프롬프트 조각)
 
+## 목차
+
+- 0. Initialization boundary (CRITICAL)
+- 1. 샌드박스 우회 금지 (CRITICAL)
+- 2. 의존성 설치 금지
+- 3. 수정 금지 목록 존중
+- 4. 언어 / 품질 기준 (TypeScript 프로젝트 기본값)
+- 5. 범위 준수
+- 6. 최종 검증 출력
+- 7. Sandbox × Orchestrator 계약 (구 sandbox-contract.md 흡수)
+- 8. 최소 테스트 요구
+- 9. Final report 형식
+- 10. Sprint 프롬프트 작성자 경계 (Planner 책임)
+- 11. 역할 × Phase 상위 참조
+- 12. Sprint 완료 단일 커밋 원칙 (v1.1.1+)
+- 13. Sandbox-bound Generator invariants
+- § Stack-specific pattern shards (mandatory read)
+- §14 Wiring Integration Checklist — dead weight / silent drift 방지
+- §15 Scope discipline (unit test 생성 금지 default)
+- §16 Creative completion standard (universal)
+- §17 Provider-neutral context persistence
+- §18 Workflow continuity and cumulative completion
+
 ## 0. Initialization boundary (CRITICAL)
 
 Before any Sprint Generator or Codex Orchestrator maintenance work in a downstream clone, the project must be initialized by `/vibe-init`.

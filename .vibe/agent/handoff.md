@@ -3,7 +3,29 @@
 PROJECT NOT INITIALIZED.
 This is the upstream template; downstream product work still requires /vibe-init.
 
-## Current — v1.21.1 released (Write() deny-rule warnings) / 2026-11-04
+## Current — v1.22.0 in release (sync B4 and skill-authoring fixes) / 2026-11-04
+
+- The vibe-office chairman approved the recommended set from his skill audit against Anthropic's
+  skill-authoring rules (vibe-office `docs/reports/skill-7-rules-audit-2026-11-04.html`, D20).
+- B4 fixed: sync records each harness section's and key's hash (`sync-hashes.json` `regions`) and
+  compares base, local and upstream; a section or key changed on both sides is a conflict whose
+  accept or skip still merges the file; the first sync without history clones the installed version
+  as the base; `--keep-local` keeps the local side of every conflict without a terminal.
+  `sync.test.ts` 59/59 (9 new). Gap `gap-sync-silent-hybrid-overwrite` covered.
+- Docs: contents lists on ten long references, one-level references, the mechanical-overrides
+  sentence, sprint-mode asks once, "when to use" descriptions, check-fix-rerun lines, vibe-init
+  install lines, sprint-planner model comment, persona lines removed. Release notes
+  `docs/release/v1.22.0.md`.
+- Local release verification with every release file staged, evidence in `.tmp/release-1.22.0/`:
+  legacy profile (no model override) nine groups, 647 tests / 646 pass / 1 skip / 0 fail; Astra
+  profile (`claude-opus-5-5[1m]`) nine groups, 639 tests / 637 pass / 2 skips / 0 fail. Build,
+  Stagehand UI 2/2, tracked wrapper, shard, sprint-mode, sync and config audits and checkpoint passed.
+- Next: commit, annotated tag, atomic push, CI, then sync vibe-office with the new sync code run
+  directly (`--keep-local`; its CLAUDE.md sharding and rm-guard hook should come back as kept-local
+  or conflicts).
+- Preserve the upstream tokens edit and unrelated untracked inputs.
+
+## Previous — v1.21.1 released (Write() deny-rule warnings) / 2026-11-04
 
 - Published `v1.21.1` at `b2e69ecb1d3f32393ff44915fed30007655a4211`; annotated tag object
   `10a0991f67bd58334321d4cbfa2bbd2247b190c6`. Atomic push and exact remote refs verified.

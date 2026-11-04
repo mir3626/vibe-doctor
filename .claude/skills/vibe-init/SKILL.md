@@ -20,6 +20,7 @@ description: 프로젝트 초기 세팅을 대화형으로 진행합니다. 환�
 
 The shard files above are mandatory continuation context. They are listed in
 execution order and are covered by `npm run vibe:init-shard-audit`.
+Step 3-3 maps stack slugs to test and lint shards with `.claude/skills/test-patterns/_index.md`.
 
 ## lite 시작 (가벼운 새 저장소)
 
@@ -128,17 +129,17 @@ Step 1-0 에서 사용자가 `agent` 를 선택하면 다음을 순차 수행:
 아래 환경 점검을 직접 수행합니다:
 
 1. **필수 도구 확인** — `node` (>=24, Active LTS), `npm`, `git`, `bash` (Windows는 Git Bash)
-   - 하나라도 없으면 설치 방법을 안내하고 중단합니다.
+   - 하나라도 없으면 설치 명령을 안내하고 중단합니다. Windows: `winget install --id OpenJS.NodeJS.LTS`(npm 포함), `winget install --id Git.Git`(Git Bash 포함). macOS: `brew install node git`. Linux: 배포판 패키지 관리자나 nodejs.org의 LTS 설치본.
 
 2. **AI Agent CLI 확인** — `claude`, `codex` CLI 등 존재 여부를 확인합니다.
-   - Codex는 **CLI** (`codex exec`)로 직접 호출합니다. 플러그인(`codex:rescue`)은 Windows 불안정·속도 저하로 보류.
+   - Codex는 **CLI** (`codex exec`)로 직접 호출합니다.
 
 3. **Native interview 확인** — 별도 설치는 필요 없습니다. `.vibe/harness/scripts/vibe-interview.mjs`는 Node 24+만으로 동작합니다.
 
    결과를 사용자에게 보여줍니다. 예:
      ```
      환경 점검 결과:
-       node (v22.x)      ✓
+       node (v24.x)      ✓
        npm                ✓
        git                ✓
        claude CLI         ✓

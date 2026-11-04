@@ -1,6 +1,6 @@
 ---
 name: write-report
-description: Write a concise Markdown completion report for a task.
+description: Write a concise Markdown completion report for a task in docs/reports/. Use when a task, Sprint or iteration ends and the workflow or the user asks for a completion report.
 ---
 
 For a verified active Astra-profile model (GPT-6 Astra, Claude Opus 5.5, or a registry successor marked `harnessProfile: astra`), use `.vibe/agent/astra-rules.md`

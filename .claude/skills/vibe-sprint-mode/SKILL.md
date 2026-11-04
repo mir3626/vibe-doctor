@@ -30,12 +30,16 @@ Claude Code permission rules use wildcard matching, not JavaScript regular expre
 - 모든 `rm` / `rm -rf`
 - `npm publish`
 - `gh pr create|merge|close`, `gh release create`
-- `Write` / `Edit` on `src/**`, `scripts/**`, `test/**` (Orchestrator 역할 제약 — Codex 위임)
+- `Write` / `Edit` on `src/**`, `scripts/**`, `test/**` (레거시 프로필의 Orchestrator 역할 제약 — Generator 위임. Astra 프로필은 Orchestrator 가 코드를 직접 고치므로, 이 편집은 Claude Code 권한 모드나 사용자 확인으로 처리된다)
 - `Write` / `Edit` on `.env*`, `secrets/**`, `config/credentials.json` (기본 deny 로 이중 방어)
 
-## Agent-delegation 진입 UX (매 Phase 시작 전)
+## Agent-delegation 진입 UX (처음 한 번)
 
-사용자가 agent 위임 / autonomous Phase 실행을 지시할 때 Orchestrator 는 **반드시** 아래 3-옵션을 먼저 제시하고 선택받는다:
+사용자가 agent 위임 / autonomous Phase 실행을 지시하면 Orchestrator 는 먼저 `node .vibe/harness/scripts/vibe-sprint-mode.mjs status` 로 현재 tier 를 본다.
+
+- tier 가 이미 켜져 있으면 묻지 않고 그 tier 로 진행한다.
+- 꺼져 있지만 session-log 에 `[decision][sprint-mode-tier]` 기록이 있으면, 묻지 않고 기록된 tier 를 다시 켠다.
+- 둘 다 없을 때만 아래 3-옵션을 한 번 제시하고 선택받는다:
 
 ```text
 Agent 위임 모드로 진행합니다. sprint-mode 옵션을 선택해주세요:
@@ -55,7 +59,7 @@ Agent 위임 모드로 진행합니다. sprint-mode 옵션을 선택해주세요
 - **b)** `node .vibe/harness/scripts/vibe-sprint-mode.mjs on --tier core`
 - **c)** `node .vibe/harness/scripts/vibe-sprint-mode.mjs off` (이미 off 이면 skip)
 
-선택 결과를 session-log 에 `[decision][sprint-mode-tier]` 태그로 한 줄 기록하고, Phase 종료 시 `off` 로 되돌릴지 여부도 함께 사용자에게 확인.
+선택 결과를 session-log 에 `[decision][sprint-mode-tier]` 태그로 한 줄 기록한다. 이 기록이 사용자의 선택이므로 다음 Phase 에서는 다시 묻지 않는다. Phase 가 끝나도 끌지 묻지 않고 그대로 두며, 사용자가 끄라고 하거나 다른 tier 를 말할 때만 바꾸고 새 기록을 남긴다.
 
 ## Underlying command
 

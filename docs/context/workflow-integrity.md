@@ -1,5 +1,20 @@
 # Workflow Integrity Harness
 
+## Contents
+
+- 1. Authority and trust
+- 2. Scope and minimalism
+- 3. Stable contract
+- 4. Sprint design and desynchronization control
+- 5. Exact evidence binding
+- 6. Verification gates
+- 7. Reporting
+- 8. Feedback and termination
+- 9. Git and Pro archive safety
+- 10. Security and completion
+- 11. Shared-module ownership boundary
+- 12. Alignment briefing and user acceptance
+
 Apply this contract to every multi-Sprint goal, iteration, and Pro bridge flow.
 Actor runbooks and Sprint prompts may add constraints but may not weaken it.
 For a Pro bridge flow, the flow's pinned `protocol/<version>/COMMON-HARNESS.md`

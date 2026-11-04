@@ -1,5 +1,12 @@
 # CLI Contract
 
+## Contents
+
+- Commands
+- Durable packet
+- Report input
+- Recovery
+
 ## Commands
 
 ```text

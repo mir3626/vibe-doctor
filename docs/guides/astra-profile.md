@@ -1,5 +1,15 @@
 # Astra harness profile
 
+## Contents
+
+- Selection
+- Changed workflow
+  - Delegation and assigned roles
+  - Counter-only audit reminders
+  - Common execution
+- Shared infrastructure
+- Paired evaluation
+
 GPT-6 Astra and Claude Opus 5.5 use a short execution contract in `.vibe/agent/astra-rules.md`.
 Lower and unknown models retain the existing prompts and workflow obligations.
 Runtime correctness and test infrastructure improvements are shared by all models.

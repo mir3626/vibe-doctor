@@ -1,6 +1,6 @@
 ---
 name: goal-to-plan
-description: Turn a user goal into a short implementation plan and approval gate.
+description: Turn a user goal into a short implementation plan with an approval checkpoint. Use when the user asks for a plan to approve before implementation, or when vibe-goal-iterate runs its per-item planning step; a clear task goes straight to implementation instead.
 ---
 
 For a verified active Astra-profile model (GPT-6 Astra, Claude Opus 5.5, or a registry successor marked `harnessProfile: astra`), use `.vibe/agent/astra-rules.md`

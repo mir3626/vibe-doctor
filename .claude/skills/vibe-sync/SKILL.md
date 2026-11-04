@@ -1,6 +1,6 @@
 ---
 name: vibe-sync
-description: Sync vibe-doctor harness/template updates while preserving project-owned code and rules.
+description: Sync vibe-doctor harness/template updates while preserving project-owned code and rules. Use when the statusline or preflight reports a newer or mismatched harness version, or the user asks for /vibe-sync or npm run vibe:sync.
 ---
 
 `/vibe-sync` updates harness-owned files from upstream according to `.vibe/sync-manifest.json`. It must preserve project-owned source, product context, local provider settings, and `PROJECT:*` marker blocks.
@@ -14,12 +14,20 @@ description: Sync vibe-doctor harness/template updates while preserving project-
 ## Flow
 
 1. Run `npm run vibe:sync -- --dry-run` and inspect the plan.
-2. Explain any `conflict` rows to the user unless they already authorized forceful sync.
+2. Explain any `conflict` rows to the user unless they already authorized forceful sync. Without a terminal to answer in, run with `--keep-local` (keep local edits) unless the user chose `--force` (take upstream).
 3. Run `npm run vibe:sync`.
 4. Let post-sync verification run:
    - harness-only typecheck via `.vibe/harness/tsconfig.harness.json`
    - bootstrap preflight via `.vibe/harness/scripts/vibe-preflight.mjs --bootstrap`
 5. If sync fails, use `.vibe/sync-backup/<timestamp>/` for recovery context.
+
+## Hybrid files
+
+`CLAUDE.md`, `AGENTS.md`, `GEMINI.md` (section-merge) and `.claude/settings.json`, `package.json`, `.vibe/config.json` (json-deep-merge) keep their project sections and keys. For the harness-owned sections and keys, sync records each one's hash in `.vibe/sync-hashes.json` (`regions`) and compares what upstream shipped last time, the local text and the new upstream:
+
+- Only the project changed it: the local text stays, and the plan says `kept local: …`.
+- Both changed it: a `conflict` row names the sections or keys. Accepting takes upstream there and still keeps the project sections and keys; skipping keeps the local text there and reports it again on the next sync.
+- No history yet (the first sync with this code): sync clones the installed version once as the base. If that fails, a section or key that differs from upstream is a conflict.
 
 ## Safety Gate
 
@@ -39,7 +47,8 @@ or product scripts into harness ownership.
 | Flag | Purpose |
 |---|---|
 | `--dry-run` | Print the plan only. |
-| `--force` | Replace all conflicted harness files with upstream versions. |
+| `--force` | Take upstream for every conflict: harness files are replaced; hybrid files take upstream only in the conflicting sections or keys. |
+| `--keep-local` | Keep the local side of every conflict and apply the rest; each kept conflict is reported again on the next sync. Use it for non-interactive runs (agents, CI) unless the user chose upstream. |
 | `--from <path>` | Use a local upstream checkout instead of cloning. |
 | `--ref <tag>` | Override the upstream git ref for this run. |
 | `--no-backup` | Skip backup creation. |

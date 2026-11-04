@@ -18,6 +18,7 @@ import {
   buildSyncPlan,
   createBackup,
   loadManifest,
+  missingRegionHistory,
   runMigrations,
   type SyncAction,
 } from '../lib/sync.js';
@@ -374,6 +375,9 @@ function renderPlanTable(actions: SyncAction[]): string {
     } else if ('keys' in action) {
       detail = action.keys.join(', ');
     }
+    if ((action.type === 'section-merge' || action.type === 'json-merge') && action.keepLocal?.length) {
+      detail += `; kept local: ${action.keepLocal.join(', ')}`;
+    }
 
     return `| ${action.type} | ${action.path} | ${detail} |`;
   });
@@ -390,24 +394,96 @@ function renderPlanSummary(actions: SyncAction[]): string {
   return `Files: ${summary || '0 actions'}`;
 }
 
+/**
+ * Resolves one conflict. A harness file is replaced (accept) or left alone (skip). A hybrid file always gets its
+ * merge, so project sections and keys survive either way: accept takes upstream in the conflicting sections or
+ * keys, skip keeps the local text there and marks them unresolved so the next sync reports them again.
+ */
+export function resolveConflict(action: SyncAction, choice: 'accept' | 'skip'): SyncAction {
+  if (action.type !== 'conflict') {
+    return action;
+  }
+  if (action.merge) {
+    if (choice === 'accept') {
+      return action.merge;
+    }
+    const regions = action.regions ?? [];
+    return { ...action.merge, keepLocal: [...(action.merge.keepLocal ?? []), ...regions], unresolved: regions };
+  }
+  return choice === 'accept'
+    ? { type: 'replace', path: action.path, reason: `forced: ${action.reason}` }
+    : { type: 'skip', path: action.path, reason: `kept local copy: ${action.reason}` };
+}
+
 function acceptAllConflicts(actions: SyncAction[]): SyncAction[] {
-  return actions.map((action): SyncAction =>
-    action.type === 'conflict' ? { type: 'replace', path: action.path, reason: `forced: ${action.reason}` } : action,
-  );
+  return actions.map((action) => resolveConflict(action, 'accept'));
 }
 
 function skipAllConflicts(actions: SyncAction[]): SyncAction[] {
-  return actions.map((action): SyncAction =>
-    action.type === 'conflict' ? { type: 'skip', path: action.path, reason: `kept local copy: ${action.reason}` } : action,
-  );
+  return actions.map((action) => resolveConflict(action, 'skip'));
 }
 
-async function approveAndResolve(actions: SyncAction[], force: boolean): Promise<SyncAction[]> {
-  if (force) {
+/**
+ * The non-interactive conflict policy: `--force` takes upstream for every conflict, `--keep-local` keeps the
+ * local side of every conflict (an agent or CI run that must not lose downstream edits), neither leaves them.
+ */
+export function applyConflictPolicy(actions: SyncAction[], policy: 'force' | 'keep-local' | null): SyncAction[] {
+  if (policy === 'force') {
     return acceptAllConflicts(actions);
   }
+  if (policy === 'keep-local') {
+    return skipAllConflicts(actions);
+  }
+  return actions;
+}
+
+/**
+ * A checkout of the installed upstream version, the region base for hybrid files that have no recorded section
+ * or key hashes yet (the first sync with this code). Null when it cannot be had; the plan then reports differing
+ * sections and keys as conflicts instead of guessing which side changed them.
+ */
+async function resolveBaseRoot(
+  config: VibeConfig,
+  upstreamRoot: string,
+  jsonMode: boolean,
+): Promise<{ root: string | null; cleanup: boolean }> {
+  const installed = normalizeVersion(config.harnessVersionInstalled);
+  if (!installed) {
+    return { root: null, cleanup: false };
+  }
+  const upstreamConfig = await readJson<VibeConfig>(path.join(upstreamRoot, '.vibe', 'config.json')).catch(
+    () => undefined,
+  );
+  if (normalizeVersion(upstreamConfig?.harnessVersion) === installed) {
+    return { root: upstreamRoot, cleanup: false };
+  }
+  if (config.upstream?.type === 'local' || !config.upstream?.url) {
+    return { root: null, cleanup: false };
+  }
+  try {
+    if (!jsonMode) {
+      logger.info(`Cloning installed base ${config.upstream.url}#v${installed} for harness section history`);
+    }
+    return { root: await cloneUpstream(config.upstream.url, `v${installed}`), cleanup: true };
+  } catch {
+    if (!jsonMode) {
+      logger.info(`Could not fetch v${installed}; harness sections or keys that differ from upstream are reported as conflicts.`);
+    }
+    return { root: null, cleanup: false };
+  }
+}
+
+async function approveAndResolve(
+  actions: SyncAction[],
+  policy: 'force' | 'keep-local' | null,
+): Promise<SyncAction[]> {
+  if (policy) {
+    return applyConflictPolicy(actions, policy);
+  }
   if (!process.stdin.isTTY || !process.stdout.isTTY) {
-    throw new Error('Sync approval requires an interactive terminal. Re-run with --force to proceed non-interactively.');
+    throw new Error(
+      'Sync approval requires an interactive terminal. Re-run with --keep-local (keep local edits in conflicts) or --force (take upstream) to proceed non-interactively.',
+    );
   }
 
   const rl = readline.createInterface({ input, output });
@@ -429,9 +505,9 @@ async function approveAndResolve(actions: SyncAction[], force: boolean): Promise
     }
 
     process.stdout.write(
-      `\n${conflicts.length} conflict(s) detected (locally modified harness files).\n\n` +
+      `\n${conflicts.length} conflict(s) detected (harness files, sections or keys changed both locally and upstream).\n\n` +
         'Choose:\n' +
-        '  [a] Accept all - replace every conflict with upstream changes (local edits lost)\n' +
+        '  [a] Accept all - take upstream for every conflict (local edits there are lost; project sections and keys stay)\n' +
         '  [i] Individual - review each conflict one by one\n' +
         '  [s] Skip all - keep every local conflict and apply the rest\n' +
         '  [c] Cancel - apply nothing\n\n',
@@ -456,15 +532,16 @@ async function approveAndResolve(actions: SyncAction[], force: boolean): Promise
             continue;
           }
 
-          const answer = (await rl.question(`Replace local changes for ${action.path}? [y/N] `)).trim().toLowerCase();
+          const scope = action.regions?.length ? ` (${action.regions.join(', ')})` : '';
+          const answer = (await rl.question(`Take upstream for ${action.path}${scope}? [y/N] `)).trim().toLowerCase();
           if (answer === 'y' || answer === 'yes') {
-            resolved.push({
-              type: 'replace',
-              path: action.path,
-              reason: `accepted upstream after conflict: ${action.reason}`,
-            });
+            resolved.push(
+              action.merge
+                ? action.merge
+                : { type: 'replace', path: action.path, reason: `accepted upstream after conflict: ${action.reason}` },
+            );
           } else {
-            resolved.push({ type: 'skip', path: action.path, reason: `kept local copy: ${action.reason}` });
+            resolved.push(resolveConflict(action, 'skip'));
           }
         }
         return resolved;
@@ -487,6 +564,11 @@ async function main(): Promise<void> {
   const args = parseArgs(process.argv.slice(2));
   const dryRun = getBooleanFlag(args, 'dry-run');
   const force = getBooleanFlag(args, 'force');
+  const keepLocal = getBooleanFlag(args, 'keep-local');
+  if (force && keepLocal) {
+    throw new Error('Choose one conflict policy: --force (take upstream) or --keep-local (keep local edits).');
+  }
+  const conflictPolicy = force ? 'force' : keepLocal ? 'keep-local' : null;
   const jsonMode = getBooleanFlag(args, 'json');
   const noBackup = getBooleanFlag(args, 'no-backup');
   const noVerify = getBooleanFlag(args, 'no-verify');
@@ -510,6 +592,8 @@ async function main(): Promise<void> {
   const config = await ensureSyncUpstreamConfig(initialConfig ?? DEFAULT_SYNC_CONFIG);
   let upstreamRoot: string | null = null;
   let cleanupRequired = false;
+  let baseRoot: string | null = null;
+  let baseCleanupRequired = false;
 
   try {
     if (from) {
@@ -538,16 +622,23 @@ async function main(): Promise<void> {
     }
 
     const manifest = await loadManifest(upstreamRoot);
-    const plan = await buildSyncPlan(paths.root, upstreamRoot, manifest);
-    let finalPlan = { ...plan, actions: force ? acceptAllConflicts(plan.actions) : plan.actions };
+    if (await missingRegionHistory(paths.root, manifest)) {
+      const base = await resolveBaseRoot(config, upstreamRoot, jsonMode);
+      baseRoot = base.root;
+      baseCleanupRequired = base.cleanup;
+    }
+    const plan = await buildSyncPlan(paths.root, upstreamRoot, manifest, { baseRoot });
+    let finalPlan = { ...plan, actions: applyConflictPolicy(plan.actions, conflictPolicy) };
 
     if (jsonMode) {
       process.stdout.write(`${JSON.stringify(finalPlan, null, 2)}\n`);
       if (dryRun) {
         return;
       }
-      if (!force && finalPlan.actions.some((action) => action.type === 'conflict')) {
-        throw new Error('Conflicts detected. Re-run with --force or use an interactive terminal without --json.');
+      if (finalPlan.actions.some((action) => action.type === 'conflict')) {
+        throw new Error(
+          'Conflicts detected. Re-run with --keep-local or --force, or use an interactive terminal without --json.',
+        );
       }
     } else {
       process.stdout.write(`Sync plan: vibe-doctor ${plan.fromVersion ?? 'unknown'} -> ${plan.toVersion}\n\n`);
@@ -559,7 +650,7 @@ async function main(): Promise<void> {
       if (dryRun) {
         return;
       }
-      finalPlan = { ...plan, actions: await approveAndResolve(plan.actions, force) };
+      finalPlan = { ...plan, actions: await approveAndResolve(plan.actions, conflictPolicy) };
     }
 
     const backupTargets = finalPlan.actions
@@ -593,6 +684,9 @@ async function main(): Promise<void> {
   } finally {
     if (cleanupRequired && upstreamRoot) {
       await rm(upstreamRoot, { recursive: true, force: true });
+    }
+    if (baseCleanupRequired && baseRoot) {
+      await rm(baseRoot, { recursive: true, force: true });
     }
   }
 }

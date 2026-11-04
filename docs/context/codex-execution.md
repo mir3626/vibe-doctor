@@ -1,5 +1,18 @@
 # Codex 실행 가이드 (Korean Windows 안전판)
 
+## 목차
+
+- 1. 증상
+- 2. 근본 원인 (확정)
+- 3. 영구 해결책
+- 4. Generator 프롬프트 규약 (BLOCKED 패턴)
+- 5. Evaluator 강화 (Encoding integrity gate — 필수)
+- 6. 복구 절차 (이미 깨진 파일이 있을 때)
+- 7. 파생 프로젝트 체크리스트
+- 8. 변경 이력
+- Codex 403 Forbidden troubleshooting
+- Provider-neutral lifecycle
+
 Verified GPT-6 Astra child invocations use the short contract dispatcher in
 `run-codex.sh` / `run-codex.cmd`; lower/unknown models keep the legacy wrapper below.
 Native Astra sessions may use their native runtime directly. Set `VIBE_ACTIVE_MODEL`

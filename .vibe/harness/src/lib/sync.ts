@@ -30,15 +30,25 @@ export interface HybridFileConfig {
   note?: string;
 }
 
+/**
+ * A section-merge or json-deep-merge of one hybrid file. `keepLocal` names the harness sections or keys whose
+ * local text stays: the downstream changed them and upstream did not, or the user kept them over an upstream
+ * change. `unresolved` names the ones kept over an upstream change; their recorded base does not advance, so the
+ * next sync reports them again, the way a skipped harness file stays a conflict.
+ */
+export type HybridMergeAction =
+  | { type: 'section-merge'; path: string; sections: string[]; keepLocal?: string[]; unresolved?: string[] }
+  | { type: 'json-merge'; path: string; keys: string[]; keepLocal?: string[]; unresolved?: string[] };
+
 export type SyncAction =
   | { type: 'replace'; path: string; reason: string }
-  | { type: 'section-merge'; path: string; sections: string[] }
-  | { type: 'json-merge'; path: string; keys: string[] }
+  | HybridMergeAction
   | { type: 'json-array-union'; path: string; keys: string[] }
   | { type: 'line-merge'; path: string; reason: string }
   | { type: 'template-regen'; path: string }
   | { type: 'skip'; path: string; reason: string }
-  | { type: 'conflict'; path: string; reason: string }
+  /** `regions` and `merge` are set for a hybrid file: resolving it applies `merge`, never a whole-file replace. */
+  | { type: 'conflict'; path: string; reason: string; regions?: string[]; merge?: HybridMergeAction }
   | { type: 'new-file'; path: string }
   | { type: 'delete'; path: string; reason: string };
 
@@ -51,6 +61,11 @@ export interface SyncPlan {
 
 interface SyncHashes {
   files: Record<string, string>;
+  /**
+   * Per section-merge or json-deep-merge file: the hash of each harness-owned section or key as upstream shipped it
+   * at the last sync. It is the base of the three-way check that keeps downstream edits from vanishing (B4).
+   */
+  regions: Record<string, Record<string, string>>;
 }
 
 interface SectionBlock {
@@ -263,6 +278,160 @@ function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+const ABSENT = '<absent>';
+/** Recorded for a region the user kept over an upstream change when no earlier base exists: it matches no hash. */
+const UNRESOLVED_BASE = 'unresolved';
+
+function hashText(text: string): string {
+  return createHash('sha256').update(text).digest('hex');
+}
+
+const ABSENT_HASH = hashText(ABSENT);
+
+/** Top-level marker sections by name (nested blocks stay inside their parent's body). */
+function topLevelSections(content: string): Map<string, string> {
+  const sections = new Map<string, string>();
+  const pattern = sectionBlockPattern();
+  let match = pattern.exec(content);
+  while (match) {
+    const name = match[1];
+    if (name && !sections.has(name)) {
+      sections.set(name, match[2] ?? '');
+    }
+    match = pattern.exec(content);
+  }
+  return sections;
+}
+
+/** Hash of each harness-owned top-level section; a nested preserved block is project text, so it is left out. */
+function sectionRegionHashes(content: string, config: HybridFileConfig): Map<string, string> {
+  const regions = new Map<string, string>();
+  for (const [name, body] of topLevelSections(content)) {
+    if (shouldPreserveMarker(name, config)) {
+      continue;
+    }
+    const harnessText = body
+      .replace(sectionBlockPattern(), (full, nested: string) =>
+        shouldPreserveMarker(nested, config) ? `<!-- PRESERVED:${nested} -->` : full,
+      )
+      .replace(/\r\n/g, '\n')
+      .trim();
+    regions.set(name, hashText(harnessText));
+  }
+  return regions;
+}
+
+function sortJsonKeys(value: JsonValue): JsonValue {
+  if (Array.isArray(value)) {
+    return value.map(sortJsonKeys);
+  }
+  if (isRecord(value)) {
+    return Object.fromEntries(
+      Object.keys(value)
+        .sort()
+        .map((key) => [key, sortJsonKeys(value[key] as JsonValue)]),
+    );
+  }
+  return value;
+}
+
+/** The value a harness key owns; for `prefix:*` keys, the matching children of the parent object. */
+function jsonRegionValue(json: JsonValue | unknown, keyPath: string): JsonValue | undefined {
+  if (!keyPath.endsWith(':*')) {
+    return getAtPath(json, keyPath);
+  }
+  const parts = splitPath(keyPath.slice(0, -2));
+  const prefix = parts.at(-1);
+  const parentPath = parts.slice(0, -1).join('.');
+  const parent = parentPath ? getAtPath(json, parentPath) : json;
+  if (!prefix || !isRecord(parent)) {
+    return undefined;
+  }
+  const matching = Object.entries(parent).filter(([key]) => key.startsWith(prefix));
+  return matching.length > 0 ? Object.fromEntries(matching) : undefined;
+}
+
+function jsonRegionHashes(json: JsonValue | unknown, config: HybridFileConfig): Map<string, string> {
+  const regions = new Map<string, string>();
+  for (const keyPath of config.harnessKeys ?? []) {
+    const value = jsonRegionValue(json, keyPath);
+    regions.set(keyPath, value === undefined ? ABSENT_HASH : hashText(JSON.stringify(sortJsonKeys(value))));
+  }
+  return regions;
+}
+
+function tracksRegions(config: HybridFileConfig): boolean {
+  return config.strategy === 'section-merge' || config.strategy === 'json-deep-merge';
+}
+
+async function regionHashesOf(filePath: string, config: HybridFileConfig): Promise<Map<string, string>> {
+  return config.strategy === 'section-merge'
+    ? sectionRegionHashes(await readText(filePath), config)
+    : jsonRegionHashes(await readJson<JsonValue>(filePath), config);
+}
+
+interface RegionVerdict {
+  keepLocal: string[];
+  conflicts: string[];
+}
+
+/**
+ * Three-way check per harness section or key. `base` is what upstream shipped at the last sync, or null when no
+ * base is known: then a region the downstream never had is a new upstream region, and any other difference is a
+ * conflict because nobody can tell which side changed it.
+ */
+function classifyRegions(
+  local: Map<string, string>,
+  upstream: Map<string, string>,
+  base: Map<string, string> | null,
+): RegionVerdict {
+  const keepLocal: string[] = [];
+  const conflicts: string[] = [];
+  const names = new Set([...local.keys(), ...upstream.keys()]);
+
+  for (const name of names) {
+    const localHash = local.get(name) ?? ABSENT_HASH;
+    const upstreamHash = upstream.get(name) ?? ABSENT_HASH;
+    if (localHash === upstreamHash) {
+      continue;
+    }
+    if (base === null) {
+      if (localHash !== ABSENT_HASH) {
+        conflicts.push(name);
+      }
+      continue;
+    }
+    const baseHash = base.get(name) ?? ABSENT_HASH;
+    if (baseHash === localHash) {
+      continue;
+    }
+    // Only the downstream changed it, and upstream still ships it: keep the local text. A region upstream dropped
+    // cannot be kept by the merge, so a local edit to it is a conflict.
+    if (baseHash === upstreamHash && upstreamHash !== ABSENT_HASH) {
+      keepLocal.push(name);
+    } else {
+      conflicts.push(name);
+    }
+  }
+
+  return { keepLocal, conflicts };
+}
+
+/** True when a section-merge or json-deep-merge file exists locally without recorded region hashes. */
+export async function missingRegionHistory(localRoot: string, manifest: SyncManifest): Promise<boolean> {
+  const syncHashes = await loadSyncHashes(localRoot);
+  for (const [relativePath, config] of Object.entries(manifest.files.hybrid)) {
+    if (
+      tracksRegions(config) &&
+      !syncHashes.regions[relativePath] &&
+      (await fileExists(path.join(localRoot, relativePath)))
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
 function isGlob(pattern: string): boolean {
   return pattern.includes('*');
 }
@@ -322,15 +491,72 @@ function readConfigFromRoot(root: string): Promise<VibeConfig> {
 async function loadSyncHashes(localRoot: string): Promise<SyncHashes> {
   const hashPath = path.join(localRoot, '.vibe', 'sync-hashes.json');
   if (!(await fileExists(hashPath))) {
-    return { files: {} };
+    return { files: {}, regions: {} };
   }
 
   try {
-    const loaded = await readJson<SyncHashes>(hashPath);
-    return { files: loaded.files ?? {} };
+    const loaded = await readJson<Partial<SyncHashes>>(hashPath);
+    return { files: loaded.files ?? {}, regions: loaded.regions ?? {} };
   } catch {
-    return { files: {} };
+    return { files: {}, regions: {} };
   }
+}
+
+/**
+ * The base for a hybrid file's regions: the hashes recorded at the last sync; else the file as the installed
+ * upstream version shipped it (`baseRoot`); else, when the whole file is unchanged since the last sync, the local
+ * file itself; else unknown.
+ */
+async function regionBase(
+  relativePath: string,
+  config: HybridFileConfig,
+  syncHashes: SyncHashes,
+  local: Map<string, string>,
+  localFileHash: string,
+  baseRoot: string | null,
+): Promise<Map<string, string> | null> {
+  const recorded = syncHashes.regions[relativePath];
+  if (recorded) {
+    return new Map(Object.entries(recorded));
+  }
+  if (baseRoot) {
+    const basePath = path.join(baseRoot, relativePath);
+    return (await fileExists(basePath)) ? regionHashesOf(basePath, config) : new Map();
+  }
+  return syncHashes.files[relativePath] === localFileHash ? local : null;
+}
+
+function hybridAction(
+  merge: HybridMergeAction,
+  verdict: RegionVerdict,
+  kind: 'section' | 'key',
+): SyncAction {
+  const withKept: HybridMergeAction =
+    verdict.keepLocal.length > 0 ? { ...merge, keepLocal: verdict.keepLocal } : merge;
+  if (verdict.conflicts.length === 0) {
+    return withKept;
+  }
+  return {
+    type: 'conflict',
+    path: merge.path,
+    reason: `harness ${kind}${verdict.conflicts.length > 1 ? 's' : ''} changed locally and upstream: ${verdict.conflicts.join(', ')}`,
+    regions: verdict.conflicts,
+    merge: withKept,
+  };
+}
+
+function recordRegions(
+  syncHashes: SyncHashes,
+  relativePath: string,
+  upstream: Map<string, string>,
+  unresolved: readonly string[] = [],
+): void {
+  const previous = syncHashes.regions[relativePath] ?? {};
+  const next: Record<string, string> = Object.fromEntries(upstream);
+  for (const name of unresolved) {
+    next[name] = previous[name] ?? UNRESOLVED_BASE;
+  }
+  syncHashes.regions[relativePath] = next;
 }
 
 async function isLocalUnmodified(
@@ -395,11 +621,18 @@ export async function expandHarnessGlob(
     .sort((left, right) => left.localeCompare(right));
 }
 
+export interface BuildSyncPlanOptions {
+  /** A checkout of the installed upstream version: the region base for hybrid files with no recorded regions. */
+  baseRoot?: string | null;
+}
+
 export async function buildSyncPlan(
   localRoot: string,
   upstreamRoot: string,
   manifest: SyncManifest,
+  options: BuildSyncPlanOptions = {},
 ): Promise<SyncPlan> {
+  const baseRoot = options.baseRoot ?? null;
   const [localConfig, upstreamConfig, syncHashes] = await Promise.all([
     readConfigFromRoot(localRoot),
     readConfigFromRoot(upstreamRoot),
@@ -523,14 +756,38 @@ export async function buildSyncPlan(
           ...(config.harnessMarkers ?? []),
           ...(config.preserveMarkers ?? []),
         ];
-        actions.push({ type: 'section-merge', path: relativePath, sections });
+        const local = sectionRegionHashes(localContent, config);
+        const base = await regionBase(
+          relativePath,
+          config,
+          syncHashes,
+          local,
+          await computeFileHash(localPath),
+          baseRoot,
+        );
+        const verdict = classifyRegions(local, sectionRegionHashes(upstreamContent, config), base);
+        actions.push(hybridAction({ type: 'section-merge', path: relativePath, sections }, verdict, 'section'));
       }
       continue;
     }
 
     if (config.strategy === 'json-deep-merge') {
       const keys = [...(config.harnessKeys ?? []), ...(config.projectKeys ?? [])];
-      actions.push({ type: 'json-merge', path: relativePath, keys });
+      const [localJson, upstreamJson] = await Promise.all([
+        readJson<JsonValue>(localPath),
+        readJson<JsonValue>(upstreamPath),
+      ]);
+      const local = jsonRegionHashes(localJson, config);
+      const base = await regionBase(
+        relativePath,
+        config,
+        syncHashes,
+        local,
+        await computeFileHash(localPath),
+        baseRoot,
+      );
+      const verdict = classifyRegions(local, jsonRegionHashes(upstreamJson, config), base);
+      actions.push(hybridAction({ type: 'json-merge', path: relativePath, keys }, verdict, 'key'));
       continue;
     }
 
@@ -576,23 +833,41 @@ export async function buildSyncPlan(
   };
 }
 
+export interface HybridMergeOptions {
+  /** Harness sections or keys whose local text stays (see `HybridMergeAction`). */
+  keepLocal?: readonly string[] | undefined;
+}
+
 export function sectionMerge(
   localContent: string,
   upstreamContent: string,
   config: HybridFileConfig,
+  options: HybridMergeOptions = {},
 ): string | null {
   if (!hasMarkers(localContent)) {
     return null;
   }
 
+  const keepLocal = new Set(options.keepLocal ?? []);
   const localBlocks = findSectionBlocks(localContent);
   const localSections = new Map(localBlocks.map((block) => [block.name, block.full]));
 
-  // Top-level pass: preserved sections come from the local file; harness and other
+  // Top-level pass: preserved and kept sections come from the local file; harness and other
   // upstream-owned sections keep the upstream text.
   let merged = upstreamContent.replace(sectionBlockPattern(), (fullMatch, rawName: string) =>
-    shouldPreserveMarker(rawName, config) ? (localSections.get(rawName) ?? fullMatch) : fullMatch,
+    shouldPreserveMarker(rawName, config) || keepLocal.has(rawName)
+      ? (localSections.get(rawName) ?? fullMatch)
+      : fullMatch,
   );
+
+  // A kept section upstream no longer ships has no place in the upstream layout: keep it at the end.
+  const upstreamNames = new Set(topLevelSections(upstreamContent).keys());
+  for (const name of keepLocal) {
+    const block = localSections.get(name);
+    if (block && !upstreamNames.has(name)) {
+      merged = `${merged.replace(/\s+$/, '')}\n\n${block}\n`;
+    }
+  }
 
   // Nested pass: a preserved section inside an upstream-owned block (SPRINT_ROLES inside
   // CHARTER, PROJECT:* inside a HARNESS section) was just overwritten with the upstream
@@ -610,9 +885,11 @@ export function jsonDeepMerge(
   localJson: JsonValue | unknown,
   upstreamJson: JsonValue | unknown,
   config: HybridFileConfig,
+  options: HybridMergeOptions = {},
 ): JsonValue {
   const result = cloneJson((isRecord(localJson) ? localJson : {}) as JsonValue);
-  const harnessKeys = config.harnessKeys ?? [];
+  const keepLocal = new Set(options.keepLocal ?? []);
+  const harnessKeys = (config.harnessKeys ?? []).filter((keyPath) => !keepLocal.has(keyPath));
 
   for (const keyPath of harnessKeys) {
     if (keyPath.endsWith(':*')) {
@@ -749,6 +1026,10 @@ export async function applySyncPlan(
       await mkdir(path.dirname(localPath), { recursive: true });
       await copySyncedFile(upstreamPath, localPath, action.path);
       hashTargets.add(action.path);
+      const hybrid = manifest.files.hybrid[action.path];
+      if (hybrid && tracksRegions(hybrid)) {
+        recordRegions(syncHashes, action.path, await regionHashesOf(upstreamPath, hybrid));
+      }
       continue;
     }
 
@@ -761,12 +1042,13 @@ export async function applySyncPlan(
       if (!config) {
         throw new Error(`Missing hybrid config for ${action.path}`);
       }
-      const merged = sectionMerge(localContent, upstreamContent, config);
+      const merged = sectionMerge(localContent, upstreamContent, config, { keepLocal: action.keepLocal });
       if (merged === null) {
         throw new Error(`Cannot merge legacy file without markers: ${action.path}`);
       }
       await writeText(localPath, merged);
       hashTargets.add(action.path);
+      recordRegions(syncHashes, action.path, sectionRegionHashes(upstreamContent, config), action.unresolved);
       continue;
     }
 
@@ -779,9 +1061,10 @@ export async function applySyncPlan(
         readJson<JsonValue>(localPath),
         readJson<JsonValue>(upstreamPath),
       ]);
-      const merged = jsonDeepMerge(localJson, upstreamJson, config);
+      const merged = jsonDeepMerge(localJson, upstreamJson, config, { keepLocal: action.keepLocal });
       await writeJson(localPath, merged);
       hashTargets.add(action.path);
+      recordRegions(syncHashes, action.path, jsonRegionHashes(upstreamJson, config), action.unresolved);
       continue;
     }
 
@@ -817,7 +1100,11 @@ export async function applySyncPlan(
     }
   }
 
-  await writeJson(path.join(localRoot, '.vibe', 'sync-hashes.json'), syncHashes);
+  // A project with no region history keeps the old file shape until a sync records one.
+  await writeJson(
+    path.join(localRoot, '.vibe', 'sync-hashes.json'),
+    Object.keys(syncHashes.regions).length > 0 ? syncHashes : { files: syncHashes.files },
+  );
 }
 
 export async function runMigrations(
