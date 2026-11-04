@@ -6,6 +6,7 @@ This file is project-owned runtime state. Downstream `/vibe-init` rewrites it be
 
 ## Entries
 
+- 2026-11-04T14:20:00+09:00 [release][v1.21.1] Published b2e69ec plus annotated tag 10a0991f atomically; exact remote refs and both CI runs passed (verify, astra, windows-contracts; 41775568835 / 41775568630). Downstreams not synced (not requested).
 - 2026-11-04T13:55:00+09:00 [release][v1.21.1] User asked to carry the osint fix upstream and cut a version: the extended preset drops the three `Write(...)` deny rules Claude Code never matches (Edit twins stay) and `vibe-sprint-mode` strips them from existing settings on on/off. Full forced verification, 9 groups: legacy 638 tests/637 pass/1 skip/0 fail, Astra 630/628/2/0; build, Stagehand UI 2/2, audits and checkpoint passed. Evidence: .tmp/release-1.21.1/.
 - 2026-10-30T09:40:00+09:00 [sync][v1.21.0] User asked to push and sync: pushed vibe-office/main aeda9cd and osint-stock-screener/improve/post-refactor-all a932d271 (Astra 656 tests/651 pass/5 skip/0 fail; release changes merged three-way onto its touched local conflicts, 18 kept); exact refs verified. Both downstream CI runs blocked before any step by the GitHub billing/spending limit.
 - 2026-10-29T16:30:00+09:00 [release][sync][v1.21.0] Published 7c288d9 plus annotated tag 14ae13bb atomically; exact remote refs and both CI runs passed (verify, astra, windows-contracts). vibe-office synced and committed at aeda9cd on its pace-lever commit 05757b6, not pushed; Astra 636 tests/631 pass/5 skip/0 fail; osint not included.

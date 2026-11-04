@@ -3,8 +3,12 @@
 PROJECT NOT INITIALIZED.
 This is the upstream template; downstream product work still requires /vibe-init.
 
-## Current — v1.21.1 release (Write() deny-rule warnings) / 2026-11-04
+## Current — v1.21.1 released (Write() deny-rule warnings) / 2026-11-04
 
+- Published `v1.21.1` at `b2e69ecb1d3f32393ff44915fed30007655a4211`; annotated tag object
+  `10a0991f67bd58334321d4cbfa2bbd2247b190c6`. Atomic push and exact remote refs verified.
+  Release main and tag CI passed `verify`, `astra` and `windows-contracts`
+  (runs 41775568835 / 41775568630).
 - User asked (2026-11-04) to carry the osint-stock-screener fix upstream and cut a version.
   Claude Code warns at startup that `Write(path)` deny rules never match (use `Edit(path)`).
   The extended preset drops `Write(.env*)`, `Write(secrets/**)` and
