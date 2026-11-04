@@ -6,6 +6,7 @@ This file is project-owned runtime state. Downstream `/vibe-init` rewrites it be
 
 ## Entries
 
+- 2026-11-05T09:00:00+09:00 [decision][working-tree-cleanup] tokens.json restored to the template state; ten Aug–Sep drafts and reports moved to ../vibe-doctor-notes (template hygiene forbids them here; all shipped in v1.14.0–v1.16.0); .tmp/ added to .git/info/exclude, not deleted.
 - 2026-11-04T15:55:00+09:00 [release][v1.22.0] Published 8bb9f6a plus annotated tag 53f45373 atomically; exact remote refs and both CI runs passed (verify, astra, windows-contracts; 41785252447 / 41785252524). vibe-office synced with --keep-local (CLAUDE.md and rm-guard hook preserved); osint-stock-screener not synced.
 - 2026-11-04T15:40:00+09:00 [release][v1.22.0] vibe-office chairman approved his skill-audit recommendations (D20): sync B4 (region hashes, three-way check, conflicts that still merge) and skill/rule doc fixes; notes docs/release/v1.22.0.md.
 - 2026-11-04T14:20:00+09:00 [release][v1.21.1] Published b2e69ec plus annotated tag 10a0991f atomically; exact remote refs and both CI runs passed (verify, astra, windows-contracts; 41775568835 / 41775568630). Downstreams not synced (not requested).

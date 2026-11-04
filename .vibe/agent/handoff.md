@@ -31,7 +31,9 @@ This is the upstream template; downstream product work still requires /vibe-init
   Stagehand UI 2/2, tracked wrapper, shard, sprint-mode, sync and config audits and checkpoint passed.
 - Open: B1/B2 (rm guard, CLAUDE.md sharding) still downstream-only, so vibe-office reports them as
   conflicts every sync until they ship here; osint-stock-screener not synced (not requested).
-- Preserve the upstream tokens edit and unrelated untracked inputs.
+- Working tree clean since 2026-11-05 (chairman: "추천대로 정리"): `tokens.json` back to the template
+  state, the Aug–Sep drafts and reports moved to `../vibe-doctor-notes/` (paths kept, README there),
+  `.tmp/` release evidence kept on disk and listed in `.git/info/exclude`.
 
 ## Previous — v1.21.1 released (Write() deny-rule warnings) / 2026-11-04
 
