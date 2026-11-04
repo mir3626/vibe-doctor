@@ -143,11 +143,8 @@
     "Bash(gh pr merge *)",
     "Bash(gh pr close *)",
     "Bash(gh release create *)",
-    "Write(.env*)",
     "Edit(.env*)",
-    "Write(secrets/**)",
     "Edit(secrets/**)",
-    "Write(config/credentials.json)",
     "Edit(config/credentials.json)"
   ]
 }

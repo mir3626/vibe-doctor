@@ -6,6 +6,7 @@ and in version-specific notes.
 
 ## Current
 
+- [v1.21.1](v1.21.1.md) - Drop the `Write()` deny rules Claude Code never matches
 - [v1.21.0](v1.21.0.md) - Speed-quality pace, Opus 5.5 delegation routing and an owner-facing interview
 - [v1.20.1](v1.20.1.md) - Evidence planning where acceptance needs it
 - [v1.20.0](v1.20.0.md) - Deterministic PowerShell runs (`vibe:ps`)

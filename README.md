@@ -10,7 +10,11 @@
 
 ## Latest Highlights
 
-### v1.21.0 (2026-10-29) - Speed-quality pace and an owner-facing interview
+### v1.21.1 (2026-11-04) - No more Write() deny-rule warnings
+
+- The extended sprint-mode preset no longer ships `Write(.env*)`, `Write(secrets/**)` or `Write(config/credentials.json)` deny rules. Claude Code never matches a `Write(path)` deny rule and warned about each one at startup; the `Edit(path)` rules that actually block file writes stay. `/vibe-sprint-mode on` and `off` also drop those three lines from an existing `.claude/settings.local.json`. See [release notes](docs/release/v1.21.1.md).
+
+### Previous: v1.21.0 (2026-10-29) - Speed-quality pace and an owner-facing interview
 
 - Every request runs at speed, balanced or quality (`docs/context/orchestration.md` §9): the request's own words decide first, then `.vibe/config.json` `pace`, the user's effort and the model profile. The agent records the pace instead of asking; speed keeps the 3-5 Sprint MVP, balanced and quality size Sprints by user value, and quality also looks at visible output. Claude Opus 5.5 now gets the Astra workflow from the delegation template too, and the interview asks non-developers only what they know, with a recommended answer for the rest.
 
@@ -431,7 +435,7 @@ Root `src/**`, `scripts/**`, `test/**`, `app/**`, `components/**`, and `lib/**` 
 
 ## 버전 / tag 정책
 
-현재 릴리스는 `harnessVersion: 1.21.0` 입니다. 릴리스를 자를 때는 `package.json`, `.vibe/config.json`, release note, tag를 같은 버전으로 맞춥니다.
+현재 릴리스는 `harnessVersion: 1.21.1` 입니다. 릴리스를 자를 때는 `package.json`, `.vibe/config.json`, release note, tag를 같은 버전으로 맞춥니다.
 
 - `harnessVersion` 은 `.vibe/config.json` 과 `package.json` 에 semver로 기록합니다.
 - 각 minor/patch 릴리스는 해당 커밋에 `vMAJOR.MINOR.PATCH` git tag를 붙인 뒤 origin에 push합니다.

@@ -125,6 +125,25 @@ describe('vibe-sprint-mode', () => {
     assert.deepEqual(settings.permissions.deny, presetDenyRules);
   });
 
+  it('drops legacy Write deny guards on on and off but keeps custom ones', async () => {
+    const legacyDeny = ['Write(.env*)', 'Write(secrets/**)', 'Write(config/credentials.json)'];
+    const customDeny = ['Write(private/**)', 'Edit(secrets/**)'];
+    const root = await makeTempDir('sprint-mode-legacy-deny-');
+    await scaffoldPreset(root);
+    const settingsPath = path.join('.claude', 'settings.local.json');
+    await writeJson(root, settingsPath, { permissions: { deny: [...customDeny, ...legacyDeny] } });
+
+    await runSprintMode(root, 'on');
+    const afterOn = await readJson<{ permissions: { deny: string[] } }>(root, settingsPath);
+    assert.deepEqual(afterOn.permissions.deny, [...customDeny, ...presetDenyRules]);
+
+    await writeJson(root, settingsPath, { permissions: { deny: [...customDeny, ...legacyDeny] } });
+    const { stdout } = await runSprintMode(root, 'off');
+    const afterOff = await readJson<{ permissions: { deny: string[] } }>(root, settingsPath);
+    assert.match(stdout, /0 allow rules and 3 deny guards removed/);
+    assert.deepEqual(afterOff.permissions.deny, customDeny);
+  });
+
   it('is idempotent when on is run twice', async () => {
     const root = await makeTempDir('sprint-mode-idempotent-');
     await scaffoldPreset(root);

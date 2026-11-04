@@ -3,7 +3,23 @@
 PROJECT NOT INITIALIZED.
 This is the upstream template; downstream product work still requires /vibe-init.
 
-## Current — v1.21.0 released and both downstreams synced / 2026-10-30
+## Current — v1.21.1 release (Write() deny-rule warnings) / 2026-11-04
+
+- User asked (2026-11-04) to carry the osint-stock-screener fix upstream and cut a version.
+  Claude Code warns at startup that `Write(path)` deny rules never match (use `Edit(path)`).
+  The extended preset drops `Write(.env*)`, `Write(secrets/**)` and
+  `Write(config/credentials.json)`; the `Edit(...)` twins stay, so protection is unchanged.
+  `vibe-sprint-mode` now strips those three legacy lines on `on`/`off` (new regression test).
+- Local release verification, evidence in `.tmp/release-1.21.1/`: legacy profile (no model
+  override) nine groups, 638 tests / 637 pass / 1 skip / 0 fail; Astra profile
+  (`claude-opus-5-5[1m]`) nine groups, 630 tests / 628 pass / 2 skips / 0 fail. Build,
+  Stagehand UI 2/2, sync/config/wrapper/four shard/sprint-mode audits and checkpoint passed.
+- Downstreams are not synced to 1.21.1 (not requested). osint-stock-screener already carries
+  the preset change by hand (`abc9f812` on `improve/post-refactor-all`) and its local
+  settings were cleaned; vibe-office still has the three lines until it syncs.
+- Preserve the upstream tokens edit and unrelated untracked inputs.
+
+## Previous — v1.21.0 released and both downstreams synced / 2026-10-30
 
 - Published `v1.21.0` at `7c288d9a2e4b39de5a53dbe14ba0efe4d11a3051`; annotated tag object
   `14ae13bb83a21fb2b81622d67181df58d5f84b65`. Atomic push and exact remote refs verified.

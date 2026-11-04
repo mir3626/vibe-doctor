@@ -84,6 +84,15 @@ const LEGACY_PRESET_ALLOW_RULES = [
   'Bash(cmd //c "node --import tsx:*)',
 ];
 
+// Earlier presets also shipped these deny guards in the Write(path) form. Claude Code never
+// matches a Write(path) deny rule (Edit(path) covers every file-writing tool) and warns about
+// each one, so they are dropped on `on` and removed on `off`; the Edit(path) twins remain.
+const LEGACY_PRESET_DENY_RULES = [
+  'Write(.env*)',
+  'Write(secrets/**)',
+  'Write(config/credentials.json)',
+];
+
 function getPresetPath(rootDir, tier) {
   return path.resolve(rootDir, '.vibe', 'settings-presets', PRESET_FILES[tier]);
 }
@@ -120,7 +129,7 @@ function loadPreset(rootDir, tier = 'core', options = {}) {
 
 function loadAllPresetRules(rootDir) {
   const allowRules = new Set(LEGACY_PRESET_ALLOW_RULES);
-  const denyRules = new Set();
+  const denyRules = new Set(LEGACY_PRESET_DENY_RULES);
   for (const tier of ['core', 'extended']) {
     const presetPath = getPresetPath(rootDir, tier);
     if (!existsSync(presetPath)) {
@@ -221,7 +230,8 @@ function runOn(rootDir, tier) {
   const { settingsPath, settings } = loadSettings(rootDir, true);
   const legacyPresetSet = new Set(LEGACY_PRESET_ALLOW_RULES);
   const currentAllow = getAllowRules(settings).filter((entry) => !legacyPresetSet.has(entry));
-  const currentDeny = getDenyRules(settings);
+  const legacyDenySet = new Set(LEGACY_PRESET_DENY_RULES);
+  const currentDeny = getDenyRules(settings).filter((entry) => !legacyDenySet.has(entry));
   const nextAllow = [...new Set([...currentAllow, ...preset.allowRules])];
   const nextDeny = [...new Set([...currentDeny, ...preset.denyRules])];
   const addedCount = nextAllow.length - currentAllow.length;
