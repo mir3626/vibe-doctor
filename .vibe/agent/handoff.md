@@ -3,7 +3,7 @@
 PROJECT NOT INITIALIZED.
 This is the upstream template; downstream product work still requires /vibe-init.
 
-## Current — v1.23.1 in release (v1.23.0 published; the renamed CLI test file) / 2026-11-19
+## Current — v1.23.1 released (fewer processes, verification 3x faster) / 2026-11-19
 
 - Published `v1.23.0` at `b2839b835216d809ba6fbbda95cecdbc60a43e4c`; annotated tag object
   `f43d7941281f13cbfb4bbd51a5d30aaece940cba`. Atomic push and exact remote refs verified. Main and
@@ -12,8 +12,18 @@ This is the upstream template; downstream product work still requires /vibe-init
   `pro-roundtrip-cli.test.ts`, sync never deletes a retired file, and `verify` rejects an unowned
   test file. No downstream had synced. v1.23.1 keeps the old name as the `close` shard (five shard
   files) and records `gap-sync-retired-file` (open).
-- Next: release verification, commit, annotated tag, atomic push, CI, then sync
-  osint-stock-screener to v1.23.1.
+- Published `v1.23.1` at `0207b94a0208a085e72ed2a780ddfe5fedfd6bc1`; annotated tag object
+  `f9f819e2644050e801c1f2c4adb48a682ee02daf`. Atomic push and exact remote refs verified. Main and
+  tag CI passed `verify`, `astra` and `windows-contracts` (runs 44469805223 / 44469805440).
+- osint-stock-screener synced 1.22.0 → 1.23.1 with `--keep-local` (its commit `c8cab534`): 21
+  standing local harness edits kept, its three local patches now match upstream, and its forced
+  verification passed (670 tests / 665 pass / 5 skip / 0 fail, Fable 5.2 on Astra). Its local
+  harness-gaps ledger admits terminal dispositions only, so the open `gap-sync-retired-file` row
+  was not ported there. vibe-office not synced (not requested).
+- Open: `gap-sync-retired-file` (sync cannot retire a harness file); the Stagehand UI test stopped
+  in the library's temporary Chrome profile cleanup on two of four local Windows runs (ENOTEMPTY);
+  further speed needs fewer processes again (one pinned bridge reader per Pro command, about 800
+  fewer in the suite) or a config-audit hook that starts node directly (about 320 ms).
 
 ### v1.23.0 scope
 
