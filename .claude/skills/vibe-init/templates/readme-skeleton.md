@@ -20,7 +20,7 @@ npm run vibe:qa
 npm run vibe:doctor
 ```
 
-Sprint flow details live in `CLAUDE.md` and `docs/context/orchestration.md`.
+Sprint flow details live in `CLAUDE.md` (Legacy charter), `docs/context/charter-extensions.md` and `docs/context/orchestration.md`.
 
 ## Docs
 

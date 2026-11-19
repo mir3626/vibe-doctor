@@ -3,7 +3,24 @@
 PROJECT NOT INITIALIZED.
 This is the upstream template; downstream product work still requires /vibe-init.
 
-## Current — v1.23.3 released (browser close fixed in the harness helper) / 2026-11-19
+## Current — v1.24.0 (the charter says which rules apply; evidence must show what the user will see) / 2026-11-20
+
+- Owner directive from the downstream sprite-generator session (Fable 5.2 on Astra): apply that
+  session's report on the harness, quality first, and release. The report is an impression from use,
+  not a benchmark; `docs/release/v1.24.0.md` states what it rests on and what is not verified.
+- `CLAUDE.md` 23.3 KB to 8.9 KB: which profile follows what, project rules, rules for every profile
+  (with the new `HARNESS:evidence` section), Legacy charter last. The former Extensions are
+  `docs/context/charter-extensions.md`, read on demand. `_common-rules.md` §14 is scoped to harness
+  files. `vibe-rule-audit` and `vibe-context-audit` read the new shard.
+- `vibe:sync` replaces a harness file without history that matches the installed version (first sync
+  of a templated project: 21 false conflicts in sprite-generator).
+- Verified: forced suite legacy 656 / 0 fail and Astra release 648 / 0 fail, test-ui 2 of 2, audits,
+  four seeded bugs caught, sprite-generator dry-run without conflict.
+- Open, recorded in `harness-gaps.md`: nothing checks that a legacy session reads the extensions
+  (`gap-charter-inapplicable-to-profile`); the evidence rule is documentation
+  (`gap-evidence-of-the-wrong-thing`). No legacy-profile session has run on the new layout.
+
+## Previous — v1.23.3 released (browser close fixed in the harness helper) / 2026-11-19
 
 - Published `v1.23.2` at `6b405ae6f25d940ff76d130f2bf1d459ddf6c26f`; annotated tag object
   `963adf9843a1b6c52162fbc6ee6eb58758b615ec`; main and tag CI passed (runs 44475957550 /

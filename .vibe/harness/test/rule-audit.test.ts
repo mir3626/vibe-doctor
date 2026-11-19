@@ -108,6 +108,29 @@ describe('vibe-rule-audit', () => {
     assert.equal(parsed.rules.some((rule) => rule.text.includes('fenced')), false);
   });
 
+  it('audits the charter extensions with the charter and says which file a rule is in', async () => {
+    const root = await makeTempDir('rule-audit-extensions-');
+    const claudePath = path.join(root, 'CLAUDE.md');
+    const extensionsPath = path.join(root, 'charter-extensions.md');
+    const gapsPath = path.join(root, 'harness-gaps.md');
+    await writeText(claudePath, '# CLAUDE\nThe charter MUST stay short.\n');
+    await writeText(extensionsPath, '# Extensions\nA moved rule MUST still be counted.\n');
+    await writeText(gapsPath, '');
+
+    const both = await runRuleAudit(['--format=json', `--claude-md=${claudePath}`, `--extensions=${extensionsPath}`, `--gaps=${gapsPath}`]);
+    const parsed = JSON.parse(both.stdout) as { summary: { total: number }; rules: Array<{ text: string; file?: string }> };
+    assert.equal(parsed.summary.total, 2);
+    assert.equal(parsed.rules[0]?.file, undefined);
+    assert.match(parsed.rules[1]?.file ?? '', /charter-extensions\.md$/);
+
+    const text = await runRuleAudit([`--claude-md=${claudePath}`, `--extensions=${extensionsPath}`, `--gaps=${gapsPath}`]);
+    assert.match(text.stdout, /^- CLAUDE\.md:2 \[MUST\]/m);
+    assert.match(text.stdout, /charter-extensions\.md:2 \[MUST\] A moved rule/);
+
+    const charterOnly = await runRuleAudit(['--format=json', `--claude-md=${claudePath}`, `--gaps=${gapsPath}`]);
+    assert.equal((JSON.parse(charterOnly.stdout) as { summary: { total: number } }).summary.total, 1);
+  });
+
   it('renders both text sections and explicit empty covered output', async () => {
     const root = await makeTempDir('rule-audit-text-');
     const claudePath = path.join(root, 'CLAUDE.md');

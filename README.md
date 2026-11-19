@@ -10,7 +10,15 @@
 
 ## Latest Highlights
 
-### v1.23.3 (2026-11-19) - The harness closes its browser reliably on Windows
+### v1.24.0 (2026-11-20) - The charter says which rules apply; evidence must show what the user will see
+
+- From one downstream session's report (Fable 5.2 on Astra, an impression from use, not a benchmark): `CLAUDE.md` loaded 23 KB every session and after every compaction, and under the Astra profile about 1 KB of it applied. It now opens with which profile follows what, then the project rules, then the rules for every profile; the Legacy charter comes last, and the detail (role, trigger and Sprint procedure, the script table) moved to `docs/context/charter-extensions.md`, read on demand (23.3 KB to 9 KB).
+- A new section for every profile says what evidence is for anything people look at, read or use: the default view and state, every variant it ships in, each separable part alone. Two defects in that session passed every check and its own review with screenshots of the wrong thing; the user found both.
+- The §14 wiring table is for harness-file changes. A product-code change reports `verified-callers` and its tests, not fourteen `n/a` rows.
+- First sync of a project made from the template: a harness file identical to the installed version's copy is replaced instead of reported as a conflict "without sync history" (that session: 21 conflicts, 20 of them unmodified files).
+- See [docs/release/v1.24.0.md](docs/release/v1.24.0.md).
+
+### Previous: v1.23.3 (2026-11-19) - The harness closes its browser reliably on Windows
 
 - v1.23.2 was too optimistic: under load Stagehand 4.4.0 still rejected 11 of 180 closes (`taskkill exited with code 255`, `EBUSY` on the profile lock) although Chrome exits. The harness browser helper now owns the Chrome profile directory, counts a rejected close as closed once the DevTools endpoint is gone, and removes the profile with retries: 0 close failures in 120 cycles under the same load.
 
@@ -278,7 +286,7 @@ npm run vibe:bundle-size        # 번들 gzip 크기 게이트 (opt-in)
 npm run vibe:browser-smoke      # Stagehand headless Chrome DOM/console 검증 (opt-in)
 npm run vibe:gen-schemas        # Zod source 로부터 .schema.json regenerate/check
 npm run vibe:audit-lightweight <sprintId>  # per-sprint 자동 감사 (non-blocking)
-npm run vibe:rule-audit         # CLAUDE.md rule ↔ harness-gaps coverage 대조
+npm run vibe:rule-audit         # CLAUDE.md + charter-extensions rule ↔ harness-gaps coverage 대조
 npm run vibe:context-audit      # skill/runbook dependency scan (report-only)
 npm run vibe:codex-wrapper-audit    # Codex wrapper ↔ shared skill shard injection 계약 검사
 npm run vibe:init-shard-audit       # /vibe-init phase sharding safety gate
@@ -337,7 +345,7 @@ Orchestrator 가 주로 호출합니다. 사용자가 직접 쓸 일은 드뭅�
 | `vibe-sync-bootstrap.mjs` | 레거시 프로젝트 one-shot 업그레이드 |
 | `vibe-version-check.mjs` | SessionStart: 업스트림 버전 비교 |
 | `vibe-stop-qa-gate.mjs` | 턴 종료 시 하네스 소유 변경만 감지 → detached·hidden 하네스 QA 예약 후 즉시 반환, 잠금·결과 지문 재사용 |
-| `vibe-rule-audit.mjs` | CLAUDE.md 명령형 규칙 ↔ harness-gaps coverage 자동 대조 🆕 |
+| `vibe-rule-audit.mjs` | CLAUDE.md 와 `docs/context/charter-extensions.md` 의 명령형 규칙 ↔ harness-gaps coverage 자동 대조 |
 | `vibe-context-audit.mjs` | skill/runbook dependency strength + missing reference audit (report-only) |
 | `vibe-codex-wrapper-audit.mjs` | Codex skill wrapper와 MD injection shard 계약 검사 |
 | `vibe-init-shard-audit.mjs` / `vibe-interview-shard-audit.mjs` | init/interview shard 손실 방지 audit |
@@ -380,7 +388,7 @@ Shared script helpers live under `.vibe/harness/scripts/lib/` and include browse
 
 ```text
 .
-├── CLAUDE.md                      # Orchestrator 규칙 (Sprint 프로세스)
+├── CLAUDE.md                      # 적용 프로필 · 프로젝트 규칙 · 공통 규칙 · Legacy Charter
 ├── AGENTS.md / GEMINI.md          # 보조 에이전트 규칙
 ├── README.md                      # 이 파일
 ├── bridge-runbook.md              # Web Pro GitHub 진입 런북 ($vibe-pro-go Web-first entry)
@@ -455,7 +463,7 @@ Root `src/**`, `scripts/**`, `test/**`, `app/**`, `components/**`, and `lib/**` 
 
 ## 버전 / tag 정책
 
-현재 릴리스는 `harnessVersion: 1.23.3` 입니다. 릴리스를 자를 때는 `package.json`, `.vibe/config.json`, release note, tag를 같은 버전으로 맞춥니다.
+현재 릴리스는 `harnessVersion: 1.24.0` 입니다. 릴리스를 자를 때는 `package.json`, `.vibe/config.json`, release note, tag를 같은 버전으로 맞춥니다.
 
 - `harnessVersion` 은 `.vibe/config.json` 과 `package.json` 에 semver로 기록합니다.
 - 각 minor/patch 릴리스는 해당 커밋에 `vMAJOR.MINOR.PATCH` git tag를 붙인 뒤 origin에 push합니다.

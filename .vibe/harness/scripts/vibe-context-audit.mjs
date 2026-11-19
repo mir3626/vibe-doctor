@@ -10,6 +10,7 @@ const DEFAULT_SCAN_PATHS = [
   '.vibe/agent/_common-rules.md',
   'docs/context/harness-gaps.md',
   'docs/context/orchestration.md',
+  'docs/context/charter-extensions.md',
   'docs/context/codex-execution.md',
   '.claude/agents',
   '.codex/agents',

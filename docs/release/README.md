@@ -6,6 +6,7 @@ and in version-specific notes.
 
 ## Current
 
+- [v1.24.0](v1.24.0.md) - The charter says which rules apply; evidence must show what the user will see; first sync without false conflicts
 - [v1.23.3](v1.23.3.md) - The harness closes its browser reliably on Windows; corrects v1.23.2
 - [v1.23.2](v1.23.2.md) - Stagehand 4.4.0 makes the Windows browser-close failures rare (not gone under load; see v1.23.3)
 - [v1.23.1](v1.23.1.md) - The former CLI suite file keeps its name so a sync leaves no unowned test

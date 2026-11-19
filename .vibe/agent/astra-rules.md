@@ -29,8 +29,14 @@ is the rollback and comparison path. It cannot enable Astra for another model.
 - Before large work unrelated to the current context, or in another repository,
   with the context about half full or more: refresh that handoff section and suggest
   a new session in one line. The user decides.
+- Judge what people look at, read or use by what they will meet: the default view
+  and state, every variant it ships in (each direction, size, theme, locale), and
+  each separable part on its own (a layer without what covers it). A passing check
+  or one flattering capture is not that evidence (`CLAUDE.md`, evidence section).
 - When the user corrects a deliverable, record the rule in that repository's rule
-  document (for example `RULEBOOK.md`) as well as fixing it.
+  document (for example `RULEBOOK.md`) as well as fixing it. When the defect had
+  passed your own review, also record what the review did not look at, and add
+  the check or capture that shows it.
 - This contract overrides CLAUDE.md mechanical overrides 1-2 (separate STEP 0 cleanup
   commits, beyond-request improvements); override 3 (verify before reporting) stays.
 - Select meaningful verification for the changed behavior and actual environment.
@@ -55,6 +61,8 @@ is the rollback and comparison path. It cannot enable Astra for another model.
   phase, document, reviewer, tool, or approval gate.
 - Keep scope tied to the goal. Refactor or remove dead code only when useful to it;
   do not force creative changes, extra commits, or expansion for file size alone.
+  Name what calls each new file (`verified-callers`); the `_common-rules.md` §14
+  table is for harness-file changes, not for product code.
 - Follow the request's pace (speed, balanced or quality; `docs/context/orchestration.md`
   section 9, recorded as `[decision][pace]`): speed delivers the smallest complete result
   and lists the rest; balanced fills the request and settles open points by its goal;

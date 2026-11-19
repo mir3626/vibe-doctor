@@ -40,6 +40,7 @@
       "docs/context/sidecars.md",
       "docs/context/harness-gaps.md",
       "docs/context/legacy-model-overrides.md",
+      "docs/context/charter-extensions.md",
       "docs/context/pro-go-setup.md",
       "docs/context/workflow-integrity.md",
       "docs/context/vibe-init-sharding.md",
@@ -61,6 +62,7 @@
           "HARNESS:trigger-matrix",
           "HARNESS:reasoning-policy",
           "HARNESS:hook-enforcement",
+          "HARNESS:evidence",
           "HARNESS:sprint-flow",
           "HARNESS:mechanical-overrides"
         ],

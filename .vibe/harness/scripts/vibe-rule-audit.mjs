@@ -28,7 +28,10 @@ function parseArgs(argv) {
     else if (arg.startsWith('--emit-report-md=')) set('emitReportMd', arg.slice(17));
     else if (arg === '--emit-report-md') { set('emitReportMd', args[index + 1] ?? ''); index += 1; }
     else if (arg === '--fail-on-undisposed') set('failOnUndisposed', true);
+    else if (arg.startsWith('--extensions=')) set('extensions', arg.slice(13));
   }
+  // The charter's on-demand half is audited with it. An explicit --claude-md names the only file unless --extensions is given too.
+  if (options.extensions === undefined) options.extensions = args.some((arg) => arg.startsWith('--claude-md')) ? '' : './docs/context/charter-extensions.md';
   return options;
 }
 
@@ -198,7 +201,8 @@ function buildClusterAudit(claudeContent, gapsContent, transcriptCsv) {
 function buildAudit(claudeContent, gapsContent, options = {}) {
   if (options.scanTranscripts) return buildClusterAudit(claudeContent, gapsContent, options.scanTranscripts);
   const gapRows = extractGapRows(gapsContent);
-  const rules = extractRules(claudeContent).map((rule) => {
+  const extra = extractRules(options.extensionsContent ?? '').map((rule) => ({ ...rule, file: options.extensionsLabel }));
+  const rules = [...extractRules(claudeContent), ...extra].map((rule) => {
     const ids = Array.from(rule.text.matchAll(/\bgap-[\w-]+\b/g), (match) => match[0]);
     const disposedBy = ids.find((id) => gapRows.has(id)) ?? null;
     const row = disposedBy === null ? null : gapRows.get(disposedBy);
@@ -227,7 +231,7 @@ function renderSection(title, rules, emptyText, renderDetail) {
   }
 
   for (const rule of rules) {
-    lines.push(`- CLAUDE.md:${rule.line} [${rule.kind}] ${rule.text}`);
+    lines.push(`- ${rule.file ?? 'CLAUDE.md'}:${rule.line} [${rule.kind}] ${rule.text}`);
     lines.push(`  ${renderDetail(rule)}`);
   }
 
@@ -289,7 +293,9 @@ function emitReportMd(audit, outputPath) {
 }
 
 const options = parseArgs(process.argv);
-const audit = buildAudit(readOptional(options.claudeMd), readOptional(options.gaps), options);
+const extensionsContent = options.extensions && existsSync(resolve(options.extensions)) ? readOptional(options.extensions) : '';
+const extensionsLabel = String(options.extensions).replaceAll('\\', '/').replace(/^\.\//, '');
+const audit = buildAudit(readOptional(options.claudeMd), readOptional(options.gaps), { ...options, extensionsContent, extensionsLabel });
 if (astra) audit.authority = 'advisory: matches and ledger dispositions are unverified leads';
 if (options.emitReportMd) emitReportMd(audit, options.emitReportMd);
 if (options.format === 'json') {

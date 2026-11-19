@@ -755,6 +755,56 @@ describe('buildSyncPlan', () => {
     assert.deepEqual(byPath.get('scripts/diverged.mjs'), { type: 'conflict', path: 'scripts/diverged.mjs', reason: 'local file changed since last sync' });
   });
 
+  it('replaces a file without sync history that the installed version shipped unchanged', async () => {
+    const localRoot = await makeTempDir('sync-local-base-');
+    const upstreamRoot = await makeTempDir('sync-upstream-base-');
+    const baseRoot = await makeTempDir('sync-installed-base-');
+    const manifest: SyncManifest = {
+      manifestVersion: '1.0',
+      files: {
+        harness: ['scripts/untouched.mjs', 'scripts/edited.mjs', 'scripts/added.mjs'],
+        hybrid: {},
+        project: [],
+      },
+      migrations: {},
+    };
+    for (const [root, key, version] of [
+      [localRoot, 'harnessVersionInstalled', '1.0.0'],
+      [upstreamRoot, 'harnessVersion', '1.1.0'],
+    ] as const) {
+      await writeJson(path.join(root, '.vibe', 'config.json'), {
+        orchestrator: 'x',
+        [key]: version,
+        sprintRoles: { planner: 'a', generator: 'b', evaluator: 'c' },
+        sprint: { unit: 'feature', subAgentPerRole: true, freshContextPerSprint: true },
+        providers: {},
+      });
+    }
+    for (const root of [localRoot, upstreamRoot, baseRoot]) {
+      await mkdir(path.join(root, 'scripts'), { recursive: true });
+    }
+    // A project made from the template has no sync-hashes.json. untouched: as the installed version
+    // shipped it. edited: changed downstream. added: a local file the installed version never had.
+    await writeFile(path.join(baseRoot, 'scripts/untouched.mjs'), 'v1.0', 'utf8');
+    await writeFile(path.join(localRoot, 'scripts/untouched.mjs'), 'v1.0', 'utf8');
+    await writeFile(path.join(upstreamRoot, 'scripts/untouched.mjs'), 'v1.1', 'utf8');
+    await writeFile(path.join(baseRoot, 'scripts/edited.mjs'), 'v1.0', 'utf8');
+    await writeFile(path.join(localRoot, 'scripts/edited.mjs'), 'v1.0 with a local patch', 'utf8');
+    await writeFile(path.join(upstreamRoot, 'scripts/edited.mjs'), 'v1.1', 'utf8');
+    await writeFile(path.join(localRoot, 'scripts/added.mjs'), 'local', 'utf8');
+    await writeFile(path.join(upstreamRoot, 'scripts/added.mjs'), 'v1.1', 'utf8');
+
+    const noHistory = (file: string) => ({ type: 'conflict', path: file, reason: 'local file exists without sync history' });
+    const withBase = await buildSyncPlan(localRoot, upstreamRoot, manifest, { baseRoot });
+    const byPath = new Map(withBase.actions.map((action) => [action.path, action]));
+    assert.deepEqual(byPath.get('scripts/untouched.mjs'), { type: 'replace', path: 'scripts/untouched.mjs', reason: 'local copy matches the installed version' });
+    assert.deepEqual(byPath.get('scripts/edited.mjs'), noHistory('scripts/edited.mjs'));
+    assert.deepEqual(byPath.get('scripts/added.mjs'), noHistory('scripts/added.mjs'));
+
+    const withoutBase = await buildSyncPlan(localRoot, upstreamRoot, manifest);
+    assert.deepEqual(withoutBase.actions.find((action) => action.path === 'scripts/untouched.mjs'), noHistory('scripts/untouched.mjs'));
+  });
+
   it('expands glob harness entries and deduplicates exact file paths', async () => {
     const localRoot = await makeTempDir('sync-local-glob-');
     const upstreamRoot = await makeTempDir('sync-upstream-glob-');

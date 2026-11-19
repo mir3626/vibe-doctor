@@ -29,6 +29,8 @@ description: Sync vibe-doctor harness/template updates while preserving project-
 - Both changed it: a `conflict` row names the sections or keys. Accepting takes upstream there and still keeps the project sections and keys; skipping keeps the local text there and reports it again on the next sync.
 - No history yet (the first sync with this code): sync clones the installed version once as the base. If that fails, a section or key that differs from upstream is a conflict.
 
+The same base settles harness-owned files that have no recorded hash (a project made from the template): a file identical to the installed version's copy is replaced, and only one that differs from it is a conflict "without sync history".
+
 ## Safety Gate
 
 Run this before and after changing sync boundaries or the sync runbook:

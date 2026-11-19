@@ -200,7 +200,7 @@ If `README.md` already exists, skip it and print:
 
 Step 3-4 의 context shard 작성 직후, Orchestrator 가 **product 맥락을 가장 풍부하게
 보유한 상태** 에서 Sprint 로드맵을 직접 작성합니다. **이 단계는 Planner 에 위임하지
-않습니다** (CLAUDE.md §Sub-agent 소환 트리거 매트릭스 > "Sprint 로드맵 분할" 참조).
+않습니다** (Charter extensions 문서의 「Sub-agent 소환 트리거 매트릭스」 > "Sprint 로드맵 분할" 참조).
 위임 시 인터뷰 context 손실로 품질이 저하됩니다.
 
 절차:

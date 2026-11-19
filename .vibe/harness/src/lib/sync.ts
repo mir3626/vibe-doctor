@@ -687,6 +687,17 @@ export async function buildSyncPlan(
     }
 
     if (!trackedHash) {
+      // A project made from the template has no recorded hashes. A file identical to the copy the
+      // installed version shipped (`baseRoot`) is unmodified, however far upstream has moved since.
+      const basePath = baseRoot ? path.join(baseRoot, relativePath) : null;
+      if (basePath && (await fileExists(basePath)) && (await computeFileHash(basePath)) === localHash) {
+        actions.push({
+          type: 'replace',
+          path: relativePath,
+          reason: 'local copy matches the installed version',
+        });
+        continue;
+      }
       actions.push({
         type: 'conflict',
         path: relativePath,

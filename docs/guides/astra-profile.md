@@ -111,6 +111,13 @@ Keep initialization, scope/ownership, design decisions, handoff/session log,
 checkpoint, actual result verification, UTF-8, and durable Pro execution binding.
 An ambient ACTIVE.json must not attach a standalone task to a Pro flow.
 
+`CLAUDE.md` is laid out by what applies (v1.24.0): which profile follows what, the project rules,
+the rules for every profile (verification before reporting, what counts as evidence, script
+gates, pace), then the Legacy charter. An Astra session follows the first three and skips the
+charter. The legacy detail lives in `docs/context/charter-extensions.md` and is read on demand:
+by a legacy session before its first Sprint and after a compaction, by an Astra session only
+for a fact it holds (the script table, the skill list).
+
 Every Codex wrapper invokes Codex once. It does not replay a failed task whose side
 effects may already exist. Use the native session's retry/resume mechanisms and
 inspect state before a new execution. `CODEX_RETRY` and `CODEX_RETRY_DELAY` no longer

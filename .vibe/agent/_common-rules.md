@@ -174,7 +174,7 @@ Orchestrator가 본문을 **직접 작성**하는 것은 다음 예외 상황에
 - 🟢 Sprint 가 trivial (패턴 직접 계승 + 새 아키텍처 결정 없음 + 체크리스트 ≤3 항목) 이고 사용자가 "간소화" 명시. **반드시** `node .vibe/harness/scripts/vibe-planner-skip-log.mjs <sprintId> <reason>` 으로 session-log 에 `[decision][planner-skip]` 태그 기록 (수동 편집 금지). LOC 기준은 제거됨 (gameable).
 - 🟡 Planner 소환이 2회 연속 실패(타임아웃 / 에러 반환) 후 사용자가 fallback 승인
 
-어느 예외든 발동 시 **자동으로 Evaluator Should 트리거**로 간주한다 (작성자=평가자 우려 완화를 위해 Evaluator를 강제 소환). CLAUDE.md 트리거 매트릭스의 예외 조건과 충돌 시 이 규칙이 우선.
+어느 예외든 발동 시 **자동으로 Evaluator Should 트리거**로 간주한다 (작성자=평가자 우려 완화를 위해 Evaluator를 강제 소환). Charter 트리거 매트릭스와 `docs/context/charter-extensions.md` 의 예외 조건과 충돌 시 이 규칙이 우선.
 
 ## 11. 역할 × Phase 상위 참조
 
@@ -264,15 +264,17 @@ If the marker blocks are absent, Planner may skip shard loading only for a brand
 
 반복된 dogfood 리뷰에서 동일 패턴이 재발했다: **Codex 가 파일을 생성했지만 그 파일을 실제로 호출·참조하는 wiring 을 빠뜨려 dead code 가 되거나, 관련 문서·매니페스트·훅 중 일부만 업데이트되어 silent drift 발생**. 본 섹션은 이 패턴을 방지하기 위한 **모든 Sprint 의 필수 체크리스트**다.
 
+**적용 범위**: W1–W14 와 D1–D6 는 하네스 파일(sync 가 내려보내는 것: `.vibe/harness/**`, `.claude/**`, `.codex/**`, `.vibe/agent/` 의 규칙 문서, sync manifest, 루트 메모리 문서)을 추가·변경·삭제할 때의 체크포인트다. 제품 코드만 바꾼 작업은 표를 채우지 않는다. 그 경우 `## Wiring Integration` 에는 새 파일마다 `verified-callers`(§14.3)와 더하거나 고친 회귀 테스트만 적는다. 모든 행이 `n/a` 인 표는 아무것도 확인하지 않은 보고다.
+
 ### §14.1 신규 파일·스크립트·스킬 추가 시 — 모든 체크포인트 명시 처리
 
 아래 목록 각 항목에 대해 Final report 의 **"## Wiring Integration"** 섹션에 `touched / n/a / skipped+reason` 중 하나로 상태 보고.
 
 | # | 체크포인트 | 적용 조건 |
 |---|---|---|
-| W1 | `CLAUDE.md` §훅 강제 메커니즘 테이블 행 추가 | 신규 `.vibe/harness/scripts/vibe-*.mjs` 또는 `run-*.{sh,cmd}` 추가 시 |
-| W2 | `CLAUDE.md` §관련 스킬 list + 한 줄 설명 추가 | 신규 슬래시 커맨드 / `.claude/skills/*` 추가 시 |
-| W3 | `CLAUDE.md` §Sprint flow 번호 업데이트 | Sprint 사이클 절차 변경 시 |
+| W1 | `docs/context/charter-extensions.md` 「훅 강제 메커니즘」 표에 행 추가 | 신규 `.vibe/harness/scripts/vibe-*.mjs` 또는 `run-*.{sh,cmd}` 추가 시 |
+| W2 | `docs/context/charter-extensions.md` 「관련 스킬」 목록 + 한 줄 설명 추가 | 신규 슬래시 커맨드 / `.claude/skills/*` 추가 시 |
+| W3 | `CLAUDE.md` Charter 의 Sprint loop 와 `docs/context/charter-extensions.md` 「Sprint 흐름」 번호 업데이트 | Sprint 사이클 절차 변경 시 |
 | W4 | `.claude/settings.json` hook 등록 (SessionStart / Stop / PreToolUse / PostToolUse / Notification / PreCompact) | 이벤트 기반 스크립트 추가 시 |
 | W5 | `.claude/settings.json` statusLine 등록 | 상태바 렌더 변경 시 |
 | W6 | `.vibe/sync-manifest.json` `files.harness[]` 등록 | 신규 하네스 파일 (스크립트·스킬·lib·agent·schema 등) |
@@ -315,15 +317,26 @@ Windows portability rule: commands stored in `.claude/settings.json` must be val
 
 | Checkpoint | Status | Evidence |
 |---|---|---|
-| W1 CLAUDE.md hook 테이블 | touched | CLAUDE.md:86 |
-| W2 CLAUDE.md 관련 스킬 | n/a | 신규 슬래시 커맨드 없음 |
+| W1 charter-extensions hook 표 | touched | docs/context/charter-extensions.md:60 |
+| W2 charter-extensions 관련 스킬 | n/a | 신규 슬래시 커맨드 없음 |
 | W6 sync-manifest harness[] | touched | sync-manifest.json:103 |
 | W12 test 회귀 방지 | touched | test/foo.test.ts |
 | D1 rg <old-name> 결과 | touched | 4개 참조 교체 (CLAUDE.md / README.md / SKILL.md 2건) |
 | ... | ... | ... |
 
 verified-callers:
-- .vibe/harness/scripts/vibe-foo.mjs → CLAUDE.md:86 훅 테이블 / .claude/settings.json:70 PostToolUse
+- .vibe/harness/scripts/vibe-foo.mjs → docs/context/charter-extensions.md:60 훅 표 / .claude/settings.json:70 PostToolUse
+```
+
+제품 코드만 바꾼 작업의 형태:
+
+```markdown
+## Wiring Integration
+
+verified-callers:
+- src/foo.ts → src/app.ts:12 import
+
+tests: test/foo.test.ts (신규)
 ```
 
 ### §14.5 근거

@@ -123,7 +123,7 @@ function runtimeMemorySteps(runtime: AgentRuntime): string {
   }
 
   return [
-    '1. `CLAUDE.md` 의 `<!-- BEGIN:CHARTER --> ... <!-- END:CHARTER -->` 블록 전체.',
+    '1. `CLAUDE.md` 의 「먼저 읽기」 절과 `<!-- BEGIN:CHARTER --> ... <!-- END:CHARTER -->` 블록 전체.',
     '2. `CLAUDE.md` 의 `<!-- BEGIN:FREEZE-POSTURE -->` 블록.',
     '3. `.claude/skills/vibe-init/SKILL.md` 의 Phase 1~4 흐름 개요 (Step 1-0 은 이미 완료된 것으로 간주).',
     '4. `.claude/skills/vibe-init/phases/phase-2-providers.md`, `phase-3-interview.md`, `phase-4-complete.md`, `rules.md` 를 직접 읽고 Step 순서대로 수행한다.',

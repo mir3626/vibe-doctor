@@ -1,7 +1,8 @@
-<!-- BEGIN:CHARTER -->
 # Claude project memory
 
-Model selection applies to this entire Charter and the Extensions below.
+## 먼저 읽기 — 이 세션에 적용되는 규칙
+
+Model selection applies to this entire document.
 Verified active Codex GPT-6 Astra or Claude Opus 5.5 (or an explicitly registered
 successor with `harnessProfile: astra` in `.vibe/model-registry.json`), without
 the legacy override, uses `.vibe/agent/astra-rules.md` instead of role, fresh-context,
@@ -9,262 +10,20 @@ LOC, interview and repeated-QA ceremonies. This never promotes a lower or unknow
 child, and a parent's profile never grants eligibility to a child.
 Explicit scope, ownership, initialization and evidence remain required.
 
-Claude 세션에서는 Claude가 nominal 메인 Orchestrator다. 모든 개발은 Sprint 단위로 진행하며, 기본값은 Orchestrator 단독 진행 + self-QA다.
-이 문서는 **nominal harness mode**(Claude Opus 메인 Orchestrator + Codex Generator)를 기준으로 하며, Claude를 유일한 Orchestrator로 강제하지 않는다.
-사용자가 Codex와 직접 대화하며 업스트림 하네스 유지보수를 요청하는 경우는 **Codex Orchestrator maintenance mode**로 취급하고, Codex 쪽 `AGENTS.md`의 역할 모드와 `docs/context/codex-execution.md`의 provider-neutral lifecycle을 함께 적용한다.
-## Role constraint (legacy profile)
+- **Astra 프로필**: 작업 계약은 `.vibe/agent/astra-rules.md` 다. 이 문서에서는 「프로젝트 규칙」과 「모든 프로필에 적용」만 따른다. 「Legacy 프로필 Charter」와 `docs/context/charter-extensions.md` 는 적용하지 않는다.
+- **Legacy 프로필** (그 밖의 모델, 확인되지 않은 모델, 자기 모델로 판정되는 sub-agent): 이 문서 전체를 따른다. 「Legacy 프로필 Charter」가 Must 목록이고, 역할·트리거·Sprint 절차의 상세는 `docs/context/charter-extensions.md` 에 있다. 세션의 첫 Sprint 전과 context 압축 직후에 그 문서를 읽는다.
+- 어느 프로필인지 불확실하면 Legacy 프로필로 본다.
 
-- Orchestrator는 소스코드(.ts, .tsx, .py, .js 등)를 직접 Edit/Write하지 않는다. 문서, 보고서, 설정 파일만 직접 편집한다.
-- 모든 소스코드 작성/수정은 Generator(Codex) 위임으로 수행한다. 이 규칙은 트리거가 아니라 상수 역할 제약이다.
-- Generator 호출은 `Bash("... | ./.vibe/harness/scripts/run-codex.sh -")` 로 한다. Agent 도구를 Generator에 사용하지 않는다.
-## Sprint loop (one iteration)
+## 프로젝트 규칙
 
-1. `node .vibe/harness/scripts/vibe-preflight.mjs` 로 상태를 확인한다.
-2. Planner를 매 Sprint 시작 전 소환해 fresh spec과 체크리스트를 만든다.
-3. Codex Generator에 Sprint prompt를 전달해 코드를 생성한다.
-4. Orchestrator가 `tsc` / test / build 등 필요한 검증을 샌드박스 밖에서 수행한다.
-5. Orchestrator self-QA로 체크리스트를 대조한다.
-6. `node .vibe/harness/scripts/vibe-sprint-complete.mjs <sprintId> <passed|failed>` 로 state를 갱신한다.
-7. `node .vibe/harness/scripts/vibe-sprint-commit.mjs <sprintId> passed` 로 단일 Sprint commit을 만든다.
-## Sub-agent = context checkpoint
+<!-- BEGIN:PROJECT:custom-rules -->
+<!-- 프로젝트별 커스텀 규칙을 여기에 추가하세요. vibe:sync에서 이 섹션은 절대 수정하지 않습니다. -->
+<!-- END:PROJECT:custom-rules -->
 
-Sub-agent는 specialization이 아니라 context checkpoint 메커니즘이다. 역할 분산보다 context 격리와 재현성이 핵심 가치이며, 상세 근거는 Extensions의 core framing을 따른다.
-## Trigger matrix (Must only)
-
-- Planner: 매 Sprint 시작 전 Must. trivial 예외 3조건과 기록 방식은 `.vibe/agent/_common-rules.md` §10 및 Extensions를 따른다.
-- Evaluator: Orchestrator self-QA 실패 / context pressure 높음 / 비-executable AC 존재 / 경험형 제품의 screenshot·playthrough·identity evidence 확인 필요 / >5 files 또는 >500 LOC이면 Must.
-## Role call mechanics
-
-<!-- BEGIN:SPRINT_ROLES (vibe-init 자동 업데이트 영역) -->
-| 역할 | 모델 | 호출 메커니즘 |
-|------|------|--------------|
-| Orchestrator | Opus (메인 대화) | 상주 |
-| Planner | Opus | `Agent({ subagent_type: 'sprint-planner', model: 'opus' })` |
-| Generator | Codex CLI | `Bash("... | ./.vibe/harness/scripts/run-codex.sh -")` |
-| Evaluator | Opus | `Agent({ model: 'opus' })` |
-<!-- END:SPRINT_ROLES -->
-
-Planner 호출은 반드시 `Agent({ subagent_type: 'sprint-planner', model: 'opus' })` 형태로 한다.
-
-신규·변경 파일은 `.vibe/agent/_common-rules.md §14` 의 W1~W14 / D1~D6 체크리스트를 Final report `## Wiring Integration` 섹션에 보고한다.
-<!-- END:CHARTER -->
-
-<!-- BEGIN:FREEZE-POSTURE -->
-## Soft freeze (iter-3 closure posture)
-
-iter-3 종료 이후 **harness** 변경은 분기 1회(≤ 3개월)로 제한한다.
-각 iteration의 **harness** 변경은 net +150 LOC cap + 0 new scripts 원칙을 따른다.
-Product / downstream 코드에는 이 cap을 적용하지 않는다. Planner는 LOC, 파일 수, 번들 크기 같은 수량 상한을 product 구현 제약으로 임의 삽입하지 말고, 실제 사용자 가치와 검증 가능한 품질 기준으로 Sprint 범위를 자른다.
-Delete는 제한하지 않지만 harness growth는 실제 dogfood friction-per-sprint 증거가 있을 때만 정당화한다.
-변경 제안 진입 경로는 `/vibe-review` findings 또는 user directive 로만 허용한다.
-새 하네스 기능은 shipped product value를 직접 높이지 못하면 다음 iteration backlog로 넘긴다.
-Soft freeze는 문서 선언이 아니라 Sprint scope gate다.
-본 freeze 는 iter-3 완료 commit 이후 유효. 해제 조건: 사용자 명시 승인 + session-log `[decision][freeze-lifted]` 기록.
-<!-- END:FREEZE-POSTURE -->
-
-<!-- BEGIN:EXTENSIONS -->
-## Mode flag calling convention (human / agent — iter-4 defer)
-
-`.vibe/config.json.mode` 는 `human` / `agent` 2값 flag이며 현재는 선언만 한다. 아래 5 분기점은 calling convention이고 실제 분기 로직은 작성하지 않는다.
-
-1. Interview mode — human: `.vibe/harness/scripts/vibe-interview.mjs` 인터랙티브 prompt. agent: seed prompt → synthesizer 자동 재귀 없이 dimension 전량 seed 주입 + 자동 answer — 구현: iter-4+ (defer)
-2. Error output format — human: 한국어 + emoji + 친화적 다음 행동 제안. agent: JSON `{ "code": "...", "message": "...", "hint": "..." }` 한 줄 — 구현: iter-4+ (defer)
-3. Confirmation gates — human: 사용자 approve 대기. agent: risk-tier ≤ N (정의 defer) auto-approve, initialized `[decision][auto-approved]` session-log 기록 — 구현: iter-4+ (defer)
-4. Doc verbosity — human: Charter + Extensions 자동 확장 읽기. agent: Charter only 우선, Extensions 는 explicit `docs/context/*.md` 읽기 요구에만 — 구현: iter-4+ (defer)
-5. Status display — human: statusline emoji + 한국어. agent: JSON log line (`{ "sprint": "...", "elapsed": N, "tokens": N }`) — 구현: iter-4+ (defer)
-
-<!-- BEGIN:HARNESS:core-framing -->
-For a verified active GPT-6 Astra or Claude Opus 5.5 model, read `.vibe/agent/astra-rules.md` and use
-its execution workflow instead of legacy ceremonies throughout this document. This exception
-never applies by inheritance to lower or unknown models (a Claude sub-agent is evaluated by its
-own model). Project rules, init, scope, ownership and explicit authorization boundaries remain
-applicable.
-
-## 핵심 재프레임 — 왜 sub-agent인가
-
-Sub-agent는 **specialization이 아니라 context checkpoint 메커니즘**이다. 무한 컨텍스트
-윈도우가 있다면 Orchestrator 하나로 충분하다. 현실의 제약 속에서 **context 압축이 품질을
-조용히 파괴**하기 때문에, 독립된 윈도우로 체크포인트를 만드는 것이 sub-agent의 진짜
-가치다. 따라서 소환 판단 기준은 "이 일이 다른 역할인가?"가 아니라
-**"지금 Orchestrator의 context를 격리해야 하는가?"** 여야 한다.
-<!-- END:HARNESS:core-framing -->
-
-<!-- BEGIN:HARNESS:role-constraints -->
-## 역할 제약 상세 (legacy profile)
-
-- Legacy profile에서는 Charter의 역할 제약이 우선한다. Astra에는 문서 상단의 모델 분기를 적용한다.
-- Orchestrator는 문서(.md), 보고서, 설정(JSON/YAML/TOML) 등 비코드 파일만 직접 편집할 수 있다.
-- 모든 소스코드 작성/수정은 Generator(Codex CLI) 위임으로 수행한다.
-- Generator 호출은 반드시 `Bash("... | ./.vibe/harness/scripts/run-codex.sh -")` 로 한다.
-<!-- END:HARNESS:role-constraints -->
-
-<!-- BEGIN:HARNESS:trigger-matrix -->
-## Sub-agent 소환 트리거 매트릭스 상세
-
-### Sprint 로드맵 분할 — **Orchestrator 책임** (위임 금지)
-
-Orchestrator는 Phase 0 네이티브 인터뷰 (`.vibe/harness/scripts/vibe-interview.mjs`) 직후 **product 맥락을 가장 풍부하게 보유한 상태**다. 이 시점에 직접 Sprint 분할을 수행하여 `docs/plans/sprint-roadmap.md`에 저장한다. N개 Sprint × `{id, name, 한 줄 목표, 의존, 예상 LOC}` 형태. **로드맵 작성을 Planner에 위임하지 않는다** — 위임 시 인터뷰 context 손실로 품질이 떨어진다.
-
-### Planner 소환 — **Sprint 단위** fresh context 공급
-
-**원칙**: Planner는 **매 Sprint 시작 전 소환**한다. Sprint가 진행될수록 Orchestrator context는 누적·오염되므로, Planner의 격리된 fresh context가 해당 Sprint의 **타입·API 시그니처·파일 구조·프롬프트 초안**을 독립적으로 도출하여 Sprint 간 재현성을 담보한다. 입력은 `product.md` + `architecture.md` + `sprint-roadmap.md`의 해당 slot + 직전 Sprint 결과 2~3줄 요약.
-
-- 🟥 **Must**: **매 Sprint 시작 전**
-- 🟢 **예외 (프로토타입)**: 사용자가 "자율 + 간소화" 명시 + 아래 **세 조건 전부 충족** 시에만 Planner 생략 가능. 생략 근거를 `node .vibe/harness/scripts/vibe-planner-skip-log.mjs <sprintId> <reason>` 으로 session-log 에 `[decision][planner-skip]` 태그로 **강제 기록** 한다 (수동 편집 금지).
-  1. 직전 Sprint 패턴을 **그대로 계승** (새 파일 유형 / 새 모듈 경계 / 새 schema 없음).
-  2. **아키텍처 결정 없음** — 기존 구조 내부의 정제/수정만.
-  3. **스펙 변경 작음** — 체크리스트 항목 ≤3 개 + 완전 기계 검증 가능 (`tsc`, grep, test).
-  LOC 수치는 예외 판정 기준에 포함하지 **않는다** (gameable). 세 조건 중 하나라도 불확실하면 Planner 소환이 기본값.
-
-### Evaluator 소환
-- 🟥 **Must**: Orchestrator self-QA 실패 (Tribunal) / context pressure 높음 / 비-executable AC 존재
-- 🟥 **Must**: >5 파일 또는 >500 LOC / 작성자=평가자 역할 충돌
-- 🟥 **Must**: `LOC_THRESHOLD_BREACH` pendingRisk가 열려 있으면 프로토타입 예외를 적용하지 않는다.
-- 🟢 **예외** (프로토타입 세션): 사용자가 자율 진행 승인 + self-QA 1회 통과 + LOC < 2000이면 Evaluator 트리거 면제
-
-상세: `docs/context/orchestration.md` (역할 × Phase 매트릭스).
-<!-- END:HARNESS:trigger-matrix -->
-
-<!-- BEGIN:HARNESS:reasoning-policy -->
-## 추론 강도 정책
-
-기획 품질이 최종 산출물 품질을 결정한다. 단계별 책임 주체 + 최소 추론 강도:
-
-| 단계 | 책임 | 최소 추론 강도 | 강제 메커니즘 |
-|------|------|---------------|-------------|
-| Phase 0 네이티브 소크라테스식 인터뷰 | Orchestrator (PO 대행 포함) | **maximum** | `.vibe/harness/scripts/vibe-interview.mjs` + extended thinking |
-| Sprint 로드맵 분할 | **Orchestrator** | **maximum** | 인터뷰 직후 맥락 활용 → `docs/plans/sprint-roadmap.md` |
-| Sprint 기술 사양 / 프롬프트 초안 | **Planner** (매 Sprint 소환) | **maximum** | fresh subagent context → `docs/prompts/sprint-NN-*.md` |
-| 코드 생성 | Generator | Generator 기본 | `run-codex.sh` (자동 규칙 주입) |
-| 검증 | Orchestrator + (트리거 시) Evaluator | **high** | 기계적 검증 + Evaluator (트리거 시) |
-<!-- END:HARNESS:reasoning-policy -->
-
-<!-- BEGIN:HARNESS:hook-enforcement -->
-## 훅 강제 메커니즘 — MD보다 스크립트
-
-규칙은 문서가 아닌 **스크립트 게이트**로 강제하는 것이 목표다. MD에 쓰인 규칙을 Orchestrator가
-"까먹는" 것은 프로세스 실패이므로, 게이트가 없는 규칙은 `vibe-rule-audit`가 uncovered 후보로 드러낸다.
-
-| 시점 | 스크립트 | 역할 |
-|------|---------|------|
-| Sprint 시작 전 | `node .vibe/harness/scripts/vibe-preflight.mjs` | git·deps·provider·product.md·handoff 체크 |
-| Generator 호출 시 | `./.vibe/harness/scripts/run-codex.sh` | `_common-rules.md` 자동 prepend + 명시 참조된 rule/context MD 자동 주입 + UTF-8 + 재시도 |
-| Sprint 완료 시 | `node .vibe/harness/scripts/vibe-sprint-complete.mjs` | sprint-status·handoff·session-log 자동 갱신 + 활성 Pro flow exact-HEAD 누적/최종 보고 gate |
-| Context 압축 전 | `node .vibe/harness/scripts/vibe-checkpoint.mjs --auto-refresh` | 기계적 git 스냅샷(브랜치·HEAD·변경파일·diffstat·최근커밋)을 git 무시 `.vibe/runs/precompact-snapshot.md`에 쓰고(추적 파일·`updatedAt`은 건드리지 않음), freshness/budget/session-log/`docs.integrity`(tracked∧exists first-read 문서가 비었거나 64B 미만이면 FAIL) 검증. 서사(narrative)는 Orchestrator가 작성. |
-| 세션 시작 시 | `node .vibe/harness/scripts/vibe-agent-session-start.mjs --hook` | 일일 lifecycle 이벤트 + 버전/model registry 점검. 동일 `session_id + source`의 60초 내 중복 전달은 원자적으로 1회만 실행하고 source 전환은 보존 |
-| 턴 종료 시 (Stop) | `node .vibe/harness/scripts/vibe-stop-qa-gate.mjs` | sync manifest 기준 하네스 소유 변경만 감지 → detached hidden worker에 `vibe:typecheck` + `vibe:self-test` 예약 후 즉시 반환. 제품 QA는 실행하지 않으며 동일 상태·동시 Stop은 잠금/결과 지문으로 중복 제거 |
-| Sprint 커밋 시 | `node .vibe/harness/scripts/vibe-sprint-commit.mjs` | state 갱신 + auto-stage + 템플릿 커밋 메시지 |
-| session-log 정리 | `node .vibe/harness/scripts/vibe-session-log-sync.mjs` | 타임스탬프 정규화 + 중복 제거 + 정렬 |
-| 모델 해석 시 | `node .vibe/harness/scripts/vibe-resolve-model.mjs` | config + registry 결합 → 현재 SOTA 모델 ID |
-| 세션 시작 시 | `node .vibe/harness/scripts/vibe-model-registry-check.mjs` | upstream registry 비교 + 변경 감지 (24h 캐시) |
-| Phase 3 인터뷰 | `node .vibe/harness/scripts/vibe-interview.mjs` | 네이티브 소크라테스식 인터뷰 |
-| Phase 0 커밋 | `node .vibe/harness/scripts/vibe-phase0-seal.mjs` | Phase 0 산출물 자동 stage + commit |
-| 브라우저 smoke | `node .vibe/harness/scripts/vibe-browser-smoke.mjs` | Stagehand headless Chrome DOM/console 계약 검증 (opt-in, 시스템 Chrome) |
-| Sprint 완료 시 | `node .vibe/harness/scripts/vibe-audit-lightweight.mjs` | diff stats / spec keyword / test coverage / tmp 잔존 / app-code LOC threshold — pendingRisks INFO 주입 |
-| 사전 준비 / CI | `node .vibe/harness/scripts/vibe-gen-schemas.mjs --check` | Zod source ↔ `.schema.json` drift 감지 |
-| audit 카운터 리셋 | `node .vibe/harness/scripts/vibe-audit-clear.mjs` | sprintsSinceLastAudit 리셋 + pendingRisks 정리 |
-| 토큰/시간 기록 | `node .vibe/harness/scripts/vibe-status-tick.mjs` | Agent 호출 전후 tokens.json 갱신 |
-| Sprint 모드 토글 | `node .vibe/harness/scripts/vibe-sprint-mode.mjs` | permission preset 병합/해제 (agent-delegation) |
-| Sprint 시작 전 (Planner skip) | `node .vibe/harness/scripts/vibe-planner-skip-log.mjs` | session-log `[decision][planner-skip]` 엔트리 기록 (trivial 예외 발동 시 필수) |
-| Post sprint commit | `node .vibe/harness/scripts/vibe-sprint-commit.mjs --push-tag` | Detects upward harnessVersion deltas and creates annotated `vX.Y.Z` tags; push is opt-in (`gap-release-tag-automation`) |
-| Rule audit | `node .vibe/harness/scripts/vibe-rule-audit.mjs` | Compares CLAUDE.md imperative rules with harness-gaps coverage and retrospective transcript tiering |
-| Context dependency audit | `node .vibe/harness/scripts/vibe-context-audit.mjs` | Report-only scan of skill/runbook path dependencies, hard/soft/ambiguous strength, missing references, and context byte overhead. Never gates preflight, commits, push, or tags. |
-| Web Pro 왕복 | `node .vibe/harness/scripts/vibe-pro-go.mjs` | GitHub append-only flow 최신 이벤트 sync, immutable Sprint packet, evidence/report/approval/close gate |
-| Audit skip directive | `node .vibe/harness/scripts/vibe-audit-skip-set.mjs` | Sets or clears `.vibe/config.local.json` userDirectives.auditSkippedMode and records a session-log `[decision]` |
-| PowerShell 실행 시 | `node .vibe/harness/scripts/vibe-ps.mjs` (`npm run vibe:ps --`) | 인라인 `powershell -Command "…"` 대신. 코드는 `.ps1` 파일(또는 `-c` 한 줄)에, 글·경로·이름은 인자·`--param`·`--param-file`·`--env` 로만. UTF-8 로 읽고, 주석 밖의 타이포그래피 따옴표·대시(“ ” ‘ ’ – —)와 구문 오류는 실행 전에 exit 65 로 거부. 종료 코드는 스크립트의 `exit N`, 오류는 1 |
-| Codex 호출 실패 시 | `.vibe/harness/scripts/run-codex.sh` + `.vibe/agent/codex-unavailable.flag` | 3회 retry 소진 시 flag touch + stderr CODEX_UNAVAILABLE 블록 출력. Orchestrator 는 flag 존재 시 Generator 위임 대신 사용자 승인 분기 진입. 다음 성공 호출 시 flag auto-remove. |
-
-**원칙**: 스크립트가 FAIL을 반환하면 다음 단계로 진행하지 않는다. Claude Code 훅 명령은 `${CLAUDE_PROJECT_DIR}`에 절대 결합하고 hook mode를 사용한다. hook mode의 정상·skip 결과는 stdout을 비우며, 사용자에게 알려야 하는 비차단 결과만 단일 JSON `systemMessage`로 출력한다. PreCompact는 상태 파일 없음·문서 손상일 때만 stdout 없이 exit 2 + stderr로 압축을 막고, 서술이 묵은 것은 `systemMessage` 경고만 낸다. PostToolUse config-audit는 `git add`/`git commit` Bash 호출 뒤에만 돈다(`if` 조건). Stop foreground는 하네스 소유 변경 판정과 detached worker 예약만 수행하고 즉시 exit 0 한다. worker는 제품 `vibe:qa` 대신 하네스 `vibe:typecheck`와 `vibe:self-test`만 실행하고, `CLAUDE_PROJECT_DIR`를 제거하며 `VIBE_SKIP_AGENT_SESSION_START=1`을 강제한 hidden child에서 수행한다. 실패 결과는 다음 Stop에서 단 한 번 JSON 알림으로 전달한다. 동일 상태·동시 Stop은 원자적 잠금과 SHA-256 결과 receipt로 중복 제거한다. 동일 SessionStart lifecycle 전달은 `session_id + source` 기준 60초 동안 중복 제거하되 startup/resume/clear/compact 전환은 별도 이벤트로 보존한다. 하네스와 무관한 세션(예: 프로젝트 API/CLI가 같은 repo에서 spawn하는 헤드리스 에이전트)은 spawn 환경에 `VIBE_HARNESS_HOOKS=off`를 설정하면 모든 하네스 훅 진입점(Stop QA·SessionStart·Notification·PostToolUse config-audit·PreCompact checkpoint)이 즉시 exit 0으로 skip된다.
-<!-- END:HARNESS:hook-enforcement -->
-
-> **CRITICAL — provider별 호출 방법**:
-> - **Claude 계열** (`claude-opus`, `claude-sonnet`) → Agent 도구 사용 (model 파라미터)
-> - **Codex** → `Bash("... | ./.vibe/harness/scripts/run-codex.sh -")`. Agent 도구는 Claude만 지원하므로 Generator에 사용 금지.
-> - **기타 비-Claude 계열** (`gemini` 등) → Bash 도구로 CLI 실행 (`.vibe/config.json`의 `providers` 섹션 참조)
->
-> Agent 도구의 model 파라미터는 Claude 전용(sonnet/opus/haiku)이다.
->
-> ```
-> ✅ 올바른 Generator 호출 (Codex):
->    Bash("cat docs/prompts/task.md | ./.vibe/harness/scripts/run-codex.sh -")
->    # run-codex.sh가 UTF-8 locale + shell_environment_policy + 3회 재시도를 자동 적용.
->    # 상세 배경: docs/context/codex-execution.md
->
-> ❌ 잘못된 Generator 호출 (Claude가 실행됨):
->    Agent(model: "sonnet", prompt: "코드 구현...")
->    Agent(model: "opus", prompt: "코드 구현...")
->    Agent(subagent_type: "codex:codex-rescue", prompt: "...")
-> ```
->
-> **참고**: `codex:rescue` 플러그인은 잠정 보류 (Windows 환경에서 불안정·속도 저하 이슈).
-
-### Planner 소환 — subagent_type 지정 필수
-
-```
-✅ 올바른 Planner 호출 (fresh opus subagent, sprint-planner.md frontmatter 기반):
-   Agent({ subagent_type: 'sprint-planner', model: 'opus', prompt: '...' })
-
-⚠️  혼동 주의 — Claude Code 내장 "Plan" agent 는 read-only (Write/Edit 도구 없음).
-   `docs/prompts/sprint-<id>-*.md` 생성이 조용히 실패한다. 반드시 subagent_type
-   을 `sprint-planner` 로 명시할 것. subagent_type 생략 또는 `planner` 사용 금지.
-```
-
-<!-- BEGIN:HARNESS:sprint-flow -->
-## Sprint 흐름 — 2단 구조
-
-### Phase 0 — 프로젝트 최초 1회 (Orchestrator 전담)
-
-0-1. **네이티브 소크라테스식 인터뷰** — `/vibe-init` Phase 3 (`.vibe/harness/scripts/vibe-interview.mjs`). 사용자가 "자율 진행"을 지시해도 **인터뷰 자체는 스킵 금지**. Orchestrator가 PO 대행으로 답변하며 flow 완주, 모호성 점수 ≤ 0.2 수렴. PO 대행 답변의 rationale은 **매 Phase 종료 시 요약 1회** session-log에 `[decision]` 태그로 기록. 상세 프로토콜: `.claude/skills/vibe-init/SKILL.md` §Phase 3.
-0-2. **seed → context shards 자동 변환**: `docs/context/product.md` / `architecture.md` / `conventions.md` 작성.
-0-3. **Orchestrator가 Sprint 로드맵 작성** → `docs/plans/sprint-roadmap.md`. N개 Sprint × `{id, name, 한 줄 목표, 의존, 예상 LOC}`. (로드맵 분할은 Orchestrator 책임 — 트리거 매트릭스 참조. Planner에 위임 금지.)
-0-4. `node .vibe/harness/scripts/vibe-preflight.mjs --bootstrap` → exit 0 확인.
-
-### 매 Sprint 반복
-
-1. `node .vibe/harness/scripts/vibe-preflight.mjs` → exit 0
-2. **Planner 소환** (Agent 도구, model: opus, fresh subagent — 매 Sprint Must 트리거)
-   - 입력: `product.md` + `architecture.md` + `sprint-roadmap.md`(해당 slot) + 직전 Sprint 결과 2~3줄 요약
-   - 출력: 해당 Sprint 기술 사양 + 프롬프트 초안 → `docs/prompts/sprint-NN-*.md`
-3. **Generator 위임**: `cat docs/prompts/sprint-NN-*.md | ./.vibe/harness/scripts/run-codex.sh -`
-   3-1. `node .vibe/harness/scripts/vibe-status-tick.mjs` — Generator 호출 전후 토큰/시간 기록
-4. Orchestrator 샌드박스 밖 재검증 (tsc/test/build)
-5. Orchestrator self-QA (체크리스트 대조)
-6. (트리거 시) Evaluator 소환
-7. `node .vibe/harness/scripts/vibe-sprint-complete.mjs <sprintId> <passed|failed>` → sprint-status.json + handoff.md + session-log.md 자동 갱신 (**파일만 업데이트, 자동 커밋 X**)
-8. **단일 커밋 원칙 (v1.1.1+)**: `node .vibe/harness/scripts/vibe-sprint-commit.mjs <sprintId> passed [--scope <glob>]` 래퍼가 Generator 산출 파일 + 3종 state 파일(`.vibe/agent/sprint-status.json`, `handoff.md`, `session-log.md`) + 아카이브 prompts 를 **한 git commit** 에 묶어 생성. pending risk 가 열려있으면 거부. LOC 자동 계산.
-9. 다음 Sprint → (1)로 반복. **로드맵 마지막 sprint 완료 시 자동**: `.vibe/harness/scripts/vibe-sprint-complete.mjs` 가 `.vibe/harness/scripts/vibe-project-report.mjs` 호출 → `docs/reports/project-report.html` 생성 + 브라우저 1회 오픈(짧은 시간 내 중복 오픈은 suppress). 이후 추가 개선은 `/vibe-iterate` 로 다음 iteration 진입 (차등 인터뷰 + carryover + iteration-history.json 갱신). `/vibe-iterate` 종료 단계에서 같은 report 명령을 다시 실행하지 않는다.
-
-> Planner / Generator / Evaluator는 Sprint 내에서만 존재하고 Sprint 간 context를 공유하지 않는다. Sprint 간 상태는 `.vibe/agent/sprint-status.json` + `handoff.md` + `session-log.md` 3종으로만 전달하고, **context 압축 직후**에는 작업 전에 먼저 이 세 파일 + 관련 memory shard를 읽어 상태를 복원한다(Astra 는 handoff 「현재」 절).
-
-## Sprint 프롬프트 작성자
-
-Sprint 프롬프트 **본문은 Planner가 작성**한다 (매 Sprint 소환 시 산출). Orchestrator는 메타데이터·포맷 보정만 허용 — scope expansion 헤더 prepend, "이미 설치된 deps" 안내 prepend, 직전 Sprint 결과 요약 첨부 등. 본문 자체를 Orchestrator가 작성하는 경우는 `_common-rules.md`의 예외 규칙 하에서만 허용되며 session-log에 `[decision]` 태그로 사유 기록. 작성 원칙:
-
-- **의도(intent)를 명시하고 구현 세부사항은 Generator에 위임한다.**
-  - ✅ "시각적으로 구분 가능한 색상 팔레트" / "행·열 완료 시 단서가 비활성 스타일로 변경"
-  - ❌ 구체적 hex 코드(`#2C3E50`), 함수 시그니처, 내부 변수명
-- **타입 정의와 API 시그니처는 Planner의 fresh context에서 도출한다.** Orchestrator가 이전
-  프로젝트 경험에서 가져온 구현 세부사항을 주입하면 재현성이 깨진다.
-- **체크리스트 항목은 검증 가능해야 한다.** 기계 검증 가능한 항목은 "npx tsc --noEmit 통과"처럼 명시하고, 제품 정체성·사용감·시각/상호작용 품질처럼 자동화하기 어려운 항목은 inspection/demo AC 로 분리해 Evaluator 또는 사용자 확인 대상으로 둔다. 자동화가 어렵다는 이유로 중요한 품질 기준을 버리지 않는다. frontend/game/visual/canvas/WebGL/Three.js/editor/dashboard Sprint는 screenshot, Stagehand UI-test output, browser-smoke output, 또는 playthrough note를 product identity/payoff와 연결한 evidence item 없이 pass 처리하지 않는다.
-
-## 속도와 품질 (pace)
-
-요청마다 「빠르게 · 균형 · 품질 우선」 중 하나를 정해 따른다 — 이번 요청의 말, `.vibe/config.json` `pace`, 사용자가 정한 effort, 모델 프로필 순으로 정하고 따로 묻지 않는다. 정하는 순서와 각 값이 로드맵 크기·Planner 세부·Generator 변경 폭에 주는 영향은 `docs/context/orchestration.md` §9.
-
-## Agent 오케스트레이션 레이어 (`.vibe/agent/`)
-
-상태/핸드오프/재인스턴스화 프로토콜 + Sprint 프롬프트 공용 조각. 파일별 역할은 `.vibe/agent/README.md` 참조. 압축 직후 최우선 읽기 대상은 `handoff.md` + `session-log.md` + `sprint-status.json`(legacy. Astra 는 `astra-rules.md` 상태 계약대로 handoff 맨 위 「현재」 절).
-
-## 관련 스킬
-`/vibe-init`, `/vibe-interview`, `/vibe-iterate`, `/vibe-sync`, `/vibe-sprint-mode`, `/vibe-review`, `/goal-to-plan`, `/self-qa`, `/write-report`, `/maintain-context`, `$vibe-pro-go`.
-
-- `/vibe-iterate`: 최초 Sprint 로드맵 소진 후 재개. handoff + report.html + iteration-history.json 기반 차등 인터뷰 → 새 iteration sprint roadmap append → Sprint 사이클 재돌입. context isolation 유지(Planner 는 여전히 fresh), 사용자는 report.html 의 iteration 타임라인으로 전체 build-up follow-up.
-- `/vibe-review`: 4-tier rubric (🔴/🟡/🟢/🔵) + regression 검증 (이전 리뷰 이슈 3-signal 커버리지) + priority_score 공식 `10·agent + 5·token + 1·user`, recommended_approach `script-wrapper > md-rule > config-default > user-action`.
-- `$vibe-pro-go`: GitHub의 append-only `vibe-pro-bridge`를 통해 Web Pro 상세설계/리뷰와 CLI 구현/보고를 왕복한다. 인자 없는 bare 호출은 로컬 `ACTIVE.json` 상태만 읽고 worktree/packet scaffolding이나 remote flow 선택을 만들지 않은 채 멈춘다. 실제 재개는 유효한 active pointer를 쓰는 명시적 `go`, exact flow, 또는 date/slug selector가 필요하다. 잘못 선택되어 정상 이벤트 체인으로 닫을 수 없는 flow는 exact flow + one-line reason의 `force-close` dry-run 후 사용자가 확인한 `--publish --user-approved`로만 append-only operator terminal 처리하며, 승인/정상 완료로 표기하지 않는다. `confirm-skip on|off|status`로 `.vibe/config.local.json`의 `userDirectives.proGoAutoPublish`를 토글하며, `go`/`status`가 `autoPublish: true`를 보고하면 일반 발행 전 사용자 확인 대기를 생략하고 발행마다 session-log `[decision][auto-approved]`를 기록한다. Pro 설계/feedback을 받아오면 상태 변경 명령 전에 사용자 언어 alignment brief(`brief` 명령, intent 추적 분류 + 분기 제안)가 hard gate로 강제되고, non-blocking 리뷰(P0/P1 0건)는 `accept-review --publish --user-approved`로 웹 왕복 없이 CLI에서 종료한다 — alignment 판단, review acceptance, force-close는 모두 autoPublish로 우회 불가. 상세: `.claude/skills/vibe-pro-go/references/CLI-CONTRACT.md`, `docs/context/workflow-integrity.md` §12.
-<!-- END:HARNESS:sprint-flow -->
+## 모든 프로필에 적용
 
 <!-- BEGIN:HARNESS:mechanical-overrides -->
-# 에이전트 지시사항: 기계적 오버라이드
+### 에이전트 지시사항: 기계적 오버라이드
 
 컨텍스트 윈도우와 시스템 프롬프트의 제약 안에서 동작하고 있다는 점을 항상 인지할 것. 아래 상시 규칙 3개는 모델 tier와 무관하게 적용된다. 다만 Astra 프로필(`.vibe/agent/astra-rules.md`)에서는 1·2번을 적용하지 않고 3번(보고 전 검증)만 지킨다.
 
@@ -279,17 +38,54 @@ Sprint 프롬프트 **본문은 Planner가 작성**한다 (매 Sprint 소환 시
 
    타입 체커가 설정되어 있지 않은 경우, 성공을 주장하지 말고 그 사실을 명시적으로 밝혀라.
 
-## Legacy-model 오버라이드 게이트
+#### Legacy-model 오버라이드 게이트
 
 나머지 기계적 오버라이드(단계적 실행·단계별 승인 대기, 서브에이전트 스워밍 강제, 10메시지 후 편집 전 재읽기, 2,000줄 분할 읽기, 절삭 인식, 편집 전후 재읽기, 6분류 grep 강제)는 구세대 모델의 실패 모드 보정용이다. **현재 세션 모델이 SOTA tier(예: Claude Opus 4.5 이상·Fable/Mythos급, GPT-5.5급 이상) 이상이면 적용하지 않는다** — 규칙 준수에 드는 재읽기·분할·승인 대기 비용이 편익을 초과한다. 그 미만 tier 모델을 Orchestrator 또는 Generator로 돌릴 때만 `docs/context/legacy-model-overrides.md`를 읽고 전부 적용한다. tier 판단이 불확실하면 샤드를 읽는 쪽이 기본값.
 이 tier 판단은 하네스 프로필과 별개다. Astra 프로필은 모델 레지스트리에 `harnessProfile: astra` 로 등록된 모델만 받으므로, 이 게이트를 넘는 모델(예: 미등록 `claude-fable-5-1`)도 하네스 프로필은 legacy 일 수 있다(`docs/guides/astra-profile.md`).
 <!-- END:HARNESS:mechanical-overrides -->
 
-## Context shards pointer
+<!-- BEGIN:HARNESS:evidence -->
+### 증거는 사용자가 보게 될 것을 본 것이어야 한다
+
+사람이 보고, 읽고, 쓰는 산출물은 검사 통과만으로 완료를 말하지 않는다. 보고하기 전에 다음을 직접 본다.
+
+- 기본 모습: 사용자가 처음 만나는 시점과 상태 그대로(기본 카메라, 기본 설정, 실제 크기).
+- 모든 변형: 내보내는 방향·크기·테마·언어 각각. 잘 나온 한 경우가 나머지를 대신하지 않는다.
+- 부분 따로: 겹쳐지는 레이어나 부품은 그것만 놓고 본다. 위에 얹힌 것이 결함을 가린다.
+
+사용자가 검토를 통과한 결함을 찾아내면 검토가 틀린 것을 본 것이다. 무엇을 보지 않았는지를 그 저장소의 규칙 문서에 적고, 그것을 드러내는 검사나 캡처를 더한다.
+<!-- END:HARNESS:evidence -->
+
+<!-- BEGIN:HARNESS:hook-enforcement -->
+### 훅과 스크립트 게이트 — MD보다 스크립트
+
+규칙은 문서가 아닌 **스크립트 게이트**로 강제하는 것이 목표다. **스크립트가 FAIL을 반환하면 다음 단계로 진행하지 않는다.** 훅(SessionStart, Stop, PreCompact, PostToolUse, Notification)은 스스로 돈다. 하네스와 무관한 세션(예: 프로젝트 API/CLI가 같은 repo에서 spawn하는 헤드리스 에이전트)은 spawn 환경에 `VIBE_HARNESS_HOOKS=off`를 두어 훅을 끈다. PowerShell 코드는 인라인 `powershell -Command "…"` 대신 `node .vibe/harness/scripts/vibe-ps.mjs` 로 실행한다. 시점별 스크립트 표와 훅 동작의 상세는 `docs/context/charter-extensions.md` 의 「훅 강제 메커니즘」 절.
+<!-- END:HARNESS:hook-enforcement -->
+
+<!-- BEGIN:HARNESS:sprint-flow -->
+### Sprint 흐름과 속도·품질 (pace)
+
+요청마다 「빠르게 · 균형 · 품질 우선」 중 하나를 정해 따른다 — 이번 요청의 말, `.vibe/config.json` `pace`, 사용자가 정한 effort, 모델 프로필 순으로 정하고 따로 묻지 않는다. 정하는 순서와 각 값이 로드맵 크기·Planner 세부·Generator 변경 폭에 주는 영향은 `docs/context/orchestration.md` §9.
+
+Sprint 절차의 상세(Phase 0, 매 Sprint 반복, 프롬프트 작성 원칙, 관련 스킬)는 `docs/context/charter-extensions.md` 와 `docs/context/orchestration.md` 에 있다. Legacy 프로필의 절차이며 Astra 프로필에는 적용하지 않는다.
+<!-- END:HARNESS:sprint-flow -->
+
+<!-- BEGIN:HARNESS:core-framing -->
+### 핵심 재프레임 — 왜 sub-agent인가
+
+Sub-agent는 **specialization이 아니라 context checkpoint 메커니즘**이다. 무한 컨텍스트
+윈도우가 있다면 Orchestrator 하나로 충분하다. 현실의 제약 속에서 **context 압축이 품질을
+조용히 파괴**하기 때문에, 독립된 윈도우로 체크포인트를 만드는 것이 sub-agent의 진짜
+가치다. 따라서 소환 판단 기준은 "이 일이 다른 역할인가?"가 아니라
+**"지금 Orchestrator의 context를 격리해야 하는가?"** 여야 한다.
+<!-- END:HARNESS:core-framing -->
+
+### Context shards pointer
 
 - `docs/context/product.md` — 제품 목표, 사용자, 성공 기준이 필요할 때 읽는다.
 - `docs/context/architecture.md` — 모듈 경계, 데이터 흐름, 런타임 구조 판단 전에 읽는다.
 - `docs/context/conventions.md` — 코드 스타일, test/lint marker shard, repo-local 패턴을 적용할 때 읽는다.
+- `docs/context/charter-extensions.md` — Legacy 프로필의 역할·트리거·Sprint 절차 상세와 시점별 스크립트 표. Legacy 프로필은 세션의 첫 Sprint 전과 context 압축 직후에 읽는다. Astra 프로필은 거기 적힌 사실(스크립트 표, 스킬 목록)이 필요할 때 그 절만 읽는다.
 - `docs/context/orchestration.md` — Orchestrator / Planner / Generator / Evaluator 책임 충돌이 있을 때 읽는다.
 - `docs/context/qa.md` — 검증 명령, 테스트 범위, quality gate 판단 전에 읽는다.
 - `docs/context/tokens.md` — 장기 세션 비용, context 압축, 토큰 예산 판단에 읽는다.
@@ -298,8 +94,66 @@ Sprint 프롬프트 **본문은 Planner가 작성**한다 (매 Sprint 소환 시
 - `docs/context/harness-gaps.md` — rule/script coverage gap 또는 `/vibe-review` evidence 연결 시 읽는다.
 - `docs/context/workflow-integrity.md` — multi-Sprint goal/iteration/Pro flow의 누적 workflow와 consumer/invariant gate를 판단할 때 읽는다.
 - `docs/context/legacy-model-overrides.md` — 현재 세션 모델이 SOTA tier 미만일 때만 읽는다 (구세대 모델용 기계적 오버라이드 전문. SOTA tier 세션은 읽지 않는 것이 규칙).
-<!-- END:EXTENSIONS -->
 
-<!-- BEGIN:PROJECT:custom-rules -->
-<!-- 프로젝트별 커스텀 규칙을 여기에 추가하세요. vibe:sync에서 이 섹션은 절대 수정하지 않습니다. -->
-<!-- END:PROJECT:custom-rules -->
+<!-- BEGIN:FREEZE-POSTURE -->
+### Soft freeze — 하네스를 고칠 때의 정책 (iter-3 closure posture)
+
+iter-3 종료 이후 **harness** 변경은 분기 1회(≤ 3개월)로 제한한다.
+각 iteration의 **harness** 변경은 net +150 LOC cap + 0 new scripts 원칙을 따른다.
+Product / downstream 코드에는 이 cap을 적용하지 않는다. Planner는 LOC, 파일 수, 번들 크기 같은 수량 상한을 product 구현 제약으로 임의 삽입하지 말고, 실제 사용자 가치와 검증 가능한 품질 기준으로 Sprint 범위를 자른다.
+Delete는 제한하지 않지만 harness growth는 실제 dogfood friction-per-sprint 증거가 있을 때만 정당화한다.
+변경 제안 진입 경로는 `/vibe-review` findings 또는 user directive 로만 허용한다.
+새 하네스 기능은 shipped product value를 직접 높이지 못하면 다음 iteration backlog로 넘긴다.
+Soft freeze는 문서 선언이 아니라 Sprint scope gate다.
+본 freeze 는 iter-3 완료 commit 이후 유효. 해제 조건: 사용자 명시 승인 + session-log `[decision][freeze-lifted]` 기록.
+<!-- END:FREEZE-POSTURE -->
+
+<!-- BEGIN:CHARTER -->
+## Legacy 프로필 Charter (Must only)
+
+Astra 프로필은 이 절을 건너뛴다.
+
+Claude 세션에서는 Claude가 nominal 메인 Orchestrator다. 모든 개발은 Sprint 단위로 진행하며, 기본값은 Orchestrator 단독 진행 + self-QA다.
+이 문서는 **nominal harness mode**(Claude Opus 메인 Orchestrator + Codex Generator)를 기준으로 하며, Claude를 유일한 Orchestrator로 강제하지 않는다.
+사용자가 Codex와 직접 대화하며 업스트림 하네스 유지보수를 요청하는 경우는 **Codex Orchestrator maintenance mode**로 취급하고, Codex 쪽 `AGENTS.md`의 역할 모드와 `docs/context/codex-execution.md`의 provider-neutral lifecycle을 함께 적용한다.
+
+### Role constraint (legacy profile)
+
+- Orchestrator는 소스코드(.ts, .tsx, .py, .js 등)를 직접 Edit/Write하지 않는다. 문서, 보고서, 설정 파일만 직접 편집한다.
+- 모든 소스코드 작성/수정은 Generator(Codex) 위임으로 수행한다. 이 규칙은 트리거가 아니라 상수 역할 제약이다.
+- Generator 호출은 `Bash("... | ./.vibe/harness/scripts/run-codex.sh -")` 로 한다. Agent 도구를 Generator에 사용하지 않는다.
+
+### Sprint loop (one iteration)
+
+1. `node .vibe/harness/scripts/vibe-preflight.mjs` 로 상태를 확인한다.
+2. Planner를 매 Sprint 시작 전 소환해 fresh spec과 체크리스트를 만든다.
+3. Codex Generator에 Sprint prompt를 전달해 코드를 생성한다.
+4. Orchestrator가 `tsc` / test / build 등 필요한 검증을 샌드박스 밖에서 수행한다.
+5. Orchestrator self-QA로 체크리스트를 대조한다.
+6. `node .vibe/harness/scripts/vibe-sprint-complete.mjs <sprintId> <passed|failed>` 로 state를 갱신한다.
+7. `node .vibe/harness/scripts/vibe-sprint-commit.mjs <sprintId> passed` 로 단일 Sprint commit을 만든다.
+
+### Sub-agent = context checkpoint
+
+Sub-agent는 specialization이 아니라 context checkpoint 메커니즘이다. 역할 분산보다 context 격리와 재현성이 핵심 가치이며, 상세 근거는 위 「핵심 재프레임」 절을 따른다.
+
+### Trigger matrix (Must only)
+
+- Planner: 매 Sprint 시작 전 Must. trivial 예외 3조건과 기록 방식은 `.vibe/agent/_common-rules.md` §10 및 `docs/context/charter-extensions.md` 를 따른다.
+- Evaluator: Orchestrator self-QA 실패 / context pressure 높음 / 비-executable AC 존재 / 경험형 제품의 screenshot·playthrough·identity evidence 확인 필요 / >5 files 또는 >500 LOC이면 Must.
+
+### Role call mechanics
+
+<!-- BEGIN:SPRINT_ROLES (vibe-init 자동 업데이트 영역) -->
+| 역할 | 모델 | 호출 메커니즘 |
+|------|------|--------------|
+| Orchestrator | Opus (메인 대화) | 상주 |
+| Planner | Opus | `Agent({ subagent_type: 'sprint-planner', model: 'opus' })` |
+| Generator | Codex CLI | `Bash("... | ./.vibe/harness/scripts/run-codex.sh -")` |
+| Evaluator | Opus | `Agent({ model: 'opus' })` |
+<!-- END:SPRINT_ROLES -->
+
+Planner 호출은 반드시 `Agent({ subagent_type: 'sprint-planner', model: 'opus' })` 형태로 한다.
+
+하네스 파일을 추가·변경·삭제하면 `.vibe/agent/_common-rules.md §14` 의 W1~W14 / D1~D6 체크리스트를 Final report `## Wiring Integration` 섹션에 보고한다. 제품 코드만 바꾼 작업은 표 없이 새 파일의 `verified-callers` 와 회귀 테스트만 적는다.
+<!-- END:CHARTER -->

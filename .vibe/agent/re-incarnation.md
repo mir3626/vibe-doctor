@@ -18,8 +18,9 @@ Sub-agent는 **context checkpoint 메커니즘**이다. 하지만 Orchestrator �
 새 Orchestrator는 사용자에게 첫 응답을 하기 전에 다음을 기계적으로 수행한다.
 Astra 프로필은 `astra-rules.md` 상태 계약대로 handoff 맨 위 「현재」 절과 프로젝트 큐 문서부터 읽고 4·5번을 건너뛴다.
 
-1. **`CLAUDE.md`** — 역할 제약, 트리거 매트릭스, Sprint 흐름. Claude Code harness가
-   시스템 프롬프트에 자동 주입하므로 별도 Read 불필요.
+1. **`CLAUDE.md`** — 적용 프로필, 프로젝트 규칙, Legacy Charter(역할 제약, 트리거 매트릭스, Sprint loop).
+   Claude Code harness가 시스템 프롬프트에 자동 주입하므로 별도 Read 불필요. Legacy 프로필은 이어서
+   `docs/context/charter-extensions.md`(역할·트리거·Sprint 절차 상세)를 읽는다.
 2. **`docs/context/orchestration.md`** — 역할×Phase 매트릭스 single source of truth. Phase 0
    시작 또는 새 Sprint 시작 직전에는 반드시 확인. CLAUDE.md 매트릭스와 모순 시 이 문서가 우선.
 3. **auto-memory** — Claude Code harness가 `MEMORY.md` 인덱스를 자동 주입한다. 그 인덱스를
