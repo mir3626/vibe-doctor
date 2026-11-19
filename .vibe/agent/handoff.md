@@ -3,7 +3,7 @@
 PROJECT NOT INITIALIZED.
 This is the upstream template; downstream product work still requires /vibe-init.
 
-## Current — v1.23.3 in release (browser close fixed in the harness helper) / 2026-11-19
+## Current — v1.23.3 released (browser close fixed in the harness helper) / 2026-11-19
 
 - Published `v1.23.2` at `6b405ae6f25d940ff76d130f2bf1d459ddf6c26f`; annotated tag object
   `963adf9843a1b6c52162fbc6ee6eb58758b615ec`; main and tag CI passed (runs 44475957550 /
@@ -15,7 +15,18 @@ This is the upstream template; downstream product work still requires /vibe-init
   as closed once `browser.cdpUrl` refuses connections (rethrows after 10 s otherwise) and removes
   the profile with retries. Same load: 0 close failures in 120 cycles; one cycle timed out while
   opening (Stagehand init, 60 s), a path not touched. Three unit tests, three seeded bugs caught.
-- Next: release verification, commit, annotated tag, atomic push, CI, then sync osint-stock-screener.
+- Published `v1.23.3` at `dec31296da2c2fd04d95e1ea7b5ee71f702ac665`; annotated tag object
+  `252acb1b98a68e8a6464ba7dc763897f44a38148`; main and tag CI passed (runs 44482301323 /
+  44482301745).
+- osint-stock-screener synced with `--keep-local`: `vibe:test-ui` 5 of 5, 60 closes under load
+  with 0 failures, forced verification 673 tests / 0 fail.
+- Downstream observation, nothing changed here: that repository ignores `.agents/` and
+  `.claude/skills/*`, so harness tests that read synced skill files (the test-patterns index,
+  three browser-smoke contract tests, one codex-skills test) pass locally and fail in its CI
+  checkout. The sequential runner before v1.23.0 stopped at the first failing group and showed one
+  of them; the pooled runner shows all five. It now tracks the Stagehand shard; the `.agents` file
+  is its owner's call.
+- Nothing pending.
 
 ## Previous — v1.23.2 released (Stagehand 4.4.0) / 2026-11-19
 
