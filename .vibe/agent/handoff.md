@@ -3,7 +3,7 @@
 PROJECT NOT INITIALIZED.
 This is the upstream template; downstream product work still requires /vibe-init.
 
-## Current — v1.24.0 (the charter says which rules apply; evidence must show what the user will see) / 2026-11-20
+## Current — v1.24.0 released (the charter says which rules apply; evidence must show what the user will see) / 2026-11-20
 
 - Owner directive from the downstream sprite-generator session (Fable 5.2 on Astra): apply that
   session's report on the harness, quality first, and release. The report is an impression from use,
@@ -16,6 +16,14 @@ This is the upstream template; downstream product work still requires /vibe-init
   of a templated project: 21 false conflicts in sprite-generator).
 - Verified: forced suite legacy 656 / 0 fail and Astra release 648 / 0 fail, test-ui 2 of 2, audits,
   four seeded bugs caught, sprite-generator dry-run without conflict.
+- Published `v1.24.0` at `3f08623b19fd0d33d053d4d434e4de69c352b632`; annotated tag object
+  `375852054ff45ff101eaea43db751a00beb19d4f`. Atomic push and exact remote refs verified. Main and tag
+  CI passed `verify`, `astra` and `windows-contracts` (runs 44635518430 / 44635518636).
+- sprite-generator synced 1.23.3 → 1.24.0 without a conflict (its local commit `cc03761`, branch
+  `sprite-studio`, never pushed): harness typecheck, preflight, sync audit and Codex wrapper audit
+  exit 0; its `CLAUDE.md` went from 24.2 KB to 9.9 KB with the project rules second. The project moved
+  its assignment paragraph out of `SPRINT_ROLES` into its project block by hand. osint-stock-screener
+  and vibe-office not synced (not requested).
 - Open, recorded in `harness-gaps.md`: nothing checks that a legacy session reads the extensions
   (`gap-charter-inapplicable-to-profile`); the evidence rule is documentation
   (`gap-evidence-of-the-wrong-thing`). No legacy-profile session has run on the new layout.
