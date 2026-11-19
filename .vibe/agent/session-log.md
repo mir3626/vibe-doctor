@@ -6,6 +6,8 @@ This file is project-owned runtime state. Downstream `/vibe-init` rewrites it be
 
 ## Entries
 
+- 2026-11-19T15:05:00+09:00 [release][v1.23.1] v1.23.0 renamed pro-roundtrip-cli.test.ts; sync never deletes a retired file and verify rejects an unowned test, so each downstream would fail after its next sync. Found in the osint-stock-screener dry-run before any downstream synced. The old name is kept as the close shard (five shards); gap-sync-retired-file recorded open; notes docs/release/v1.23.1.md.
+- 2026-11-19T14:58:00+09:00 [release][v1.23.0] Published b2839b8 plus annotated tag f43d7941 atomically; exact remote refs and both CI runs passed (verify, astra, windows-contracts; 44468358582 / 44468358594). No downstream synced it.
 - 2026-11-19T14:45:00+09:00 [release][v1.23.0] Owner directive (osint-stock-screener session): harness speed with function kept. Fewer Git and launcher processes (batched Git reads in pro-roundtrip, one runner for consecutive test groups, node --import tsx, bounded context-audit walk); forced suite 467 s to 156 s; owner accepted +304 source / +131 test lines against the +150 guideline; notes docs/release/v1.23.0.md.
 - 2026-11-05T09:00:00+09:00 [decision][working-tree-cleanup] tokens.json restored to the template state; ten Aug–Sep drafts and reports moved to ../vibe-doctor-notes (template hygiene forbids them here; all shipped in v1.14.0–v1.16.0); .tmp/ added to .git/info/exclude, not deleted.
 - 2026-11-04T15:55:00+09:00 [release][v1.22.0] Published 8bb9f6a plus annotated tag 53f45373 atomically; exact remote refs and both CI runs passed (verify, astra, windows-contracts; 41785252447 / 41785252524). vibe-office synced with --keep-local (CLAUDE.md and rm-guard hook preserved); osint-stock-screener not synced.

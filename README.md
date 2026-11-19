@@ -10,7 +10,11 @@
 
 ## Latest Highlights
 
-### v1.23.0 (2026-11-19) - Verification three times faster by starting fewer processes
+### v1.23.1 (2026-11-19) - The former CLI suite file keeps its name
+
+- v1.23.0 renamed a harness test file, and sync never deletes a file upstream dropped, so each downstream would have kept the old file and failed verification with "unowned root harness tests". The old name is now a shard of the suite. Use v1.23.1 instead of v1.23.0.
+
+### Previous: v1.23.0 (2026-11-19) - Verification three times faster by starting fewer processes
 
 - The harness suite was bound by process creation, not test logic: one Pro roundtrip test file started 12,609 child processes. `pro-roundtrip` now reads Git objects in batches (a real `vibe-pro-go` command starts about a fifth of the processes), `verify` runs consecutive test groups in one runner, nine npm scripts start with `node --import tsx` instead of `npx tsx`, and `vibe-context-audit` walks only where a glob reference can match. Forced suite on one Windows machine: 467 to 156 seconds (medians); the config-audit hook 1,077 to 464 ms. `claude-fable-5-2` joins the Astra profile. See `docs/release/v1.23.0.md`.
 
@@ -443,7 +447,7 @@ Root `src/**`, `scripts/**`, `test/**`, `app/**`, `components/**`, and `lib/**` 
 
 ## 버전 / tag 정책
 
-현재 릴리스는 `harnessVersion: 1.23.0` 입니다. 릴리스를 자를 때는 `package.json`, `.vibe/config.json`, release note, tag를 같은 버전으로 맞춥니다.
+현재 릴리스는 `harnessVersion: 1.23.1` 입니다. 릴리스를 자를 때는 `package.json`, `.vibe/config.json`, release note, tag를 같은 버전으로 맞춥니다.
 
 - `harnessVersion` 은 `.vibe/config.json` 과 `package.json` 에 semver로 기록합니다.
 - 각 minor/patch 릴리스는 해당 커밋에 `vMAJOR.MINOR.PATCH` git tag를 붙인 뒤 origin에 push합니다.

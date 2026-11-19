@@ -380,6 +380,7 @@
       "runner": "node-test",
       "inheritSharedPatterns": false,
       "testFiles": [
+        ".vibe/harness/test/pro-roundtrip-cli.test.ts",
         ".vibe/harness/test/pro-roundtrip-cli-flows.test.ts",
         ".vibe/harness/test/pro-roundtrip-cli-guards.test.ts",
         ".vibe/harness/test/pro-roundtrip-cli-protocol.test.ts",

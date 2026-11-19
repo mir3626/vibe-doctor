@@ -114,7 +114,8 @@ cost boundaries:
 - `pro-roundtrip-cli-suite.ts` invokes the exported `executeProRoundtrip()` command
   boundary in-process for lifecycle behavior. It still creates real bare Git
   remotes, commits, pushes, worktrees, packet files, feedback, approval, and
-  close events. The four `pro-roundtrip-cli-<shard>.test.ts` files each run one part
+  close events. Five shard files (`pro-roundtrip-cli.test.ts` and four
+  `pro-roundtrip-cli-<shard>.test.ts`) each run one part
   of that suite in their own test process: a single process starts its thousands of
   Git children one at a time, which made this lane the slowest in the suite.
 - The lifecycle fixture may pass one already validated `WorktreeContext` through
@@ -134,7 +135,7 @@ Use the following isolated command when comparing this lane across revisions:
 
 ```bash
 node --import tsx --test --test-reporter tap \
-  ".vibe/harness/test/pro-roundtrip-cli-*.test.ts"
+  ".vibe/harness/test/pro-roundtrip-cli*.test.ts"
 ```
 
 Do not place a fixed wall-clock assertion in the test because filesystem,

@@ -3,7 +3,19 @@
 PROJECT NOT INITIALIZED.
 This is the upstream template; downstream product work still requires /vibe-init.
 
-## Current — v1.23.0 in release (fewer processes, verification 3x faster) / 2026-11-19
+## Current — v1.23.1 in release (v1.23.0 published; the renamed CLI test file) / 2026-11-19
+
+- Published `v1.23.0` at `b2839b835216d809ba6fbbda95cecdbc60a43e4c`; annotated tag object
+  `f43d7941281f13cbfb4bbd51a5d30aaece940cba`. Atomic push and exact remote refs verified. Main and
+  tag CI passed `verify`, `astra` and `windows-contracts` (runs 44468358582 / 44468358594).
+- The osint-stock-screener dry-run then showed the defect: v1.23.0 renamed
+  `pro-roundtrip-cli.test.ts`, sync never deletes a retired file, and `verify` rejects an unowned
+  test file. No downstream had synced. v1.23.1 keeps the old name as the `close` shard (five shard
+  files) and records `gap-sync-retired-file` (open).
+- Next: release verification, commit, annotated tag, atomic push, CI, then sync
+  osint-stock-screener to v1.23.1.
+
+### v1.23.0 scope
 
 - Owner directive from the downstream osint-stock-screener session: speed the harness up with its
   function kept. Measured first: the forced suite took 458-479 s and was bound by process creation
@@ -23,8 +35,6 @@ This is the upstream template; downstream product work still requires /vibe-init
   v1.22.0 unmodified on the new code fail only the rewritten statusline warning test; thirteen
   seeded bugs each fail a test; old and new protocol verification agree on 23 histories.
 - Owner accepted the size: source +304 and tests +131 net lines against the +150 guideline.
-- Next: release verification with every release file staged, commit, annotated tag, atomic push,
-  CI, then sync osint-stock-screener (its three local harness patches ship in this release).
 
 ## Previous — v1.22.0 released (sync B4 and skill-authoring fixes) / 2026-11-04
 

@@ -2826,15 +2826,18 @@ function publicationGuards(): void {
 
 const shards = {
   protocol: [protocolAndSelection],
-  guards: [closeAndBootstrap, publicationGuards],
+  close: [closeAndBootstrap],
+  guards: [publicationGuards],
   flows: [roundtripFlows],
   review: [reviewAcceptance],
 };
 
 /**
- * The suite is one module; each `pro-roundtrip-cli-<shard>.test.ts` file runs one part of it in
- * its own test process. Its tests start thousands of Git processes, and one process starts them
- * one at a time.
+ * The suite is one module; each shard file runs one part of it in its own test process. Its
+ * tests start thousands of Git processes, and one process starts them one at a time.
+ * `pro-roundtrip-cli.test.ts` (the `close` shard) keeps the name of the former whole-suite
+ * file: sync never deletes a file upstream dropped, and verify rejects a test file no group
+ * owns, so retiring that name would break every downstream after its next sync.
  */
 export function describeCliShard(shard: keyof typeof shards): void {
   describe(`vibe-pro-go CLI (${shard})`, { concurrency: true }, () => {
