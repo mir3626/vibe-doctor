@@ -98,6 +98,7 @@ Every AI call returns `{ data, metadata }`. Keep instructions atomic ("click the
 - Locators do not auto-wait. Wait for the state explicitly before reading `innerText()` / `textContent()` or clicking.
 - One browser context per launch (`browser.context`); open extra tabs with `browser.context.newPage()`.
 - Only `page.on('console', event)` is exposed, as the raw CDP payload (`event.params.type`, `event.params.args[].value`). There are no request/response/dialog events; poll the DOM instead of waiting for network events.
+- On Windows, `browser.close()` can reject while Chrome is already exiting (`taskkill exited with code 255`, or `EBUSY` / `ENOTEMPTY` on the temporary profile; Stagehand through 4.4.0, browserbase/stagehand#3166). Give `localBrowser.launch` your own `userDataDir`, count a rejected close as closed once the DevTools endpoint (`browser.cdpUrl`) refuses connections, and remove the directory with `rm(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 })`. The harness helper `openHeadlessPage()` in `.vibe/harness/scripts/lib/stagehand-browser.mjs` does this.
 - Avoid fixed sleeps. Wait on an assertion or a specific UI state.
 - Keep one user-facing concern per test. Long multi-step scripts are harder to debug.
 

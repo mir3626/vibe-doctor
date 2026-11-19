@@ -7,6 +7,9 @@
 // (see .claude/skills/test-patterns/typescript-stagehand.md).
 
 import { existsSync } from 'node:fs';
+import { mkdtemp, rm } from 'node:fs/promises';
+import net from 'node:net';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
 
@@ -83,13 +86,73 @@ export function isConsoleIssue(type) {
   return type === 'error' || type === 'warning' || type === 'warn';
 }
 
+const PROFILE_REMOVAL = { recursive: true, force: true, maxRetries: 10, retryDelay: 100 };
+const CHROME_EXIT_TIMEOUT_MS = 10_000;
+
+/** Resolves true once nothing accepts connections on the DevTools endpoint, so Chrome has exited. */
+async function devToolsEndpointClosed(cdpUrl, timeoutMs) {
+  let endpoint;
+  try {
+    endpoint = new URL(cdpUrl);
+  } catch {
+    return false;
+  }
+  const deadline = Date.now() + timeoutMs;
+  for (;;) {
+    const accepting = await new Promise((resolve) => {
+      const socket = net.connect({ host: endpoint.hostname, port: Number(endpoint.port) });
+      socket.once('connect', () => {
+        socket.destroy();
+        resolve(true);
+      });
+      socket.once('error', () => resolve(false));
+    });
+    if (!accepting) {
+      return true;
+    }
+    if (Date.now() >= deadline) {
+      return false;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+}
+
+/**
+ * Closes a browser this module launched and removes its profile directory.
+ *
+ * On Windows, Stagehand (through 4.4.0) can reject `browser.close()` while Chrome is already
+ * exiting: when `Browser.close` has not finished by its deadline it runs `taskkill`, which exits
+ * 255 against a process tree that is ending, and it deletes the profile once while Chrome still
+ * holds it (browserbase/stagehand#3166). So the profile directory is ours (Stagehand never deletes
+ * a `userDataDir` it was given), a rejected close counts as closed once the DevTools endpoint
+ * stops accepting connections, and the profile is removed with retries after that.
+ */
+export async function closeLaunchedBrowser(browser, userDataDir, options = {}) {
+  const cdpUrl = browser.cdpUrl;
+  let closeError = null;
+  try {
+    await browser.close();
+  } catch (error) {
+    closeError = error;
+  }
+  if (closeError !== null) {
+    const exited = typeof cdpUrl === 'string'
+      && (await devToolsEndpointClosed(cdpUrl, options.exitTimeoutMs ?? CHROME_EXIT_TIMEOUT_MS));
+    if (!exited) {
+      throw closeError;
+    }
+  }
+  await rm(userDataDir, PROFILE_REMOVAL);
+}
+
 /**
  * Launches headless Chrome through Stagehand without a model and returns the first page.
  * `close()` tears down the Stagehand runtime first and the browser second.
  */
 export async function openHeadlessPage(options = {}) {
   const { localBrowser, Stagehand } = await loadStagehand();
-  const launchOptions = { headless: options.headless ?? true };
+  const userDataDir = await mkdtemp(path.join(tmpdir(), 'vibe-stagehand-'));
+  const launchOptions = { headless: options.headless ?? true, userDataDir };
   if (options.viewport) {
     launchOptions.viewport = options.viewport;
   }
@@ -97,7 +160,13 @@ export async function openHeadlessPage(options = {}) {
     launchOptions.executablePath = options.executablePath;
   }
 
-  const browser = await localBrowser.launch(launchOptions);
+  let browser;
+  try {
+    browser = await localBrowser.launch(launchOptions);
+  } catch (error) {
+    await rm(userDataDir, PROFILE_REMOVAL).catch(() => undefined);
+    throw error;
+  }
   let stagehand = null;
   try {
     // Stagehand.create attaches the browser context; without it `browser.context` is unavailable.
@@ -108,7 +177,7 @@ export async function openHeadlessPage(options = {}) {
       try {
         await stagehand.close();
       } finally {
-        await browser.close();
+        await closeLaunchedBrowser(browser, userDataDir);
       }
     };
     return { browser, stagehand, page, close };
@@ -116,7 +185,7 @@ export async function openHeadlessPage(options = {}) {
     if (stagehand) {
       await stagehand.close().catch(() => undefined);
     }
-    await browser.close().catch(() => undefined);
+    await closeLaunchedBrowser(browser, userDataDir).catch(() => undefined);
     throw error;
   }
 }

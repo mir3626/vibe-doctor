@@ -3,7 +3,21 @@
 PROJECT NOT INITIALIZED.
 This is the upstream template; downstream product work still requires /vibe-init.
 
-## Current — v1.23.2 in release (Stagehand 4.4.0) / 2026-11-19
+## Current — v1.23.3 in release (browser close fixed in the harness helper) / 2026-11-19
+
+- Published `v1.23.2` at `6b405ae6f25d940ff76d130f2bf1d459ddf6c26f`; annotated tag object
+  `963adf9843a1b6c52162fbc6ee6eb58758b615ec`; main and tag CI passed (runs 44475957550 /
+  44475957431). Its claim was too strong: in osint-stock-screener, right after a server restart,
+  2 of 50 closes failed on Stagehand 4.4.0, and under a reproducible load (the pro-roundtrip group
+  running beside the loop) 11 of 180 did: `taskkill exited with code 255`, mostly with `EBUSY` on
+  the profile `lockfile`. Chrome exits; Stagehand has given up by then.
+- v1.23.3: `openHeadlessPage()` owns the profile directory (`userDataDir`), counts a rejected close
+  as closed once `browser.cdpUrl` refuses connections (rethrows after 10 s otherwise) and removes
+  the profile with retries. Same load: 0 close failures in 120 cycles; one cycle timed out while
+  opening (Stagehand init, 60 s), a path not touched. Three unit tests, three seeded bugs caught.
+- Next: release verification, commit, annotated tag, atomic push, CI, then sync osint-stock-screener.
+
+## Previous — v1.23.2 released (Stagehand 4.4.0) / 2026-11-19
 
 - The Stagehand UI test failed locally on Windows about three runs in ten (`ENOTEMPTY` while
   deleting the temporary Chrome profile). Cause in Stagehand 4.2.1: a launched browser was closed
@@ -13,8 +27,8 @@ This is the upstream template; downstream product work still requires /vibe-init
   4.4.0; close 4.2 s to 0.65 s; `vibe:test-ui` 20 of 20.
 - The wrapper is unchanged; the dependency moves to `^4.4.0`. Dependencies are project-owned
   downstream, so each project updates its own Stagehand.
-- Next: commit, annotated tag, atomic push, CI, then osint-stock-screener (sync, and its own
-  Stagehand from 4.1.0 to 4.4.0 with its article-extractor checks).
+- osint-stock-screener: synced to 1.23.2 and its own Stagehand moved from 4.1.0 to 4.4.0 (article
+  extractor checks passed; its server was restarted).
 
 ## Previous — v1.23.1 released (fewer processes, verification 3x faster) / 2026-11-19
 
