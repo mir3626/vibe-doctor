@@ -6,6 +6,7 @@ and in version-specific notes.
 
 ## Current
 
+- [v1.23.2](v1.23.2.md) - Stagehand 4.4.0 ends the Windows browser-close failures in the UI tests
 - [v1.23.1](v1.23.1.md) - The former CLI suite file keeps its name so a sync leaves no unowned test
 - [v1.23.0](v1.23.0.md) - Verification three times faster by starting fewer processes; Fable 5.2 on the Astra profile
 - [v1.22.0](v1.22.0.md) - Sync keeps downstream edits in harness sections and keys; skill-authoring fixes

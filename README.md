@@ -10,7 +10,11 @@
 
 ## Latest Highlights
 
-### v1.23.1 (2026-11-19) - The former CLI suite file keeps its name
+### v1.23.2 (2026-11-19) - Stagehand 4.4.0 ends the Windows browser-close failures
+
+- On Windows the harness UI tests failed in teardown about three runs in ten: Stagehand 4.2.1 killed Chrome and deleted its temporary profile at once (`ENOTEMPTY`), after a 3 second wait per browser. Stagehand 4.4.0 asks Chrome to exit over DevTools first. Same loop, same machine: 3 failures in 40 closes before, 0 in 100 after, and a close takes 0.65 s instead of 4.2 s. Dependencies are project-owned, so run `npm install -D @browserbasehq/stagehand@^4.4.0` downstream.
+
+### Previous: v1.23.1 (2026-11-19) - The former CLI suite file keeps its name
 
 - v1.23.0 renamed a harness test file, and sync never deletes a file upstream dropped, so each downstream would have kept the old file and failed verification with "unowned root harness tests". The old name is now a shard of the suite. Use v1.23.1 instead of v1.23.0.
 
@@ -447,7 +451,7 @@ Root `src/**`, `scripts/**`, `test/**`, `app/**`, `components/**`, and `lib/**` 
 
 ## 버전 / tag 정책
 
-현재 릴리스는 `harnessVersion: 1.23.1` 입니다. 릴리스를 자를 때는 `package.json`, `.vibe/config.json`, release note, tag를 같은 버전으로 맞춥니다.
+현재 릴리스는 `harnessVersion: 1.23.2` 입니다. 릴리스를 자를 때는 `package.json`, `.vibe/config.json`, release note, tag를 같은 버전으로 맞춥니다.
 
 - `harnessVersion` 은 `.vibe/config.json` 과 `package.json` 에 semver로 기록합니다.
 - 각 minor/patch 릴리스는 해당 커밋에 `vMAJOR.MINOR.PATCH` git tag를 붙인 뒤 origin에 push합니다.

@@ -3,7 +3,20 @@
 PROJECT NOT INITIALIZED.
 This is the upstream template; downstream product work still requires /vibe-init.
 
-## Current — v1.23.1 released (fewer processes, verification 3x faster) / 2026-11-19
+## Current — v1.23.2 in release (Stagehand 4.4.0) / 2026-11-19
+
+- The Stagehand UI test failed locally on Windows about three runs in ten (`ENOTEMPTY` while
+  deleting the temporary Chrome profile). Cause in Stagehand 4.2.1: a launched browser was closed
+  with `taskkill` only, then the profile was deleted once with no retry. 4.4.0 sends
+  `Browser.close` over DevTools first (the first step proposed in the owner's
+  browserbase/stagehand#3166, still open). Same loop: 3 failures in 40 closes on 4.2.1, 0 in 100 on
+  4.4.0; close 4.2 s to 0.65 s; `vibe:test-ui` 20 of 20.
+- The wrapper is unchanged; the dependency moves to `^4.4.0`. Dependencies are project-owned
+  downstream, so each project updates its own Stagehand.
+- Next: commit, annotated tag, atomic push, CI, then osint-stock-screener (sync, and its own
+  Stagehand from 4.1.0 to 4.4.0 with its article-extractor checks).
+
+## Previous — v1.23.1 released (fewer processes, verification 3x faster) / 2026-11-19
 
 - Published `v1.23.0` at `b2839b835216d809ba6fbbda95cecdbc60a43e4c`; annotated tag object
   `f43d7941281f13cbfb4bbd51a5d30aaece940cba`. Atomic push and exact remote refs verified. Main and
@@ -20,9 +33,7 @@ This is the upstream template; downstream product work still requires /vibe-init
   verification passed (670 tests / 665 pass / 5 skip / 0 fail, Fable 5.2 on Astra). Its local
   harness-gaps ledger admits terminal dispositions only, so the open `gap-sync-retired-file` row
   was not ported there. vibe-office not synced (not requested).
-- Open: `gap-sync-retired-file` (sync cannot retire a harness file); the Stagehand UI test stopped
-  in the library's temporary Chrome profile cleanup on two of four local Windows runs (ENOTEMPTY);
-  further speed needs fewer processes again (one pinned bridge reader per Pro command, about 800
+- Open: `gap-sync-retired-file` (sync cannot retire a harness file); further speed needs fewer processes again (one pinned bridge reader per Pro command, about 800
   fewer in the suite) or a config-audit hook that starts node directly (about 320 ms).
 
 ### v1.23.0 scope
