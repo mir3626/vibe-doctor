@@ -6,6 +6,7 @@ and in version-specific notes.
 
 ## Current
 
+- [v1.23.0](v1.23.0.md) - Verification three times faster by starting fewer processes; Fable 5.2 on the Astra profile
 - [v1.22.0](v1.22.0.md) - Sync keeps downstream edits in harness sections and keys; skill-authoring fixes
 - [v1.21.1](v1.21.1.md) - Drop the `Write()` deny rules Claude Code never matches
 - [v1.21.0](v1.21.0.md) - Speed-quality pace, Opus 5.5 delegation routing and an owner-facing interview

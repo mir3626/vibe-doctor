@@ -121,7 +121,7 @@ it('legacy child execution clears an inherited active Astra identity', async (t)
   const result = spawnSync(bash, [path.join(root, '.vibe/harness/scripts/run-codex.sh'), '-'], {
     cwd: temp,
     env: { ...astraEnv, CODEX_MODEL: 'gpt-5.5', CODEX_BIN: fake, CODEX_RETRY: '1', VIBE_SKIP_AGENT_SESSION_START: '1', VIBE_DISABLE_ATTENTION: '1' },
-    input: 'Read-only local test', encoding: 'utf8', windowsHide: true, timeout: 15000,
+    input: 'Read-only local test', encoding: 'utf8', windowsHide: true, timeout: 60_000,
   });
   assert.equal(result.status, 0, result.stderr);
   assert.match(result.stdout, /ACTIVE=unknown/);

@@ -29,7 +29,7 @@ import {
   ProRoundtripFindingsSchema,
   ProRoundtripOperatorCloseSchema,
 } from '../lib/schemas/pro-roundtrip.js';
-import { runGit, runGitBinary } from './worktree.js';
+import { readGitObjects, runGit, runGitBinary } from './worktree.js';
 
 export interface CompletedEvent {
   directory: string;
@@ -196,6 +196,8 @@ export interface ExactBlob {
 interface PinnedBridgeBlobReader {
   bridgeHeadSha: string;
   readExactBlob: (posixPath: string) => Promise<ExactBlob>;
+  /** Paths below the prefetched directory; see PrefetchedDirectory. */
+  listedPaths: string[] | null;
 }
 
 /**
@@ -216,10 +218,96 @@ export function decodeExactBlobText(blob: ExactBlob, label: string): string {
   return text;
 }
 
-async function pinBridgeBlobReader(bridgeRoot: string): Promise<PinnedBridgeBlobReader> {
+/**
+ * readExactBlob's facts for many objects from one Git call (see readGitObjects). Only a record
+ * that passes every check of the per-file path below is returned; anything else is left out
+ * and read through that path, which reports the error it has always reported.
+ */
+async function readExactBlobsBatch(
+  bridgeRoot: string,
+  specs: readonly string[],
+  maxContentBytes: number,
+): Promise<Map<string, ExactBlob>> {
+  const blobs = new Map<string, ExactBlob>();
+  for (const [spec, record] of await readGitObjects(bridgeRoot, specs, maxContentBytes)) {
+    if (record.type === 'blob' && record.bytes.length <= MAX_PACKET_FILE_BYTES) {
+      blobs.set(spec, { blobSha: record.objectId, byteSize: record.bytes.length, bytes: record.bytes });
+    }
+  }
+  return blobs;
+}
+
+const PREFETCH_MAX_BYTES = 4 * MAX_PACKET_FILE_BYTES;
+
+interface PrefetchedDirectory {
+  blobs: Map<string, ExactBlob>;
+  /** Every path below the directory, or null when the listing cannot stand in for `ls-tree --name-only`. */
+  paths: string[] | null;
+}
+
+/**
+ * One listing and one batch call for everything below one directory of the pinned commit.
+ * A blob the listing cannot vouch for, or a directory over the prefetch bound, is read through
+ * the per-file path. The paths are offered only when each uses characters Git prints unquoted
+ * and untrimmed, so they are exactly what the `ls-tree --name-only` calls would print.
+ */
+async function prefetchDirectory(
+  bridgeRoot: string,
+  commitSha: string,
+  posixDirectory: string,
+): Promise<PrefetchedDirectory> {
+  const blobs = new Map<string, ExactBlob>();
+  const listing = await runGit(
+    bridgeRoot,
+    ['ls-tree', '-r', '-l', '-z', commitSha, '--', `${posixDirectory}/`],
+    true,
+  );
+  if (listing.exitCode !== 0) {
+    return { blobs, paths: null };
+  }
+  const blobShaByPath = new Map<string, string>();
+  const byteSizeBySha = new Map<string, number>();
+  let paths: string[] | null = [];
+  for (const entry of listing.stdout.split('\0').filter(Boolean)) {
+    const match = /^\d+ ([a-z]+) ([a-f0-9]{40}) +(\d+|-)\t(.+)$/su.exec(entry);
+    if (!match || !/^[A-Za-z0-9._/-]+$/u.test(match[4] ?? '')) {
+      paths = null;
+    }
+    paths?.push(match?.[4] ?? '');
+    if (match?.[1] === 'blob' && Number(match[3]) <= MAX_PACKET_FILE_BYTES) {
+      blobShaByPath.set(match[4] ?? '', match[2] ?? '');
+      byteSizeBySha.set(match[2] ?? '', Number(match[3]));
+    }
+  }
+  const contentBytes = [...byteSizeBySha.values()].reduce((total, size) => total + size, 0);
+  if (contentBytes <= PREFETCH_MAX_BYTES) {
+    const read = await readExactBlobsBatch(bridgeRoot, [...byteSizeBySha.keys()], contentBytes);
+    for (const [posixPath, blobSha] of blobShaByPath) {
+      const blob = read.get(blobSha);
+      if (blob?.blobSha === blobSha && blob.byteSize === byteSizeBySha.get(blobSha)) {
+        blobs.set(posixPath, blob);
+      }
+    }
+  }
+  return { blobs, paths };
+}
+
+async function pinBridgeBlobReader(
+  bridgeRoot: string,
+  directory?: string,
+): Promise<PinnedBridgeBlobReader> {
   const bridgeHeadSha = (await runGit(bridgeRoot, ['rev-parse', 'HEAD^{commit}'])).stdout.trim();
+  const prefetched: PrefetchedDirectory = directory
+    ? await prefetchDirectory(bridgeRoot, bridgeHeadSha, directory)
+    : { blobs: new Map(), paths: null };
   const readExactBlob = async (posixPath: string): Promise<ExactBlob> => {
     const spec = `${bridgeHeadSha}:${posixPath}`;
+    const known = prefetched.blobs.get(posixPath)
+      ?? (await readExactBlobsBatch(bridgeRoot, [spec], MAX_PACKET_FILE_BYTES)).get(spec);
+    if (known) {
+      // Each read hands out its own bytes, as the per-file path does.
+      return { ...known, bytes: Buffer.from(known.bytes) };
+    }
     const blobSha = (await runGit(bridgeRoot, ['rev-parse', spec])).stdout.trim();
     if (!/^[a-f0-9]{40}$/u.test(blobSha)) {
       throw new Error(`pro roundtrip blob object is not a Git blob: ${posixPath}`);
@@ -238,7 +326,7 @@ async function pinBridgeBlobReader(bridgeRoot: string): Promise<PinnedBridgeBlob
     }
     return { blobSha, byteSize: declaredSize, bytes };
   };
-  return { bridgeHeadSha, readExactBlob };
+  return { bridgeHeadSha, readExactBlob, listedPaths: prefetched.paths };
 }
 
 async function readPinnedFlowDefinition(
@@ -282,11 +370,6 @@ export async function loadOperatorClose(
     await readPinnedFlowDefinition(reader, normalizedFlowPath)
   ).flow;
   const relativePath = `${normalizedFlowPath}/${OPERATOR_CLOSE_FILENAME}`;
-  const present = await runGit(
-    bridgeRoot,
-    ['cat-file', '-e', `${reader.bridgeHeadSha}:${relativePath}`],
-    true,
-  );
   const history = (
     await runGit(
       bridgeRoot,
@@ -296,11 +379,17 @@ export async function loadOperatorClose(
     .trim()
     .split(/\r?\n/)
     .filter(Boolean);
-  if (present.exitCode !== 0) {
-    if (history.length > 0) {
-      throw new Error(`operator close record was removed from the append-only bridge: ${relativePath}`);
-    }
+  if (history.length === 0) {
+    // A path that exists at a commit has at least one history entry, so none means absent.
     return null;
+  }
+  const present = await runGit(
+    bridgeRoot,
+    ['cat-file', '-e', `${reader.bridgeHeadSha}:${relativePath}`],
+    true,
+  );
+  if (present.exitCode !== 0) {
+    throw new Error(`operator close record was removed from the append-only bridge: ${relativePath}`);
   }
 
   const blob = await reader.readExactBlob(relativePath);
@@ -389,26 +478,31 @@ export async function loadFlowSnapshot(
   // the transport never trusts mutable worktree files, and blob bytes are preserved
   // exactly (the object SHA + declared size are verified; no UTF-8 normalization occurs
   // before validation, copy, or receipt binding).
-  const { bridgeHeadSha, readExactBlob } = await pinBridgeBlobReader(bridgeRoot);
+  const { bridgeHeadSha, readExactBlob, listedPaths } = await pinBridgeBlobReader(bridgeRoot, normalizedFlowPath);
   const readBlobText = async (posixPath: string, label = posixPath): Promise<string> =>
     decodeExactBlobText(await readExactBlob(posixPath), label);
   const { flow, flowBlob } = await readPinnedFlowDefinition(
-    { bridgeHeadSha, readExactBlob },
+    { bridgeHeadSha, readExactBlob, listedPaths },
     normalizedFlowPath,
   );
 
   // Event directories and every payload byte come from the pinned commit's tree.
-  const treeListing = (await runGit(bridgeRoot, [
-    'ls-tree', '--name-only', bridgeHeadSha, `${normalizedFlowPath}/`,
-  ])).stdout.split('\n').map((line) => line.trim()).filter(Boolean);
-  const eventDirectoryNames = treeListing
+  const listTree = async (posixDirectory: string, recursive: boolean): Promise<string[]> =>
+    listedPaths
+      ? [...new Set(listedPaths
+        .filter((posixPath) => posixPath.startsWith(posixDirectory))
+        .map((posixPath) => (recursive
+          ? posixPath
+          : posixDirectory + (posixPath.slice(posixDirectory.length).split('/')[0] ?? ''))))]
+      : (await runGit(bridgeRoot, [
+        'ls-tree', ...(recursive ? ['-r'] : []), '--name-only', bridgeHeadSha, posixDirectory,
+      ])).stdout.split('\n').map((line) => line.trim()).filter(Boolean);
+  const eventDirectoryNames = (await listTree(`${normalizedFlowPath}/`, false))
     .map((line) => line.slice(normalizedFlowPath.length + 1))
     .filter((name) => name.length > 0 && !name.includes('/'))
     .sort();
   const listEventFiles = async (eventName: string): Promise<string[]> =>
-    (await runGit(bridgeRoot, [
-      'ls-tree', '-r', '--name-only', bridgeHeadSha, `${normalizedFlowPath}/${eventName}/`,
-    ])).stdout.split('\n').map((line) => line.trim()).filter(Boolean)
+    (await listTree(`${normalizedFlowPath}/${eventName}/`, true))
       .map((line) => line.slice(`${normalizedFlowPath}/${eventName}/`.length))
       .filter((name) => name.length > 0 && name !== 'COMPLETE.json')
       .sort();

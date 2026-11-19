@@ -226,16 +226,34 @@ function getSprintModeStatus(root) {
   return 'partial';
 }
 
+const harnessUrl = new URL('../.vibe/harness/', import.meta.url);
+
+// (model, provider) => the harness profile that pair selects in this checkout.
+async function loadProfileResolver(root) {
+  const { resolveHarnessProfile } = await import(new URL('src/lib/harness-profile.mjs', harnessUrl).href);
+  const registry = readJsonOptional(path.join(root, '.vibe', 'model-registry.json'));
+  const override = process.env.VIBE_HARNESS_PROFILE;
+  return (model, provider) => resolveHarnessProfile({ model, provider, override, registry }).profile;
+}
+
 // Harness commands see only VIBE_ACTIVE_MODEL, so after a model switch (for example /model) they keep
-// the old model's profile. Flag the mismatch with the model Claude Code reports.
-function getModelEnvWarning(input) {
+// the profile of the model it names. Flag that only when the model Claude Code reports selects a
+// different profile: between two models of one profile the commands behave the same.
+async function getModelEnvWarning(root, input) {
   const observed = getString(input?.model?.id);
   const declared = getString(process.env.VIBE_ACTIVE_MODEL);
   const base = (model) => model.replace(/\[[^\]]*\]$/, '');
   if (!observed || !declared || base(observed) === base(declared)) {
     return undefined;
   }
-  return `${emojiWarning} VIBE_ACTIVE_MODEL ${declared} ≠ ${observed}`;
+  const warning = `${emojiWarning} VIBE_ACTIVE_MODEL ${declared} ≠ ${observed}`;
+  try {
+    const profileOf = await loadProfileResolver(root);
+    const sameProfile = profileOf(declared, process.env.VIBE_ACTIVE_PROVIDER ?? 'codex') === profileOf(observed, 'anthropic');
+    return sameProfile ? undefined : warning;
+  } catch {
+    return warning;
+  }
 }
 
 // Astra freezes pendingRisks as legacy state (.vibe/agent/astra-rules.md), so nothing resolves the
@@ -243,20 +261,16 @@ function getModelEnvWarning(input) {
 async function countOpenRisks(root, pendingRisks, input) {
   const open = pendingRisks.filter((entry) => entry?.status === 'open').length;
   try {
-    const harness = new URL('../.vibe/harness/', import.meta.url);
-    const { resolveHarnessProfile } = await import(new URL('src/lib/harness-profile.mjs', harness).href);
+    const profileOf = await loadProfileResolver(root);
     // Claude Code reports the model it is running; the env claim covers callers without that input.
     const model = getString(input?.model?.id);
-    const { profile } = resolveHarnessProfile({
-      model: model ?? process.env.VIBE_ACTIVE_MODEL,
-      provider: model ? 'anthropic' : process.env.VIBE_ACTIVE_PROVIDER ?? 'codex',
-      override: process.env.VIBE_HARNESS_PROFILE,
-      registry: readJsonOptional(path.join(root, '.vibe', 'model-registry.json')),
-    });
+    const profile = model
+      ? profileOf(model, 'anthropic')
+      : profileOf(process.env.VIBE_ACTIVE_MODEL, process.env.VIBE_ACTIVE_PROVIDER ?? 'codex');
     if (profile !== 'astra') {
       return open;
     }
-    const { classifyAstraAuditRisks } = await import(new URL('scripts/lib/audit-counter-policy.mjs', harness).href);
+    const { classifyAstraAuditRisks } = await import(new URL('scripts/lib/audit-counter-policy.mjs', harnessUrl).href);
     return classifyAstraAuditRisks(pendingRisks).findings.length;
   } catch {
     return open;
@@ -303,7 +317,7 @@ async function main() {
   }
 
   parts.push(`${emojiWarning} ${openRisks}`);
-  const modelWarning = getModelEnvWarning(statuslineInput);
+  const modelWarning = await getModelEnvWarning(root, statuslineInput);
   if (modelWarning) {
     parts.push(modelWarning);
   }

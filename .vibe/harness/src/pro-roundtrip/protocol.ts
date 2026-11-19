@@ -4,6 +4,7 @@ import path from 'node:path';
 import { publishAdditions } from './git-branch-transport.js';
 import {
   prepareBridgeWorktree,
+  readGitObjects,
   runGit,
   type WorktreeContext,
 } from './worktree.js';
@@ -68,16 +69,42 @@ function deriveProtocolVersion(
   return `${PROTOCOL_LINEAGE}-${sha256(contentAddress).slice(0, 8)}`;
 }
 
+const PROTOCOL_BATCH_BYTES = 8 * 1024 * 1024;
+
 async function resolveImmutableProtocolCommit(
   worktreePath: string,
   ref: string,
   protocolTargets: readonly string[],
   version: string,
 ): Promise<string> {
+  // One call answers for every file when it can prove the per-file answer. `--full-history`
+  // lists each commit that changes any of the files against any parent, so it contains every
+  // per-file history below; a file present at `ref` has at least one entry. If that list is
+  // a single commit and every file is present, each per-file history is exactly that commit.
+  // The per-file calls pass `--no-follow`: with `log.follow=true` a one-path log would also
+  // list the commits of byte-identical copies (an earlier protocol generation), which a
+  // several-path log never does.
+  const everyFile = await runGit(
+    worktreePath,
+    ['log', '--full-history', '--format=%H', ref, '--', ...protocolTargets],
+    true,
+  );
+  const onlyCommit = everyFile.stdout.trim();
+  if (everyFile.exitCode === 0 && /^[0-9a-f]{40}$/.test(onlyCommit)) {
+    const present = await readGitObjects(
+      worktreePath,
+      protocolTargets.map((target) => `${ref}:${target}`),
+      PROTOCOL_BATCH_BYTES,
+    );
+    if (present.size === protocolTargets.length) {
+      return onlyCommit;
+    }
+  }
   const commits = new Set<string>();
   for (const target of protocolTargets) {
     const log = await runGit(worktreePath, [
       'log',
+      '--no-follow',
       '--format=%H',
       ref,
       '--',
@@ -258,13 +285,21 @@ export async function verifyPinnedProtocol(
   if (ancestor.exitCode !== 0) {
     throw new Error('pinned protocol commit is not reachable from the bridge HEAD');
   }
+  // One call reads every pinned file. A file it does not return as an exact match is read
+  // again with `git show`, which decides the mismatch and reports Git's own errors.
+  const pinnedSpec = (relativePath: string): string => `${binding.commitSha}:${relativePath}`;
+  const pinned = await readGitObjects(
+    worktreePath,
+    [...local.files.keys()].map(pinnedSpec),
+    [...local.files.values()].reduce((total, expected) => total + Buffer.byteLength(expected), 0),
+  );
   for (const [relativePath, expected] of local.files) {
-    const atPinnedCommit = await runGit(worktreePath, [
-      'show',
-      `${binding.commitSha}:${relativePath}`,
-    ]);
-    if (atPinnedCommit.stdout !== expected) {
-      throw new Error(`pinned protocol content mismatch: ${relativePath}`);
+    const record = pinned.get(pinnedSpec(relativePath));
+    if (record?.type !== 'blob' || record.bytes.toString('utf8') !== expected) {
+      const atPinnedCommit = await runGit(worktreePath, ['show', pinnedSpec(relativePath)]);
+      if (atPinnedCommit.stdout !== expected) {
+        throw new Error(`pinned protocol content mismatch: ${relativePath}`);
+      }
     }
     const atHead = (
       await readFile(path.join(worktreePath, ...relativePath.split('/')), 'utf8')

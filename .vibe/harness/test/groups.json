@@ -380,7 +380,10 @@
       "runner": "node-test",
       "inheritSharedPatterns": false,
       "testFiles": [
-        ".vibe/harness/test/pro-roundtrip-cli.test.ts",
+        ".vibe/harness/test/pro-roundtrip-cli-flows.test.ts",
+        ".vibe/harness/test/pro-roundtrip-cli-guards.test.ts",
+        ".vibe/harness/test/pro-roundtrip-cli-protocol.test.ts",
+        ".vibe/harness/test/pro-roundtrip-cli-review.test.ts",
         ".vibe/harness/test/pro-roundtrip-contract.test.ts",
         ".vibe/harness/test/pro-roundtrip-transport.test.ts"
       ],
@@ -399,6 +402,7 @@
         ".vibe/harness/src/pro-roundtrip/**",
         ".vibe/harness/src/universal-integrity-core/**",
         ".vibe/harness/test/fixtures/pro-roundtrip/**",
+        ".vibe/harness/test/pro-roundtrip-cli-suite.ts",
         "bridge-runbook.md",
         "docs/context/pro-go-setup.md",
         "docs/context/workflow-integrity.md",
@@ -419,6 +423,7 @@
         ".vibe/harness/src/pro-roundtrip/**",
         ".vibe/harness/src/universal-integrity-core/**",
         ".vibe/harness/test/fixtures/pro-roundtrip/**",
+        ".vibe/harness/test/pro-roundtrip-cli-suite.ts",
         "bridge-runbook.md",
         "docs/context/pro-go-setup.md",
         "docs/context/workflow-integrity.md",

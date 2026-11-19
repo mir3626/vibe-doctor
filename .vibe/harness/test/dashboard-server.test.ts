@@ -288,6 +288,23 @@ test('auto-port discovery skips an occupied port and serves on an available port
   }
 });
 
+test('auto-port discovery also moves past a port the system refuses', async () => {
+  const { listenWithPortDiscovery } = await import(
+    pathToFileURL(path.resolve('.vibe/harness/scripts/vibe-dashboard.mjs')).href
+  ) as { listenWithPortDiscovery: (server: unknown, host: string, port: number) => Promise<number> };
+  const attempted: number[] = [];
+  const server = Object.assign(new EventEmitter(), {
+    listen(port: number): void {
+      attempted.push(port);
+      queueMicrotask(() => (attempted.length === 1
+        ? server.emit('error', Object.assign(new Error('listen EACCES'), { code: 'EACCES' }))
+        : server.emit('listening')));
+    },
+  });
+  assert.equal(await listenWithPortDiscovery(server, '127.0.0.1', 4100), 4101);
+  assert.deepEqual(attempted, [4100, 4101]);
+});
+
 test('SSE emits state-updated after daily log append', async () => {
   const root = await tempRoot();
   const port = await freePort();

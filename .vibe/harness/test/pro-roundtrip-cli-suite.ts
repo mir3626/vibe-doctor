@@ -14,6 +14,7 @@ import type {
   ProRoundtripFlow,
   ProRoundtripReportInput,
 } from '../src/lib/schemas/pro-roundtrip.js';
+import { loadFlowDefinition } from '../src/pro-roundtrip/flow-store.js';
 import { publishAdditions } from '../src/pro-roundtrip/git-branch-transport.js';
 import { packetRootFor } from '../src/pro-roundtrip/importer.js';
 import {
@@ -775,7 +776,7 @@ async function assertRejectsWithIssue(
   );
 }
 
-describe('vibe-pro-go CLI', { concurrency: true }, () => {
+function protocolAndSelection(): void {
   it('keeps the shipped Node wrapper connected to the TypeScript command', async () => {
     const result = await execFile(process.execPath, [cliPath, 'help'], {
       cwd: sourceRoot,
@@ -961,6 +962,68 @@ describe('vibe-pro-go CLI', { concurrency: true }, () => {
     );
   });
 
+  it('counts protocol history per path when the user sets log.follow', async (testContext) => {
+    const fixture = await scaffoldRepository(testContext);
+    await git(fixture.context.worktreePath, ['config', 'log.follow', 'true']);
+    await ensureProtocol({ context: fixture.context, publish: true });
+    // The second generation repeats most files of the first byte for byte. With log.follow a
+    // one-path history would also list the first generation's commit for each of them.
+    const sourcePath = path.join(fixture.checkout, protocolMutationSource);
+    await writeFile(sourcePath, `${await readFile(sourcePath, 'utf8')}\nfollow fixture\n`, 'utf8');
+    const second = await ensureProtocol({ context: fixture.context, publish: true });
+    assert.equal(second.bootstrapped, true);
+    assert.equal((await ensureProtocol({ context: fixture.context, publish: false })).commitSha, second.commitSha);
+  });
+
+  it('requires history for every protocol file, not only a worktree copy', async (testContext) => {
+    const fixture = await scaffoldRepository(testContext);
+    const local = await loadLocalProtocol(fixture.checkout);
+    const [[strayPath, strayContent], ...published] = [...local.files.entries()] as [[string, string], ...Array<[string, string]>];
+    await publishAdditions(new Map(published), 'test: publish all but one protocol file', {
+      context: fixture.context,
+    });
+    // The sixth file exists in the worktree only: no commit ever added it.
+    await writeText(path.join(fixture.context.worktreePath, ...strayPath.split('/')), strayContent);
+    await assert.rejects(
+      ensureProtocol({ context: fixture.context, publish: true }),
+      /immutable protocol file has 0 history entries/u,
+    );
+  });
+
+  it('rejects pinned protocol content that differs while the worktree copy matches', async (testContext) => {
+    const fixture = await scaffoldRepository(testContext);
+    const local = await loadLocalProtocol(fixture.checkout);
+    const tamperedPath = `${local.root}/COMMON-HARNESS.md`;
+    const expected = local.files.get(tamperedPath) ?? '';
+    const { bridgeCommitSha } = await publishAdditions(
+      new Map(local.files).set(tamperedPath, `${expected}\ntampered pinned content\n`),
+      'test: publish tampered pinned protocol',
+      { context: fixture.context },
+    );
+    // Only the pinned commit still carries the tampered bytes.
+    await writeText(path.join(fixture.context.worktreePath, ...tamperedPath.split('/')), expected);
+    await assert.rejects(
+      verifyPinnedProtocol(fixture.checkout, fixture.context.worktreePath, {
+        version: local.version,
+        commitSha: bridgeCommitSha,
+        commonHarnessSha256: local.commonHarnessSha256,
+      }),
+      /pinned protocol content mismatch: /u,
+    );
+  });
+
+  it('refuses a directory where the flow definition blob is required', async (testContext) => {
+    const fixture = await scaffoldRepository(testContext);
+    const flowPath = 'flows/20260101/001-directory-as-blob';
+    await publishAdditions(new Map([[`${flowPath}/FLOW.json/nested.txt`, 'not a flow\n']]), 'test: FLOW.json as a directory', {
+      context: fixture.context,
+    });
+    await assert.rejects(
+      loadFlowDefinition(fixture.context.worktreePath, flowPath),
+      /pro roundtrip object is not a blob: /u,
+    );
+  });
+
   it('bootstraps changed protocol content into a new append-only namespace', async (testContext) => {
     const fixture = await scaffoldRepository(testContext);
     const localA = await loadLocalProtocol(fixture.checkout);
@@ -1136,7 +1199,9 @@ describe('vibe-pro-go CLI', { concurrency: true }, () => {
       `pinned protocol version v1 does not match local protocol version ${local.version}; the flow is bound to a different protocol generation (finish or close it with the harness generation that created it, or start a new flow)`,
     );
   });
+}
 
+function closeAndBootstrap(): void {
   it('force-closes a poisoned flow append-only and makes every current selector terminal', async (testContext) => {
     const fixture = await scaffoldRepository(testContext);
     const started = await runCli(fixture, [
@@ -1516,7 +1581,9 @@ describe('vibe-pro-go CLI', { concurrency: true }, () => {
     ]);
     assert.match(String(recorded.checkpointPath), /SPR-001-end-to-end$/);
   });
+}
 
+function roundtripFlows(): void {
   it(
     'runs start → Web design import → Sprint checkpoint → aggregate publication',
     async (testContext) => {
@@ -2421,78 +2488,87 @@ describe('vibe-pro-go CLI', { concurrency: true }, () => {
       );
     },
   );
+}
 
+function reviewAcceptance(): void {
   it('guards every explicit accept-review publication precondition', async (testContext) => {
-    const notFeedbackFixture = await scaffoldRepository(testContext);
-    const started = await runCli(notFeedbackFixture, [
-      'start',
-      'design',
-      'Latest event guard',
-      '--slug',
-      'latest-event-guard',
-      '--timezone',
-      'Asia/Seoul',
-      '--repository',
-      'fixture/repo',
-      '--publish',
-    ]);
-    const notFeedbackFlow = String(started.flowPath);
-    await publishDesignEvent(notFeedbackFixture, notFeedbackFlow);
-    await assertRejectsExactly(
-      runCli(notFeedbackFixture, ['accept-review', notFeedbackFlow]),
-      'accept-review requires the latest completed event to be a Pro feedback',
-    );
-
-    const stale = await prepareReviewedFlow(testContext, { slug: 'stale-review-acceptance' });
-    await writeFile(
-      path.join(stale.fixture.checkout, 'advance-after-feedback.txt'),
-      'advance\n',
-      'utf8',
-    );
-    await git(stale.fixture.checkout, ['add', 'advance-after-feedback.txt']);
-    await git(stale.fixture.checkout, ['commit', '-m', 'test: stale accepted review']);
-    const staleHead = await git(stale.fixture.checkout, ['rev-parse', 'HEAD']);
-    await assertRejectsExactly(
-      runCli(stale.fixture, [
-        'accept-review',
-        stale.flowPath,
+    // Each precondition owns its repository, so the four are checked side by side.
+    const notFeedback = async (): Promise<void> => {
+      const notFeedbackFixture = await scaffoldRepository(testContext);
+      const started = await runCli(notFeedbackFixture, [
+        'start',
+        'design',
+        'Latest event guard',
+        '--slug',
+        'latest-event-guard',
+        '--timezone',
+        'Asia/Seoul',
+        '--repository',
+        'fixture/repo',
         '--publish',
-        '--user-approved',
-      ]),
-      `accepted HEAD is stale: feedback=${stale.implementedHead} current=${staleHead}`,
-    );
-
-    const unsynced = await prepareReviewedFlow(testContext, {
-      slug: 'unsynced-review-acceptance',
-      syncFeedback: false,
-    });
-    await assertRejectsExactly(
-      runCli(unsynced.fixture, [
-        'accept-review',
-        unsynced.flowPath,
-        '--publish',
-        '--user-approved',
-      ]),
-      'sync the feedback event before accepting',
-    );
-
-    const missingConfirmation = await prepareReviewedFlow(testContext, {
-      slug: 'confirmation-review-acceptance',
-    });
-    await runCli(missingConfirmation.fixture, [
-      'confirm-skip',
-      'on',
-      '--reason',
-      'fixture auto publish',
-    ]);
-    await assertRejectsExactly(
-      runCli(missingConfirmation.fixture, [
-        'accept-review',
-        missingConfirmation.flowPath,
-        '--publish',
-      ]),
-      'accept-review records a user decision; pass --user-approved only after the user explicitly confirms accepting every listed finding as a deferral. The proGoAutoPublish directive never covers this confirmation.',
-    );
+      ]);
+      const notFeedbackFlow = String(started.flowPath);
+      await publishDesignEvent(notFeedbackFixture, notFeedbackFlow);
+      await assertRejectsExactly(
+        runCli(notFeedbackFixture, ['accept-review', notFeedbackFlow]),
+        'accept-review requires the latest completed event to be a Pro feedback',
+      );
+    };
+    const staleFeedbackHead = async (): Promise<void> => {
+      const stale = await prepareReviewedFlow(testContext, { slug: 'stale-review-acceptance' });
+      await writeFile(
+        path.join(stale.fixture.checkout, 'advance-after-feedback.txt'),
+        'advance\n',
+        'utf8',
+      );
+      await git(stale.fixture.checkout, ['add', 'advance-after-feedback.txt']);
+      await git(stale.fixture.checkout, ['commit', '-m', 'test: stale accepted review']);
+      const staleHead = await git(stale.fixture.checkout, ['rev-parse', 'HEAD']);
+      await assertRejectsExactly(
+        runCli(stale.fixture, [
+          'accept-review',
+          stale.flowPath,
+          '--publish',
+          '--user-approved',
+        ]),
+        `accepted HEAD is stale: feedback=${stale.implementedHead} current=${staleHead}`,
+      );
+    };
+    const unsyncedFeedback = async (): Promise<void> => {
+      const unsynced = await prepareReviewedFlow(testContext, {
+        slug: 'unsynced-review-acceptance',
+        syncFeedback: false,
+      });
+      await assertRejectsExactly(
+        runCli(unsynced.fixture, [
+          'accept-review',
+          unsynced.flowPath,
+          '--publish',
+          '--user-approved',
+        ]),
+        'sync the feedback event before accepting',
+      );
+    };
+    const missingUserApproval = async (): Promise<void> => {
+      const missingConfirmation = await prepareReviewedFlow(testContext, {
+        slug: 'confirmation-review-acceptance',
+      });
+      await runCli(missingConfirmation.fixture, [
+        'confirm-skip',
+        'on',
+        '--reason',
+        'fixture auto publish',
+      ]);
+      await assertRejectsExactly(
+        runCli(missingConfirmation.fixture, [
+          'accept-review',
+          missingConfirmation.flowPath,
+          '--publish',
+        ]),
+        'accept-review records a user decision; pass --user-approved only after the user explicitly confirms accepting every listed finding as a deferral. The proGoAutoPublish directive never covers this confirmation.',
+      );
+    };
+    await Promise.all([notFeedback(), staleFeedbackHead(), unsyncedFeedback(), missingUserApproval()]);
   });
 
   it(
@@ -2581,7 +2657,8 @@ describe('vibe-pro-go CLI', { concurrency: true }, () => {
         },
       ];
 
-      for (const testCase of cases) {
+      // Each case owns its repository, so the six flows are prepared side by side.
+      await Promise.all(cases.map(async (testCase) => {
         const reviewed = await prepareReviewedFlow(testContext, {
           slug: testCase.slug,
           ...(testCase.findings ? { findings: testCase.findings } : {}),
@@ -2593,10 +2670,12 @@ describe('vibe-pro-go CLI', { concurrency: true }, () => {
         } else {
           await assertRejectsExactly(status, testCase.exactError?.(reviewed) ?? '');
         }
-      }
+      }));
     },
   );
+}
 
+function publicationGuards(): void {
   it('toggles the auto-publish confirmation-skip directive', async (testContext) => {
     const fixture = await scaffoldRepository(testContext);
     const configLocalPath = path.join(fixture.checkout, '.vibe', 'config.local.json');
@@ -2743,4 +2822,24 @@ describe('vibe-pro-go CLI', { concurrency: true }, () => {
     );
     },
   );
-});
+}
+
+const shards = {
+  protocol: [protocolAndSelection],
+  guards: [closeAndBootstrap, publicationGuards],
+  flows: [roundtripFlows],
+  review: [reviewAcceptance],
+};
+
+/**
+ * The suite is one module; each `pro-roundtrip-cli-<shard>.test.ts` file runs one part of it in
+ * its own test process. Its tests start thousands of Git processes, and one process starts them
+ * one at a time.
+ */
+export function describeCliShard(shard: keyof typeof shards): void {
+  describe(`vibe-pro-go CLI (${shard})`, { concurrency: true }, () => {
+    for (const register of shards[shard]) {
+      register();
+    }
+  });
+}

@@ -133,9 +133,10 @@ function collectScanFiles(root, scanPaths) {
   return [...new Set(files)].sort();
 }
 
-function walk(root, relativeDir = '') {
+// One shared array: spreading a sub-walk into push() passes every file as a call argument, which
+// overflows the stack once a directory tree holds more files than V8 accepts as arguments.
+function walk(root, relativeDir = '', results = []) {
   const absoluteDir = path.resolve(root, relativeDir);
-  const results = [];
   if (!existsSync(absoluteDir)) {
     return results;
   }
@@ -145,7 +146,7 @@ function walk(root, relativeDir = '') {
       if (IGNORED_DIRS.has(relative) || IGNORED_DIRS.has(entry.name)) {
         continue;
       }
-      results.push(...walk(root, relative));
+      walk(root, relative, results);
       continue;
     }
     if (entry.isFile()) {
@@ -155,8 +156,23 @@ function walk(root, relativeDir = '') {
   return results;
 }
 
-function collectRepositoryFiles(root) {
-  return walk(root).sort();
+// A glob reference can only match files below the directory before its first wildcard, so only
+// that directory is walked, once. The repository-wide list this replaces walked every ignored
+// build and scratch directory too. A directory that list never reached matches nothing here.
+function createGlobCandidates(root) {
+  const byDirectory = new Map();
+  return (referencePath) => {
+    const literal = referencePath.replace(/\\/g, '/').split(/[*{]/u)[0];
+    const directory = literal.slice(0, Math.max(0, literal.lastIndexOf('/')));
+    if (!byDirectory.has(directory)) {
+      const segments = directory === '' ? [] : directory.split('/');
+      const reachable = segments.every((segment, index) =>
+        !['', '.', '..'].includes(segment) && !segment.includes(':')
+        && !IGNORED_DIRS.has(segment) && !IGNORED_DIRS.has(segments.slice(0, index + 1).join('/')));
+      byDirectory.set(directory, reachable ? walk(root, directory).sort() : []);
+    }
+    return byDirectory.get(directory);
+  };
 }
 
 function dependencyClassForLine(line) {
@@ -339,10 +355,10 @@ function globToRegExp(pattern) {
   return new RegExp(`^${source}$`, 'u');
 }
 
-function resolveReference(root, referencePath, repositoryFiles) {
+function resolveReference(root, referencePath, globCandidates) {
   if (referencePath.includes('*') || referencePath.includes('{')) {
     const regex = globToRegExp(referencePath);
-    const matchedPaths = repositoryFiles.filter((file) => regex.test(file));
+    const matchedPaths = globCandidates(referencePath).filter((file) => regex.test(file));
     return {
       exists: matchedPaths.length > 0,
       matchedPaths: matchedPaths.slice(0, 20),
@@ -417,7 +433,7 @@ function countBy(items, key) {
 
 function runAudit(root, scanPaths) {
   const scanFiles = collectScanFiles(root, scanPaths);
-  const repositoryFiles = collectRepositoryFiles(root);
+  const globCandidates = createGlobCandidates(root);
   const references = [];
   let contextBytes = 0;
 
@@ -431,7 +447,7 @@ function runAudit(root, scanPaths) {
   }
 
   const enriched = references.map((reference) => {
-    const resolved = resolveReference(root, reference.path, repositoryFiles);
+    const resolved = resolveReference(root, reference.path, globCandidates);
     const next = {
       ...reference,
       exists: resolved.exists,

@@ -622,7 +622,9 @@ async function handleRequest(root, events, request, response) {
   jsonResponse(response, 404, { error: 'not found' });
 }
 
-async function listenWithPortDiscovery(server, host, requestedPort) {
+// A port another process holds can also be refused with EACCES (seen on Windows while other
+// processes run), so both codes mean "try the next port".
+export async function listenWithPortDiscovery(server, host, requestedPort) {
   for (let offset = 0; offset <= 10; offset += 1) {
     const port = requestedPort + offset;
     const result = await new Promise((resolve) => {
@@ -641,7 +643,7 @@ async function listenWithPortDiscovery(server, host, requestedPort) {
     if (result.ok) {
       return result.port;
     }
-    if (result.error?.code !== 'EADDRINUSE') {
+    if (result.error?.code !== 'EADDRINUSE' && result.error?.code !== 'EACCES') {
       throw result.error;
     }
   }

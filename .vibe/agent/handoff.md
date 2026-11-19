@@ -3,7 +3,30 @@
 PROJECT NOT INITIALIZED.
 This is the upstream template; downstream product work still requires /vibe-init.
 
-## Current — v1.22.0 released (sync B4 and skill-authoring fixes) / 2026-11-04
+## Current — v1.23.0 in release (fewer processes, verification 3x faster) / 2026-11-19
+
+- Owner directive from the downstream osint-stock-screener session: speed the harness up with its
+  function kept. Measured first: the forced suite took 458-479 s and was bound by process creation
+  (one Pro roundtrip test file started 12,609 child processes; 6, 11 and 20 workers took the same
+  time), so the work removes processes instead of adding workers.
+- pro-roundtrip reads Git objects with `git cat-file --batch` (blob: 4 processes to 1; snapshot: one
+  listing and one batch call), the pinned protocol files with one call and their history with one
+  `--full-history` call when that proves the per-file answer; every fast path leaves anything else,
+  and every error, to the previous per-file commands. `verify` runs consecutive test groups in one
+  runner with per-file attribution. Nine npm scripts use `node --import tsx`. context-audit walks
+  only where a glob reference can match.
+- Behavior changed on purpose: the statusline model warning compares harness profiles (owner
+  directive); dashboard port discovery also skips `EACCES`; protocol history passes `--no-follow`
+  (v1.22.0 rejected a second protocol generation under `log.follow=true`).
+- Evidence in `~/.claude/limit-break/20261119-1119-vibe-doctor-harness-speed-measure/`: forced suite
+  479/467/458 s before, 139/142/156/170/167 s after (five consecutive green runs); the 647 tests of
+  v1.22.0 unmodified on the new code fail only the rewritten statusline warning test; thirteen
+  seeded bugs each fail a test; old and new protocol verification agree on 23 histories.
+- Owner accepted the size: source +304 and tests +131 net lines against the +150 guideline.
+- Next: release verification with every release file staged, commit, annotated tag, atomic push,
+  CI, then sync osint-stock-screener (its three local harness patches ship in this release).
+
+## Previous — v1.22.0 released (sync B4 and skill-authoring fixes) / 2026-11-04
 
 - Published `v1.22.0` at `8bb9f6a9edbcea9128e1b4c93f126302a751571b`; annotated tag object
   `53f45373fd2b52343d217c4a8c645c0c86192bb3`. Atomic push and exact remote refs verified.

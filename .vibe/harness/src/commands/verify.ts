@@ -12,6 +12,9 @@ import {
 } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
+import { finished } from 'node:stream/promises';
+import { run } from 'node:test';
+import { spec } from 'node:test/reporters';
 import { getBooleanFlag, getStringFlag, parseArgs } from '../lib/args.js';
 import { runMain } from '../lib/cli.js';
 import { runtimeHarnessProfile } from '../lib/harness-profile.mjs';
@@ -717,17 +720,16 @@ async function invalidateReceipt(root: string, groupId: string, inputHash: strin
   await rm(receiptPath(root, groupId, inputHash), { force: true });
 }
 
-function verificationEnvironment(): NodeJS.ProcessEnv {
-  const env: NodeJS.ProcessEnv = {
-    ...process.env,
-    VIBE_HARNESS_HOOKS: 'on',
-    VIBE_SKIP_AGENT_SESSION_START: '1',
-  };
-  delete env.CLAUDE_PROJECT_DIR;
+/**
+ * Test files and command groups run as children of this process and inherit its environment.
+ */
+function adoptVerificationEnvironment(): void {
+  process.env.VIBE_HARNESS_HOOKS = 'on';
+  process.env.VIBE_SKIP_AGENT_SESSION_START = '1';
+  delete process.env.CLAUDE_PROJECT_DIR;
   // The verifier starts a standalone test run, including when invoked by a test.
   // Inheriting this private marker makes Node silently skip nested test files.
-  delete env.NODE_TEST_CONTEXT;
-  return env;
+  delete process.env.NODE_TEST_CONTEXT;
 }
 
 function resolveCommand(root: string, command: string[]): { executable: string; args: string[] } {
@@ -745,7 +747,6 @@ function runCommandGroup(root: string, group: VerificationGroup): number {
   const command = resolveCommand(root, group.command ?? []);
   const result = spawnSync(command.executable, command.args, {
     cwd: root,
-    env: verificationEnvironment(),
     shell: false,
     stdio: 'inherit',
     windowsHide: true,
@@ -756,28 +757,58 @@ function runCommandGroup(root: string, group: VerificationGroup): number {
   return result.status ?? 1;
 }
 
-function runNodeTestGroups(root: string, groups: VerificationGroup[]): number {
-  const tests = uniqueSorted(groups.flatMap((group) => group.testFiles ?? []));
-  if (tests.length === 0) {
-    return 0;
+function testFileKey(filePath: string): string {
+  const resolved = path.resolve(filePath);
+  return process.platform === 'win32' ? resolved.toLowerCase() : resolved;
+}
+
+/**
+ * Runs the test files of every given group in one runner and returns the ids of the groups
+ * that own a failed file. One runner shares its worker processes across the groups, so a
+ * group's files no longer wait for the slowest file of the group before it.
+ */
+async function runNodeTestGroups(root: string, groups: VerificationGroup[]): Promise<Set<string>> {
+  const groupIdsByFile = new Map<string, string[]>();
+  for (const group of groups) {
+    for (const testFile of group.testFiles ?? []) {
+      const key = testFileKey(path.join(root, testFile));
+      groupIdsByFile.set(key, [...(groupIdsByFile.get(key) ?? []), group.id]);
+    }
   }
-  const args: string[] = [];
+  const failedGroupIds = new Set<string>();
+  if (groupIdsByFile.size === 0) {
+    return failedGroupIds;
+  }
+  // The runner starts each test file as a child of this process with these Node options
+  // added to its own (`--import tsx` when this process was started with it).
+  const execArgv: string[] = [];
   const preload = path.join(root, '.vibe', 'harness', 'test', 'windows-hide-child-process.cjs');
   if (existsSync(preload)) {
-    args.push('--require', preload);
+    execArgv.push('--require', preload);
   }
-  args.push('--import', 'tsx', '--test', ...tests);
-  const result = spawnSync(process.execPath, args, {
+  if (!process.execArgv.some((argument) => /(^|[\\/])tsx([\\/]|$)/u.test(argument))) {
+    execArgv.push('--import', 'tsx');
+  }
+  const events = run({
+    files: [...groupIdsByFile.keys()].sort(),
     cwd: root,
-    env: verificationEnvironment(),
-    shell: false,
-    stdio: 'inherit',
-    windowsHide: true,
+    concurrency: true,
+    execArgv,
   });
-  if (result.error) {
-    throw result.error;
-  }
-  return result.status ?? 1;
+  events.on('test:fail', (event) => {
+    if (event.todo !== undefined && event.todo !== false && event.todo !== '') {
+      return;
+    }
+    // A failure that names no known file cannot be attributed, so every group fails.
+    const owners = groupIdsByFile.get(testFileKey(event.file ?? '')) ?? groups.map((group) => group.id);
+    for (const groupId of owners) {
+      failedGroupIds.add(groupId);
+    }
+  });
+  const report = events.compose(spec);
+  report.pipe(process.stdout, { end: false });
+  await finished(report);
+  return failedGroupIds;
 }
 
 function parseCsv(value: string | undefined): string[] | undefined {
@@ -928,6 +959,7 @@ async function executePlan(
   manifest: VerificationManifest,
   plan: VerificationPlan,
 ): Promise<void> {
+  adoptVerificationEnvironment();
   const byId = new Map(manifest.groups.map((group) => [group.id, group]));
   const runnable = plan.groups.filter((group) => group.action === 'run');
   const verifyStableInputs = async (planned: VerificationPlanGroup, group: VerificationGroup): Promise<void> => {
@@ -937,20 +969,11 @@ async function executePlan(
       throw new Error(`verification inputs changed during execution: ${planned.id}; rerun against stable inputs`);
     }
   };
-  for (const planned of runnable) {
-    const group = byId.get(planned.id);
-    if (!group) {
-      throw new Error(`missing manifest group during execution: ${planned.id}`);
-    }
-    const startedAt = Date.now();
-    console.log(`[vibe-verify] start group=${group.id}`);
-    const status = group.runner === 'command'
-      ? runCommandGroup(root, group)
-      : runNodeTestGroups(root, [group]);
-    if (status !== 0) {
-      await invalidateReceipt(root, group.id, planned.inputHash);
-      throw new Error(`verification group failed: ${group.id} (exit ${status})`);
-    }
+  const recordPass = async (
+    planned: VerificationPlanGroup,
+    group: VerificationGroup,
+    startedAt: number,
+  ): Promise<void> => {
     await verifyStableInputs(planned, group);
     await writeSuccessfulReceipt(root, {
       schemaVersion: RECEIPT_SCHEMA_VERSION,
@@ -964,7 +987,53 @@ async function executePlan(
       baseSha: plan.baseSha,
       changedPaths: plan.changedPaths,
     });
+  };
+  // Consecutive node-test groups run together; a command group runs alone, in manifest order.
+  let pooled: Array<{ planned: VerificationPlanGroup; group: VerificationGroup }> = [];
+  const runPooled = async (): Promise<void> => {
+    const batch = pooled;
+    pooled = [];
+    if (batch.length === 0) {
+      return;
+    }
+    const startedAt = Date.now();
+    for (const { group } of batch) {
+      console.log(`[vibe-verify] start group=${group.id}`);
+    }
+    const failedGroupIds = await runNodeTestGroups(root, batch.map(({ group }) => group));
+    // Drop every failed group's receipt before anything below can throw.
+    const failed = batch.filter(({ group }) => failedGroupIds.has(group.id));
+    for (const { planned, group } of failed) {
+      await invalidateReceipt(root, group.id, planned.inputHash);
+    }
+    for (const { planned, group } of batch.filter((entry) => !failed.includes(entry))) {
+      // The receipt's duration is that of the pooled run that verified the group.
+      await recordPass(planned, group, startedAt);
+    }
+    if (failed[0]) {
+      throw new Error(`verification group failed: ${failed[0].group.id} (exit 1)`);
+    }
+  };
+  for (const planned of runnable) {
+    const group = byId.get(planned.id);
+    if (!group) {
+      throw new Error(`missing manifest group during execution: ${planned.id}`);
+    }
+    if (group.runner !== 'command') {
+      pooled.push({ planned, group });
+      continue;
+    }
+    await runPooled();
+    const startedAt = Date.now();
+    console.log(`[vibe-verify] start group=${group.id}`);
+    const status = runCommandGroup(root, group);
+    if (status !== 0) {
+      await invalidateReceipt(root, group.id, planned.inputHash);
+      throw new Error(`verification group failed: ${group.id} (exit ${status})`);
+    }
+    await recordPass(planned, group, startedAt);
   }
+  await runPooled();
 
   // Later groups must not invalidate inputs used by earlier or reused groups.
   for (const planned of plan.groups) {

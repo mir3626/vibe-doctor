@@ -80,6 +80,75 @@ export async function runGitBinary(
   return Buffer.isBuffer(stdout) ? stdout : Buffer.from(stdout as unknown as Uint8Array);
 }
 
+export interface GitObjectRecord {
+  objectId: string;
+  type: string;
+  bytes: Buffer;
+}
+
+const BATCH_RECORD_OVERHEAD_BYTES = 256;
+
+/**
+ * One `git cat-file --batch` call for the object id, type and exact bytes of every requested
+ * revision, in place of several Git processes per object. A request Git reports as missing is
+ * left out. If the call fails or its reply does not parse completely the map is empty, so a
+ * caller keeps its per-object commands as the path that decides and reports every error.
+ */
+export function readGitObjects(
+  cwd: string,
+  specs: readonly string[],
+  maxContentBytes: number,
+): Promise<Map<string, GitObjectRecord>> {
+  if (specs.length === 0) {
+    return Promise.resolve(new Map());
+  }
+  return new Promise((resolve) => {
+    // The callback API returns the child process, whose stdin carries the requests.
+    const child = execFile('git', ['cat-file', '--batch'], {
+      cwd,
+      encoding: 'buffer',
+      maxBuffer: maxContentBytes + specs.length * BATCH_RECORD_OVERHEAD_BYTES,
+      windowsHide: true,
+    }, (error, stdout) => {
+      resolve(error ? new Map() : parseGitObjectBatch(specs, stdout as unknown as Buffer));
+    });
+    // Git may exit before it has read every request; the callback above reports that.
+    child.stdin?.on('error', () => undefined);
+    child.stdin?.end(`${specs.join('\n')}\n`);
+  });
+}
+
+function parseGitObjectBatch(specs: readonly string[], output: Buffer): Map<string, GitObjectRecord> {
+  const records = new Map<string, GitObjectRecord>();
+  let offset = 0;
+  for (const spec of specs) {
+    const headerEnd = output.indexOf(0x0a, offset);
+    if (headerEnd < 0) {
+      return new Map();
+    }
+    const header = output.toString('latin1', offset, headerEnd);
+    offset = headerEnd + 1;
+    const match = /^([a-f0-9]{40}) ([a-z]+) (\d+)$/u.exec(header);
+    if (!match) {
+      if (header.endsWith(' missing')) {
+        continue;
+      }
+      return new Map();
+    }
+    const contentEnd = offset + Number(match[3]);
+    if (contentEnd >= output.length || output[contentEnd] !== 0x0a) {
+      return new Map();
+    }
+    records.set(spec, {
+      objectId: match[1] ?? '',
+      type: match[2] ?? '',
+      bytes: Buffer.from(output.subarray(offset, contentEnd)),
+    });
+    offset = contentEnd + 1;
+  }
+  return offset === output.length ? records : new Map();
+}
+
 async function pathExists(candidate: string): Promise<boolean> {
   try {
     await stat(candidate);

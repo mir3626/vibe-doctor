@@ -226,20 +226,32 @@ describe('statusline.mjs', () => {
     );
   });
 
-  it('flags a VIBE_ACTIVE_MODEL that differs from the model Claude Code reports', async () => {
+  it('flags a VIBE_ACTIVE_MODEL whose harness profile differs from the model Claude Code reports', async () => {
     const root = await makeTempDir('statusline-model-env-');
     await writeStatus(root);
-    const env = { VIBE_ACTIVE_MODEL: 'claude-opus-5-5[1m]' };
+    await writeJson(root, path.join('.vibe', 'model-registry.json'), {
+      schemaVersion: 1,
+      providers: { anthropic: { knownModels: {
+        opus: { apiId: 'claude-opus-5-5', harnessProfile: 'astra' },
+        fable: { apiId: 'claude-fable-5-2', harnessProfile: 'astra' },
+      } } },
+    });
+    const env = { VIBE_ACTIVE_PROVIDER: 'anthropic', VIBE_ACTIVE_MODEL: 'claude-opus-5-5[1m]' };
     const reported = (id: string) => `${JSON.stringify({ model: { id } })}\n`;
+    // The risk count follows the reported model's profile: the two fixture risks are not audit findings.
+    const line = (risks: number) => `🎯 sprint-M9-statusline-permissions (2/3) | ${emojiWarning} ${risks}`;
 
+    // Harness commands would keep the Astra profile while the session runs a legacy-profile model.
     assert.equal(
       runNodeStatusline(root, reported('claude-sonnet-5-5'), env).stdout,
-      `🎯 sprint-M9-statusline-permissions (2/3) | ${emojiWarning} 2 | ${emojiWarning} VIBE_ACTIVE_MODEL claude-opus-5-5[1m] ≠ claude-sonnet-5-5`,
+      `${line(2)} | ${emojiWarning} VIBE_ACTIVE_MODEL claude-opus-5-5[1m] ≠ claude-sonnet-5-5`,
     );
+    // Another model of the same profile changes nothing for harness commands.
+    assert.equal(runNodeStatusline(root, reported('claude-fable-5-2'), env).stdout, line(0));
     // A context-window suffix names the same model; no input or no claim means nothing to compare.
-    assert.equal(runNodeStatusline(root, reported('claude-opus-5-5'), env).stdout, `🎯 sprint-M9-statusline-permissions (2/3) | ${emojiWarning} 2`);
-    assert.equal(runNodeStatusline(root, undefined, env).stdout, `🎯 sprint-M9-statusline-permissions (2/3) | ${emojiWarning} 2`);
-    assert.equal(runNodeStatusline(root, reported('claude-sonnet-5-5')).stdout, `🎯 sprint-M9-statusline-permissions (2/3) | ${emojiWarning} 2`);
+    assert.equal(runNodeStatusline(root, reported('claude-opus-5-5'), env).stdout, line(0));
+    assert.equal(runNodeStatusline(root, undefined, env).stdout, line(0));
+    assert.equal(runNodeStatusline(root, reported('claude-sonnet-5-5')).stdout, line(2));
   });
 
   it('reads Claude usage from redirected stdin by default', async () => {
@@ -322,8 +334,88 @@ describe('statusline.mjs', () => {
 
     assert.equal(stdout, `🎯 sprint-M9-statusline-permissions (2/3) | ${emojiSprint} sprint:extended | ⚠️ 2`);
   });
+
+  it('renders sprint info and risks when tokens.json is missing', async () => {
+    const root = await makeTempDir('statusline-no-tokens-');
+    await writeStatus(root);
+
+    const { stdout } = runNodeStatusline(root);
+
+    assert.equal(stdout, '🎯 sprint-M9-statusline-permissions (2/3) | ⚠️ 2');
+    assert.doesNotMatch(stdout, /🔧|⏱️/u);
+    assert.doesNotMatch(stdout, /💭/u);
+  });
+
+  it('renders zero tokens as 0K tok', async () => {
+    const root = await makeTempDir('statusline-zero-tokens-');
+    await writeStatus(root);
+    await writeJson(root, path.join('.vibe', 'agent', 'tokens.json'), {
+      updatedAt: '2026-04-16T00:00:00.000Z',
+      cumulativeTokens: 0,
+      elapsedSeconds: 0,
+      sprintTokens: {},
+    });
+
+    const { stdout } = runNodeStatusline(root);
+
+    assert.match(stdout, /\| 🔧 Codex 0K \|/u);
+  });
+
+  it('shows version suffix when config has harnessVersionInstalled', async () => {
+    const root = await makeTempDir('statusline-version-');
+    await writeStatus(root);
+    await writeJson(root, path.join('.vibe', 'config.json'), {
+      harnessVersionInstalled: '1.3.1',
+    });
+
+    const { stdout } = runNodeStatusline(root);
+
+    assert.equal(stdout, '🎯 sprint-M9-statusline-permissions (2/3) | ⚠️ 2 | 🏷️ v1.3.1');
+  });
+
+  it('shows update hint when latestVersion > installed', async () => {
+    const root = await makeTempDir('statusline-update-');
+    await writeStatus(root);
+    await writeJson(root, path.join('.vibe', 'config.json'), {
+      harnessVersionInstalled: '1.3.1',
+    });
+    await writeJson(root, path.join('.vibe', 'sync-cache.json'), {
+      latestVersion: '1.4.0',
+    });
+
+    const { stdout } = runNodeStatusline(root);
+
+    assert.equal(stdout, '🎯 sprint-M9-statusline-permissions (2/3) | ⚠️ 2 | 🏷️ v1.3.1 \u26A0 v1.4.0 (/vibe-sync)');
+  });
+
+  it('omits suffix when config missing', async () => {
+    const root = await makeTempDir('statusline-missing-config-');
+    await writeStatus(root);
+    await writeJson(root, path.join('.vibe', 'sync-cache.json'), {
+      latestVersion: '1.4.0',
+    });
+
+    const { stdout } = runNodeStatusline(root);
+
+    assert.equal(stdout, '🎯 sprint-M9-statusline-permissions (2/3) | ⚠️ 2');
+  });
+
+  it('omits suffix when config unparseable', async () => {
+    const root = await makeTempDir('statusline-bad-config-');
+    await writeStatus(root);
+    await writeText(root, path.join('.vibe', 'config.json'), '{');
+    await writeJson(root, path.join('.vibe', 'sync-cache.json'), {
+      latestVersion: '1.4.0',
+    });
+
+    const { stdout } = runNodeStatusline(root);
+
+    assert.equal(stdout, '🎯 sprint-M9-statusline-permissions (2/3) | ⚠️ 2');
+  });
 });
 
+// statusline.sh only starts statusline.mjs, so these cover what the wrapper adds: it runs the
+// script, passes stdin and bytes through, and exits 0. Rendering cases run on statusline.mjs.
 describe('statusline.sh', { skip: bashCommand === null }, () => {
   it('renders the normal output when sprint and token state files are present', async () => {
     const root = await makeTempDir('statusline-normal-');
@@ -342,17 +434,6 @@ describe('statusline.sh', { skip: bashCommand === null }, () => {
     assert.match(stdout, /^🎯 .+ \(\d+\/\d+\) \| ⏱️ \d+m \| 🔧 Codex \d+K \| ⚠️ \d+$/u);
   });
 
-  it('renders sprint info and risks when tokens.json is missing', async () => {
-    const root = await makeTempDir('statusline-no-tokens-');
-    await writeStatus(root);
-
-    const { stdout } = await runBashStatusline(root);
-
-    assert.equal(stdout, '🎯 sprint-M9-statusline-permissions (2/3) | ⚠️ 2');
-    assert.doesNotMatch(stdout, /🔧|⏱️/u);
-    assert.doesNotMatch(stdout, /💭/u);
-  });
-
   it('prints nothing and exits successfully when sprint-status.json is missing', async () => {
     const root = await makeTempDir('statusline-no-status-');
 
@@ -360,21 +441,6 @@ describe('statusline.sh', { skip: bashCommand === null }, () => {
 
     assert.equal(stdout, '');
     assert.equal(stderr, '');
-  });
-
-  it('renders zero tokens as 0K tok', async () => {
-    const root = await makeTempDir('statusline-zero-tokens-');
-    await writeStatus(root);
-    await writeJson(root, path.join('.vibe', 'agent', 'tokens.json'), {
-      updatedAt: '2026-04-16T00:00:00.000Z',
-      cumulativeTokens: 0,
-      elapsedSeconds: 0,
-      sprintTokens: {},
-    });
-
-    const { stdout } = await runBashStatusline(root);
-
-    assert.match(stdout, /\| 🔧 Codex 0K \|/u);
   });
 
   it('bash statusline sums Claude usage from stdin transcript_path', async () => {
@@ -414,75 +480,6 @@ describe('statusline.sh', { skip: bashCommand === null }, () => {
     assert.ok(stdout.includes(Buffer.from('🎯', 'utf8')));
     assert.ok(stdout.includes(Buffer.from('⚠️', 'utf8')));
     assert.equal(stdout.toString('utf8'), '🎯 sprint-M9-statusline-permissions (2/3) | ⚠️ 2');
-  });
-
-  it('bash statusline shows version suffix when config has harnessVersionInstalled', async () => {
-    const root = await makeTempDir('statusline-version-');
-    await writeStatus(root);
-    await writeJson(root, path.join('.vibe', 'config.json'), {
-      harnessVersionInstalled: '1.3.1',
-    });
-
-    const { stdout } = await runBashStatusline(root);
-
-    assert.equal(stdout, '🎯 sprint-M9-statusline-permissions (2/3) | ⚠️ 2 | 🏷️ v1.3.1');
-  });
-
-  it('bash statusline shows update hint when latestVersion > installed', async () => {
-    const root = await makeTempDir('statusline-update-');
-    await writeStatus(root);
-    await writeJson(root, path.join('.vibe', 'config.json'), {
-      harnessVersionInstalled: '1.3.1',
-    });
-    await writeJson(root, path.join('.vibe', 'sync-cache.json'), {
-      latestVersion: '1.4.0',
-    });
-
-    const { stdout } = await runBashStatusline(root);
-
-    assert.equal(stdout, '🎯 sprint-M9-statusline-permissions (2/3) | ⚠️ 2 | 🏷️ v1.3.1 \u26A0 v1.4.0 (/vibe-sync)');
-  });
-
-  it('bash statusline does not show update nags for exact upstream pins', async () => {
-    const root = await makeTempDir('statusline-exact-pin-');
-    await writeStatus(root);
-    await writeJson(root, path.join('.vibe', 'config.json'), {
-      harnessVersionInstalled: '1.3.1',
-      upstream: { type: 'git', url: 'https://github.com/mir3626/vibe-doctor.git', ref: 'v1.3.1' },
-    });
-    await writeJson(root, path.join('.vibe', 'sync-cache.json'), {
-      latestVersion: '1.4.0',
-    });
-
-    const { stdout } = await runBashStatusline(root);
-
-    assert.match(stdout, /v1\.3\.1 pinned$/);
-    assert.doesNotMatch(stdout, /\/vibe-sync/);
-  });
-
-  it('bash statusline omits suffix when config missing', async () => {
-    const root = await makeTempDir('statusline-missing-config-');
-    await writeStatus(root);
-    await writeJson(root, path.join('.vibe', 'sync-cache.json'), {
-      latestVersion: '1.4.0',
-    });
-
-    const { stdout } = await runBashStatusline(root);
-
-    assert.equal(stdout, '🎯 sprint-M9-statusline-permissions (2/3) | ⚠️ 2');
-  });
-
-  it('bash statusline omits suffix when config unparseable', async () => {
-    const root = await makeTempDir('statusline-bad-config-');
-    await writeStatus(root);
-    await writeText(root, path.join('.vibe', 'config.json'), '{');
-    await writeJson(root, path.join('.vibe', 'sync-cache.json'), {
-      latestVersion: '1.4.0',
-    });
-
-    const { stdout } = await runBashStatusline(root);
-
-    assert.equal(stdout, '🎯 sprint-M9-statusline-permissions (2/3) | ⚠️ 2');
   });
 });
 
